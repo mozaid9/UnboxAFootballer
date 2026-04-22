@@ -68,15 +68,15 @@ local screenGui = make("ScreenGui", {
 
 local topBar = make("Frame", {
 	Name = "TopBar",
-	Size = UDim2.new(0, 420, 0, 220),
+	Size = UDim2.new(0, 340, 0, 220),
 	Position = UDim2.new(0, 0, 0, 0),
 	BackgroundTransparency = 1,
 }, screenGui)
 
 local topRightDock = make("Frame", {
 	Name = "TopRightDock",
-	Size = UDim2.fromOffset(210, 110),
-	Position = UDim2.new(0, 24, 0, 128),
+	Size = UDim2.fromOffset(176, 86),
+	Position = UDim2.new(0, 24, 0, 118),
 	AnchorPoint = Vector2.new(0, 0),
 	BackgroundTransparency = 1,
 }, topBar)
@@ -90,21 +90,22 @@ make("UIListLayout", {
 
 local openShopButton = make("TextButton", {
 	LayoutOrder = 1,
-	Size = UDim2.fromOffset(188, 46),
+	Size = UDim2.fromOffset(166, 36),
 	BackgroundColor3 = UI.Gold,
-	Text = "Pack Shop",
+	Text = "Upgrades",
 	TextColor3 = Color3.fromRGB(20, 14, 8),
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 16,
 	Font = Enum.Font.GothamBlack,
 }, topRightDock)
-addCorner(openShopButton, 14)
+addCorner(openShopButton, 12)
 
 local coinPill = make("Frame", {
 	LayoutOrder = 2,
-	Size = UDim2.fromOffset(188, 46),
+	Size = UDim2.fromOffset(166, 36),
 	BackgroundColor3 = UI.Panel,
 }, topRightDock)
-addCorner(coinPill, 14)
+addCorner(coinPill, 12)
 addStroke(coinPill, UI.Gold, 2, 0.15)
 
 local coinGradient = make("UIGradient", {
@@ -116,23 +117,25 @@ local coinGradient = make("UIGradient", {
 }, coinPill)
 
 local coinIcon = make("TextLabel", {
-	Size = UDim2.fromOffset(28, 28),
-	Position = UDim2.new(0, 10, 0.5, -14),
+	Size = UDim2.fromOffset(22, 22),
+	Position = UDim2.new(0, 8, 0.5, -11),
 	BackgroundColor3 = Color3.fromRGB(35, 30, 10),
 	Text = "C",
 	TextColor3 = UI.Gold,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 17,
 	Font = Enum.Font.GothamBlack,
 }, coinPill)
-addCorner(coinIcon, 9)
+addCorner(coinIcon, 8)
 
 local coinTitle = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 48, 0, 4),
-	Size = UDim2.new(1, -56, 0, 12),
+	Position = UDim2.new(0, 38, 0, 3),
+	Size = UDim2.new(1, -44, 0, 10),
 	Text = "Coins",
 	TextColor3 = UI.Muted,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 10,
 	Font = Enum.Font.GothamMedium,
 	TextXAlignment = Enum.TextXAlignment.Left,
 }, coinPill)
@@ -140,24 +143,27 @@ local coinTitle = make("TextLabel", {
 local coinsLabel = make("TextLabel", {
 	Name = "CoinsLabel",
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 48, 0, 15),
-	Size = UDim2.new(1, -56, 0, 22),
+	Position = UDim2.new(0, 38, 0, 12),
+	Size = UDim2.new(1, -44, 0, 18),
 	Text = "0",
 	TextColor3 = UI.Text,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 19,
 	Font = Enum.Font.GothamBlack,
 	TextXAlignment = Enum.TextXAlignment.Left,
 }, coinPill)
 
 local hintLabel = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Size = UDim2.new(0.48, 0, 0, 20),
-	Position = UDim2.new(0.52, 0, 0, 102),
-	AnchorPoint = Vector2.new(0.5, 0),
-	Text = "Walk to a pack stand and press E to open packs.",
+	Size = UDim2.fromOffset(210, 36),
+	Position = UDim2.new(0, 24, 0, 212),
+	Text = "Free random packs spawn on your red pad.",
 	TextColor3 = UI.Muted,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 12,
+	TextWrapped = true,
 	Font = Enum.Font.GothamMedium,
+	TextXAlignment = Enum.TextXAlignment.Left,
 }, topBar)
 
 local shopScreen = make("Frame", {
@@ -490,7 +496,7 @@ local function buildPackButton(packDef)
 		BackgroundColor3 = packDef.color,
 		Size = UDim2.new(0.84, 0, 0, 44),
 		Position = UDim2.new(0.08, 0, 1, -58),
-		Text = Utils.FormatNumber(packDef.cost) .. " Coins",
+		Text = packDef.cost == 0 and "Free During Alpha" or Utils.FormatNumber(packDef.cost) .. " Coins",
 		TextColor3 = Color3.fromRGB(20, 14, 8),
 		TextScaled = true,
 		Font = Enum.Font.GothamBlack,
@@ -666,13 +672,8 @@ local function refreshStatus()
 	end
 
 	setCoinsDisplay(data.coins)
-	if data.canClaimFreePack then
-		shopStatus.Text = "Free pack is ready."
-		shopStatus.TextColor3 = UI.Success
-	else
-		shopStatus.Text = "Free pack cooldown: " .. Utils.FormatCountdown(data.freePackRemaining or 0)
-		shopStatus.TextColor3 = UI.Muted
-	end
+	shopStatus.Text = "Pad packs are free right now. Upgrades come next."
+	shopStatus.TextColor3 = UI.Muted
 end
 
 local function runReveal(payload)
@@ -728,8 +729,7 @@ for packId, button in pairs(packButtons) do
 end
 
 openShopButton.MouseButton1Click:Connect(function()
-	refreshStatus()
-	shopScreen.Visible = true
+	showToast("Upgrades are coming next: pad luck, pack quality, and pitchfork power.", UI.Gold)
 end)
 
 closeShopButton.MouseButton1Click:Connect(function()

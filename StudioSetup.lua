@@ -1,7 +1,7 @@
 -- ============================================================
--- UNBOX A FOOTBALLER v3 -- PACK SETUP
+-- UNBOX A FOOTBALLER v4 -- BASE PAD SETUP
 -- Paste this ENTIRE script into the Roblox Studio Command Bar
--- and press Enter to install the current pack-opening prototype.
+-- and press Enter to install the current prototype.
 -- ============================================================
 
 local RS = game:GetService("ReplicatedStorage")
@@ -169,7 +169,6 @@ Constants.UI = {
 }
 
 return Constants
-
 ]==])
 
 makeModule("CardData", shared, [==[
@@ -222,7 +221,6 @@ CardData.NationGroups = {
 }
 
 return CardData
-
 ]==])
 
 makeModule("PackConfig", shared, [==[
@@ -251,9 +249,10 @@ PackConfig.ShopOrder = {
 		id = "GoldPack",
 		displayName = "Gold Pack",
 		description = "3 Gold cards. Balanced odds and easy entry.",
-		cost = 5000,
+		cost = 0,
+		futureCost = 5000,
 		cardCount = 3,
-		padWeight = 80,
+		padWeight = 74,
 		color = Color3.fromRGB(255, 215, 0),
 		displayRating = 80,
 		station = {
@@ -264,7 +263,8 @@ PackConfig.ShopOrder = {
 		id = "RareGoldPack",
 		displayName = "Rare Gold Pack",
 		description = "5 cards with one guaranteed 85+ Rare Gold pull.",
-		cost = 10000,
+		cost = 0,
+		futureCost = 10000,
 		cardCount = 5,
 		padWeight = 20,
 		color = Color3.fromRGB(255, 168, 42),
@@ -277,6 +277,21 @@ PackConfig.ShopOrder = {
 			position = Vector3.new(10, 1.5, -16),
 		},
 	},
+	{
+		id = "PremiumGoldPack",
+		displayName = "Premium Gold Pack",
+		description = "5 cards with a guaranteed 88+ premium pull.",
+		cost = 0,
+		futureCost = 18000,
+		cardCount = 5,
+		padWeight = 6,
+		color = Color3.fromRGB(255, 118, 58),
+		displayRating = 88,
+		guaranteed = {
+			minRating = 88,
+			slotIndex = 5,
+		},
+	},
 }
 
 PackConfig.ById = {}
@@ -287,7 +302,6 @@ end
 PackConfig.PadSpawnOrder = PackConfig.ShopOrder
 
 return PackConfig
-
 ]==])
 
 makeModule("Utils", shared, [==[
@@ -360,7 +374,6 @@ function Utils.GetRarityColor(rarity)
 end
 
 return Utils
-
 ]==])
 
 makeModule("DataService", SSS, [==[
@@ -581,7 +594,6 @@ task.spawn(function()
 end)
 
 return DataService
-
 ]==])
 
 makeModule("EconomyService", SSS, [==[
@@ -674,7 +686,6 @@ function EconomyService.ClaimFreePack(player)
 end
 
 return EconomyService
-
 ]==])
 
 makeModule("PackService", SSS, [==[
@@ -782,10 +793,12 @@ local function serializeCard(card)
 	}
 end
 
-function PackService.OpenPack(player, packId)
+function PackService.OpenPack(player, packId, options)
 	if not DataService or not EconomyService then
 		return false, { error = "Pack service not ready." }
 	end
+
+	options = options or {}
 
 	local packDef = PackConfig.ById[packId]
 	if not packDef then
@@ -797,7 +810,9 @@ function PackService.OpenPack(player, packId)
 		return false, { error = "Your data is still loading." }
 	end
 
-	if packDef.isFree then
+	if options.ignoreCost then
+		-- Base pad spawns are free in this phase.
+	elseif packDef.isFree then
 		local ok, err = EconomyService.ClaimFreePack(player)
 		if not ok then
 			return false, { error = err or "Free pack is not ready yet." }
@@ -839,13 +854,13 @@ function PackService.OpenPack(player, packId)
 		success = true,
 		packId = packId,
 		packName = packDef.displayName,
+		isFree = options.ignoreCost == true or packDef.cost == 0,
 		newCoins = DataService.GetCoins(player),
 		cards = cards,
 	}
 end
 
 return PackService
-
 ]==])
 
 makeModule("BaseService", SSS, [==[
@@ -927,16 +942,6 @@ local function createDisplaySlot(parent, index, cframe)
 		Size = Vector3.new(layout.DisplaySlotSize.X - 1.4, 0.18, layout.DisplaySlotSize.Z - 1.4),
 		CFrame = base.CFrame + Vector3.new(0, layout.DisplaySlotSize.Y / 2 + 0.1, 0),
 	}, model)
-
-	make("BillboardGui", {
-		Name = "SlotGui",
-		Size = UDim2.fromOffset(160, 26),
-		StudsOffset = Vector3.new(0, layout.DisplaySlotSize.Y / 2 + 1.2, 0),
-		AlwaysOnTop = true,
-	}, base)
-
-	local gui = base:FindFirstChild("SlotGui")
-	createSignLabel("Display Slot " .. index, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), Color3.fromRGB(225, 236, 229), gui)
 
 	model:SetAttribute("SlotIndex", index)
 	model:SetAttribute("Occupied", false)
@@ -1043,32 +1048,33 @@ local function createPlot(plotId, side, laneIndex, position)
 
 	local padGui = make("BillboardGui", {
 		Name = "PadGui",
-		Size = UDim2.fromOffset(210, 62),
-		StudsOffset = Vector3.new(0, 4.6, 0),
+		Size = UDim2.fromOffset(168, 48),
+		StudsOffset = Vector3.new(0, 3.7, 0),
 		AlwaysOnTop = true,
+		MaxDistance = 120,
 	}, packPad)
 
 	local padFrame = make("Frame", {
 		BackgroundColor3 = Color3.fromRGB(10, 14, 24),
-		BackgroundTransparency = 0.12,
+		BackgroundTransparency = 0.18,
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(1, 1),
 	}, padGui)
 
 	make("UICorner", {
-		CornerRadius = UDim.new(0, 14),
+		CornerRadius = UDim.new(0, 12),
 	}, padFrame)
 
 	make("UIStroke", {
 		Color = Color3.fromRGB(255, 215, 0),
-		Thickness = 2,
-		Transparency = 0.15,
+		Thickness = 1.5,
+		Transparency = 0.22,
 	}, padFrame)
 
 	local padAccent = make("Frame", {
 		BackgroundColor3 = Color3.fromRGB(255, 85, 85),
 		BorderSizePixel = 0,
-		Size = UDim2.new(0, 8, 1, -12),
+		Size = UDim2.new(0, 6, 1, -12),
 		Position = UDim2.new(0, 8, 0, 6),
 	}, padFrame)
 
@@ -1076,8 +1082,14 @@ local function createPlot(plotId, side, laneIndex, position)
 		CornerRadius = UDim.new(0, 6),
 	}, padAccent)
 
-	local padTitleLabel = createSignLabel("Pack Pad", UDim2.new(1, -28, 0.38, 0), UDim2.new(0, 22, 0.08, 0), Color3.fromRGB(245, 238, 220), padFrame)
-	local padSubtitleLabel = createSignLabel("Waiting for owner", UDim2.new(1, -28, 0.22, 0), UDim2.new(0, 22, 0.52, 0), Color3.fromRGB(180, 176, 164), padFrame)
+	local padTitleLabel = createSignLabel("Pack Pad", UDim2.new(1, -24, 0, 20), UDim2.new(0, 22, 0, 4), Color3.fromRGB(245, 238, 220), padFrame)
+	local padSubtitleLabel = createSignLabel("Waiting for owner", UDim2.new(1, -24, 0, 14), UDim2.new(0, 22, 0, 24), Color3.fromRGB(180, 176, 164), padFrame)
+	padTitleLabel.TextScaled = false
+	padTitleLabel.TextSize = 18
+	padTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	padSubtitleLabel.TextScaled = false
+	padSubtitleLabel.TextSize = 11
+	padSubtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	padSubtitleLabel.Font = Enum.Font.GothamBold
 
 	local displayFolder = make("Folder", {
@@ -1222,7 +1234,6 @@ function BaseService.PlaceCharacterAtPlot(player, character)
 end
 
 return BaseService
-
 ]==])
 
 makeModule("MarketService", SSS, [==[
@@ -1237,7 +1248,6 @@ function MarketService.BuyListing()
 end
 
 return MarketService
-
 ]==])
 
 makeModule("RebirthService", SSS, [==[
@@ -1279,7 +1289,6 @@ function RebirthService.CanRebirth(player)
 end
 
 return RebirthService
-
 ]==])
 
 makeModule("TradeService", SSS, [==[
@@ -1294,7 +1303,6 @@ function TradeService.ValidateTrade()
 end
 
 return TradeService
-
 ]==])
 
 makeScript("Main", SSS, [==[
@@ -1521,10 +1529,10 @@ local function spawnPackForPlot(plot)
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "OpenPrompt"
-	prompt.ActionText = "Open " .. packDef.displayName
-	prompt.ObjectText = Utils.FormatNumber(packDef.cost) .. " Coins"
+	prompt.ActionText = "Open Pack"
+	prompt.ObjectText = "Free Spawn"
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
-	prompt.HoldDuration = 0.12
+	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = 12
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = promptAttachment
@@ -1542,12 +1550,15 @@ local function spawnPackForPlot(plot)
 			return
 		end
 
-		local ok, result = PackService.OpenPack(player, packDef.id)
+		local ok, result = PackService.OpenPack(player, packDef.id, {
+			ignoreCost = true,
+			source = "base_pad",
+		})
 		if ok then
 			PackOpenedEvent:FireClient(player, result)
-			BaseService.SetPlotPadStatus(plot, "Rolling Next Pack", "Refreshing your red pad", packDef.color)
+			BaseService.SetPlotPadStatus(plot, "Rolling Next Pack", "Another free pack is spawning", packDef.color)
 			clearPlotPack(plot)
-			task.delay(1.2, function()
+			task.delay(0.9, function()
 				if plot.ownerPlayer == player then
 					spawnPackForPlot(plot)
 				end
@@ -1559,7 +1570,7 @@ local function spawnPackForPlot(plot)
 
 	plot.activePackModel = model
 	plot.activePackDef = packDef
-	BaseService.SetPlotPadStatus(plot, packDef.displayName, Utils.FormatNumber(packDef.cost) .. " coins on your red pad", packDef.color)
+	BaseService.SetPlotPadStatus(plot, packDef.displayName, "Free random spawn on your red pad", packDef.color)
 end
 
 for _, plot in ipairs(BaseService.GetPlots()) do
@@ -1596,7 +1607,7 @@ Players.PlayerAdded:Connect(function(player)
 		if player.Parent then
 			UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
 			PromptPackShopEvent:FireClient(player, {
-				message = plot and "Your random pack now spawns on the red pad in your base." or "This server's bases are full right now.",
+				message = plot and "Free random packs spawn on the red pad in your base." or "This server's bases are full right now.",
 			})
 		end
 	end)
@@ -1731,7 +1742,6 @@ SellAllCardsFn.OnServerInvoke = function(player, cardIds)
 end
 
 print("[UnboxAFootballer] Pack systems ready")
-
 ]==])
 
 makeLocal("PackOpeningUI", sps, [==[
@@ -1805,15 +1815,15 @@ local screenGui = make("ScreenGui", {
 
 local topBar = make("Frame", {
 	Name = "TopBar",
-	Size = UDim2.new(0, 420, 0, 220),
+	Size = UDim2.new(0, 340, 0, 220),
 	Position = UDim2.new(0, 0, 0, 0),
 	BackgroundTransparency = 1,
 }, screenGui)
 
 local topRightDock = make("Frame", {
 	Name = "TopRightDock",
-	Size = UDim2.fromOffset(210, 110),
-	Position = UDim2.new(0, 24, 0, 128),
+	Size = UDim2.fromOffset(176, 86),
+	Position = UDim2.new(0, 24, 0, 118),
 	AnchorPoint = Vector2.new(0, 0),
 	BackgroundTransparency = 1,
 }, topBar)
@@ -1827,21 +1837,22 @@ make("UIListLayout", {
 
 local openShopButton = make("TextButton", {
 	LayoutOrder = 1,
-	Size = UDim2.fromOffset(188, 46),
+	Size = UDim2.fromOffset(166, 36),
 	BackgroundColor3 = UI.Gold,
-	Text = "Pack Shop",
+	Text = "Upgrades",
 	TextColor3 = Color3.fromRGB(20, 14, 8),
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 16,
 	Font = Enum.Font.GothamBlack,
 }, topRightDock)
-addCorner(openShopButton, 14)
+addCorner(openShopButton, 12)
 
 local coinPill = make("Frame", {
 	LayoutOrder = 2,
-	Size = UDim2.fromOffset(188, 46),
+	Size = UDim2.fromOffset(166, 36),
 	BackgroundColor3 = UI.Panel,
 }, topRightDock)
-addCorner(coinPill, 14)
+addCorner(coinPill, 12)
 addStroke(coinPill, UI.Gold, 2, 0.15)
 
 local coinGradient = make("UIGradient", {
@@ -1853,23 +1864,25 @@ local coinGradient = make("UIGradient", {
 }, coinPill)
 
 local coinIcon = make("TextLabel", {
-	Size = UDim2.fromOffset(28, 28),
-	Position = UDim2.new(0, 10, 0.5, -14),
+	Size = UDim2.fromOffset(22, 22),
+	Position = UDim2.new(0, 8, 0.5, -11),
 	BackgroundColor3 = Color3.fromRGB(35, 30, 10),
 	Text = "C",
 	TextColor3 = UI.Gold,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 17,
 	Font = Enum.Font.GothamBlack,
 }, coinPill)
-addCorner(coinIcon, 9)
+addCorner(coinIcon, 8)
 
 local coinTitle = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 48, 0, 4),
-	Size = UDim2.new(1, -56, 0, 12),
+	Position = UDim2.new(0, 38, 0, 3),
+	Size = UDim2.new(1, -44, 0, 10),
 	Text = "Coins",
 	TextColor3 = UI.Muted,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 10,
 	Font = Enum.Font.GothamMedium,
 	TextXAlignment = Enum.TextXAlignment.Left,
 }, coinPill)
@@ -1877,24 +1890,27 @@ local coinTitle = make("TextLabel", {
 local coinsLabel = make("TextLabel", {
 	Name = "CoinsLabel",
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 48, 0, 15),
-	Size = UDim2.new(1, -56, 0, 22),
+	Position = UDim2.new(0, 38, 0, 12),
+	Size = UDim2.new(1, -44, 0, 18),
 	Text = "0",
 	TextColor3 = UI.Text,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 19,
 	Font = Enum.Font.GothamBlack,
 	TextXAlignment = Enum.TextXAlignment.Left,
 }, coinPill)
 
 local hintLabel = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Size = UDim2.new(0.48, 0, 0, 20),
-	Position = UDim2.new(0.52, 0, 0, 102),
-	AnchorPoint = Vector2.new(0.5, 0),
-	Text = "Walk to a pack stand and press E to open packs.",
+	Size = UDim2.fromOffset(210, 36),
+	Position = UDim2.new(0, 24, 0, 212),
+	Text = "Free random packs spawn on your red pad.",
 	TextColor3 = UI.Muted,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 12,
+	TextWrapped = true,
 	Font = Enum.Font.GothamMedium,
+	TextXAlignment = Enum.TextXAlignment.Left,
 }, topBar)
 
 local shopScreen = make("Frame", {
@@ -2227,7 +2243,7 @@ local function buildPackButton(packDef)
 		BackgroundColor3 = packDef.color,
 		Size = UDim2.new(0.84, 0, 0, 44),
 		Position = UDim2.new(0.08, 0, 1, -58),
-		Text = Utils.FormatNumber(packDef.cost) .. " Coins",
+		Text = packDef.cost == 0 and "Free During Alpha" or Utils.FormatNumber(packDef.cost) .. " Coins",
 		TextColor3 = Color3.fromRGB(20, 14, 8),
 		TextScaled = true,
 		Font = Enum.Font.GothamBlack,
@@ -2403,13 +2419,8 @@ local function refreshStatus()
 	end
 
 	setCoinsDisplay(data.coins)
-	if data.canClaimFreePack then
-		shopStatus.Text = "Free pack is ready."
-		shopStatus.TextColor3 = UI.Success
-	else
-		shopStatus.Text = "Free pack cooldown: " .. Utils.FormatCountdown(data.freePackRemaining or 0)
-		shopStatus.TextColor3 = UI.Muted
-	end
+	shopStatus.Text = "Pad packs are free right now. Upgrades come next."
+	shopStatus.TextColor3 = UI.Muted
 end
 
 local function runReveal(payload)
@@ -2465,8 +2476,7 @@ for packId, button in pairs(packButtons) do
 end
 
 openShopButton.MouseButton1Click:Connect(function()
-	refreshStatus()
-	shopScreen.Visible = true
+	showToast("Upgrades are coming next: pad luck, pack quality, and pitchfork power.", UI.Gold)
 end)
 
 closeShopButton.MouseButton1Click:Connect(function()
@@ -2544,7 +2554,6 @@ task.spawn(function()
 	task.wait(1)
 	refreshStatus()
 end)
-
 ]==])
 
 makeLocal("InventoryUI", sps, [==[
@@ -2590,15 +2599,16 @@ local screenGui = make("ScreenGui", {
 }, playerGui)
 
 local toggle = make("TextButton", {
-	Size = UDim2.fromOffset(132, 40),
+	Size = UDim2.fromOffset(118, 34),
 	Position = UDim2.new(0, 24, 0, 76),
 	BackgroundColor3 = Constants.UI.Panel,
 	Text = "Inventory",
 	TextColor3 = Constants.UI.Text,
-	TextScaled = true,
-	Font = Enum.Font.GothamBold,
+	TextScaled = false,
+	TextSize = 15,
+	Font = Enum.Font.GothamBlack,
 }, screenGui)
-addCorner(toggle, 14)
+addCorner(toggle, 12)
 
 local panel = make("Frame", {
 	Visible = false,
@@ -2706,8 +2716,39 @@ toggle.MouseButton1Click:Connect(function()
 		refreshInventory()
 	end
 end)
-
 ]==])
 
-print("[UnboxAFootballer] v3 pack setup complete")
-print("This phase adds mirrored player bases and random red-pad pack spawns.")
+makeLocal("HUDClient", sps, [==[
+return
+]==])
+
+makeLocal("ToolClient", sps, [==[
+return
+]==])
+
+makeLocal("ShopUI", sps, [==[
+return
+]==])
+
+makeLocal("TradeUI", sps, [==[
+return
+]==])
+
+makeLocal("MarketUI", sps, [==[
+return
+]==])
+
+makeLocal("BaseUI", sps, [==[
+return
+]==])
+
+makeLocal("CollectionUI", sps, [==[
+return
+]==])
+
+makeLocal("RebirthUI", sps, [==[
+return
+]==])
+
+
+print("[UnboxAFootballer] v4 base-pad setup complete")

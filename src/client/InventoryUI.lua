@@ -40,15 +40,16 @@ local screenGui = make("ScreenGui", {
 }, playerGui)
 
 local toggle = make("TextButton", {
-	Size = UDim2.fromOffset(132, 40),
+	Size = UDim2.fromOffset(118, 34),
 	Position = UDim2.new(0, 24, 0, 76),
 	BackgroundColor3 = Constants.UI.Panel,
 	Text = "Inventory",
 	TextColor3 = Constants.UI.Text,
-	TextScaled = true,
-	Font = Enum.Font.GothamBold,
+	TextScaled = false,
+	TextSize = 15,
+	Font = Enum.Font.GothamBlack,
 }, screenGui)
-addCorner(toggle, 14)
+addCorner(toggle, 12)
 
 local panel = make("Frame", {
 	Visible = false,

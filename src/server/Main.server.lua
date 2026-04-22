@@ -221,10 +221,10 @@ local function spawnPackForPlot(plot)
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "OpenPrompt"
-	prompt.ActionText = "Open " .. packDef.displayName
-	prompt.ObjectText = Utils.FormatNumber(packDef.cost) .. " Coins"
+	prompt.ActionText = "Open Pack"
+	prompt.ObjectText = "Free Spawn"
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
-	prompt.HoldDuration = 0.12
+	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = 12
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = promptAttachment
@@ -242,12 +242,15 @@ local function spawnPackForPlot(plot)
 			return
 		end
 
-		local ok, result = PackService.OpenPack(player, packDef.id)
+		local ok, result = PackService.OpenPack(player, packDef.id, {
+			ignoreCost = true,
+			source = "base_pad",
+		})
 		if ok then
 			PackOpenedEvent:FireClient(player, result)
-			BaseService.SetPlotPadStatus(plot, "Rolling Next Pack", "Refreshing your red pad", packDef.color)
+			BaseService.SetPlotPadStatus(plot, "Rolling Next Pack", "Another free pack is spawning", packDef.color)
 			clearPlotPack(plot)
-			task.delay(1.2, function()
+			task.delay(0.9, function()
 				if plot.ownerPlayer == player then
 					spawnPackForPlot(plot)
 				end
@@ -259,7 +262,7 @@ local function spawnPackForPlot(plot)
 
 	plot.activePackModel = model
 	plot.activePackDef = packDef
-	BaseService.SetPlotPadStatus(plot, packDef.displayName, Utils.FormatNumber(packDef.cost) .. " coins on your red pad", packDef.color)
+	BaseService.SetPlotPadStatus(plot, packDef.displayName, "Free random spawn on your red pad", packDef.color)
 end
 
 for _, plot in ipairs(BaseService.GetPlots()) do
@@ -296,7 +299,7 @@ Players.PlayerAdded:Connect(function(player)
 		if player.Parent then
 			UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
 			PromptPackShopEvent:FireClient(player, {
-				message = plot and "Your random pack now spawns on the red pad in your base." or "This server's bases are full right now.",
+				message = plot and "Free random packs spawn on the red pad in your base." or "This server's bases are full right now.",
 			})
 		end
 	end)

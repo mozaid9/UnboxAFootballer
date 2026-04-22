@@ -102,10 +102,12 @@ local function serializeCard(card)
 	}
 end
 
-function PackService.OpenPack(player, packId)
+function PackService.OpenPack(player, packId, options)
 	if not DataService or not EconomyService then
 		return false, { error = "Pack service not ready." }
 	end
+
+	options = options or {}
 
 	local packDef = PackConfig.ById[packId]
 	if not packDef then
@@ -117,7 +119,9 @@ function PackService.OpenPack(player, packId)
 		return false, { error = "Your data is still loading." }
 	end
 
-	if packDef.isFree then
+	if options.ignoreCost then
+		-- Base pad spawns are free in this phase.
+	elseif packDef.isFree then
 		local ok, err = EconomyService.ClaimFreePack(player)
 		if not ok then
 			return false, { error = err or "Free pack is not ready yet." }
@@ -159,6 +163,7 @@ function PackService.OpenPack(player, packId)
 		success = true,
 		packId = packId,
 		packName = packDef.displayName,
+		isFree = options.ignoreCost == true or packDef.cost == 0,
 		newCoins = DataService.GetCoins(player),
 		cards = cards,
 	}

@@ -77,16 +77,6 @@ local function createDisplaySlot(parent, index, cframe)
 		CFrame = base.CFrame + Vector3.new(0, layout.DisplaySlotSize.Y / 2 + 0.1, 0),
 	}, model)
 
-	make("BillboardGui", {
-		Name = "SlotGui",
-		Size = UDim2.fromOffset(160, 26),
-		StudsOffset = Vector3.new(0, layout.DisplaySlotSize.Y / 2 + 1.2, 0),
-		AlwaysOnTop = true,
-	}, base)
-
-	local gui = base:FindFirstChild("SlotGui")
-	createSignLabel("Display Slot " .. index, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), Color3.fromRGB(225, 236, 229), gui)
-
 	model:SetAttribute("SlotIndex", index)
 	model:SetAttribute("Occupied", false)
 
@@ -192,32 +182,33 @@ local function createPlot(plotId, side, laneIndex, position)
 
 	local padGui = make("BillboardGui", {
 		Name = "PadGui",
-		Size = UDim2.fromOffset(210, 62),
-		StudsOffset = Vector3.new(0, 4.6, 0),
+		Size = UDim2.fromOffset(168, 48),
+		StudsOffset = Vector3.new(0, 3.7, 0),
 		AlwaysOnTop = true,
+		MaxDistance = 120,
 	}, packPad)
 
 	local padFrame = make("Frame", {
 		BackgroundColor3 = Color3.fromRGB(10, 14, 24),
-		BackgroundTransparency = 0.12,
+		BackgroundTransparency = 0.18,
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(1, 1),
 	}, padGui)
 
 	make("UICorner", {
-		CornerRadius = UDim.new(0, 14),
+		CornerRadius = UDim.new(0, 12),
 	}, padFrame)
 
 	make("UIStroke", {
 		Color = Color3.fromRGB(255, 215, 0),
-		Thickness = 2,
-		Transparency = 0.15,
+		Thickness = 1.5,
+		Transparency = 0.22,
 	}, padFrame)
 
 	local padAccent = make("Frame", {
 		BackgroundColor3 = Color3.fromRGB(255, 85, 85),
 		BorderSizePixel = 0,
-		Size = UDim2.new(0, 8, 1, -12),
+		Size = UDim2.new(0, 6, 1, -12),
 		Position = UDim2.new(0, 8, 0, 6),
 	}, padFrame)
 
@@ -225,8 +216,14 @@ local function createPlot(plotId, side, laneIndex, position)
 		CornerRadius = UDim.new(0, 6),
 	}, padAccent)
 
-	local padTitleLabel = createSignLabel("Pack Pad", UDim2.new(1, -28, 0.38, 0), UDim2.new(0, 22, 0.08, 0), Color3.fromRGB(245, 238, 220), padFrame)
-	local padSubtitleLabel = createSignLabel("Waiting for owner", UDim2.new(1, -28, 0.22, 0), UDim2.new(0, 22, 0.52, 0), Color3.fromRGB(180, 176, 164), padFrame)
+	local padTitleLabel = createSignLabel("Pack Pad", UDim2.new(1, -24, 0, 20), UDim2.new(0, 22, 0, 4), Color3.fromRGB(245, 238, 220), padFrame)
+	local padSubtitleLabel = createSignLabel("Waiting for owner", UDim2.new(1, -24, 0, 14), UDim2.new(0, 22, 0, 24), Color3.fromRGB(180, 176, 164), padFrame)
+	padTitleLabel.TextScaled = false
+	padTitleLabel.TextSize = 18
+	padTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	padSubtitleLabel.TextScaled = false
+	padSubtitleLabel.TextSize = 11
+	padSubtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	padSubtitleLabel.Font = Enum.Font.GothamBold
 
 	local displayFolder = make("Folder", {
