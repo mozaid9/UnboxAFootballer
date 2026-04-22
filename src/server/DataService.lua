@@ -204,6 +204,41 @@ function DataService.GetInventory(player)
 	return data.inventory
 end
 
+function DataService.GetDisplayedCards(player)
+	local data = cache[player]
+	if not data then
+		return {}
+	end
+	return data.baseLayoutData.displayedCards
+end
+
+function DataService.GetDisplayedCard(player, slotIndex)
+	local displayedCards = DataService.GetDisplayedCards(player)
+	return displayedCards[tostring(slotIndex)]
+end
+
+function DataService.SetDisplayedCard(player, slotIndex, cardId)
+	local data = cache[player]
+	if not data then
+		return false
+	end
+
+	data.baseLayoutData.displayedCards[tostring(slotIndex)] = cardId
+	DataService.MarkDirty(player)
+	return true
+end
+
+function DataService.ClearDisplayedCard(player, slotIndex)
+	local data = cache[player]
+	if not data then
+		return false
+	end
+
+	data.baseLayoutData.displayedCards[tostring(slotIndex)] = nil
+	DataService.MarkDirty(player)
+	return true
+end
+
 task.spawn(function()
 	while true do
 		task.wait(Constants.AutoSaveInterval)

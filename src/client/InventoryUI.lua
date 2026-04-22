@@ -11,6 +11,8 @@ local Constants = require(Shared:WaitForChild("Constants"))
 local Utils = require(Shared:WaitForChild("Utils"))
 
 local GetInventoryFn = Remotes:WaitForChild("GetInventory")
+local PackOpenedEvent = Remotes:WaitForChild("PackOpened")
+local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
 
 local function make(className, props, parent)
 	props = props or {}
@@ -139,7 +141,7 @@ local function refreshInventory()
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0.08, 0, 0.8, 0),
 			Size = UDim2.new(0.84, 0, 0.12, 0),
-			Text = "x" .. tostring(card.quantity) .. " • Sell " .. Utils.FormatNumber(card.sellValue),
+			Text = "Stored x" .. tostring(card.quantity) .. " • +" .. tostring(Utils.GetPassiveIncome(card.rating)) .. "/s",
 			TextColor3 = Utils.GetRarityColor(card.rarity),
 			TextScaled = true,
 			Font = Enum.Font.GothamBold,
@@ -157,3 +159,12 @@ toggle.MouseButton1Click:Connect(function()
 		refreshInventory()
 	end
 end)
+
+local function refreshIfVisible()
+	if panel.Visible then
+		refreshInventory()
+	end
+end
+
+PackOpenedEvent.OnClientEvent:Connect(refreshIfVisible)
+PromptPackShopEvent.OnClientEvent:Connect(refreshIfVisible)

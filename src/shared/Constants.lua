@@ -71,6 +71,12 @@ Constants.Pitchfork = {
 	HitRange = 24,
 }
 
+Constants.PassiveIncome = {
+	BaseRating = 78,
+	BasePerSecond = 20,
+	PerRatingStep = 8,
+}
+
 Constants.UI = {
 	Background = Color3.fromRGB(7, 11, 20),
 	Panel = Color3.fromRGB(14, 18, 31),

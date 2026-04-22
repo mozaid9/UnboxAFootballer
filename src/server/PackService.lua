@@ -148,7 +148,6 @@ function PackService.OpenPack(player, packId, options)
 			return false, { error = "Pack roll failed. Please try again." }
 		end
 
-		DataService.AddCard(player, card.id)
 		table.insert(cards, serializeCard(card))
 	end
 
@@ -165,6 +164,7 @@ function PackService.OpenPack(player, packId, options)
 		packName = packDef.displayName,
 		isFree = options.ignoreCost == true or packDef.cost == 0,
 		newCoins = DataService.GetCoins(player),
+		card = cards[1],
 		cards = cards,
 	}
 end

@@ -132,25 +132,22 @@ local function ensurePitchfork(player)
 	end
 end
 
-local function sendHint(player, message)
+local function sendHint(player, message, extraPayload)
 	if player and player.Parent then
-		PromptPackShopEvent:FireClient(player, {
+		local payload = {
 			message = message,
-		})
+			coins = DataService.GetCoins(player),
+		}
+		for key, value in pairs(extraPayload or {}) do
+			payload[key] = value
+		end
+		PromptPackShopEvent:FireClient(player, payload)
 	end
 end
 
 local function getPitchforkDamage(player)
 	local data = DataService.GetData(player)
 	return math.max(Constants.Pitchfork.BaseDamage, data and data.pitchforkPower or Constants.Pitchfork.BaseDamage)
-end
-
-local function getHitsLabel(remaining)
-	if remaining == 1 then
-		return "1 hit to crack"
-	end
-
-	return string.format("%d hits to crack", remaining)
 end
 
 local function createSurfaceLabel(face, title, subtitle, color, parent)
@@ -230,6 +227,134 @@ local function rollPadPackForPlayer(_player)
 
 	local chosenIndex = Utils.WeightedRandom(weights)
 	return PackConfig.PadSpawnOrder[chosenIndex]
+end
+
+local function getCardById(cardId)
+	return cardId and CardData.ById[tonumber(cardId)] or nil
+end
+
+local function getBestInventoryCard(player)
+	local inventory = DataService.GetInventory(player)
+	local bestCard
+
+	for key, amount in pairs(inventory) do
+		if amount > 0 then
+			local card = getCardById(key)
+			if card then
+				if not bestCard or card.rating > bestCard.rating or (card.rating == bestCard.rating and card.name < bestCard.name) then
+					bestCard = card
+				end
+			end
+		end
+	end
+
+	return bestCard
+end
+
+local function getDisplayedIncomePerSecond(player)
+	local displayedCards = DataService.GetDisplayedCards(player)
+	local total = 0
+
+	for _, cardId in pairs(displayedCards) do
+		local card = getCardById(cardId)
+		if card then
+			total += Utils.GetPassiveIncome(card.rating)
+		end
+	end
+
+	return total
+end
+
+local function refreshPlotDisplayState(player, plot)
+	if not player or not plot then
+		return
+	end
+
+	for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
+		local displayedCardId = DataService.GetDisplayedCard(player, slot.slotIndex)
+		local displayedCard = getCardById(displayedCardId)
+		if displayedCard then
+			BaseService.UpdateDisplaySlot(slot, displayedCard, Utils.GetPassiveIncome(displayedCard.rating))
+		else
+			local bestInventoryCard = getBestInventoryCard(player)
+			BaseService.SetDisplaySlotAddReady(slot, bestInventoryCard and bestInventoryCard.name or "Inventory Empty", bestInventoryCard ~= nil)
+		end
+	end
+end
+
+local function getFirstEmptyDisplaySlot(player, plot)
+	for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
+		if not DataService.GetDisplayedCard(player, slot.slotIndex) then
+			return slot
+		end
+	end
+
+	return nil
+end
+
+local function placeCardOnDisplay(player, plot, slot, cardId)
+	local card = getCardById(cardId)
+	if not card or not slot then
+		return false
+	end
+
+	DataService.SetDisplayedCard(player, slot.slotIndex, card.id)
+	BaseService.UpdateDisplaySlot(slot, card, Utils.GetPassiveIncome(card.rating))
+	return true
+end
+
+local function autoStorePulledCard(player, plot, card)
+	if not player or not plot or not card then
+		return {
+			storedInInventory = true,
+			slotIndex = nil,
+		}
+	end
+
+	local emptySlot = getFirstEmptyDisplaySlot(player, plot)
+	if emptySlot then
+		placeCardOnDisplay(player, plot, emptySlot, card.id)
+		refreshPlotDisplayState(player, plot)
+		return {
+			storedInInventory = false,
+			slotIndex = emptySlot.slotIndex,
+		}
+	end
+
+	DataService.AddCard(player, card.id)
+	refreshPlotDisplayState(player, plot)
+	return {
+		storedInInventory = true,
+		slotIndex = nil,
+	}
+end
+
+local function moveDisplayedCardToInventory(player, plot, slot)
+	local cardId = DataService.GetDisplayedCard(player, slot.slotIndex)
+	local card = getCardById(cardId)
+	if not card then
+		return false, "There is no player on that slot."
+	end
+
+	DataService.ClearDisplayedCard(player, slot.slotIndex)
+	DataService.AddCard(player, card.id)
+	refreshPlotDisplayState(player, plot)
+	return true, card
+end
+
+local function addInventoryCardToDisplay(player, plot, slot)
+	local bestCard = getBestInventoryCard(player)
+	if not bestCard then
+		return false, "You do not have a stored player to add."
+	end
+
+	if not DataService.RemoveCard(player, bestCard.id) then
+		return false, "That player is no longer in your inventory."
+	end
+
+	placeCardOnDisplay(player, plot, slot, bestCard.id)
+	refreshPlotDisplayState(player, plot)
+	return true, bestCard
 end
 
 local function clearPlotPack(plot)
@@ -313,12 +438,38 @@ local function spawnPackForPlot(plot)
 	plot.activePackMaxHits = packDef.hitsRequired or 3
 	plot.activePackHitsRemaining = plot.activePackMaxHits
 
-	BaseService.SetPlotPadStatus(plot, packDef.displayName, getHitsLabel(plot.activePackHitsRemaining), packDef.color)
-	sendHint(plot.ownerPlayer, string.format("%s spawned on your red pad. Equip your pitchfork and swing %d time%s.", packDef.displayName, plot.activePackHitsRemaining, plot.activePackHitsRemaining == 1 and "" or "s"))
+	BaseService.SetPlotPadHealth(plot, packDef.displayName, plot.activePackHitsRemaining, plot.activePackMaxHits, packDef.color)
+	sendHint(plot.ownerPlayer, packDef.displayName .. " spawned on your red pad. Crack it with your pitchfork and use Hold E on green slots to swap players.")
 end
 
 for _, plot in ipairs(BaseService.GetPlots()) do
 	BaseService.SetPlotPadStatus(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
+	for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
+		slot.prompt.Triggered:Connect(function(player)
+			if plot.ownerPlayer ~= player then
+				PackOpenFailedEvent:FireClient(player, {
+					error = (plot.ownerPlayer and plot.ownerPlayer.DisplayName or "Another player") .. "'s display slot is on this base.",
+				})
+				return
+			end
+
+			if DataService.GetDisplayedCard(player, slot.slotIndex) then
+				local ok, cardOrError = moveDisplayedCardToInventory(player, plot, slot)
+				if ok then
+					sendHint(player, cardOrError.name .. " moved into your inventory. Hold E on this slot to place a stored player.")
+				else
+					PackOpenFailedEvent:FireClient(player, { error = cardOrError })
+				end
+			else
+				local ok, cardOrError = addInventoryCardToDisplay(player, plot, slot)
+				if ok then
+					sendHint(player, cardOrError.name .. " added to display slot " .. tostring(slot.slotIndex) .. " for +" .. tostring(Utils.GetPassiveIncome(cardOrError.rating)) .. "/s.")
+				else
+					PackOpenFailedEvent:FireClient(player, { error = cardOrError })
+				end
+			end
+		end)
+	end
 end
 
 RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
@@ -363,18 +514,15 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	end
 
 	if plot.activePackHitsRemaining > 0 then
-		BaseService.SetPlotPadStatus(plot, plot.activePackDef.displayName, getHitsLabel(plot.activePackHitsRemaining), plot.activePackDef.color)
-		sendHint(player, string.format("%s: %d hit%s left.", plot.activePackDef.displayName, plot.activePackHitsRemaining, plot.activePackHitsRemaining == 1 and "" or "s"))
+		BaseService.SetPlotPadHealth(plot, plot.activePackDef.displayName, plot.activePackHitsRemaining, plot.activePackMaxHits, plot.activePackDef.color)
 		return
 	end
 
 	plot.isOpeningPack = true
-	BaseService.SetPlotPadStatus(plot, "Pack Cracked", "Revealing your cards", plot.activePackDef.color)
-	sendHint(player, plot.activePackDef.displayName .. " cracked open.")
+	BaseService.SetPlotPadStatus(plot, "Pack Cracked", "Claiming your player", plot.activePackDef.color)
 
 	local openedPackId = plot.activePackDef.id
 	local openedPackColor = plot.activePackDef.color
-	humanoid:UnequipTools()
 
 	local ok, result = PackService.OpenPack(player, openedPackId, {
 		ignoreCost = true,
@@ -382,7 +530,30 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	})
 
 	if ok then
-		PackOpenedEvent:FireClient(player, result)
+		local pulledCard = result.card or (result.cards and result.cards[1]) or nil
+		local storageResult = autoStorePulledCard(player, plot, pulledCard)
+		local passiveIncome = pulledCard and Utils.GetPassiveIncome(pulledCard.rating) or 0
+
+		PackOpenedEvent:FireClient(player, {
+			success = true,
+			packId = result.packId,
+			packName = result.packName,
+			newCoins = result.newCoins,
+			card = pulledCard,
+			storedInInventory = storageResult.storedInInventory,
+			slotIndex = storageResult.slotIndex,
+			coinsPerSecond = passiveIncome,
+			passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
+		})
+
+		if pulledCard then
+			if storageResult.storedInInventory then
+				sendHint(player, pulledCard.name .. " went to inventory because your display slots are full.")
+			else
+				sendHint(player, pulledCard.name .. " is now earning +" .. tostring(passiveIncome) .. "/s on display slot " .. tostring(storageResult.slotIndex) .. ".")
+			end
+		end
+
 		clearPlotPack(plot)
 		BaseService.SetPlotPadStatus(plot, "Rolling Next Pack", "Another free pack is spawning", openedPackColor)
 		task.delay(1.1, function()
@@ -393,7 +564,7 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	else
 		plot.isOpeningPack = nil
 		plot.activePackHitsRemaining = math.max(1, plot.activePackHitsRemaining or 1)
-		BaseService.SetPlotPadStatus(plot, plot.activePackDef.displayName, getHitsLabel(plot.activePackHitsRemaining), plot.activePackDef.color)
+		BaseService.SetPlotPadHealth(plot, plot.activePackDef.displayName, plot.activePackHitsRemaining, plot.activePackMaxHits, plot.activePackDef.color)
 		PackOpenFailedEvent:FireClient(player, result)
 	end
 end)
@@ -423,13 +594,14 @@ Players.PlayerAdded:Connect(function(player)
 	end)
 
 	if plot then
+		refreshPlotDisplayState(player, plot)
 		spawnPackForPlot(plot)
 	end
 
 	task.defer(function()
 		if player.Parent then
 			UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
-			sendHint(player, plot and "Equip your pitchfork and crack the random pack on your red pad." or "This server's bases are full right now.")
+			sendHint(player, plot and "Equip your pitchfork and crack the pack on your red pad. Hold E on green slots to move players in or out." or "This server's bases are full right now.")
 		end
 	end)
 
@@ -450,6 +622,19 @@ game:BindToClose(function()
 	task.wait(2)
 end)
 
+task.spawn(function()
+	while true do
+		task.wait(1)
+		for _, player in ipairs(Players:GetPlayers()) do
+			local passiveIncome = getDisplayedIncomePerSecond(player)
+			if passiveIncome > 0 then
+				EconomyService.AddCoins(player, passiveIncome)
+				UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+			end
+		end
+	end
+end)
+
 GetPlayerDataFn.OnServerInvoke = function(player)
 	local data = DataService.GetData(player)
 	if not data then
@@ -461,6 +646,7 @@ GetPlayerDataFn.OnServerInvoke = function(player)
 		gems = data.gems or 0,
 		rebirthTier = data.rebirthTier or 0,
 		totalCardsOpened = data.totalCardsOpened or 0,
+		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
 		canClaimFreePack = EconomyService.CanClaimFreePack(player),
 		freePackRemaining = EconomyService.GetFreePackRemaining(player),
 		inventoryCounts = data.inventory,
@@ -524,6 +710,7 @@ SellCardFn.OnServerInvoke = function(player, cardId)
 
 	local earned = Utils.GetSellValue(card.rating)
 	EconomyService.AddCoins(player, earned)
+	refreshPlotDisplayState(player, BaseService.GetPlot(player))
 
 	return {
 		success = true,
@@ -550,6 +737,7 @@ SellAllCardsFn.OnServerInvoke = function(player, cardIds)
 	if total > 0 then
 		EconomyService.AddCoins(player, total)
 	end
+	refreshPlotDisplayState(player, BaseService.GetPlot(player))
 
 	return {
 		success = true,

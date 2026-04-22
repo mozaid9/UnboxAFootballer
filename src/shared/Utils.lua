@@ -59,6 +59,12 @@ function Utils.GetMarketFloor(rating)
 	return Constants.MarketFloors[rating] or 0
 end
 
+function Utils.GetPassiveIncome(rating)
+	local config = Constants.PassiveIncome
+	local ratingSteps = math.max(0, (rating or config.BaseRating) - config.BaseRating)
+	return config.BasePerSecond + (ratingSteps * config.PerRatingStep)
+end
+
 function Utils.GetRarityColor(rarity)
 	if rarity == "Rare Gold" then
 		return Constants.UI.RareGold

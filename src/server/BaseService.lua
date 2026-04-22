@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local Utils = require(ReplicatedStorage.Shared.Utils)
 
 local BaseService = {}
 
@@ -40,6 +41,17 @@ local function updatePadLabel(plot, title, subtitle, color)
 	plot.padTitleLabel.Text = title
 	plot.padSubtitleLabel.Text = subtitle
 	plot.padAccent.BackgroundColor3 = color
+	plot.padBarBack.Visible = false
+end
+
+local function updatePadHealth(plot, title, currentValue, maxValue, color)
+	local ratio = maxValue > 0 and math.clamp(currentValue / maxValue, 0, 1) or 0
+	plot.padTitleLabel.Text = title
+	plot.padSubtitleLabel.Text = string.format("%d / %d HP", currentValue, maxValue)
+	plot.padAccent.BackgroundColor3 = color
+	plot.padBarBack.Visible = true
+	plot.padBarFill.BackgroundColor3 = color
+	plot.padBarFill.Size = UDim2.new(ratio, 0, 1, 0)
 end
 
 local function createFence(parent, size, cframe)
@@ -53,7 +65,56 @@ local function createFence(parent, size, cframe)
 	}, parent)
 end
 
-local function createDisplaySlot(parent, index, cframe)
+local function createDisplayCardFace(face, card, incomePerSecond, parent)
+	local gui = make("SurfaceGui", {
+		Face = face,
+		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+		PixelsPerStud = 70,
+		LightInfluence = 0,
+	}, parent)
+
+	local frame = make("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(20, 18, 10),
+		BorderSizePixel = 0,
+	}, gui)
+
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(252, 234, 158)),
+			ColorSequenceKeypoint.new(0.45, Utils.GetRarityColor(card.rarity)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(112, 82, 14)),
+		}),
+		Rotation = 22,
+	}, frame)
+
+	make("UIStroke", {
+		Color = Color3.fromRGB(24, 18, 8),
+		Thickness = 2,
+	}, frame)
+
+	createSignLabel(tostring(card.rating), UDim2.new(0.32, 0, 0.16, 0), UDim2.new(0.08, 0, 0.05, 0), Color3.fromRGB(24, 16, 8), frame).TextXAlignment = Enum.TextXAlignment.Left
+	createSignLabel(card.position, UDim2.new(0.26, 0, 0.08, 0), UDim2.new(0.08, 0, 0.16, 0), Color3.fromRGB(48, 38, 12), frame).TextXAlignment = Enum.TextXAlignment.Left
+	createSignLabel(card.name, UDim2.new(0.82, 0, 0.14, 0), UDim2.new(0.09, 0, 0.56, 0), Color3.fromRGB(30, 22, 10), frame)
+	createSignLabel(card.nation, UDim2.new(0.74, 0, 0.08, 0), UDim2.new(0.13, 0, 0.72, 0), Color3.fromRGB(54, 42, 14), frame)
+	createSignLabel("+" .. tostring(incomePerSecond) .. "/s", UDim2.new(0.78, 0, 0.1, 0), UDim2.new(0.11, 0, 0.84, 0), Color3.fromRGB(22, 74, 38), frame)
+end
+
+local function clearDisplayCard(slot)
+	if slot.cardModel and slot.cardModel.Parent then
+		slot.cardModel:Destroy()
+	end
+	slot.cardModel = nil
+	slot.model:SetAttribute("Occupied", false)
+end
+
+local function setSlotPrompt(slot, actionText, objectText, enabled)
+	slot.prompt.ActionText = actionText
+	slot.prompt.ObjectText = objectText
+	slot.prompt.Enabled = enabled
+end
+
+local function createDisplaySlot(parent, index, cframe, lookDirection)
 	local model = make("Model", {
 		Name = "DisplaySlot" .. index,
 	}, parent)
@@ -77,10 +138,29 @@ local function createDisplaySlot(parent, index, cframe)
 		CFrame = base.CFrame + Vector3.new(0, layout.DisplaySlotSize.Y / 2 + 0.1, 0),
 	}, model)
 
+	local prompt = make("ProximityPrompt", {
+		Name = "SlotPrompt",
+		ActionText = "Add Player",
+		ObjectText = "Inventory Empty",
+		KeyboardKeyCode = Enum.KeyCode.E,
+		HoldDuration = 0.65,
+		MaxActivationDistance = 10,
+		RequiresLineOfSight = false,
+		Enabled = false,
+	}, base)
+
 	model:SetAttribute("SlotIndex", index)
 	model:SetAttribute("Occupied", false)
 
-	return model
+	return {
+		model = model,
+		base = base,
+		top = top,
+		prompt = prompt,
+		slotIndex = index,
+		lookDirection = lookDirection,
+		cardModel = nil,
+	}
 end
 
 local function createPlot(plotId, side, laneIndex, position)
@@ -186,7 +266,7 @@ local function createPlot(plotId, side, laneIndex, position)
 
 	local padGui = make("BillboardGui", {
 		Name = "PadGui",
-		Size = UDim2.fromOffset(168, 48),
+		Size = UDim2.fromOffset(176, 60),
 		StudsOffset = Vector3.new(0, 3.7, 0),
 		AlwaysOnTop = true,
 		MaxDistance = 120,
@@ -221,14 +301,36 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, padAccent)
 
 	local padTitleLabel = createSignLabel("Pack Pad", UDim2.new(1, -24, 0, 20), UDim2.new(0, 22, 0, 4), Color3.fromRGB(245, 238, 220), padFrame)
-	local padSubtitleLabel = createSignLabel("Waiting for owner", UDim2.new(1, -24, 0, 14), UDim2.new(0, 22, 0, 24), Color3.fromRGB(180, 176, 164), padFrame)
+	local padSubtitleLabel = createSignLabel("Waiting for owner", UDim2.new(1, -24, 0, 12), UDim2.new(0, 22, 0, 24), Color3.fromRGB(180, 176, 164), padFrame)
 	padTitleLabel.TextScaled = false
 	padTitleLabel.TextSize = 18
 	padTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	padSubtitleLabel.TextScaled = false
-	padSubtitleLabel.TextSize = 11
+	padSubtitleLabel.TextSize = 10
 	padSubtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	padSubtitleLabel.Font = Enum.Font.GothamBold
+
+	local padBarBack = make("Frame", {
+		Visible = false,
+		BackgroundColor3 = Color3.fromRGB(34, 38, 48),
+		BorderSizePixel = 0,
+		Size = UDim2.new(1, -28, 0, 8),
+		Position = UDim2.new(0, 20, 1, -14),
+	}, padFrame)
+
+	make("UICorner", {
+		CornerRadius = UDim.new(0, 5),
+	}, padBarBack)
+
+	local padBarFill = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
+		BorderSizePixel = 0,
+		Size = UDim2.new(1, 0, 1, 0),
+	}, padBarBack)
+
+	make("UICorner", {
+		CornerRadius = UDim.new(0, 5),
+	}, padBarFill)
 
 	local displayFolder = make("Folder", {
 		Name = "DisplaySlots",
@@ -247,7 +349,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	for slotIndex = 1, layout.DisplaySlotCount do
 		local localOffset = slotOffsets[slotIndex]
 		local worldOffset = Vector3.new(localOffset.X * facingDirection, localOffset.Y, localOffset.Z)
-		displaySlots[slotIndex] = createDisplaySlot(displayFolder, slotIndex, baseCFrame * CFrame.new(worldOffset))
+		displaySlots[slotIndex] = createDisplaySlot(displayFolder, slotIndex, baseCFrame * CFrame.new(worldOffset), centerDirection)
 	end
 
 	local plot = {
@@ -265,6 +367,8 @@ local function createPlot(plotId, side, laneIndex, position)
 		padTitleLabel = padTitleLabel,
 		padSubtitleLabel = padSubtitleLabel,
 		padAccent = padAccent,
+		padBarBack = padBarBack,
+		padBarFill = padBarFill,
 		displaySlots = displaySlots,
 		spawnCFrame = CFrame.lookAt(
 			spawnPad.Position + Vector3.new(0, 3, 0),
@@ -349,6 +453,7 @@ function BaseService.ReleasePlot(player)
 	plot.ownerPlayer = nil
 	plot.model:SetAttribute("OwnerUserId", nil)
 	plot.model:SetAttribute("OwnerName", nil)
+	BaseService.ClearPlotDisplays(plot)
 	updateOwnerSign(plot, "UNCLAIMED BASE", "Waiting for player")
 	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
 	assignedPlots[player] = nil
@@ -358,9 +463,67 @@ function BaseService.GetPlot(player)
 	return assignedPlots[player]
 end
 
+function BaseService.GetDisplaySlots(plot)
+	return plot and plot.displaySlots or {}
+end
+
 function BaseService.SetPlotPadStatus(plot, title, subtitle, color)
 	if plot then
 		updatePadLabel(plot, title, subtitle, color or Color3.fromRGB(255, 85, 85))
+	end
+end
+
+function BaseService.SetPlotPadHealth(plot, title, currentValue, maxValue, color)
+	if plot then
+		updatePadHealth(plot, title, currentValue, maxValue, color or Color3.fromRGB(255, 215, 0))
+	end
+end
+
+function BaseService.UpdateDisplaySlot(slot, card, incomePerSecond)
+	clearDisplayCard(slot)
+
+	if not card then
+		setSlotPrompt(slot, "Add Player", "Inventory Empty", false)
+		return
+	end
+
+	local cardModel = make("Model", {
+		Name = "DisplayCard",
+	}, slot.model)
+
+	local cardPosition = slot.top.Position + Vector3.new(0, 4.2, 0)
+	local cardPart = make("Part", {
+		Name = "CardPart",
+		Anchored = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(24, 20, 10),
+		Size = Vector3.new(0.26, 6.2, 4.25),
+		CFrame = CFrame.lookAt(cardPosition, cardPosition + slot.lookDirection),
+	}, cardModel)
+
+	make("PointLight", {
+		Color = Utils.GetRarityColor(card.rarity),
+		Range = 12,
+		Brightness = 1.7,
+	}, cardPart)
+
+	createDisplayCardFace(Enum.NormalId.Front, card, incomePerSecond, cardPart)
+	createDisplayCardFace(Enum.NormalId.Back, card, incomePerSecond, cardPart)
+
+	slot.cardModel = cardModel
+	slot.model:SetAttribute("Occupied", true)
+	setSlotPrompt(slot, "Remove Player", card.name, true)
+end
+
+function BaseService.SetDisplaySlotAddReady(slot, objectText, enabled)
+	clearDisplayCard(slot)
+	setSlotPrompt(slot, "Add Player", objectText or "From Inventory", enabled)
+end
+
+function BaseService.ClearPlotDisplays(plot)
+	for _, slot in ipairs(plot.displaySlots or {}) do
+		clearDisplayCard(slot)
+		setSlotPrompt(slot, "Add Player", "Inventory Empty", false)
 	end
 end
 
