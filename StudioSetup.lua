@@ -1436,29 +1436,40 @@ local screenGui = make("ScreenGui", {
 
 local topBar = make("Frame", {
 	Name = "TopBar",
-	Size = UDim2.new(1, 0, 0, 96),
+	Size = UDim2.new(0, 420, 0, 220),
 	Position = UDim2.new(0, 0, 0, 0),
 	BackgroundTransparency = 1,
 }, screenGui)
 
 local topRightDock = make("Frame", {
 	Name = "TopRightDock",
-	Size = UDim2.fromOffset(386, 48),
-	Position = UDim2.new(1, -18, 0, 16),
-	AnchorPoint = Vector2.new(1, 0),
+	Size = UDim2.fromOffset(210, 110),
+	Position = UDim2.new(0, 24, 0, 128),
+	AnchorPoint = Vector2.new(0, 0),
 	BackgroundTransparency = 1,
 }, topBar)
 
 make("UIListLayout", {
-	FillDirection = Enum.FillDirection.Horizontal,
-	HorizontalAlignment = Enum.HorizontalAlignment.Right,
-	VerticalAlignment = Enum.VerticalAlignment.Center,
-	Padding = UDim.new(0, 12),
+	FillDirection = Enum.FillDirection.Vertical,
+	HorizontalAlignment = Enum.HorizontalAlignment.Left,
+	VerticalAlignment = Enum.VerticalAlignment.Top,
+	Padding = UDim.new(0, 10),
 }, topRightDock)
+
+local openShopButton = make("TextButton", {
+	LayoutOrder = 1,
+	Size = UDim2.fromOffset(188, 46),
+	BackgroundColor3 = UI.Gold,
+	Text = "Pack Shop",
+	TextColor3 = Color3.fromRGB(20, 14, 8),
+	TextScaled = true,
+	Font = Enum.Font.GothamBlack,
+}, topRightDock)
+addCorner(openShopButton, 14)
 
 local coinPill = make("Frame", {
 	LayoutOrder = 2,
-	Size = UDim2.fromOffset(184, 48),
+	Size = UDim2.fromOffset(188, 46),
 	BackgroundColor3 = UI.Panel,
 }, topRightDock)
 addCorner(coinPill, 14)
@@ -1506,21 +1517,10 @@ local coinsLabel = make("TextLabel", {
 	TextXAlignment = Enum.TextXAlignment.Left,
 }, coinPill)
 
-local openShopButton = make("TextButton", {
-	LayoutOrder = 1,
-	Size = UDim2.fromOffset(190, 48),
-	BackgroundColor3 = UI.Gold,
-	Text = "Pack Shop",
-	TextColor3 = Color3.fromRGB(20, 14, 8),
-	TextScaled = true,
-	Font = Enum.Font.GothamBlack,
-}, topRightDock)
-addCorner(openShopButton, 14)
-
 local hintLabel = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Size = UDim2.new(0.4, 0, 0, 20),
-	Position = UDim2.new(0.5, 0, 0, 70),
+	Size = UDim2.new(0.48, 0, 0, 20),
+	Position = UDim2.new(0.52, 0, 0, 102),
 	AnchorPoint = Vector2.new(0.5, 0),
 	Text = "Walk to a pack stand and press E to open packs.",
 	TextColor3 = UI.Muted,
@@ -2222,7 +2222,7 @@ local screenGui = make("ScreenGui", {
 
 local toggle = make("TextButton", {
 	Size = UDim2.fromOffset(132, 40),
-	Position = UDim2.new(0, 18, 0, 76),
+	Position = UDim2.new(0, 24, 0, 76),
 	BackgroundColor3 = Constants.UI.Panel,
 	Text = "Inventory",
 	TextColor3 = Constants.UI.Text,
@@ -2234,7 +2234,7 @@ addCorner(toggle, 14)
 local panel = make("Frame", {
 	Visible = false,
 	Size = UDim2.new(0, 560, 0, 440),
-	Position = UDim2.new(0, 18, 0, 124),
+	Position = UDim2.new(0, 24, 0, 124),
 	BackgroundColor3 = Constants.UI.Panel,
 }, screenGui)
 addCorner(panel, 18)

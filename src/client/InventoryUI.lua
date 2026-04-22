@@ -41,7 +41,7 @@ local screenGui = make("ScreenGui", {
 
 local toggle = make("TextButton", {
 	Size = UDim2.fromOffset(132, 40),
-	Position = UDim2.new(0, 18, 0, 76),
+	Position = UDim2.new(0, 24, 0, 76),
 	BackgroundColor3 = Constants.UI.Panel,
 	Text = "Inventory",
 	TextColor3 = Constants.UI.Text,
@@ -53,7 +53,7 @@ addCorner(toggle, 14)
 local panel = make("Frame", {
 	Visible = false,
 	Size = UDim2.new(0, 560, 0, 440),
-	Position = UDim2.new(0, 18, 0, 124),
+	Position = UDim2.new(0, 24, 0, 124),
 	BackgroundColor3 = Constants.UI.Panel,
 }, screenGui)
 addCorner(panel, 18)
