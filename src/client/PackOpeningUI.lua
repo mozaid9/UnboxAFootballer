@@ -68,17 +68,31 @@ local screenGui = make("ScreenGui", {
 
 local topBar = make("Frame", {
 	Name = "TopBar",
-	Size = UDim2.new(1, 0, 0, 120),
+	Size = UDim2.new(1, 0, 0, 96),
 	Position = UDim2.new(0, 0, 0, 0),
 	BackgroundTransparency = 1,
 }, screenGui)
 
-local coinPill = make("Frame", {
-	Size = UDim2.fromOffset(178, 44),
-	Position = UDim2.new(1, -18, 0, 58),
+local topRightDock = make("Frame", {
+	Name = "TopRightDock",
+	Size = UDim2.fromOffset(386, 48),
+	Position = UDim2.new(1, -18, 0, 16),
 	AnchorPoint = Vector2.new(1, 0),
-	BackgroundColor3 = UI.Panel,
+	BackgroundTransparency = 1,
 }, topBar)
+
+make("UIListLayout", {
+	FillDirection = Enum.FillDirection.Horizontal,
+	HorizontalAlignment = Enum.HorizontalAlignment.Right,
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+	Padding = UDim.new(0, 12),
+}, topRightDock)
+
+local coinPill = make("Frame", {
+	LayoutOrder = 2,
+	Size = UDim2.fromOffset(184, 48),
+	BackgroundColor3 = UI.Panel,
+}, topRightDock)
 addCorner(coinPill, 14)
 addStroke(coinPill, UI.Gold, 2, 0.15)
 
@@ -92,7 +106,7 @@ local coinGradient = make("UIGradient", {
 
 local coinIcon = make("TextLabel", {
 	Size = UDim2.fromOffset(28, 28),
-	Position = UDim2.new(0, 8, 0.5, -14),
+	Position = UDim2.new(0, 10, 0.5, -14),
 	BackgroundColor3 = Color3.fromRGB(35, 30, 10),
 	Text = "C",
 	TextColor3 = UI.Gold,
@@ -103,8 +117,8 @@ addCorner(coinIcon, 9)
 
 local coinTitle = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 44, 0, 4),
-	Size = UDim2.new(1, -50, 0, 12),
+	Position = UDim2.new(0, 48, 0, 4),
+	Size = UDim2.new(1, -56, 0, 12),
 	Text = "Coins",
 	TextColor3 = UI.Muted,
 	TextScaled = true,
@@ -115,8 +129,8 @@ local coinTitle = make("TextLabel", {
 local coinsLabel = make("TextLabel", {
 	Name = "CoinsLabel",
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 44, 0, 15),
-	Size = UDim2.new(1, -50, 0, 20),
+	Position = UDim2.new(0, 48, 0, 15),
+	Size = UDim2.new(1, -56, 0, 22),
 	Text = "0",
 	TextColor3 = UI.Text,
 	TextScaled = true,
@@ -125,21 +139,20 @@ local coinsLabel = make("TextLabel", {
 }, coinPill)
 
 local openShopButton = make("TextButton", {
-	Size = UDim2.fromOffset(142, 44),
-	Position = UDim2.new(1, -208, 0, 58),
-	AnchorPoint = Vector2.new(1, 0),
+	LayoutOrder = 1,
+	Size = UDim2.fromOffset(190, 48),
 	BackgroundColor3 = UI.Gold,
 	Text = "Pack Shop",
 	TextColor3 = Color3.fromRGB(20, 14, 8),
 	TextScaled = true,
 	Font = Enum.Font.GothamBlack,
-}, topBar)
+}, topRightDock)
 addCorner(openShopButton, 14)
 
 local hintLabel = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Size = UDim2.new(0.46, 0, 0, 22),
-	Position = UDim2.new(0.5, 0, 0, 108),
+	Size = UDim2.new(0.4, 0, 0, 20),
+	Position = UDim2.new(0.5, 0, 0, 70),
 	AnchorPoint = Vector2.new(0.5, 0),
 	Text = "Walk to a pack stand and press E to open packs.",
 	TextColor3 = UI.Muted,
