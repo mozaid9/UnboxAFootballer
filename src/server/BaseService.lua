@@ -90,6 +90,9 @@ local function createPlot(plotId, side, laneIndex, position)
 
 	local facingDirection = side == "Left" and 1 or -1
 	local baseCFrame = CFrame.new(position)
+	local centerDirection = Vector3.new(facingDirection, 0, 0)
+	local padOffset = 16
+	local signOffset = 20
 
 	local floor = make("Part", {
 		Name = "Floor",
@@ -125,7 +128,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		Material = Enum.Material.Neon,
 		Color = Color3.fromRGB(221, 49, 49),
 		Size = layout.PackPadSize,
-		CFrame = baseCFrame * CFrame.new(facingDirection * 16, 0.45, 0),
+		CFrame = baseCFrame * CFrame.new(-facingDirection * padOffset, 0.45, 0),
 	}, model)
 
 	local packPadBorder = make("Part", {
@@ -145,9 +148,10 @@ local function createPlot(plotId, side, laneIndex, position)
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(242, 241, 235),
 		Size = Vector3.new(10, 0.45, 10),
-		CFrame = baseCFrame * CFrame.new(-facingDirection * 16, 0.45, 0),
+		CFrame = baseCFrame * CFrame.new(facingDirection * padOffset, 0.45, 0),
 	}, model)
 
+	local ownerSignPosition = position + Vector3.new(facingDirection * signOffset, 4.3, -14)
 	local ownerSign = make("Part", {
 		Name = "OwnerSign",
 		Anchored = true,
@@ -155,7 +159,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(24, 30, 42),
 		Size = Vector3.new(7, 5, 0.5),
-		CFrame = baseCFrame * CFrame.new(-facingDirection * 20, 4.3, -14) * CFrame.Angles(0, facingDirection == 1 and math.rad(90) or math.rad(-90), 0),
+		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
 	}, model)
 
 	local ownerGui = make("SurfaceGui", {
@@ -262,7 +266,10 @@ local function createPlot(plotId, side, laneIndex, position)
 		padSubtitleLabel = padSubtitleLabel,
 		padAccent = padAccent,
 		displaySlots = displaySlots,
-		spawnCFrame = spawnPad.CFrame + Vector3.new(0, 3, 0),
+		spawnCFrame = CFrame.lookAt(
+			spawnPad.Position + Vector3.new(0, 3, 0),
+			spawnPad.Position + Vector3.new(0, 3, 0) + centerDirection
+		),
 	}
 
 	updateOwnerSign(plot, "UNCLAIMED BASE", "Waiting for player")

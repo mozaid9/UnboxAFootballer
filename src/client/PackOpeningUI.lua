@@ -266,74 +266,79 @@ make("UIGradient", {
 
 local revealTitle = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0.5, 0, 0, 26),
+	Position = UDim2.new(0.5, 0, 0, 18),
 	AnchorPoint = Vector2.new(0.5, 0),
-	Size = UDim2.new(0.6, 0, 0, 42),
+	Size = UDim2.new(0.58, 0, 0, 34),
 	Text = "Pack Reveal",
 	TextColor3 = UI.Text,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 34,
 	Font = Enum.Font.GothamBlack,
 }, revealScreen)
 
 local revealSubTitle = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0.5, 0, 0, 66),
+	Position = UDim2.new(0.5, 0, 0, 58),
 	AnchorPoint = Vector2.new(0.5, 0),
-	Size = UDim2.new(0.7, 0, 0, 18),
-	Text = "Cards flip one by one. Rare Gold pulls hit brighter.",
+	Size = UDim2.new(0.72, 0, 0, 18),
+	Text = "Keep or sell each player. Rare Gold pulls flash brighter.",
 	TextColor3 = UI.Muted,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 16,
 	Font = Enum.Font.GothamMedium,
 }, revealScreen)
 
 local cardContainer = make("Frame", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0.5, 0, 0.48, 0),
+	Position = UDim2.new(0.5, 0, 0.43, 0),
 	AnchorPoint = Vector2.new(0.5, 0.5),
-	Size = UDim2.new(0.94, 0, 0.48, 0),
+	Size = UDim2.new(0.94, 0, 0.4, 0),
 }, revealScreen)
 
 make("UIListLayout", {
 	FillDirection = Enum.FillDirection.Horizontal,
 	HorizontalAlignment = Enum.HorizontalAlignment.Center,
 	VerticalAlignment = Enum.VerticalAlignment.Center,
-	Padding = UDim.new(0, 18),
+	Padding = UDim.new(0, 14),
 }, cardContainer)
 
 local actionRow = make("Frame", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0.5, 0, 1, -86),
+	Position = UDim2.new(0.5, 0, 1, -24),
 	AnchorPoint = Vector2.new(0.5, 1),
-	Size = UDim2.fromOffset(420, 54),
+	Size = UDim2.fromOffset(350, 42),
 }, revealScreen)
 
 make("UIListLayout", {
 	FillDirection = Enum.FillDirection.Horizontal,
 	HorizontalAlignment = Enum.HorizontalAlignment.Center,
-	Padding = UDim.new(0, 18),
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+	Padding = UDim.new(0, 14),
 }, actionRow)
 
 local storeAllButton = make("TextButton", {
 	Visible = false,
-	Size = UDim2.fromOffset(190, 52),
+	Size = UDim2.fromOffset(168, 40),
 	BackgroundColor3 = UI.Success,
-	Text = "Store All",
+	Text = "Keep Rest",
 	TextColor3 = UI.Text,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 18,
 	Font = Enum.Font.GothamBlack,
 }, actionRow)
-addCorner(storeAllButton, 16)
+addCorner(storeAllButton, 14)
 
 local sellAllButton = make("TextButton", {
 	Visible = false,
-	Size = UDim2.fromOffset(190, 52),
+	Size = UDim2.fromOffset(168, 40),
 	BackgroundColor3 = UI.Danger,
-	Text = "Quick Sell All",
+	Text = "Sell Rest",
 	TextColor3 = UI.Text,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 18,
 	Font = Enum.Font.GothamBlack,
 }, actionRow)
-addCorner(sellAllButton, 16)
+addCorner(sellAllButton, 14)
 
 local toastHolder = make("Frame", {
 	BackgroundTransparency = 1,
@@ -350,6 +355,7 @@ make("UIListLayout", {
 
 local currentCards = {}
 local soldIndexes = {}
+local keptIndexes = {}
 local isRevealing = false
 local packButtons = {}
 
@@ -411,6 +417,7 @@ local function clearCards()
 	end
 	table.clear(currentCards)
 	table.clear(soldIndexes)
+	table.clear(keptIndexes)
 end
 
 local function buildPackButton(packDef)
@@ -514,7 +521,7 @@ end
 local function buildCard(cardData, cardIndex)
 	local outer = make("Frame", {
 		BackgroundColor3 = Color3.fromRGB(15, 19, 30),
-		Size = UDim2.fromOffset(156, 244),
+		Size = UDim2.fromOffset(146, 224),
 		ClipsDescendants = true,
 	}, cardContainer)
 	addCorner(outer, 18)
@@ -614,28 +621,54 @@ local function buildCard(cardData, cardIndex)
 		Font = Enum.Font.GothamBold,
 	}, front)
 
+	local cardActionRow = make("Frame", {
+		Visible = false,
+		BackgroundTransparency = 1,
+		Size = UDim2.new(0.84, 0, 0, 28),
+		Position = UDim2.new(0.08, 0, 1, -36),
+	}, outer)
+
+	make("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		VerticalAlignment = Enum.VerticalAlignment.Center,
+		Padding = UDim.new(0, 6),
+	}, cardActionRow)
+
+	local keepButton = make("TextButton", {
+		Visible = true,
+		BackgroundColor3 = UI.Success,
+		Size = UDim2.fromOffset(62, 28),
+		Text = "Keep",
+		TextColor3 = UI.Text,
+		TextScaled = false,
+		TextSize = 13,
+		Font = Enum.Font.GothamBlack,
+	}, cardActionRow)
+	addCorner(keepButton, 10)
+
 	local sellButton = make("TextButton", {
 		Visible = false,
 		BackgroundColor3 = UI.Danger,
-		Size = UDim2.new(0.82, 0, 0, 34),
-		Position = UDim2.new(0.09, 0, 1, -44),
-		Text = "Sell " .. Utils.FormatNumber(cardData.sellValue),
+		Size = UDim2.fromOffset(62, 28),
+		Text = "Sell",
 		TextColor3 = UI.Text,
-		TextScaled = true,
+		TextScaled = false,
+		TextSize = 13,
 		Font = Enum.Font.GothamBlack,
-	}, outer)
-	addCorner(sellButton, 12)
+	}, cardActionRow)
+	addCorner(sellButton, 10)
 
 	local function flip()
 		local collapse = TweenService:Create(outer, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-			Size = UDim2.fromOffset(12, 244),
+			Size = UDim2.fromOffset(12, 224),
 		})
 		collapse:Play()
 		collapse.Completed:Wait()
 		back.Visible = false
 		front.Visible = true
 		local expand = TweenService:Create(outer, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = UDim2.fromOffset(156, 244),
+			Size = UDim2.fromOffset(146, 224),
 		})
 		expand:Play()
 		TweenService:Create(border, TweenInfo.new(0.25), {
@@ -643,20 +676,35 @@ local function buildCard(cardData, cardIndex)
 			Transparency = 0,
 			Thickness = cardData.rarity == "Rare Gold" and 3 or 2,
 		}):Play()
+		cardActionRow.Visible = true
 		sellButton.Visible = true
 		if cardData.rarity == "Rare Gold" then
 			showToast("Rare pull: " .. cardData.name .. " (" .. cardData.rating .. ")", accent)
 		end
 	end
 
+	keepButton.MouseButton1Click:Connect(function()
+		if soldIndexes[cardIndex] or keptIndexes[cardIndex] then
+			return
+		end
+		keptIndexes[cardIndex] = true
+		cardActionRow.Visible = false
+		TweenService:Create(border, TweenInfo.new(0.2), {
+			Color = UI.Success,
+			Transparency = 0,
+			Thickness = 2,
+		}):Play()
+		showToast("Kept " .. cardData.name .. " for your club.", UI.Success)
+	end)
+
 	sellButton.MouseButton1Click:Connect(function()
-		if soldIndexes[cardIndex] then
+		if soldIndexes[cardIndex] or keptIndexes[cardIndex] then
 			return
 		end
 		local response = SellCardFn:InvokeServer(cardData.id)
 		if response and response.success then
 			soldIndexes[cardIndex] = true
-			sellButton.Visible = false
+			cardActionRow.Visible = false
 			outer.BackgroundTransparency = 0.35
 			setCoinsDisplay(response.newCoins)
 		end
@@ -680,7 +728,7 @@ local function runReveal(payload)
 	isRevealing = true
 	clearCards()
 	revealTitle.Text = payload.packName
-	revealSubTitle.Text = "Sound hooks: FlipSFX on each card, RarePullSFX for Rare Gold cards."
+	revealSubTitle.Text = "Keep or sell each player. Rare Gold pulls flash brighter."
 	revealScreen.Visible = true
 	storeAllButton.Visible = false
 	sellAllButton.Visible = false
@@ -751,7 +799,7 @@ sellAllButton.MouseButton1Click:Connect(function()
 
 	local toSell = {}
 	for index, card in ipairs(currentCards) do
-		if not soldIndexes[index] then
+		if not soldIndexes[index] and not keptIndexes[index] then
 			table.insert(toSell, card.id)
 		end
 	end

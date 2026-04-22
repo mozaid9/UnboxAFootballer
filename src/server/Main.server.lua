@@ -175,8 +175,8 @@ local function spawnPackForPlot(plot)
 	model.Parent = plot.model
 
 	local basePosition = plot.packPad.Position + Vector3.new(0, 5.4, 0)
-	local facingYaw = plot.side == "Left" and math.rad(180) or 0
-	local rootCFrame = CFrame.new(basePosition) * CFrame.Angles(0, facingYaw, 0)
+	local lookDirection = Vector3.new(plot.facingDirection, 0, 0)
+	local rootCFrame = CFrame.lookAt(basePosition, basePosition + lookDirection)
 
 	local cardBody = Instance.new("Part")
 	cardBody.Name = "PackBody"
