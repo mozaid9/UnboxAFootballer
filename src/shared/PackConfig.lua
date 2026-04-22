@@ -25,6 +25,7 @@ PackConfig.ShopOrder = {
 		description = "3 Gold cards. Balanced odds and easy entry.",
 		cost = 5000,
 		cardCount = 3,
+		padWeight = 80,
 		color = Color3.fromRGB(255, 215, 0),
 		displayRating = 80,
 		station = {
@@ -37,6 +38,7 @@ PackConfig.ShopOrder = {
 		description = "5 cards with one guaranteed 85+ Rare Gold pull.",
 		cost = 10000,
 		cardCount = 5,
+		padWeight = 20,
 		color = Color3.fromRGB(255, 168, 42),
 		displayRating = 85,
 		guaranteed = {
@@ -53,5 +55,7 @@ PackConfig.ById = {}
 for _, pack in ipairs(PackConfig.ShopOrder) do
 	PackConfig.ById[pack.id] = pack
 end
+
+PackConfig.PadSpawnOrder = PackConfig.ShopOrder
 
 return PackConfig

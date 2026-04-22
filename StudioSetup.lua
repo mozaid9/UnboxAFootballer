@@ -84,6 +84,7 @@ wipe("RebirthUI", sps)
 wipe("Bat", STP)
 wipe("Crates", workspace)
 wipe("PackStations", workspace)
+wipe("PlayerBases", workspace)
 
 local shared = makeFolder("Shared", RS)
 
@@ -141,6 +142,19 @@ Constants.MarketFloors = {
 }
 
 Constants.MarketCeilingMultiplier = 5
+
+Constants.BaseLayout = {
+	MaxPlots = 6,
+	PlotsPerSide = 3,
+	SideOffset = 88,
+	StartZ = -96,
+	PlotSpacing = 96,
+	PlotSize = Vector3.new(56, 1, 44),
+	FenceHeight = 6,
+	PackPadSize = Vector3.new(16, 0.6, 16),
+	DisplaySlotCount = 6,
+	DisplaySlotSize = Vector3.new(7, 3.5, 7),
+}
 
 Constants.UI = {
 	Background = Color3.fromRGB(7, 11, 20),
@@ -239,6 +253,7 @@ PackConfig.ShopOrder = {
 		description = "3 Gold cards. Balanced odds and easy entry.",
 		cost = 5000,
 		cardCount = 3,
+		padWeight = 80,
 		color = Color3.fromRGB(255, 215, 0),
 		displayRating = 80,
 		station = {
@@ -251,6 +266,7 @@ PackConfig.ShopOrder = {
 		description = "5 cards with one guaranteed 85+ Rare Gold pull.",
 		cost = 10000,
 		cardCount = 5,
+		padWeight = 20,
 		color = Color3.fromRGB(255, 168, 42),
 		displayRating = 85,
 		guaranteed = {
@@ -267,6 +283,8 @@ PackConfig.ById = {}
 for _, pack in ipairs(PackConfig.ShopOrder) do
 	PackConfig.ById[pack.id] = pack
 end
+
+PackConfig.PadSpawnOrder = PackConfig.ShopOrder
 
 return PackConfig
 
@@ -831,30 +849,376 @@ return PackService
 ]==])
 
 makeModule("BaseService", SSS, [==[
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local Constants = require(ReplicatedStorage.Shared.Constants)
+
 local BaseService = {}
 
+local layout = Constants.BaseLayout
+local basesFolder
+local plots = {}
 local assignedPlots = {}
-local nextPlotIndex = 1
+
+local function make(className, props, parent)
+	local instance = Instance.new(className)
+	for key, value in pairs(props or {}) do
+		instance[key] = value
+	end
+	instance.Parent = parent
+	return instance
+end
+
+local function createSignLabel(text, size, position, color, parent)
+	return make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = size,
+		Position = position,
+		Text = text,
+		TextColor3 = color,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+	}, parent)
+end
+
+local function updateOwnerSign(plot, ownerName, subtitle)
+	plot.ownerNameLabel.Text = ownerName
+	plot.ownerSubtitleLabel.Text = subtitle
+end
+
+local function updatePadLabel(plot, title, subtitle, color)
+	plot.padTitleLabel.Text = title
+	plot.padSubtitleLabel.Text = subtitle
+	plot.padAccent.BackgroundColor3 = color
+end
+
+local function createFence(parent, size, cframe)
+	make("Part", {
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(120, 84, 40),
+		Size = size,
+		CFrame = cframe,
+	}, parent)
+end
+
+local function createDisplaySlot(parent, index, cframe)
+	local model = make("Model", {
+		Name = "DisplaySlot" .. index,
+	}, parent)
+
+	local base = make("Part", {
+		Name = "Base",
+		Anchored = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(20, 26, 38),
+		Size = layout.DisplaySlotSize,
+		CFrame = cframe,
+	}, model)
+
+	local top = make("Part", {
+		Name = "Top",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(46, 205, 113),
+		Size = Vector3.new(layout.DisplaySlotSize.X - 1.4, 0.18, layout.DisplaySlotSize.Z - 1.4),
+		CFrame = base.CFrame + Vector3.new(0, layout.DisplaySlotSize.Y / 2 + 0.1, 0),
+	}, model)
+
+	make("BillboardGui", {
+		Name = "SlotGui",
+		Size = UDim2.fromOffset(160, 26),
+		StudsOffset = Vector3.new(0, layout.DisplaySlotSize.Y / 2 + 1.2, 0),
+		AlwaysOnTop = true,
+	}, base)
+
+	local gui = base:FindFirstChild("SlotGui")
+	createSignLabel("Display Slot " .. index, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), Color3.fromRGB(225, 236, 229), gui)
+
+	model:SetAttribute("SlotIndex", index)
+	model:SetAttribute("Occupied", false)
+
+	return model
+end
+
+local function createPlot(plotId, side, laneIndex, position)
+	local model = make("Model", {
+		Name = "Base" .. plotId,
+	}, basesFolder)
+
+	local facingDirection = side == "Left" and 1 or -1
+	local baseCFrame = CFrame.new(position)
+
+	local floor = make("Part", {
+		Name = "Floor",
+		Anchored = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(67, 163, 79),
+		Size = layout.PlotSize,
+		CFrame = baseCFrame,
+	}, model)
+
+	local borderTop = createFence(model, Vector3.new(layout.PlotSize.X, 0.7, 1.2), baseCFrame * CFrame.new(0, 0.8, -layout.PlotSize.Z / 2))
+	local borderBottom = createFence(model, Vector3.new(layout.PlotSize.X, 0.7, 1.2), baseCFrame * CFrame.new(0, 0.8, layout.PlotSize.Z / 2))
+	local borderLeft = createFence(model, Vector3.new(1.2, 0.7, layout.PlotSize.Z), baseCFrame * CFrame.new(-layout.PlotSize.X / 2, 0.8, 0))
+	local borderRight = createFence(model, Vector3.new(1.2, 0.7, layout.PlotSize.Z), baseCFrame * CFrame.new(layout.PlotSize.X / 2, 0.8, 0))
+	_ = borderTop
+	_ = borderBottom
+	_ = borderLeft
+	_ = borderRight
+
+	local centerStrip = make("Part", {
+		Name = "CenterStrip",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(242, 241, 235),
+		Size = Vector3.new(layout.PlotSize.X - 8, 0.12, 8),
+		CFrame = baseCFrame * CFrame.new(0, 0.56, 0),
+	}, model)
+
+	local packPad = make("Part", {
+		Name = "PackPad",
+		Anchored = true,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(221, 49, 49),
+		Size = layout.PackPadSize,
+		CFrame = baseCFrame * CFrame.new(facingDirection * 16, 0.45, 0),
+	}, model)
+
+	local packPadBorder = make("Part", {
+		Name = "PackPadBorder",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(86, 16, 16),
+		Size = Vector3.new(layout.PackPadSize.X + 2, 0.2, layout.PackPadSize.Z + 2),
+		CFrame = packPad.CFrame - Vector3.new(0, 0.22, 0),
+	}, model)
+	_ = packPadBorder
+
+	local spawnPad = make("Part", {
+		Name = "SpawnPad",
+		Anchored = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(242, 241, 235),
+		Size = Vector3.new(10, 0.45, 10),
+		CFrame = baseCFrame * CFrame.new(-facingDirection * 16, 0.45, 0),
+	}, model)
+
+	local ownerSign = make("Part", {
+		Name = "OwnerSign",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(24, 30, 42),
+		Size = Vector3.new(7, 5, 0.5),
+		CFrame = baseCFrame * CFrame.new(-facingDirection * 20, 4.3, -14) * CFrame.Angles(0, facingDirection == 1 and math.rad(90) or math.rad(-90), 0),
+	}, model)
+
+	local ownerGui = make("SurfaceGui", {
+		Face = Enum.NormalId.Front,
+		PixelsPerStud = 70,
+		LightInfluence = 0,
+	}, ownerSign)
+
+	local ownerFrame = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(10, 14, 24),
+		BackgroundTransparency = 0.06,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+	}, ownerGui)
+
+	make("UIStroke", {
+		Color = Color3.fromRGB(255, 215, 0),
+		Thickness = 3,
+	}, ownerFrame)
+
+	local ownerNameLabel = createSignLabel("UNCLAIMED BASE", UDim2.new(1, -14, 0.44, 0), UDim2.new(0, 7, 0.1, 0), Color3.fromRGB(245, 238, 220), ownerFrame)
+	local ownerSubtitleLabel = createSignLabel("Waiting for player", UDim2.new(1, -14, 0.24, 0), UDim2.new(0, 7, 0.58, 0), Color3.fromRGB(180, 176, 164), ownerFrame)
+	ownerSubtitleLabel.Font = Enum.Font.GothamBold
+
+	local padGui = make("BillboardGui", {
+		Name = "PadGui",
+		Size = UDim2.fromOffset(210, 62),
+		StudsOffset = Vector3.new(0, 4.6, 0),
+		AlwaysOnTop = true,
+	}, packPad)
+
+	local padFrame = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(10, 14, 24),
+		BackgroundTransparency = 0.12,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+	}, padGui)
+
+	make("UICorner", {
+		CornerRadius = UDim.new(0, 14),
+	}, padFrame)
+
+	make("UIStroke", {
+		Color = Color3.fromRGB(255, 215, 0),
+		Thickness = 2,
+		Transparency = 0.15,
+	}, padFrame)
+
+	local padAccent = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(255, 85, 85),
+		BorderSizePixel = 0,
+		Size = UDim2.new(0, 8, 1, -12),
+		Position = UDim2.new(0, 8, 0, 6),
+	}, padFrame)
+
+	make("UICorner", {
+		CornerRadius = UDim.new(0, 6),
+	}, padAccent)
+
+	local padTitleLabel = createSignLabel("Pack Pad", UDim2.new(1, -28, 0.38, 0), UDim2.new(0, 22, 0.08, 0), Color3.fromRGB(245, 238, 220), padFrame)
+	local padSubtitleLabel = createSignLabel("Waiting for owner", UDim2.new(1, -28, 0.22, 0), UDim2.new(0, 22, 0.52, 0), Color3.fromRGB(180, 176, 164), padFrame)
+	padSubtitleLabel.Font = Enum.Font.GothamBold
+
+	local displayFolder = make("Folder", {
+		Name = "DisplaySlots",
+	}, model)
+
+	local slotOffsets = {
+		Vector3.new(-12, 1.75, -14),
+		Vector3.new(0, 1.75, -14),
+		Vector3.new(12, 1.75, -14),
+		Vector3.new(-12, 1.75, 14),
+		Vector3.new(0, 1.75, 14),
+		Vector3.new(12, 1.75, 14),
+	}
+
+	local displaySlots = {}
+	for slotIndex = 1, layout.DisplaySlotCount do
+		local localOffset = slotOffsets[slotIndex]
+		local worldOffset = Vector3.new(localOffset.X * facingDirection, localOffset.Y, localOffset.Z)
+		displaySlots[slotIndex] = createDisplaySlot(displayFolder, slotIndex, baseCFrame * CFrame.new(worldOffset))
+	end
+
+	local plot = {
+		id = plotId,
+		side = side,
+		laneIndex = laneIndex,
+		model = model,
+		facingDirection = facingDirection,
+		floor = floor,
+		packPad = packPad,
+		spawnPad = spawnPad,
+		ownerSign = ownerSign,
+		ownerNameLabel = ownerNameLabel,
+		ownerSubtitleLabel = ownerSubtitleLabel,
+		padTitleLabel = padTitleLabel,
+		padSubtitleLabel = padSubtitleLabel,
+		padAccent = padAccent,
+		displaySlots = displaySlots,
+		spawnCFrame = spawnPad.CFrame + Vector3.new(0, 3, 0),
+	}
+
+	updateOwnerSign(plot, "UNCLAIMED BASE", "Waiting for player")
+	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
+
+	return plot
+end
+
+function BaseService.BuildBaseMap()
+	plots = {}
+	assignedPlots = {}
+
+	if basesFolder then
+		basesFolder:Destroy()
+	end
+
+	basesFolder = make("Folder", {
+		Name = "PlayerBases",
+	}, Workspace)
+
+	for sideIndex = 1, 2 do
+		for laneIndex = 1, layout.PlotsPerSide do
+			local plotId = #plots + 1
+			local x = sideIndex == 1 and -layout.SideOffset or layout.SideOffset
+			local z = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
+			local side = sideIndex == 1 and "Left" or "Right"
+			table.insert(plots, createPlot(plotId, side, laneIndex, Vector3.new(x, 0.5, z)))
+		end
+	end
+
+	return plots
+end
+
+function BaseService.GetPlots()
+	if #plots == 0 then
+		BaseService.BuildBaseMap()
+	end
+	return plots
+end
 
 function BaseService.AssignPlot(player)
 	if assignedPlots[player] then
 		return assignedPlots[player]
 	end
 
-	assignedPlots[player] = {
-		plotId = nextPlotIndex,
-		displaySlots = 6,
-	}
-	nextPlotIndex += 1
-	return assignedPlots[player]
+	if #plots == 0 then
+		BaseService.BuildBaseMap()
+	end
+
+	for _, plot in ipairs(plots) do
+		if not plot.ownerPlayer then
+			plot.ownerPlayer = player
+			plot.model:SetAttribute("OwnerUserId", player.UserId)
+			plot.model:SetAttribute("OwnerName", player.DisplayName)
+			updateOwnerSign(plot, player.DisplayName, "Your club base")
+			updatePadLabel(plot, "Rolling Pack", "Preparing your next spawn", Color3.fromRGB(255, 170, 48))
+			assignedPlots[player] = plot
+			return plot
+		end
+	end
+
+	return nil
 end
 
 function BaseService.ReleasePlot(player)
+	local plot = assignedPlots[player]
+	if not plot then
+		return
+	end
+
+	if plot.activePackModel and plot.activePackModel.Parent then
+		plot.activePackModel:Destroy()
+	end
+
+	plot.activePackModel = nil
+	plot.activePackDef = nil
+	plot.ownerPlayer = nil
+	plot.model:SetAttribute("OwnerUserId", nil)
+	plot.model:SetAttribute("OwnerName", nil)
+	updateOwnerSign(plot, "UNCLAIMED BASE", "Waiting for player")
+	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
 	assignedPlots[player] = nil
 end
 
 function BaseService.GetPlot(player)
 	return assignedPlots[player]
+end
+
+function BaseService.SetPlotPadStatus(plot, title, subtitle, color)
+	if plot then
+		updatePadLabel(plot, title, subtitle, color or Color3.fromRGB(255, 85, 85))
+	end
+end
+
+function BaseService.PlaceCharacterAtPlot(player, character)
+	local plot = assignedPlots[player]
+	local targetCharacter = character or player.Character
+	if not plot or not targetCharacter then
+		return
+	end
+
+	targetCharacter:PivotTo(plot.spawnCFrame)
 end
 
 return BaseService
@@ -1005,14 +1369,7 @@ PackService.Init(DataService, EconomyService, {
 EconomyService.Init(DataService)
 RebirthService.Init(DataService)
 
-local stationsFolder = workspace:FindFirstChild("PackStations")
-if stationsFolder then
-	stationsFolder:Destroy()
-end
-
-stationsFolder = Instance.new("Folder")
-stationsFolder.Name = "PackStations"
-stationsFolder.Parent = workspace
+BaseService.BuildBaseMap()
 
 local function createSurfaceLabel(face, title, subtitle, color, parent)
 	local gui = Instance.new("SurfaceGui")
@@ -1083,28 +1440,43 @@ local function createSurfaceLabel(face, title, subtitle, color, parent)
 	stripeGradient.Parent = stripes
 end
 
-local function buildPackModel(packDef)
+local function rollPadPackForPlayer(_player)
+	local weights = {}
+	for _, packDef in ipairs(PackConfig.PadSpawnOrder) do
+		table.insert(weights, packDef.padWeight or 1)
+	end
+
+	local chosenIndex = Utils.WeightedRandom(weights)
+	return PackConfig.PadSpawnOrder[chosenIndex]
+end
+
+local function clearPlotPack(plot)
+	if plot.activePackModel and plot.activePackModel.Parent then
+		plot.activePackModel:Destroy()
+	end
+	plot.activePackModel = nil
+	plot.activePackDef = nil
+end
+
+local function spawnPackForPlot(plot)
+	if not plot or not plot.ownerPlayer then
+		return
+	end
+
+	clearPlotPack(plot)
+
+	local packDef = rollPadPackForPlayer(plot.ownerPlayer)
+	if not packDef then
+		return
+	end
+
 	local model = Instance.new("Model")
 	model.Name = packDef.id
-	model.Parent = stationsFolder
+	model.Parent = plot.model
 
-	local base = Instance.new("Part")
-	base.Name = "Pedestal"
-	base.Anchored = true
-	base.Size = Vector3.new(10, 1.5, 10)
-	base.Material = Enum.Material.SmoothPlastic
-	base.Color = Color3.fromRGB(16, 20, 32)
-	base.CFrame = CFrame.new(packDef.station.position)
-	base.Parent = model
-
-	local baseAccent = Instance.new("Part")
-	baseAccent.Name = "Accent"
-	baseAccent.Anchored = true
-	baseAccent.Size = Vector3.new(8, 0.25, 8)
-	baseAccent.Material = Enum.Material.Neon
-	baseAccent.Color = packDef.color
-	baseAccent.CFrame = base.CFrame + Vector3.new(0, 0.9, 0)
-	baseAccent.Parent = model
+	local basePosition = plot.packPad.Position + Vector3.new(0, 5.4, 0)
+	local facingYaw = plot.side == "Left" and math.rad(180) or 0
+	local rootCFrame = CFrame.new(basePosition) * CFrame.Angles(0, facingYaw, 0)
 
 	local cardBody = Instance.new("Part")
 	cardBody.Name = "PackBody"
@@ -1112,7 +1484,7 @@ local function buildPackModel(packDef)
 	cardBody.Material = Enum.Material.SmoothPlastic
 	cardBody.Color = Color3.fromRGB(28, 22, 8)
 	cardBody.Size = Vector3.new(0.3, 8, 5.4)
-	cardBody.CFrame = base.CFrame * CFrame.new(0, 5.5, 0) * CFrame.Angles(0, math.rad(180), 0)
+	cardBody.CFrame = rootCFrame
 	cardBody.Parent = model
 
 	local topCap = Instance.new("WedgePart")
@@ -1135,8 +1507,8 @@ local function buildPackModel(packDef)
 
 	local glow = Instance.new("PointLight")
 	glow.Color = packDef.color
-	glow.Range = 14
-	glow.Brightness = 2.5
+	glow.Range = 18
+	glow.Brightness = 2.8
 	glow.Parent = cardBody
 
 	createSurfaceLabel(Enum.NormalId.Front, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
@@ -1144,94 +1516,91 @@ local function buildPackModel(packDef)
 
 	local promptAttachment = Instance.new("Attachment")
 	promptAttachment.Name = "PromptAttachment"
-	promptAttachment.Position = Vector3.new(0, 4.6, 0)
-	promptAttachment.Parent = base
+	promptAttachment.Position = Vector3.new(0, 5, 0)
+	promptAttachment.Parent = cardBody
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "OpenPrompt"
 	prompt.ActionText = "Open " .. packDef.displayName
 	prompt.ObjectText = Utils.FormatNumber(packDef.cost) .. " Coins"
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
-	prompt.HoldDuration = 0.15
-	prompt.MaxActivationDistance = 10
+	prompt.HoldDuration = 0.12
+	prompt.MaxActivationDistance = 12
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = promptAttachment
 
-	local titleGui = Instance.new("BillboardGui")
-	titleGui.Name = "TitleGui"
-	titleGui.Size = UDim2.fromOffset(240, 84)
-	titleGui.StudsOffset = Vector3.new(0, 8.7, 0)
-	titleGui.AlwaysOnTop = true
-	titleGui.Parent = base
-
-	local titleFrame = Instance.new("Frame")
-	titleFrame.Size = UDim2.fromScale(1, 1)
-	titleFrame.BackgroundColor3 = Color3.fromRGB(10, 14, 24)
-	titleFrame.BackgroundTransparency = 0.15
-	titleFrame.BorderSizePixel = 0
-	titleFrame.Parent = titleGui
-
-	local titleCorner = Instance.new("UICorner")
-	titleCorner.CornerRadius = UDim.new(0, 14)
-	titleCorner.Parent = titleFrame
-
-	local titleStroke = Instance.new("UIStroke")
-	titleStroke.Color = packDef.color
-	titleStroke.Thickness = 2
-	titleStroke.Parent = titleFrame
-
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Size = UDim2.new(1, -20, 0.56, 0)
-	titleLabel.Position = UDim2.new(0, 10, 0.08, 0)
-	titleLabel.Text = packDef.displayName
-	titleLabel.TextColor3 = Color3.fromRGB(245, 238, 220)
-	titleLabel.TextScaled = true
-	titleLabel.Font = Enum.Font.GothamBlack
-	titleLabel.Parent = titleFrame
-
-	local subtitle = Instance.new("TextLabel")
-	subtitle.BackgroundTransparency = 1
-	subtitle.Size = UDim2.new(1, -20, 0.26, 0)
-	subtitle.Position = UDim2.new(0, 10, 0.62, 0)
-	subtitle.Text = packDef.description
-	subtitle.TextColor3 = Color3.fromRGB(191, 183, 160)
-	subtitle.TextScaled = true
-	subtitle.Font = Enum.Font.Gotham
-	subtitle.Parent = titleFrame
-
-	local tweenInfo = TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
-	TweenService:Create(cardBody, tweenInfo, {
+	local floatTween = TweenService:Create(cardBody, TweenInfo.new(1.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
 		CFrame = cardBody.CFrame * CFrame.new(0, 0.35, 0) * CFrame.Angles(0, math.rad(4), 0),
-	}):Play()
+	})
+	floatTween:Play()
 
 	prompt.Triggered:Connect(function(player)
+		if plot.ownerPlayer ~= player then
+			PackOpenFailedEvent:FireClient(player, {
+				error = (plot.ownerPlayer and plot.ownerPlayer.DisplayName or "Another player") .. "'s pack is on this pad.",
+			})
+			return
+		end
+
 		local ok, result = PackService.OpenPack(player, packDef.id)
 		if ok then
 			PackOpenedEvent:FireClient(player, result)
+			BaseService.SetPlotPadStatus(plot, "Rolling Next Pack", "Refreshing your red pad", packDef.color)
+			clearPlotPack(plot)
+			task.delay(1.2, function()
+				if plot.ownerPlayer == player then
+					spawnPackForPlot(plot)
+				end
+			end)
 		else
 			PackOpenFailedEvent:FireClient(player, result)
 		end
 	end)
+
+	plot.activePackModel = model
+	plot.activePackDef = packDef
+	BaseService.SetPlotPadStatus(plot, packDef.displayName, Utils.FormatNumber(packDef.cost) .. " coins on your red pad", packDef.color)
 end
 
-for _, packDef in ipairs(PackConfig.ShopOrder) do
-	buildPackModel(packDef)
+for _, plot in ipairs(BaseService.GetPlots()) do
+	BaseService.SetPlotPadStatus(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
 end
 
 Players.PlayerAdded:Connect(function(player)
 	local data = DataService.LoadPlayer(player)
-	BaseService.AssignPlot(player)
+	local plot = BaseService.AssignPlot(player)
 	EconomyService.EnsureStarterCoins(player)
 	EconomyService.TryGrantDailyReward(player)
+
+	if player.Character then
+		task.defer(function()
+			if player.Parent then
+				BaseService.PlaceCharacterAtPlot(player, player.Character)
+			end
+		end)
+	end
+
+	player.CharacterAdded:Connect(function(character)
+		task.delay(0.15, function()
+			if player.Parent and character.Parent then
+				BaseService.PlaceCharacterAtPlot(player, character)
+			end
+		end)
+	end)
+
+	if plot then
+		spawnPackForPlot(plot)
+	end
+
 	task.defer(function()
 		if player.Parent then
 			UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
 			PromptPackShopEvent:FireClient(player, {
-				message = "Walk to a pack stand and press E to open it.",
+				message = plot and "Your random pack now spawns on the red pad in your base." or "This server's bases are full right now.",
 			})
 		end
 	end)
+
 	return data
 end)
 
@@ -2341,4 +2710,4 @@ end)
 ]==])
 
 print("[UnboxAFootballer] v3 pack setup complete")
-print("Press Play, walk to a pack stand, and press E to open packs.")
+print("This phase adds mirrored player bases and random red-pad pack spawns.")

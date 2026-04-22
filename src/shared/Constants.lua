@@ -52,6 +52,19 @@ Constants.MarketFloors = {
 
 Constants.MarketCeilingMultiplier = 5
 
+Constants.BaseLayout = {
+	MaxPlots = 6,
+	PlotsPerSide = 3,
+	SideOffset = 88,
+	StartZ = -96,
+	PlotSpacing = 96,
+	PlotSize = Vector3.new(56, 1, 44),
+	FenceHeight = 6,
+	PackPadSize = Vector3.new(16, 0.6, 16),
+	DisplaySlotCount = 6,
+	DisplaySlotSize = Vector3.new(7, 3.5, 7),
+}
+
 Constants.UI = {
 	Background = Color3.fromRGB(7, 11, 20),
 	Panel = Color3.fromRGB(14, 18, 31),
