@@ -3,6 +3,18 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local TweenService = game:GetService("TweenService")
 
+if ServerScriptService:GetAttribute("UnboxMainBooted") then
+	warn("[UnboxAFootballer] Duplicate Main detected, skipping older copy")
+	return
+end
+ServerScriptService:SetAttribute("UnboxMainBooted", true)
+
+for _, child in ipairs(ServerScriptService:GetChildren()) do
+	if child:IsA("Script") and child ~= script and child.Name == script.Name then
+		child.Disabled = true
+	end
+end
+
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 
 local DataService = require(ServerScriptService:WaitForChild("DataService"))

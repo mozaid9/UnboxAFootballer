@@ -13,12 +13,18 @@ local Utils = require(Shared:WaitForChild("Utils"))
 local GetInventoryFn = Remotes:WaitForChild("GetInventory")
 
 local function make(className, props, parent)
+	props = props or {}
 	local instance = Instance.new(className)
 	for key, value in pairs(props) do
 		instance[key] = value
 	end
 	instance.Parent = parent
 	return instance
+end
+
+local existingGui = playerGui:FindFirstChild("InventoryUI")
+if existingGui then
+	existingGui:Destroy()
 end
 
 local function addCorner(parent, radius)

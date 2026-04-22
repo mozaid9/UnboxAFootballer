@@ -13,8 +13,12 @@ local function wipe(name, parent)
     if not parent then
         return
     end
-    local old = parent:FindFirstChild(name)
-    if old then
+
+    while true do
+        local old = parent:FindFirstChild(name)
+        if not old then
+            break
+        end
         old:Destroy()
     end
 end
@@ -48,8 +52,7 @@ end
 local function makeLocal(name, parent, source)
     wipe(name, parent)
     local localScript = Instance.new("LocalScript")
-    local localScriptName = name
-    localScript.Name = localScriptName
+    localScript.Name = name
     localScript.Source = source
     localScript.Parent = parent
     return localScript
@@ -936,6 +939,18 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local TweenService = game:GetService("TweenService")
 
+if ServerScriptService:GetAttribute("UnboxMainBooted") then
+	warn("[UnboxAFootballer] Duplicate Main detected, skipping older copy")
+	return
+end
+ServerScriptService:SetAttribute("UnboxMainBooted", true)
+
+for _, child in ipairs(ServerScriptService:GetChildren()) do
+	if child:IsA("Script") and child ~= script and child.Name == script.Name then
+		child.Disabled = true
+	end
+end
+
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 
 local DataService = require(ServerScriptService:WaitForChild("DataService"))
@@ -1358,6 +1373,12 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+for _, child in ipairs(script.Parent:GetChildren()) do
+	if child:IsA("LocalScript") and child ~= script and child.Name == script.Name then
+		child.Disabled = true
+	end
+end
+
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
@@ -1377,12 +1398,18 @@ local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
 local UI = Constants.UI
 
 local function make(className, props, parent)
+	props = props or {}
 	local instance = Instance.new(className)
 	for key, value in pairs(props) do
 		instance[key] = value
 	end
 	instance.Parent = parent
 	return instance
+end
+
+local existingGui = playerGui:FindFirstChild("PackOpeningUI")
+if existingGui then
+	existingGui:Destroy()
 end
 
 local function addCorner(parent, radius)
@@ -2154,12 +2181,18 @@ local Utils = require(Shared:WaitForChild("Utils"))
 local GetInventoryFn = Remotes:WaitForChild("GetInventory")
 
 local function make(className, props, parent)
+	props = props or {}
 	local instance = Instance.new(className)
 	for key, value in pairs(props) do
 		instance[key] = value
 	end
 	instance.Parent = parent
 	return instance
+end
+
+local existingGui = playerGui:FindFirstChild("InventoryUI")
+if existingGui then
+	existingGui:Destroy()
 end
 
 local function addCorner(parent, radius)

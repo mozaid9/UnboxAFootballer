@@ -5,6 +5,12 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+for _, child in ipairs(script.Parent:GetChildren()) do
+	if child:IsA("LocalScript") and child ~= script and child.Name == script.Name then
+		child.Disabled = true
+	end
+end
+
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
@@ -24,12 +30,18 @@ local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
 local UI = Constants.UI
 
 local function make(className, props, parent)
+	props = props or {}
 	local instance = Instance.new(className)
 	for key, value in pairs(props) do
 		instance[key] = value
 	end
 	instance.Parent = parent
 	return instance
+end
+
+local existingGui = playerGui:FindFirstChild("PackOpeningUI")
+if existingGui then
+	existingGui:Destroy()
 end
 
 local function addCorner(parent, radius)
