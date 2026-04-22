@@ -1,5 +1,5 @@
 -- ============================================================
--- UNBOX A FOOTBALLER v4 -- BASE PAD SETUP
+-- UNBOX A FOOTBALLER v5 -- PITCHFORK PAD SETUP
 -- Paste this ENTIRE script into the Roblox Studio Command Bar
 -- and press Enter to install the current prototype.
 -- ============================================================
@@ -81,6 +81,7 @@ wipe("MarketUI", sps)
 wipe("BaseUI", sps)
 wipe("CollectionUI", sps)
 wipe("RebirthUI", sps)
+wipe("Pitchfork", STP)
 wipe("Bat", STP)
 wipe("Crates", workspace)
 wipe("PackStations", workspace)
@@ -154,6 +155,12 @@ Constants.BaseLayout = {
 	PackPadSize = Vector3.new(16, 0.6, 16),
 	DisplaySlotCount = 6,
 	DisplaySlotSize = Vector3.new(7, 3.5, 7),
+}
+
+Constants.Pitchfork = {
+	BaseDamage = 1,
+	SwingCooldown = 0.42,
+	HitRange = 24,
 }
 
 Constants.UI = {
@@ -252,6 +259,7 @@ PackConfig.ShopOrder = {
 		cost = 0,
 		futureCost = 5000,
 		cardCount = 3,
+		hitsRequired = 3,
 		padWeight = 74,
 		color = Color3.fromRGB(255, 215, 0),
 		displayRating = 80,
@@ -266,6 +274,7 @@ PackConfig.ShopOrder = {
 		cost = 0,
 		futureCost = 10000,
 		cardCount = 5,
+		hitsRequired = 4,
 		padWeight = 20,
 		color = Color3.fromRGB(255, 168, 42),
 		displayRating = 85,
@@ -284,6 +293,7 @@ PackConfig.ShopOrder = {
 		cost = 0,
 		futureCost = 18000,
 		cardCount = 5,
+		hitsRequired = 5,
 		padWeight = 6,
 		color = Color3.fromRGB(255, 118, 58),
 		displayRating = 88,
@@ -402,6 +412,7 @@ local DEFAULT_DATA = {
 		theme = "Default",
 	},
 	baseSlots = 6,
+	pitchforkPower = 1,
 	totalCardsOpened = 0,
 	totalRebirths = 0,
 	collectionRewards = {},
@@ -1332,6 +1343,7 @@ end
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 
+local Constants = require(Shared:WaitForChild("Constants"))
 local DataService = require(ServerScriptService:WaitForChild("DataService"))
 local EconomyService = require(ServerScriptService:WaitForChild("EconomyService"))
 local PackService = require(ServerScriptService:WaitForChild("PackService"))
@@ -1369,6 +1381,7 @@ local UpdateCoinsEvent = makeEvent("UpdateCoins")
 local PackOpenedEvent = makeEvent("PackOpened")
 local PackOpenFailedEvent = makeEvent("PackOpenFailed")
 local PromptPackShopEvent = makeEvent("PromptPackShop")
+local RequestPitchforkHitEvent = makeEvent("RequestPitchforkHit")
 
 local GetPlayerDataFn = makeFunction("GetPlayerData")
 local OpenPackFn = makeFunction("OpenPack")
@@ -1385,6 +1398,86 @@ EconomyService.Init(DataService)
 RebirthService.Init(DataService)
 
 BaseService.BuildBaseMap()
+
+local swingCooldowns = {}
+
+local function makeToolPart(name, size, color, cframe, parent)
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Size = size
+	part.Color = color
+	part.Material = Enum.Material.SmoothPlastic
+	part.CanCollide = false
+	part.Anchored = false
+	part.Massless = true
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.CFrame = cframe
+	part.Parent = parent
+	return part
+end
+
+local function weldParts(part0, part1)
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = part0
+	weld.Part1 = part1
+	weld.Parent = part1
+end
+
+local function createPitchforkTool()
+	local tool = Instance.new("Tool")
+	tool.Name = "Pitchfork"
+	tool.ToolTip = "Swing at the pack on your red pad."
+	tool.CanBeDropped = false
+	tool.RequiresHandle = true
+	tool.Grip = CFrame.new(0, -1.4, -0.9) * CFrame.Angles(math.rad(0), math.rad(90), math.rad(-18))
+
+	local handle = makeToolPart("Handle", Vector3.new(0.3, 4.4, 0.3), Color3.fromRGB(122, 84, 50), CFrame.new(), tool)
+	local collar = makeToolPart("Collar", Vector3.new(0.8, 0.18, 0.8), Color3.fromRGB(70, 74, 82), handle.CFrame * CFrame.new(0, 1.9, 0), tool)
+	local tineLeft = makeToolPart("TineLeft", Vector3.new(0.12, 1.3, 0.12), Color3.fromRGB(180, 182, 188), handle.CFrame * CFrame.new(-0.22, 2.45, 0), tool)
+	local tineMiddle = makeToolPart("TineMiddle", Vector3.new(0.12, 1.45, 0.12), Color3.fromRGB(205, 208, 214), handle.CFrame * CFrame.new(0, 2.52, 0), tool)
+	local tineRight = makeToolPart("TineRight", Vector3.new(0.12, 1.3, 0.12), Color3.fromRGB(180, 182, 188), handle.CFrame * CFrame.new(0.22, 2.45, 0), tool)
+	local crossbar = makeToolPart("Crossbar", Vector3.new(0.72, 0.12, 0.12), Color3.fromRGB(160, 162, 168), handle.CFrame * CFrame.new(0, 1.95, 0), tool)
+
+	weldParts(handle, collar)
+	weldParts(handle, tineLeft)
+	weldParts(handle, tineMiddle)
+	weldParts(handle, tineRight)
+	weldParts(handle, crossbar)
+
+	return tool
+end
+
+local function ensurePitchfork(player)
+	local backpack = player:FindFirstChild("Backpack") or player:WaitForChild("Backpack", 5)
+	local character = player.Character
+
+	local hasEquipped = character and character:FindFirstChild("Pitchfork")
+	if backpack and not hasEquipped and not backpack:FindFirstChild("Pitchfork") then
+		createPitchforkTool().Parent = backpack
+	end
+end
+
+local function sendHint(player, message)
+	if player and player.Parent then
+		PromptPackShopEvent:FireClient(player, {
+			message = message,
+		})
+	end
+end
+
+local function getPitchforkDamage(player)
+	local data = DataService.GetData(player)
+	return math.max(Constants.Pitchfork.BaseDamage, data and data.pitchforkPower or Constants.Pitchfork.BaseDamage)
+end
+
+local function getHitsLabel(remaining)
+	if remaining == 1 then
+		return "1 hit to crack"
+	end
+
+	return string.format("%d hits to crack", remaining)
+end
 
 local function createSurfaceLabel(face, title, subtitle, color, parent)
 	local gui = Instance.new("SurfaceGui")
@@ -1471,6 +1564,11 @@ local function clearPlotPack(plot)
 	end
 	plot.activePackModel = nil
 	plot.activePackDef = nil
+	plot.activePackBody = nil
+	plot.activePackLight = nil
+	plot.activePackHitsRemaining = nil
+	plot.activePackMaxHits = nil
+	plot.isOpeningPack = nil
 end
 
 local function spawnPackForPlot(plot)
@@ -1529,66 +1627,109 @@ local function spawnPackForPlot(plot)
 	createSurfaceLabel(Enum.NormalId.Front, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 	createSurfaceLabel(Enum.NormalId.Back, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 
-	local promptAttachment = Instance.new("Attachment")
-	promptAttachment.Name = "PromptAttachment"
-	promptAttachment.Position = Vector3.new(0, 5, 0)
-	promptAttachment.Parent = cardBody
-
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.Name = "OpenPrompt"
-	prompt.ActionText = "Open Pack"
-	prompt.ObjectText = "Free Spawn"
-	prompt.KeyboardKeyCode = Enum.KeyCode.E
-	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = 12
-	prompt.RequiresLineOfSight = false
-	prompt.Parent = promptAttachment
-
 	local floatTween = TweenService:Create(cardBody, TweenInfo.new(1.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
 		CFrame = cardBody.CFrame * CFrame.new(0, 0.35, 0) * CFrame.Angles(0, math.rad(4), 0),
 	})
 	floatTween:Play()
 
-	prompt.Triggered:Connect(function(player)
-		if plot.ownerPlayer ~= player then
-			PackOpenFailedEvent:FireClient(player, {
-				error = (plot.ownerPlayer and plot.ownerPlayer.DisplayName or "Another player") .. "'s pack is on this pad.",
-			})
-			return
-		end
-
-		local ok, result = PackService.OpenPack(player, packDef.id, {
-			ignoreCost = true,
-			source = "base_pad",
-		})
-		if ok then
-			PackOpenedEvent:FireClient(player, result)
-			BaseService.SetPlotPadStatus(plot, "Rolling Next Pack", "Another free pack is spawning", packDef.color)
-			clearPlotPack(plot)
-			task.delay(0.9, function()
-				if plot.ownerPlayer == player then
-					spawnPackForPlot(plot)
-				end
-			end)
-		else
-			PackOpenFailedEvent:FireClient(player, result)
-		end
-	end)
-
 	plot.activePackModel = model
 	plot.activePackDef = packDef
-	BaseService.SetPlotPadStatus(plot, packDef.displayName, "Free random spawn on your red pad", packDef.color)
+	plot.activePackBody = cardBody
+	plot.activePackLight = glow
+	plot.activePackMaxHits = packDef.hitsRequired or 3
+	plot.activePackHitsRemaining = plot.activePackMaxHits
+
+	BaseService.SetPlotPadStatus(plot, packDef.displayName, getHitsLabel(plot.activePackHitsRemaining), packDef.color)
+	sendHint(plot.ownerPlayer, string.format("%s spawned on your red pad. Equip your pitchfork and swing %d time%s.", packDef.displayName, plot.activePackHitsRemaining, plot.activePackHitsRemaining == 1 and "" or "s"))
 end
 
 for _, plot in ipairs(BaseService.GetPlots()) do
 	BaseService.SetPlotPadStatus(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
 end
 
+RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
+	local now = os.clock()
+	local lastSwing = swingCooldowns[player]
+	if lastSwing and (now - lastSwing) < Constants.Pitchfork.SwingCooldown then
+		return
+	end
+	swingCooldowns[player] = now
+
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+	local equippedTool = character and character:FindFirstChildOfClass("Tool")
+	if not humanoid or not rootPart or not equippedTool or equippedTool.Name ~= "Pitchfork" then
+		PackOpenFailedEvent:FireClient(player, {
+			error = "Equip your pitchfork first.",
+		})
+		return
+	end
+
+	local plot = BaseService.GetPlot(player)
+	if not plot or not plot.activePackDef or not plot.activePackBody or plot.isOpeningPack then
+		PackOpenFailedEvent:FireClient(player, {
+			error = "Your next pack is still spawning.",
+		})
+		return
+	end
+
+	if (rootPart.Position - plot.activePackBody.Position).Magnitude > Constants.Pitchfork.HitRange then
+		PackOpenFailedEvent:FireClient(player, {
+			error = "Move closer to the pack on your red pad.",
+		})
+		return
+	end
+
+	local damage = getPitchforkDamage(player)
+	plot.activePackHitsRemaining = math.max(0, (plot.activePackHitsRemaining or plot.activePackMaxHits or 1) - damage)
+
+	if plot.activePackLight then
+		plot.activePackLight.Brightness = 2.4 + ((plot.activePackMaxHits - plot.activePackHitsRemaining) * 0.65)
+	end
+
+	if plot.activePackHitsRemaining > 0 then
+		BaseService.SetPlotPadStatus(plot, plot.activePackDef.displayName, getHitsLabel(plot.activePackHitsRemaining), plot.activePackDef.color)
+		sendHint(player, string.format("%s: %d hit%s left.", plot.activePackDef.displayName, plot.activePackHitsRemaining, plot.activePackHitsRemaining == 1 and "" or "s"))
+		return
+	end
+
+	plot.isOpeningPack = true
+	BaseService.SetPlotPadStatus(plot, "Pack Cracked", "Revealing your cards", plot.activePackDef.color)
+	sendHint(player, plot.activePackDef.displayName .. " cracked open.")
+
+	local openedPackId = plot.activePackDef.id
+	local openedPackColor = plot.activePackDef.color
+	humanoid:UnequipTools()
+
+	local ok, result = PackService.OpenPack(player, openedPackId, {
+		ignoreCost = true,
+		source = "pitchfork",
+	})
+
+	if ok then
+		PackOpenedEvent:FireClient(player, result)
+		clearPlotPack(plot)
+		BaseService.SetPlotPadStatus(plot, "Rolling Next Pack", "Another free pack is spawning", openedPackColor)
+		task.delay(1.1, function()
+			if plot.ownerPlayer == player then
+				spawnPackForPlot(plot)
+			end
+		end)
+	else
+		plot.isOpeningPack = nil
+		plot.activePackHitsRemaining = math.max(1, plot.activePackHitsRemaining or 1)
+		BaseService.SetPlotPadStatus(plot, plot.activePackDef.displayName, getHitsLabel(plot.activePackHitsRemaining), plot.activePackDef.color)
+		PackOpenFailedEvent:FireClient(player, result)
+	end
+end)
+
 Players.PlayerAdded:Connect(function(player)
 	local data = DataService.LoadPlayer(player)
 	local plot = BaseService.AssignPlot(player)
 	EconomyService.EnsureStarterCoins(player)
 	EconomyService.TryGrantDailyReward(player)
+	ensurePitchfork(player)
 
 	if player.Character then
 		task.defer(function()
@@ -1602,6 +1743,7 @@ Players.PlayerAdded:Connect(function(player)
 		task.delay(0.15, function()
 			if player.Parent and character.Parent then
 				BaseService.PlaceCharacterAtPlot(player, character)
+				ensurePitchfork(player)
 			end
 		end)
 	end)
@@ -1613,9 +1755,7 @@ Players.PlayerAdded:Connect(function(player)
 	task.defer(function()
 		if player.Parent then
 			UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
-			PromptPackShopEvent:FireClient(player, {
-				message = plot and "Free random packs spawn on the red pad in your base." or "This server's bases are full right now.",
-			})
+			sendHint(player, plot and "Equip your pitchfork and crack the random pack on your red pad." or "This server's bases are full right now.")
 		end
 	end)
 
@@ -1623,6 +1763,7 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
+	swingCooldowns[player] = nil
 	DataService.SavePlayer(player)
 	DataService.UnloadPlayer(player)
 	BaseService.ReleasePlot(player)
@@ -1687,14 +1828,9 @@ GetInventoryFn.OnServerInvoke = function(player)
 end
 
 OpenPackFn.OnServerInvoke = function(player, packId)
-	local ok, result = PackService.OpenPack(player, packId)
-	if ok then
-		return result
-	end
-
 	return {
 		success = false,
-		error = result and result.error or "Could not open pack.",
+		error = "Use your pitchfork on the pack at your red pad.",
 	}
 end
 
@@ -1911,7 +2047,7 @@ local hintLabel = make("TextLabel", {
 	BackgroundTransparency = 1,
 	Size = UDim2.fromOffset(210, 36),
 	Position = UDim2.new(0, 24, 0, 212),
-	Text = "Free random packs spawn on your red pad.",
+	Text = "Equip your pitchfork and crack the pack on your red pad.",
 	TextColor3 = UI.Muted,
 	TextScaled = false,
 	TextSize = 12,
@@ -2778,7 +2914,59 @@ return
 ]==])
 
 makeLocal("ToolClient", sps, [==[
-return
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+local RequestPitchforkHit = Remotes:WaitForChild("RequestPitchforkHit")
+
+local boundTools = {}
+local localSwingLocked = false
+
+local function bindPitchfork(tool)
+	if not tool:IsA("Tool") or tool.Name ~= "Pitchfork" or boundTools[tool] then
+		return
+	end
+
+	boundTools[tool] = true
+	tool.Activated:Connect(function()
+		if localSwingLocked then
+			return
+		end
+
+		localSwingLocked = true
+		RequestPitchforkHit:FireServer()
+		task.delay(0.1, function()
+			localSwingLocked = false
+		end)
+	end)
+end
+
+local function watchContainer(container)
+	if not container then
+		return
+	end
+
+	for _, child in ipairs(container:GetChildren()) do
+		bindPitchfork(child)
+	end
+
+	container.ChildAdded:Connect(function(child)
+		bindPitchfork(child)
+	end)
+end
+
+watchContainer(player:WaitForChild("Backpack"))
+
+if player.Character then
+	watchContainer(player.Character)
+end
+
+player.CharacterAdded:Connect(function(character)
+	watchContainer(character)
+end)
 ]==])
 
 makeLocal("ShopUI", sps, [==[
@@ -2806,4 +2994,4 @@ return
 ]==])
 
 
-print("[UnboxAFootballer] v4 base-pad setup complete")
+print("[UnboxAFootballer] v5 pitchfork setup complete")

@@ -65,6 +65,12 @@ Constants.BaseLayout = {
 	DisplaySlotSize = Vector3.new(7, 3.5, 7),
 }
 
+Constants.Pitchfork = {
+	BaseDamage = 1,
+	SwingCooldown = 0.42,
+	HitRange = 24,
+}
+
 Constants.UI = {
 	Background = Color3.fromRGB(7, 11, 20),
 	Panel = Color3.fromRGB(14, 18, 31),

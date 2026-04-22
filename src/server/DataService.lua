@@ -23,6 +23,7 @@ local DEFAULT_DATA = {
 		theme = "Default",
 	},
 	baseSlots = 6,
+	pitchforkPower = 1,
 	totalCardsOpened = 0,
 	totalRebirths = 0,
 	collectionRewards = {},
