@@ -59,8 +59,11 @@ Constants.BaseLayout = {
 	StartZ = -96,
 	PlotSpacing = 96,
 	PlotSize = Vector3.new(56, 1, 44),
-	FenceHeight = 6,
-	PackPadSize = Vector3.new(16, 0.6, 16),
+	FenceHeight = 4.5,
+	WallThickness = 1.2,
+	EntranceWidth = 16,
+	EntrancePillarWidth = 2.2,
+	PackPadSize = Vector3.new(10, 0.6, 10),
 	DisplaySlotCount = 6,
 	DisplaySlotSize = Vector3.new(7, 3.5, 7),
 }
@@ -69,6 +72,42 @@ Constants.Pitchfork = {
 	BaseDamage = 1,
 	SwingCooldown = 0.42,
 	HitRange = 24,
+}
+
+-- ── Upgrade specs ─────────────────────────────────────────────
+-- Each upgrade has levels 0..maxLevel; cost(level) = floor(baseCost * costMultiplier^level)
+-- is the cost to go from `level` to `level+1`.
+Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnRate", "PadLuck" }
+
+Constants.Upgrades = {
+	PitchforkDamage = {
+		displayName = "Pitchfork Power",
+		description = "Deal more damage per swing, crack packs faster.",
+		maxLevel = 9,
+		baseCost = 400,
+		costMultiplier = 1.7,
+		baseDamage = 1,
+		damagePerLevel = 1,
+	},
+	PackSpawnRate = {
+		displayName = "Pack Spawn Speed",
+		description = "Packs respawn on your red pad faster.",
+		maxLevel = 8,
+		baseCost = 500,
+		costMultiplier = 1.8,
+		baseDelay = 1.1,
+		delayReductionPerLevel = 0.1,
+		minDelay = 0.3,
+	},
+	PadLuck = {
+		displayName = "Pad Luck",
+		description = "Shifts your pad odds toward Rare and Premium packs.",
+		maxLevel = 10,
+		baseCost = 700,
+		costMultiplier = 1.85,
+		shiftPerLevel = 3,
+		maxShift = 30,
+	},
 }
 
 Constants.PassiveIncome = {

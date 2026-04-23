@@ -32,8 +32,16 @@ local function createSignLabel(text, size, position, color, parent)
 	}, parent)
 end
 
+local function formatStadiumTitle(ownerName)
+	if not ownerName or ownerName == "" then
+		return "OPEN STADIUM"
+	end
+
+	return string.upper(ownerName) .. "'S STADIUM"
+end
+
 local function updateOwnerSign(plot, ownerName, subtitle)
-	plot.ownerNameLabel.Text = ownerName
+	plot.ownerNameLabel.Text = formatStadiumTitle(ownerName)
 	plot.ownerSubtitleLabel.Text = subtitle
 end
 
@@ -57,9 +65,20 @@ end
 local function createFence(parent, size, cframe)
 	make("Part", {
 		Anchored = true,
-		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(120, 84, 40),
+		CanCollide = true,
+		Material = Enum.Material.Concrete,
+		Color = Color3.fromRGB(76, 80, 90),
+		Size = size,
+		CFrame = cframe,
+	}, parent)
+end
+
+local function createStadiumTier(parent, size, cframe)
+	make("Part", {
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Concrete,
+		Color = Color3.fromRGB(102, 108, 120),
 		Size = size,
 		CFrame = cframe,
 	}, parent)
@@ -172,25 +191,49 @@ local function createPlot(plotId, side, laneIndex, position)
 	local baseCFrame = CFrame.new(position)
 	local centerDirection = Vector3.new(facingDirection, 0, 0)
 	local padOffset = 16
-	local signOffset = 20
+	local wallHeight = layout.FenceHeight or 4.5
+	local wallThickness = layout.WallThickness or 1.2
+	local entranceWidth = layout.EntranceWidth or 16
+	local entrancePillarWidth = layout.EntrancePillarWidth or 2.2
+	local wallY = wallHeight / 2 + layout.PlotSize.Y / 2
+	local frontEdgeX = facingDirection * (layout.PlotSize.X / 2)
+	local backEdgeX = -frontEdgeX
 
 	local floor = make("Part", {
 		Name = "Floor",
 		Anchored = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(67, 163, 79),
+		Material = Enum.Material.Grass,
+		Color = Color3.fromRGB(78, 148, 72),
 		Size = layout.PlotSize,
 		CFrame = baseCFrame,
 	}, model)
 
-	local borderTop = createFence(model, Vector3.new(layout.PlotSize.X, 0.7, 1.2), baseCFrame * CFrame.new(0, 0.8, -layout.PlotSize.Z / 2))
-	local borderBottom = createFence(model, Vector3.new(layout.PlotSize.X, 0.7, 1.2), baseCFrame * CFrame.new(0, 0.8, layout.PlotSize.Z / 2))
-	local borderLeft = createFence(model, Vector3.new(1.2, 0.7, layout.PlotSize.Z), baseCFrame * CFrame.new(-layout.PlotSize.X / 2, 0.8, 0))
-	local borderRight = createFence(model, Vector3.new(1.2, 0.7, layout.PlotSize.Z), baseCFrame * CFrame.new(layout.PlotSize.X / 2, 0.8, 0))
+	local borderTop = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, -layout.PlotSize.Z / 2))
+	local borderBottom = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, layout.PlotSize.Z / 2))
+	local backWall = createFence(model, Vector3.new(wallThickness, wallHeight, layout.PlotSize.Z + wallThickness), baseCFrame * CFrame.new(backEdgeX, wallY, 0))
+	local frontWallSegmentLength = math.max(8, (layout.PlotSize.Z - entranceWidth) / 2)
+	local frontWallZOffset = (entranceWidth / 2) + (frontWallSegmentLength / 2)
+	local frontWallNorth = createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, -frontWallZOffset))
+	local frontWallSouth = createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, frontWallZOffset))
+	local entrancePillarHeight = wallHeight + 2
+	local entrancePillarX = frontEdgeX + (facingDirection * ((entrancePillarWidth - wallThickness) / 2))
+	local entrancePillarNorth = createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, -(entranceWidth / 2)))
+	local entrancePillarSouth = createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, entranceWidth / 2))
 	_ = borderTop
 	_ = borderBottom
-	_ = borderLeft
-	_ = borderRight
+	_ = backWall
+	_ = frontWallNorth
+	_ = frontWallSouth
+	_ = entrancePillarNorth
+	_ = entrancePillarSouth
+
+	local backStandBaseX = backEdgeX - (facingDirection * 3.6)
+	for step = 1, 3 do
+		local standDepth = 3.2 + ((step - 1) * 2.4)
+		local standHeight = 0.9
+		local standX = backStandBaseX - (facingDirection * ((step - 1) * 2.6))
+		createStadiumTier(model, Vector3.new(standDepth, standHeight, layout.PlotSize.Z - 8), baseCFrame * CFrame.new(standX, layout.PlotSize.Y / 2 + (standHeight / 2) + ((step - 1) * 0.9), 0))
+	end
 
 	local centerStrip = make("Part", {
 		Name = "CenterStrip",
@@ -231,14 +274,14 @@ local function createPlot(plotId, side, laneIndex, position)
 		CFrame = baseCFrame * CFrame.new(facingDirection * padOffset, 0.45, 0),
 	}, model)
 
-	local ownerSignPosition = position + Vector3.new(facingDirection * signOffset, 4.3, -14)
+	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 1.2)) + Vector3.new(0, wallHeight + 2.7, 0)
 	local ownerSign = make("Part", {
 		Name = "OwnerSign",
 		Anchored = true,
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(24, 30, 42),
-		Size = Vector3.new(7, 5, 0.5),
+		Size = Vector3.new(18, 4.8, 0.6),
 		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
 	}, model)
 
@@ -260,8 +303,8 @@ local function createPlot(plotId, side, laneIndex, position)
 		Thickness = 3,
 	}, ownerFrame)
 
-	local ownerNameLabel = createSignLabel("UNCLAIMED BASE", UDim2.new(1, -14, 0.44, 0), UDim2.new(0, 7, 0.1, 0), Color3.fromRGB(245, 238, 220), ownerFrame)
-	local ownerSubtitleLabel = createSignLabel("Waiting for player", UDim2.new(1, -14, 0.24, 0), UDim2.new(0, 7, 0.58, 0), Color3.fromRGB(180, 176, 164), ownerFrame)
+	local ownerNameLabel = createSignLabel("OPEN STADIUM", UDim2.new(1, -18, 0.44, 0), UDim2.new(0, 9, 0.1, 0), Color3.fromRGB(245, 238, 220), ownerFrame)
+	local ownerSubtitleLabel = createSignLabel("Walk in and claim it", UDim2.new(1, -18, 0.22, 0), UDim2.new(0, 9, 0.6, 0), Color3.fromRGB(180, 176, 164), ownerFrame)
 	ownerSubtitleLabel.Font = Enum.Font.GothamBold
 
 	local padGui = make("BillboardGui", {
@@ -376,7 +419,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		),
 	}
 
-	updateOwnerSign(plot, "UNCLAIMED BASE", "Waiting for player")
+	updateOwnerSign(plot, nil, "Walk in and claim it")
 	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
 
 	return plot
@@ -393,6 +436,28 @@ function BaseService.BuildBaseMap()
 	basesFolder = make("Folder", {
 		Name = "PlayerBases",
 	}, Workspace)
+
+	local mapWidth = layout.SideOffset * 2 + layout.PlotSize.X + 40
+	local mapLength = layout.PlotSpacing * layout.PlotsPerSide + layout.PlotSize.Z + 80
+	make("Part", {
+		Name = "LobbyGround",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Concrete,
+		Color = Color3.fromRGB(48, 54, 64),
+		Size = Vector3.new(mapWidth, 4, mapLength),
+		CFrame = CFrame.new(0, -2.0, 0),
+	}, basesFolder)
+
+	make("Part", {
+		Name = "LobbyPlaza",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.Pebble,
+		Color = Color3.fromRGB(86, 94, 108),
+		Size = Vector3.new(mapWidth - 8, 0.2, mapLength - 8),
+		CFrame = CFrame.new(0, 0.1, 0),
+	}, basesFolder)
 
 	for sideIndex = 1, 2 do
 		for laneIndex = 1, layout.PlotsPerSide do
@@ -428,7 +493,7 @@ function BaseService.AssignPlot(player)
 			plot.ownerPlayer = player
 			plot.model:SetAttribute("OwnerUserId", player.UserId)
 			plot.model:SetAttribute("OwnerName", player.DisplayName)
-			updateOwnerSign(plot, player.DisplayName, "Your club base")
+			updateOwnerSign(plot, player.DisplayName, "Home stadium")
 			updatePadLabel(plot, "Rolling Pack", "Preparing your next spawn", Color3.fromRGB(255, 170, 48))
 			assignedPlots[player] = plot
 			return plot
@@ -454,7 +519,7 @@ function BaseService.ReleasePlot(player)
 	plot.model:SetAttribute("OwnerUserId", nil)
 	plot.model:SetAttribute("OwnerName", nil)
 	BaseService.ClearPlotDisplays(plot)
-	updateOwnerSign(plot, "UNCLAIMED BASE", "Waiting for player")
+	updateOwnerSign(plot, nil, "Walk in and claim it")
 	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
 	assignedPlots[player] = nil
 end
@@ -497,7 +562,7 @@ function BaseService.UpdateDisplaySlot(slot, card, incomePerSecond)
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(24, 20, 10),
-		Size = Vector3.new(0.26, 6.2, 4.25),
+		Size = Vector3.new(4.25, 6.2, 0.26),
 		CFrame = CFrame.lookAt(cardPosition, cardPosition + slot.lookDirection),
 	}, cardModel)
 

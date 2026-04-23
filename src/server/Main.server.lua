@@ -62,6 +62,8 @@ local OpenPackFn = makeFunction("OpenPack")
 local SellCardFn = makeFunction("SellCard")
 local SellAllCardsFn = makeFunction("SellAllCards")
 local GetInventoryFn = makeFunction("GetInventory")
+local GetUpgradesFn = makeFunction("GetUpgrades")
+local PurchaseUpgradeFn = makeFunction("PurchaseUpgrade")
 
 PackService.Init(DataService, EconomyService, {
 	UpdateCoins = UpdateCoinsEvent,
@@ -145,9 +147,39 @@ local function sendHint(player, message, extraPayload)
 	end
 end
 
-local function getPitchforkDamage(player)
+local function getUpgradeLevel(player, key)
 	local data = DataService.GetData(player)
-	return math.max(Constants.Pitchfork.BaseDamage, data and data.pitchforkPower or Constants.Pitchfork.BaseDamage)
+	if not data or not data.upgrades then
+		return 0
+	end
+	return data.upgrades[key] or 0
+end
+
+local function getUpgradeCost(key, level)
+	local spec = Constants.Upgrades[key]
+	if not spec or level >= spec.maxLevel then
+		return nil
+	end
+	return math.floor(spec.baseCost * (spec.costMultiplier ^ level))
+end
+
+local function computePitchforkDamage(level)
+	local spec = Constants.Upgrades.PitchforkDamage
+	return spec.baseDamage + level * spec.damagePerLevel
+end
+
+local function computeSpawnDelay(level)
+	local spec = Constants.Upgrades.PackSpawnRate
+	return math.max(spec.minDelay, spec.baseDelay - level * spec.delayReductionPerLevel)
+end
+
+local function computeLuckShift(level)
+	local spec = Constants.Upgrades.PadLuck
+	return math.min(level * spec.shiftPerLevel, spec.maxShift)
+end
+
+local function getPitchforkDamage(player)
+	return computePitchforkDamage(getUpgradeLevel(player, "PitchforkDamage"))
 end
 
 local function createSurfaceLabel(face, title, subtitle, color, parent)
@@ -219,10 +251,21 @@ local function createSurfaceLabel(face, title, subtitle, color, parent)
 	stripeGradient.Parent = stripes
 end
 
-local function rollPadPackForPlayer(_player)
+local function rollPadPackForPlayer(player)
 	local weights = {}
 	for _, packDef in ipairs(PackConfig.PadSpawnOrder) do
 		table.insert(weights, packDef.padWeight or 1)
+	end
+
+	if player and #weights >= 3 then
+		local shift = computeLuckShift(getUpgradeLevel(player, "PadLuck"))
+		local takeable = math.max(0, weights[1] - 5)
+		local taken = math.min(shift, takeable)
+		weights[1] = weights[1] - taken
+		local toRare = math.floor(taken * 0.6)
+		local toPremium = taken - toRare
+		weights[2] = weights[2] + toRare
+		weights[3] = weights[3] + toPremium
 	end
 
 	local chosenIndex = Utils.WeightedRandom(weights)
@@ -556,7 +599,8 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 
 		clearPlotPack(plot)
 		BaseService.SetPlotPadStatus(plot, "Rolling Next Pack", "Another free pack is spawning", openedPackColor)
-		task.delay(1.1, function()
+		local respawnDelay = computeSpawnDelay(getUpgradeLevel(player, "PackSpawnRate"))
+		task.delay(respawnDelay, function()
 			if plot.ownerPlayer == player then
 				spawnPackForPlot(plot)
 			end
@@ -744,6 +788,85 @@ SellAllCardsFn.OnServerInvoke = function(player, cardIds)
 		coinsEarned = total,
 		newCoins = DataService.GetCoins(player),
 	}
+end
+
+local function buildUpgradePayload(player)
+	local payload = {
+		coins = DataService.GetCoins(player),
+		upgrades = {},
+	}
+
+	for _, key in ipairs(Constants.UpgradeKeys) do
+		local spec = Constants.Upgrades[key]
+		local level = getUpgradeLevel(player, key)
+		local nextCost = getUpgradeCost(key, level)
+		local entry = {
+			key = key,
+			displayName = spec.displayName,
+			description = spec.description,
+			level = level,
+			maxLevel = spec.maxLevel,
+			nextCost = nextCost,
+			maxed = level >= spec.maxLevel,
+		}
+
+		if key == "PitchforkDamage" then
+			entry.currentValue = computePitchforkDamage(level)
+			entry.nextValue = computePitchforkDamage(level + 1)
+			entry.valueSuffix = " dmg/swing"
+		elseif key == "PackSpawnRate" then
+			entry.currentValue = computeSpawnDelay(level)
+			entry.nextValue = computeSpawnDelay(level + 1)
+			entry.valueSuffix = "s respawn"
+		elseif key == "PadLuck" then
+			entry.currentValue = computeLuckShift(level)
+			entry.nextValue = computeLuckShift(level + 1)
+			entry.valueSuffix = " luck shift"
+		end
+
+		table.insert(payload.upgrades, entry)
+	end
+
+	return payload
+end
+
+GetUpgradesFn.OnServerInvoke = function(player)
+	return buildUpgradePayload(player)
+end
+
+PurchaseUpgradeFn.OnServerInvoke = function(player, upgradeKey)
+	if type(upgradeKey) ~= "string" or not Constants.Upgrades[upgradeKey] then
+		return { success = false, error = "Unknown upgrade." }
+	end
+
+	local level = getUpgradeLevel(player, upgradeKey)
+	local spec = Constants.Upgrades[upgradeKey]
+	if level >= spec.maxLevel then
+		return { success = false, error = "Upgrade already maxed." }
+	end
+
+	local cost = getUpgradeCost(upgradeKey, level)
+	if not cost then
+		return { success = false, error = "Upgrade already maxed." }
+	end
+
+	local ok, err = DataService.SpendCoins(player, cost)
+	if not ok then
+		return { success = false, error = err or "Not enough coins." }
+	end
+
+	local data = DataService.GetData(player)
+	data.upgrades = data.upgrades or {}
+	data.upgrades[upgradeKey] = level + 1
+	DataService.MarkDirty(player)
+
+	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+
+	local payload = buildUpgradePayload(player)
+	payload.success = true
+	payload.purchasedKey = upgradeKey
+	payload.coinsSpent = cost
+	return payload
 end
 
 print("[UnboxAFootballer] Pack systems ready")

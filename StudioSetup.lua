@@ -1,5 +1,5 @@
 -- ============================================================
--- UNBOX A FOOTBALLER v6 -- SINGLE PLAYER AUTO-DISPLAY SETUP
+-- UNBOX A FOOTBALLER v7 -- ROJO-SYNCED FALLBACK SETUP
 -- Paste this ENTIRE script into the Roblox Studio Command Bar
 -- and press Enter to install the current prototype.
 -- ============================================================
@@ -81,6 +81,7 @@ wipe('MarketUI', sps)
 wipe('BaseUI', sps)
 wipe('CollectionUI', sps)
 wipe('RebirthUI', sps)
+wipe('UpgradesUI', sps)
 wipe('Pitchfork', STP)
 wipe('Bat', STP)
 wipe('Crates', workspace)
@@ -88,6 +89,57 @@ wipe('PackStations', workspace)
 wipe('PlayerBases', workspace)
 
 local shared = makeFolder("Shared", RS)
+
+makeModule('CardData', shared, [[-- ============================================================
+-- CardData.lua
+-- The master card pool for the launch set.
+-- ModuleScript → goes in ReplicatedStorage/Shared/
+-- ============================================================
+
+local CardData = {}
+
+-- ── Card Pool ─────────────────────────────────────────────────
+-- Each card has a unique numeric id used everywhere internally
+-- (inventory keys, trade requests, market listings, etc.)
+CardData.Pool = {
+    -- ★ 92-rated (Rare Gold) ──────────────────────────────────
+    { id = 1,  name = "Leonel Messi",       nation = "Argentina", position = "RW",  rating = 92, rarity = "Rare Gold" },
+    { id = 2,  name = "Cristian Ronaldo",   nation = "Portugal",  position = "ST",  rating = 92, rarity = "Rare Gold" },
+    -- ★ 88-89 rated (Rare Gold) ───────────────────────────────
+    { id = 3,  name = "Kylann Mbappe",      nation = "France",    position = "ST",  rating = 89, rarity = "Rare Gold" },
+    { id = 4,  name = "Erling Halland",     nation = "Norway",    position = "ST",  rating = 88, rarity = "Rare Gold" },
+    -- ★ 85-87 rated (Rare Gold) ───────────────────────────────
+    { id = 5,  name = "Rodrigo Bellingham", nation = "England",   position = "CM",  rating = 87, rarity = "Rare Gold" },
+    { id = 6,  name = "Vinicius Jr",        nation = "Brazil",    position = "LW",  rating = 86, rarity = "Rare Gold" },
+    { id = 7,  name = "Keven De Bruin",     nation = "Belgium",   position = "CM",  rating = 85, rarity = "Rare Gold" },
+    -- ★ 81-84 rated (Gold) ────────────────────────────────────
+    { id = 8,  name = "Jamal Musley",       nation = "Germany",   position = "CAM", rating = 84, rarity = "Gold" },
+    { id = 9,  name = "Pedri Gonzalez",     nation = "Spain",     position = "CM",  rating = 83, rarity = "Gold" },
+    { id = 10, name = "Bukayo Sako",        nation = "England",   position = "RW",  rating = 82, rarity = "Gold" },
+    { id = 11, name = "Toni Kruger",        nation = "Germany",   position = "CM",  rating = 81, rarity = "Gold" },
+    -- ★ 78-80 rated (Gold) ────────────────────────────────────
+    { id = 12, name = "Phil Fodo",          nation = "England",   position = "CAM", rating = 80, rarity = "Gold" },
+    { id = 13, name = "Alison Becker",      nation = "Brazil",    position = "GK",  rating = 80, rarity = "Gold" },
+    { id = 14, name = "Luca Modric",        nation = "Croatia",   position = "CM",  rating = 79, rarity = "Gold" },
+    { id = 15, name = "Marcus Rashford",    nation = "England",   position = "LW",  rating = 78, rarity = "Gold" },
+}
+
+-- ── Fast lookup by ID ─────────────────────────────────────────
+-- CardData.ById[3] → the Mbappe card table
+CardData.ById = {}
+for _, card in ipairs(CardData.Pool) do
+    CardData.ById[card.id] = card
+end
+
+-- ── Nation groupings (used by collection milestones) ──────────
+CardData.NationGroups = {
+    England   = { 5, 10, 12, 15 },  -- Bellingham, Sako, Fodo, Rashford
+    Germany   = { 8, 11 },           -- Musley, Kruger
+    Brazil    = { 6, 13 },           -- Vinicius, Becker
+}
+
+return CardData
+]])
 
 makeModule('Constants', shared, [[local Constants = {}
 
@@ -150,8 +202,11 @@ Constants.BaseLayout = {
 	StartZ = -96,
 	PlotSpacing = 96,
 	PlotSize = Vector3.new(56, 1, 44),
-	FenceHeight = 6,
-	PackPadSize = Vector3.new(16, 0.6, 16),
+	FenceHeight = 4.5,
+	WallThickness = 1.2,
+	EntranceWidth = 16,
+	EntrancePillarWidth = 2.2,
+	PackPadSize = Vector3.new(10, 0.6, 10),
 	DisplaySlotCount = 6,
 	DisplaySlotSize = Vector3.new(7, 3.5, 7),
 }
@@ -160,6 +215,42 @@ Constants.Pitchfork = {
 	BaseDamage = 1,
 	SwingCooldown = 0.42,
 	HitRange = 24,
+}
+
+-- ── Upgrade specs ─────────────────────────────────────────────
+-- Each upgrade has levels 0..maxLevel; cost(level) = floor(baseCost * costMultiplier^level)
+-- is the cost to go from `level` to `level+1`.
+Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnRate", "PadLuck" }
+
+Constants.Upgrades = {
+	PitchforkDamage = {
+		displayName = "Pitchfork Power",
+		description = "Deal more damage per swing, crack packs faster.",
+		maxLevel = 9,
+		baseCost = 400,
+		costMultiplier = 1.7,
+		baseDamage = 1,
+		damagePerLevel = 1,
+	},
+	PackSpawnRate = {
+		displayName = "Pack Spawn Speed",
+		description = "Packs respawn on your red pad faster.",
+		maxLevel = 8,
+		baseCost = 500,
+		costMultiplier = 1.8,
+		baseDelay = 1.1,
+		delayReductionPerLevel = 0.1,
+		minDelay = 0.3,
+	},
+	PadLuck = {
+		displayName = "Pad Luck",
+		description = "Shifts your pad odds toward Rare and Premium packs.",
+		maxLevel = 10,
+		baseCost = 700,
+		costMultiplier = 1.85,
+		shiftPerLevel = 3,
+		maxShift = 30,
+	},
 }
 
 Constants.PassiveIncome = {
@@ -181,57 +272,6 @@ Constants.UI = {
 }
 
 return Constants
-]])
-
-makeModule('CardData', shared, [[-- ============================================================
--- CardData.lua
--- The master card pool for the launch set.
--- ModuleScript → goes in ReplicatedStorage/Shared/
--- ============================================================
-
-local CardData = {}
-
--- ── Card Pool ─────────────────────────────────────────────────
--- Each card has a unique numeric id used everywhere internally
--- (inventory keys, trade requests, market listings, etc.)
-CardData.Pool = {
-    -- ★ 92-rated (Rare Gold) ──────────────────────────────────
-    { id = 1,  name = "Leonel Messi",       nation = "Argentina", position = "RW",  rating = 92, rarity = "Rare Gold" },
-    { id = 2,  name = "Cristian Ronaldo",   nation = "Portugal",  position = "ST",  rating = 92, rarity = "Rare Gold" },
-    -- ★ 88-89 rated (Rare Gold) ───────────────────────────────
-    { id = 3,  name = "Kylann Mbappe",      nation = "France",    position = "ST",  rating = 89, rarity = "Rare Gold" },
-    { id = 4,  name = "Erling Halland",     nation = "Norway",    position = "ST",  rating = 88, rarity = "Rare Gold" },
-    -- ★ 85-87 rated (Rare Gold) ───────────────────────────────
-    { id = 5,  name = "Rodrigo Bellingham", nation = "England",   position = "CM",  rating = 87, rarity = "Rare Gold" },
-    { id = 6,  name = "Vinicius Jr",        nation = "Brazil",    position = "LW",  rating = 86, rarity = "Rare Gold" },
-    { id = 7,  name = "Keven De Bruin",     nation = "Belgium",   position = "CM",  rating = 85, rarity = "Rare Gold" },
-    -- ★ 81-84 rated (Gold) ────────────────────────────────────
-    { id = 8,  name = "Jamal Musley",       nation = "Germany",   position = "CAM", rating = 84, rarity = "Gold" },
-    { id = 9,  name = "Pedri Gonzalez",     nation = "Spain",     position = "CM",  rating = 83, rarity = "Gold" },
-    { id = 10, name = "Bukayo Sako",        nation = "England",   position = "RW",  rating = 82, rarity = "Gold" },
-    { id = 11, name = "Toni Kruger",        nation = "Germany",   position = "CM",  rating = 81, rarity = "Gold" },
-    -- ★ 78-80 rated (Gold) ────────────────────────────────────
-    { id = 12, name = "Phil Fodo",          nation = "England",   position = "CAM", rating = 80, rarity = "Gold" },
-    { id = 13, name = "Alison Becker",      nation = "Brazil",    position = "GK",  rating = 80, rarity = "Gold" },
-    { id = 14, name = "Luca Modric",        nation = "Croatia",   position = "CM",  rating = 79, rarity = "Gold" },
-    { id = 15, name = "Marcus Rashford",    nation = "England",   position = "LW",  rating = 78, rarity = "Gold" },
-}
-
--- ── Fast lookup by ID ─────────────────────────────────────────
--- CardData.ById[3] → the Mbappe card table
-CardData.ById = {}
-for _, card in ipairs(CardData.Pool) do
-    CardData.ById[card.id] = card
-end
-
--- ── Nation groupings (used by collection milestones) ──────────
-CardData.NationGroups = {
-    England   = { 5, 10, 12, 15 },  -- Bellingham, Sako, Fodo, Rashford
-    Germany   = { 8, 11 },           -- Musley, Kruger
-    Brazil    = { 6, 13 },           -- Vinicius, Becker
-}
-
-return CardData
 ]])
 
 makeModule('PackConfig', shared, [[local PackConfig = {}
@@ -394,6 +434,613 @@ end
 return Utils
 ]])
 
+makeModule('BaseService', SSS, [[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local Constants = require(ReplicatedStorage.Shared.Constants)
+local Utils = require(ReplicatedStorage.Shared.Utils)
+
+local BaseService = {}
+
+local layout = Constants.BaseLayout
+local basesFolder
+local plots = {}
+local assignedPlots = {}
+
+local function make(className, props, parent)
+	local instance = Instance.new(className)
+	for key, value in pairs(props or {}) do
+		instance[key] = value
+	end
+	instance.Parent = parent
+	return instance
+end
+
+local function createSignLabel(text, size, position, color, parent)
+	return make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = size,
+		Position = position,
+		Text = text,
+		TextColor3 = color,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+	}, parent)
+end
+
+local function formatStadiumTitle(ownerName)
+	if not ownerName or ownerName == "" then
+		return "OPEN STADIUM"
+	end
+
+	return string.upper(ownerName) .. "'S STADIUM"
+end
+
+local function updateOwnerSign(plot, ownerName, subtitle)
+	plot.ownerNameLabel.Text = formatStadiumTitle(ownerName)
+	plot.ownerSubtitleLabel.Text = subtitle
+end
+
+local function updatePadLabel(plot, title, subtitle, color)
+	plot.padTitleLabel.Text = title
+	plot.padSubtitleLabel.Text = subtitle
+	plot.padAccent.BackgroundColor3 = color
+	plot.padBarBack.Visible = false
+end
+
+local function updatePadHealth(plot, title, currentValue, maxValue, color)
+	local ratio = maxValue > 0 and math.clamp(currentValue / maxValue, 0, 1) or 0
+	plot.padTitleLabel.Text = title
+	plot.padSubtitleLabel.Text = string.format("%d / %d HP", currentValue, maxValue)
+	plot.padAccent.BackgroundColor3 = color
+	plot.padBarBack.Visible = true
+	plot.padBarFill.BackgroundColor3 = color
+	plot.padBarFill.Size = UDim2.new(ratio, 0, 1, 0)
+end
+
+local function createFence(parent, size, cframe)
+	make("Part", {
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Concrete,
+		Color = Color3.fromRGB(76, 80, 90),
+		Size = size,
+		CFrame = cframe,
+	}, parent)
+end
+
+local function createStadiumTier(parent, size, cframe)
+	make("Part", {
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Concrete,
+		Color = Color3.fromRGB(102, 108, 120),
+		Size = size,
+		CFrame = cframe,
+	}, parent)
+end
+
+local function createDisplayCardFace(face, card, incomePerSecond, parent)
+	local gui = make("SurfaceGui", {
+		Face = face,
+		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+		PixelsPerStud = 70,
+		LightInfluence = 0,
+	}, parent)
+
+	local frame = make("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(20, 18, 10),
+		BorderSizePixel = 0,
+	}, gui)
+
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(252, 234, 158)),
+			ColorSequenceKeypoint.new(0.45, Utils.GetRarityColor(card.rarity)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(112, 82, 14)),
+		}),
+		Rotation = 22,
+	}, frame)
+
+	make("UIStroke", {
+		Color = Color3.fromRGB(24, 18, 8),
+		Thickness = 2,
+	}, frame)
+
+	createSignLabel(tostring(card.rating), UDim2.new(0.32, 0, 0.16, 0), UDim2.new(0.08, 0, 0.05, 0), Color3.fromRGB(24, 16, 8), frame).TextXAlignment = Enum.TextXAlignment.Left
+	createSignLabel(card.position, UDim2.new(0.26, 0, 0.08, 0), UDim2.new(0.08, 0, 0.16, 0), Color3.fromRGB(48, 38, 12), frame).TextXAlignment = Enum.TextXAlignment.Left
+	createSignLabel(card.name, UDim2.new(0.82, 0, 0.14, 0), UDim2.new(0.09, 0, 0.56, 0), Color3.fromRGB(30, 22, 10), frame)
+	createSignLabel(card.nation, UDim2.new(0.74, 0, 0.08, 0), UDim2.new(0.13, 0, 0.72, 0), Color3.fromRGB(54, 42, 14), frame)
+	createSignLabel("+" .. tostring(incomePerSecond) .. "/s", UDim2.new(0.78, 0, 0.1, 0), UDim2.new(0.11, 0, 0.84, 0), Color3.fromRGB(22, 74, 38), frame)
+end
+
+local function clearDisplayCard(slot)
+	if slot.cardModel and slot.cardModel.Parent then
+		slot.cardModel:Destroy()
+	end
+	slot.cardModel = nil
+	slot.model:SetAttribute("Occupied", false)
+end
+
+local function setSlotPrompt(slot, actionText, objectText, enabled)
+	slot.prompt.ActionText = actionText
+	slot.prompt.ObjectText = objectText
+	slot.prompt.Enabled = enabled
+end
+
+local function createDisplaySlot(parent, index, cframe, lookDirection)
+	local model = make("Model", {
+		Name = "DisplaySlot" .. index,
+	}, parent)
+
+	local base = make("Part", {
+		Name = "Base",
+		Anchored = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(20, 26, 38),
+		Size = layout.DisplaySlotSize,
+		CFrame = cframe,
+	}, model)
+
+	local top = make("Part", {
+		Name = "Top",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(46, 205, 113),
+		Size = Vector3.new(layout.DisplaySlotSize.X - 1.4, 0.18, layout.DisplaySlotSize.Z - 1.4),
+		CFrame = base.CFrame + Vector3.new(0, layout.DisplaySlotSize.Y / 2 + 0.1, 0),
+	}, model)
+
+	local prompt = make("ProximityPrompt", {
+		Name = "SlotPrompt",
+		ActionText = "Add Player",
+		ObjectText = "Inventory Empty",
+		KeyboardKeyCode = Enum.KeyCode.E,
+		HoldDuration = 0.65,
+		MaxActivationDistance = 10,
+		RequiresLineOfSight = false,
+		Enabled = false,
+	}, base)
+
+	model:SetAttribute("SlotIndex", index)
+	model:SetAttribute("Occupied", false)
+
+	return {
+		model = model,
+		base = base,
+		top = top,
+		prompt = prompt,
+		slotIndex = index,
+		lookDirection = lookDirection,
+		cardModel = nil,
+	}
+end
+
+local function createPlot(plotId, side, laneIndex, position)
+	local model = make("Model", {
+		Name = "Base" .. plotId,
+	}, basesFolder)
+
+	local facingDirection = side == "Left" and 1 or -1
+	local baseCFrame = CFrame.new(position)
+	local centerDirection = Vector3.new(facingDirection, 0, 0)
+	local padOffset = 16
+	local wallHeight = layout.FenceHeight or 4.5
+	local wallThickness = layout.WallThickness or 1.2
+	local entranceWidth = layout.EntranceWidth or 16
+	local entrancePillarWidth = layout.EntrancePillarWidth or 2.2
+	local wallY = wallHeight / 2 + layout.PlotSize.Y / 2
+	local frontEdgeX = facingDirection * (layout.PlotSize.X / 2)
+	local backEdgeX = -frontEdgeX
+
+	local floor = make("Part", {
+		Name = "Floor",
+		Anchored = true,
+		Material = Enum.Material.Grass,
+		Color = Color3.fromRGB(78, 148, 72),
+		Size = layout.PlotSize,
+		CFrame = baseCFrame,
+	}, model)
+
+	local borderTop = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, -layout.PlotSize.Z / 2))
+	local borderBottom = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, layout.PlotSize.Z / 2))
+	local backWall = createFence(model, Vector3.new(wallThickness, wallHeight, layout.PlotSize.Z + wallThickness), baseCFrame * CFrame.new(backEdgeX, wallY, 0))
+	local frontWallSegmentLength = math.max(8, (layout.PlotSize.Z - entranceWidth) / 2)
+	local frontWallZOffset = (entranceWidth / 2) + (frontWallSegmentLength / 2)
+	local frontWallNorth = createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, -frontWallZOffset))
+	local frontWallSouth = createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, frontWallZOffset))
+	local entrancePillarHeight = wallHeight + 2
+	local entrancePillarX = frontEdgeX + (facingDirection * ((entrancePillarWidth - wallThickness) / 2))
+	local entrancePillarNorth = createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, -(entranceWidth / 2)))
+	local entrancePillarSouth = createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, entranceWidth / 2))
+	_ = borderTop
+	_ = borderBottom
+	_ = backWall
+	_ = frontWallNorth
+	_ = frontWallSouth
+	_ = entrancePillarNorth
+	_ = entrancePillarSouth
+
+	local backStandBaseX = backEdgeX - (facingDirection * 3.6)
+	for step = 1, 3 do
+		local standDepth = 3.2 + ((step - 1) * 2.4)
+		local standHeight = 0.9
+		local standX = backStandBaseX - (facingDirection * ((step - 1) * 2.6))
+		createStadiumTier(model, Vector3.new(standDepth, standHeight, layout.PlotSize.Z - 8), baseCFrame * CFrame.new(standX, layout.PlotSize.Y / 2 + (standHeight / 2) + ((step - 1) * 0.9), 0))
+	end
+
+	local centerStrip = make("Part", {
+		Name = "CenterStrip",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(242, 241, 235),
+		Size = Vector3.new(layout.PlotSize.X - 8, 0.12, 8),
+		CFrame = baseCFrame * CFrame.new(0, 0.56, 0),
+	}, model)
+
+	local packPad = make("Part", {
+		Name = "PackPad",
+		Anchored = true,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(221, 49, 49),
+		Size = layout.PackPadSize,
+		CFrame = baseCFrame * CFrame.new(-facingDirection * padOffset, 0.45, 0),
+	}, model)
+
+	local packPadBorder = make("Part", {
+		Name = "PackPadBorder",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(86, 16, 16),
+		Size = Vector3.new(layout.PackPadSize.X + 2, 0.2, layout.PackPadSize.Z + 2),
+		CFrame = packPad.CFrame - Vector3.new(0, 0.22, 0),
+	}, model)
+	_ = packPadBorder
+
+	local spawnPad = make("Part", {
+		Name = "SpawnPad",
+		Anchored = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(242, 241, 235),
+		Size = Vector3.new(10, 0.45, 10),
+		CFrame = baseCFrame * CFrame.new(facingDirection * padOffset, 0.45, 0),
+	}, model)
+
+	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 1.2)) + Vector3.new(0, wallHeight + 2.7, 0)
+	local ownerSign = make("Part", {
+		Name = "OwnerSign",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(24, 30, 42),
+		Size = Vector3.new(18, 4.8, 0.6),
+		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
+	}, model)
+
+	local ownerGui = make("SurfaceGui", {
+		Face = Enum.NormalId.Front,
+		PixelsPerStud = 70,
+		LightInfluence = 0,
+	}, ownerSign)
+
+	local ownerFrame = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(10, 14, 24),
+		BackgroundTransparency = 0.06,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+	}, ownerGui)
+
+	make("UIStroke", {
+		Color = Color3.fromRGB(255, 215, 0),
+		Thickness = 3,
+	}, ownerFrame)
+
+	local ownerNameLabel = createSignLabel("OPEN STADIUM", UDim2.new(1, -18, 0.44, 0), UDim2.new(0, 9, 0.1, 0), Color3.fromRGB(245, 238, 220), ownerFrame)
+	local ownerSubtitleLabel = createSignLabel("Walk in and claim it", UDim2.new(1, -18, 0.22, 0), UDim2.new(0, 9, 0.6, 0), Color3.fromRGB(180, 176, 164), ownerFrame)
+	ownerSubtitleLabel.Font = Enum.Font.GothamBold
+
+	local padGui = make("BillboardGui", {
+		Name = "PadGui",
+		Size = UDim2.fromOffset(176, 60),
+		StudsOffset = Vector3.new(0, 3.7, 0),
+		AlwaysOnTop = true,
+		MaxDistance = 120,
+	}, packPad)
+
+	local padFrame = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(10, 14, 24),
+		BackgroundTransparency = 0.18,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+	}, padGui)
+
+	make("UICorner", {
+		CornerRadius = UDim.new(0, 12),
+	}, padFrame)
+
+	make("UIStroke", {
+		Color = Color3.fromRGB(255, 215, 0),
+		Thickness = 1.5,
+		Transparency = 0.22,
+	}, padFrame)
+
+	local padAccent = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(255, 85, 85),
+		BorderSizePixel = 0,
+		Size = UDim2.new(0, 6, 1, -12),
+		Position = UDim2.new(0, 8, 0, 6),
+	}, padFrame)
+
+	make("UICorner", {
+		CornerRadius = UDim.new(0, 6),
+	}, padAccent)
+
+	local padTitleLabel = createSignLabel("Pack Pad", UDim2.new(1, -24, 0, 20), UDim2.new(0, 22, 0, 4), Color3.fromRGB(245, 238, 220), padFrame)
+	local padSubtitleLabel = createSignLabel("Waiting for owner", UDim2.new(1, -24, 0, 12), UDim2.new(0, 22, 0, 24), Color3.fromRGB(180, 176, 164), padFrame)
+	padTitleLabel.TextScaled = false
+	padTitleLabel.TextSize = 18
+	padTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	padSubtitleLabel.TextScaled = false
+	padSubtitleLabel.TextSize = 10
+	padSubtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	padSubtitleLabel.Font = Enum.Font.GothamBold
+
+	local padBarBack = make("Frame", {
+		Visible = false,
+		BackgroundColor3 = Color3.fromRGB(34, 38, 48),
+		BorderSizePixel = 0,
+		Size = UDim2.new(1, -28, 0, 8),
+		Position = UDim2.new(0, 20, 1, -14),
+	}, padFrame)
+
+	make("UICorner", {
+		CornerRadius = UDim.new(0, 5),
+	}, padBarBack)
+
+	local padBarFill = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
+		BorderSizePixel = 0,
+		Size = UDim2.new(1, 0, 1, 0),
+	}, padBarBack)
+
+	make("UICorner", {
+		CornerRadius = UDim.new(0, 5),
+	}, padBarFill)
+
+	local displayFolder = make("Folder", {
+		Name = "DisplaySlots",
+	}, model)
+
+	local slotOffsets = {
+		Vector3.new(-12, 1.75, -14),
+		Vector3.new(0, 1.75, -14),
+		Vector3.new(12, 1.75, -14),
+		Vector3.new(-12, 1.75, 14),
+		Vector3.new(0, 1.75, 14),
+		Vector3.new(12, 1.75, 14),
+	}
+
+	local displaySlots = {}
+	for slotIndex = 1, layout.DisplaySlotCount do
+		local localOffset = slotOffsets[slotIndex]
+		local worldOffset = Vector3.new(localOffset.X * facingDirection, localOffset.Y, localOffset.Z)
+		displaySlots[slotIndex] = createDisplaySlot(displayFolder, slotIndex, baseCFrame * CFrame.new(worldOffset), centerDirection)
+	end
+
+	local plot = {
+		id = plotId,
+		side = side,
+		laneIndex = laneIndex,
+		model = model,
+		facingDirection = facingDirection,
+		floor = floor,
+		packPad = packPad,
+		spawnPad = spawnPad,
+		ownerSign = ownerSign,
+		ownerNameLabel = ownerNameLabel,
+		ownerSubtitleLabel = ownerSubtitleLabel,
+		padTitleLabel = padTitleLabel,
+		padSubtitleLabel = padSubtitleLabel,
+		padAccent = padAccent,
+		padBarBack = padBarBack,
+		padBarFill = padBarFill,
+		displaySlots = displaySlots,
+		spawnCFrame = CFrame.lookAt(
+			spawnPad.Position + Vector3.new(0, 3, 0),
+			spawnPad.Position + Vector3.new(0, 3, 0) + centerDirection
+		),
+	}
+
+	updateOwnerSign(plot, nil, "Walk in and claim it")
+	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
+
+	return plot
+end
+
+function BaseService.BuildBaseMap()
+	plots = {}
+	assignedPlots = {}
+
+	if basesFolder then
+		basesFolder:Destroy()
+	end
+
+	basesFolder = make("Folder", {
+		Name = "PlayerBases",
+	}, Workspace)
+
+	local mapWidth = layout.SideOffset * 2 + layout.PlotSize.X + 40
+	local mapLength = layout.PlotSpacing * layout.PlotsPerSide + layout.PlotSize.Z + 80
+	make("Part", {
+		Name = "LobbyGround",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Concrete,
+		Color = Color3.fromRGB(48, 54, 64),
+		Size = Vector3.new(mapWidth, 4, mapLength),
+		CFrame = CFrame.new(0, -2.0, 0),
+	}, basesFolder)
+
+	make("Part", {
+		Name = "LobbyPlaza",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.Pebble,
+		Color = Color3.fromRGB(86, 94, 108),
+		Size = Vector3.new(mapWidth - 8, 0.2, mapLength - 8),
+		CFrame = CFrame.new(0, 0.1, 0),
+	}, basesFolder)
+
+	for sideIndex = 1, 2 do
+		for laneIndex = 1, layout.PlotsPerSide do
+			local plotId = #plots + 1
+			local x = sideIndex == 1 and -layout.SideOffset or layout.SideOffset
+			local z = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
+			local side = sideIndex == 1 and "Left" or "Right"
+			table.insert(plots, createPlot(plotId, side, laneIndex, Vector3.new(x, 0.5, z)))
+		end
+	end
+
+	return plots
+end
+
+function BaseService.GetPlots()
+	if #plots == 0 then
+		BaseService.BuildBaseMap()
+	end
+	return plots
+end
+
+function BaseService.AssignPlot(player)
+	if assignedPlots[player] then
+		return assignedPlots[player]
+	end
+
+	if #plots == 0 then
+		BaseService.BuildBaseMap()
+	end
+
+	for _, plot in ipairs(plots) do
+		if not plot.ownerPlayer then
+			plot.ownerPlayer = player
+			plot.model:SetAttribute("OwnerUserId", player.UserId)
+			plot.model:SetAttribute("OwnerName", player.DisplayName)
+			updateOwnerSign(plot, player.DisplayName, "Home stadium")
+			updatePadLabel(plot, "Rolling Pack", "Preparing your next spawn", Color3.fromRGB(255, 170, 48))
+			assignedPlots[player] = plot
+			return plot
+		end
+	end
+
+	return nil
+end
+
+function BaseService.ReleasePlot(player)
+	local plot = assignedPlots[player]
+	if not plot then
+		return
+	end
+
+	if plot.activePackModel and plot.activePackModel.Parent then
+		plot.activePackModel:Destroy()
+	end
+
+	plot.activePackModel = nil
+	plot.activePackDef = nil
+	plot.ownerPlayer = nil
+	plot.model:SetAttribute("OwnerUserId", nil)
+	plot.model:SetAttribute("OwnerName", nil)
+	BaseService.ClearPlotDisplays(plot)
+	updateOwnerSign(plot, nil, "Walk in and claim it")
+	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
+	assignedPlots[player] = nil
+end
+
+function BaseService.GetPlot(player)
+	return assignedPlots[player]
+end
+
+function BaseService.GetDisplaySlots(plot)
+	return plot and plot.displaySlots or {}
+end
+
+function BaseService.SetPlotPadStatus(plot, title, subtitle, color)
+	if plot then
+		updatePadLabel(plot, title, subtitle, color or Color3.fromRGB(255, 85, 85))
+	end
+end
+
+function BaseService.SetPlotPadHealth(plot, title, currentValue, maxValue, color)
+	if plot then
+		updatePadHealth(plot, title, currentValue, maxValue, color or Color3.fromRGB(255, 215, 0))
+	end
+end
+
+function BaseService.UpdateDisplaySlot(slot, card, incomePerSecond)
+	clearDisplayCard(slot)
+
+	if not card then
+		setSlotPrompt(slot, "Add Player", "Inventory Empty", false)
+		return
+	end
+
+	local cardModel = make("Model", {
+		Name = "DisplayCard",
+	}, slot.model)
+
+	local cardPosition = slot.top.Position + Vector3.new(0, 4.2, 0)
+	local cardPart = make("Part", {
+		Name = "CardPart",
+		Anchored = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(24, 20, 10),
+		Size = Vector3.new(4.25, 6.2, 0.26),
+		CFrame = CFrame.lookAt(cardPosition, cardPosition + slot.lookDirection),
+	}, cardModel)
+
+	make("PointLight", {
+		Color = Utils.GetRarityColor(card.rarity),
+		Range = 12,
+		Brightness = 1.7,
+	}, cardPart)
+
+	createDisplayCardFace(Enum.NormalId.Front, card, incomePerSecond, cardPart)
+	createDisplayCardFace(Enum.NormalId.Back, card, incomePerSecond, cardPart)
+
+	slot.cardModel = cardModel
+	slot.model:SetAttribute("Occupied", true)
+	setSlotPrompt(slot, "Remove Player", card.name, true)
+end
+
+function BaseService.SetDisplaySlotAddReady(slot, objectText, enabled)
+	clearDisplayCard(slot)
+	setSlotPrompt(slot, "Add Player", objectText or "From Inventory", enabled)
+end
+
+function BaseService.ClearPlotDisplays(plot)
+	for _, slot in ipairs(plot.displaySlots or {}) do
+		clearDisplayCard(slot)
+		setSlotPrompt(slot, "Add Player", "Inventory Empty", false)
+	end
+end
+
+function BaseService.PlaceCharacterAtPlot(player, character)
+	local plot = assignedPlots[player]
+	local targetCharacter = character or player.Character
+	if not plot or not targetCharacter then
+		return
+	end
+
+	targetCharacter:PivotTo(plot.spawnCFrame)
+end
+
+return BaseService
+]])
+
 makeModule('DataService', SSS, [[local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -419,7 +1066,11 @@ local DEFAULT_DATA = {
 		theme = "Default",
 	},
 	baseSlots = 6,
-	pitchforkPower = 1,
+	upgrades = {
+		PitchforkDamage = 0,
+		PackSpawnRate = 0,
+		PadLuck = 0,
+	},
 	totalCardsOpened = 0,
 	totalRebirths = 0,
 	collectionRewards = {},
@@ -740,6 +1391,19 @@ end
 return EconomyService
 ]])
 
+makeModule('MarketService', SSS, [[local MarketService = {}
+
+function MarketService.ListCard()
+	return false, "Transfer market has not been wired yet."
+end
+
+function MarketService.BuyListing()
+	return false, "Transfer market has not been wired yet."
+end
+
+return MarketService
+]])
+
 makeModule('PackService', SSS, [[local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CardData = require(ReplicatedStorage.Shared.CardData)
@@ -914,561 +1578,6 @@ end
 return PackService
 ]])
 
-makeModule('BaseService', SSS, [[local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-
-local Constants = require(ReplicatedStorage.Shared.Constants)
-local Utils = require(ReplicatedStorage.Shared.Utils)
-
-local BaseService = {}
-
-local layout = Constants.BaseLayout
-local basesFolder
-local plots = {}
-local assignedPlots = {}
-
-local function make(className, props, parent)
-	local instance = Instance.new(className)
-	for key, value in pairs(props or {}) do
-		instance[key] = value
-	end
-	instance.Parent = parent
-	return instance
-end
-
-local function createSignLabel(text, size, position, color, parent)
-	return make("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = size,
-		Position = position,
-		Text = text,
-		TextColor3 = color,
-		TextScaled = true,
-		Font = Enum.Font.GothamBlack,
-	}, parent)
-end
-
-local function updateOwnerSign(plot, ownerName, subtitle)
-	plot.ownerNameLabel.Text = ownerName
-	plot.ownerSubtitleLabel.Text = subtitle
-end
-
-local function updatePadLabel(plot, title, subtitle, color)
-	plot.padTitleLabel.Text = title
-	plot.padSubtitleLabel.Text = subtitle
-	plot.padAccent.BackgroundColor3 = color
-	plot.padBarBack.Visible = false
-end
-
-local function updatePadHealth(plot, title, currentValue, maxValue, color)
-	local ratio = maxValue > 0 and math.clamp(currentValue / maxValue, 0, 1) or 0
-	plot.padTitleLabel.Text = title
-	plot.padSubtitleLabel.Text = string.format("%d / %d HP", currentValue, maxValue)
-	plot.padAccent.BackgroundColor3 = color
-	plot.padBarBack.Visible = true
-	plot.padBarFill.BackgroundColor3 = color
-	plot.padBarFill.Size = UDim2.new(ratio, 0, 1, 0)
-end
-
-local function createFence(parent, size, cframe)
-	make("Part", {
-		Anchored = true,
-		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(120, 84, 40),
-		Size = size,
-		CFrame = cframe,
-	}, parent)
-end
-
-local function createDisplayCardFace(face, card, incomePerSecond, parent)
-	local gui = make("SurfaceGui", {
-		Face = face,
-		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
-		PixelsPerStud = 70,
-		LightInfluence = 0,
-	}, parent)
-
-	local frame = make("Frame", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.fromRGB(20, 18, 10),
-		BorderSizePixel = 0,
-	}, gui)
-
-	make("UIGradient", {
-		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(252, 234, 158)),
-			ColorSequenceKeypoint.new(0.45, Utils.GetRarityColor(card.rarity)),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(112, 82, 14)),
-		}),
-		Rotation = 22,
-	}, frame)
-
-	make("UIStroke", {
-		Color = Color3.fromRGB(24, 18, 8),
-		Thickness = 2,
-	}, frame)
-
-	createSignLabel(tostring(card.rating), UDim2.new(0.32, 0, 0.16, 0), UDim2.new(0.08, 0, 0.05, 0), Color3.fromRGB(24, 16, 8), frame).TextXAlignment = Enum.TextXAlignment.Left
-	createSignLabel(card.position, UDim2.new(0.26, 0, 0.08, 0), UDim2.new(0.08, 0, 0.16, 0), Color3.fromRGB(48, 38, 12), frame).TextXAlignment = Enum.TextXAlignment.Left
-	createSignLabel(card.name, UDim2.new(0.82, 0, 0.14, 0), UDim2.new(0.09, 0, 0.56, 0), Color3.fromRGB(30, 22, 10), frame)
-	createSignLabel(card.nation, UDim2.new(0.74, 0, 0.08, 0), UDim2.new(0.13, 0, 0.72, 0), Color3.fromRGB(54, 42, 14), frame)
-	createSignLabel("+" .. tostring(incomePerSecond) .. "/s", UDim2.new(0.78, 0, 0.1, 0), UDim2.new(0.11, 0, 0.84, 0), Color3.fromRGB(22, 74, 38), frame)
-end
-
-local function clearDisplayCard(slot)
-	if slot.cardModel and slot.cardModel.Parent then
-		slot.cardModel:Destroy()
-	end
-	slot.cardModel = nil
-	slot.model:SetAttribute("Occupied", false)
-end
-
-local function setSlotPrompt(slot, actionText, objectText, enabled)
-	slot.prompt.ActionText = actionText
-	slot.prompt.ObjectText = objectText
-	slot.prompt.Enabled = enabled
-end
-
-local function createDisplaySlot(parent, index, cframe, lookDirection)
-	local model = make("Model", {
-		Name = "DisplaySlot" .. index,
-	}, parent)
-
-	local base = make("Part", {
-		Name = "Base",
-		Anchored = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(20, 26, 38),
-		Size = layout.DisplaySlotSize,
-		CFrame = cframe,
-	}, model)
-
-	local top = make("Part", {
-		Name = "Top",
-		Anchored = true,
-		CanCollide = false,
-		Material = Enum.Material.Neon,
-		Color = Color3.fromRGB(46, 205, 113),
-		Size = Vector3.new(layout.DisplaySlotSize.X - 1.4, 0.18, layout.DisplaySlotSize.Z - 1.4),
-		CFrame = base.CFrame + Vector3.new(0, layout.DisplaySlotSize.Y / 2 + 0.1, 0),
-	}, model)
-
-	local prompt = make("ProximityPrompt", {
-		Name = "SlotPrompt",
-		ActionText = "Add Player",
-		ObjectText = "Inventory Empty",
-		KeyboardKeyCode = Enum.KeyCode.E,
-		HoldDuration = 0.65,
-		MaxActivationDistance = 10,
-		RequiresLineOfSight = false,
-		Enabled = false,
-	}, base)
-
-	model:SetAttribute("SlotIndex", index)
-	model:SetAttribute("Occupied", false)
-
-	return {
-		model = model,
-		base = base,
-		top = top,
-		prompt = prompt,
-		slotIndex = index,
-		lookDirection = lookDirection,
-		cardModel = nil,
-	}
-end
-
-local function createPlot(plotId, side, laneIndex, position)
-	local model = make("Model", {
-		Name = "Base" .. plotId,
-	}, basesFolder)
-
-	local facingDirection = side == "Left" and 1 or -1
-	local baseCFrame = CFrame.new(position)
-	local centerDirection = Vector3.new(facingDirection, 0, 0)
-	local padOffset = 16
-	local signOffset = 20
-
-	local floor = make("Part", {
-		Name = "Floor",
-		Anchored = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(67, 163, 79),
-		Size = layout.PlotSize,
-		CFrame = baseCFrame,
-	}, model)
-
-	local borderTop = createFence(model, Vector3.new(layout.PlotSize.X, 0.7, 1.2), baseCFrame * CFrame.new(0, 0.8, -layout.PlotSize.Z / 2))
-	local borderBottom = createFence(model, Vector3.new(layout.PlotSize.X, 0.7, 1.2), baseCFrame * CFrame.new(0, 0.8, layout.PlotSize.Z / 2))
-	local borderLeft = createFence(model, Vector3.new(1.2, 0.7, layout.PlotSize.Z), baseCFrame * CFrame.new(-layout.PlotSize.X / 2, 0.8, 0))
-	local borderRight = createFence(model, Vector3.new(1.2, 0.7, layout.PlotSize.Z), baseCFrame * CFrame.new(layout.PlotSize.X / 2, 0.8, 0))
-	_ = borderTop
-	_ = borderBottom
-	_ = borderLeft
-	_ = borderRight
-
-	local centerStrip = make("Part", {
-		Name = "CenterStrip",
-		Anchored = true,
-		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(242, 241, 235),
-		Size = Vector3.new(layout.PlotSize.X - 8, 0.12, 8),
-		CFrame = baseCFrame * CFrame.new(0, 0.56, 0),
-	}, model)
-
-	local packPad = make("Part", {
-		Name = "PackPad",
-		Anchored = true,
-		Material = Enum.Material.Neon,
-		Color = Color3.fromRGB(221, 49, 49),
-		Size = layout.PackPadSize,
-		CFrame = baseCFrame * CFrame.new(-facingDirection * padOffset, 0.45, 0),
-	}, model)
-
-	local packPadBorder = make("Part", {
-		Name = "PackPadBorder",
-		Anchored = true,
-		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(86, 16, 16),
-		Size = Vector3.new(layout.PackPadSize.X + 2, 0.2, layout.PackPadSize.Z + 2),
-		CFrame = packPad.CFrame - Vector3.new(0, 0.22, 0),
-	}, model)
-	_ = packPadBorder
-
-	local spawnPad = make("Part", {
-		Name = "SpawnPad",
-		Anchored = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(242, 241, 235),
-		Size = Vector3.new(10, 0.45, 10),
-		CFrame = baseCFrame * CFrame.new(facingDirection * padOffset, 0.45, 0),
-	}, model)
-
-	local ownerSignPosition = position + Vector3.new(facingDirection * signOffset, 4.3, -14)
-	local ownerSign = make("Part", {
-		Name = "OwnerSign",
-		Anchored = true,
-		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(24, 30, 42),
-		Size = Vector3.new(7, 5, 0.5),
-		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
-	}, model)
-
-	local ownerGui = make("SurfaceGui", {
-		Face = Enum.NormalId.Front,
-		PixelsPerStud = 70,
-		LightInfluence = 0,
-	}, ownerSign)
-
-	local ownerFrame = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(10, 14, 24),
-		BackgroundTransparency = 0.06,
-		BorderSizePixel = 0,
-		Size = UDim2.fromScale(1, 1),
-	}, ownerGui)
-
-	make("UIStroke", {
-		Color = Color3.fromRGB(255, 215, 0),
-		Thickness = 3,
-	}, ownerFrame)
-
-	local ownerNameLabel = createSignLabel("UNCLAIMED BASE", UDim2.new(1, -14, 0.44, 0), UDim2.new(0, 7, 0.1, 0), Color3.fromRGB(245, 238, 220), ownerFrame)
-	local ownerSubtitleLabel = createSignLabel("Waiting for player", UDim2.new(1, -14, 0.24, 0), UDim2.new(0, 7, 0.58, 0), Color3.fromRGB(180, 176, 164), ownerFrame)
-	ownerSubtitleLabel.Font = Enum.Font.GothamBold
-
-	local padGui = make("BillboardGui", {
-		Name = "PadGui",
-		Size = UDim2.fromOffset(176, 60),
-		StudsOffset = Vector3.new(0, 3.7, 0),
-		AlwaysOnTop = true,
-		MaxDistance = 120,
-	}, packPad)
-
-	local padFrame = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(10, 14, 24),
-		BackgroundTransparency = 0.18,
-		BorderSizePixel = 0,
-		Size = UDim2.fromScale(1, 1),
-	}, padGui)
-
-	make("UICorner", {
-		CornerRadius = UDim.new(0, 12),
-	}, padFrame)
-
-	make("UIStroke", {
-		Color = Color3.fromRGB(255, 215, 0),
-		Thickness = 1.5,
-		Transparency = 0.22,
-	}, padFrame)
-
-	local padAccent = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(255, 85, 85),
-		BorderSizePixel = 0,
-		Size = UDim2.new(0, 6, 1, -12),
-		Position = UDim2.new(0, 8, 0, 6),
-	}, padFrame)
-
-	make("UICorner", {
-		CornerRadius = UDim.new(0, 6),
-	}, padAccent)
-
-	local padTitleLabel = createSignLabel("Pack Pad", UDim2.new(1, -24, 0, 20), UDim2.new(0, 22, 0, 4), Color3.fromRGB(245, 238, 220), padFrame)
-	local padSubtitleLabel = createSignLabel("Waiting for owner", UDim2.new(1, -24, 0, 12), UDim2.new(0, 22, 0, 24), Color3.fromRGB(180, 176, 164), padFrame)
-	padTitleLabel.TextScaled = false
-	padTitleLabel.TextSize = 18
-	padTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	padSubtitleLabel.TextScaled = false
-	padSubtitleLabel.TextSize = 10
-	padSubtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	padSubtitleLabel.Font = Enum.Font.GothamBold
-
-	local padBarBack = make("Frame", {
-		Visible = false,
-		BackgroundColor3 = Color3.fromRGB(34, 38, 48),
-		BorderSizePixel = 0,
-		Size = UDim2.new(1, -28, 0, 8),
-		Position = UDim2.new(0, 20, 1, -14),
-	}, padFrame)
-
-	make("UICorner", {
-		CornerRadius = UDim.new(0, 5),
-	}, padBarBack)
-
-	local padBarFill = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
-		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 1, 0),
-	}, padBarBack)
-
-	make("UICorner", {
-		CornerRadius = UDim.new(0, 5),
-	}, padBarFill)
-
-	local displayFolder = make("Folder", {
-		Name = "DisplaySlots",
-	}, model)
-
-	local slotOffsets = {
-		Vector3.new(-12, 1.75, -14),
-		Vector3.new(0, 1.75, -14),
-		Vector3.new(12, 1.75, -14),
-		Vector3.new(-12, 1.75, 14),
-		Vector3.new(0, 1.75, 14),
-		Vector3.new(12, 1.75, 14),
-	}
-
-	local displaySlots = {}
-	for slotIndex = 1, layout.DisplaySlotCount do
-		local localOffset = slotOffsets[slotIndex]
-		local worldOffset = Vector3.new(localOffset.X * facingDirection, localOffset.Y, localOffset.Z)
-		displaySlots[slotIndex] = createDisplaySlot(displayFolder, slotIndex, baseCFrame * CFrame.new(worldOffset), centerDirection)
-	end
-
-	local plot = {
-		id = plotId,
-		side = side,
-		laneIndex = laneIndex,
-		model = model,
-		facingDirection = facingDirection,
-		floor = floor,
-		packPad = packPad,
-		spawnPad = spawnPad,
-		ownerSign = ownerSign,
-		ownerNameLabel = ownerNameLabel,
-		ownerSubtitleLabel = ownerSubtitleLabel,
-		padTitleLabel = padTitleLabel,
-		padSubtitleLabel = padSubtitleLabel,
-		padAccent = padAccent,
-		padBarBack = padBarBack,
-		padBarFill = padBarFill,
-		displaySlots = displaySlots,
-		spawnCFrame = CFrame.lookAt(
-			spawnPad.Position + Vector3.new(0, 3, 0),
-			spawnPad.Position + Vector3.new(0, 3, 0) + centerDirection
-		),
-	}
-
-	updateOwnerSign(plot, "UNCLAIMED BASE", "Waiting for player")
-	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
-
-	return plot
-end
-
-function BaseService.BuildBaseMap()
-	plots = {}
-	assignedPlots = {}
-
-	if basesFolder then
-		basesFolder:Destroy()
-	end
-
-	basesFolder = make("Folder", {
-		Name = "PlayerBases",
-	}, Workspace)
-
-	for sideIndex = 1, 2 do
-		for laneIndex = 1, layout.PlotsPerSide do
-			local plotId = #plots + 1
-			local x = sideIndex == 1 and -layout.SideOffset or layout.SideOffset
-			local z = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
-			local side = sideIndex == 1 and "Left" or "Right"
-			table.insert(plots, createPlot(plotId, side, laneIndex, Vector3.new(x, 0.5, z)))
-		end
-	end
-
-	return plots
-end
-
-function BaseService.GetPlots()
-	if #plots == 0 then
-		BaseService.BuildBaseMap()
-	end
-	return plots
-end
-
-function BaseService.AssignPlot(player)
-	if assignedPlots[player] then
-		return assignedPlots[player]
-	end
-
-	if #plots == 0 then
-		BaseService.BuildBaseMap()
-	end
-
-	for _, plot in ipairs(plots) do
-		if not plot.ownerPlayer then
-			plot.ownerPlayer = player
-			plot.model:SetAttribute("OwnerUserId", player.UserId)
-			plot.model:SetAttribute("OwnerName", player.DisplayName)
-			updateOwnerSign(plot, player.DisplayName, "Your club base")
-			updatePadLabel(plot, "Rolling Pack", "Preparing your next spawn", Color3.fromRGB(255, 170, 48))
-			assignedPlots[player] = plot
-			return plot
-		end
-	end
-
-	return nil
-end
-
-function BaseService.ReleasePlot(player)
-	local plot = assignedPlots[player]
-	if not plot then
-		return
-	end
-
-	if plot.activePackModel and plot.activePackModel.Parent then
-		plot.activePackModel:Destroy()
-	end
-
-	plot.activePackModel = nil
-	plot.activePackDef = nil
-	plot.ownerPlayer = nil
-	plot.model:SetAttribute("OwnerUserId", nil)
-	plot.model:SetAttribute("OwnerName", nil)
-	BaseService.ClearPlotDisplays(plot)
-	updateOwnerSign(plot, "UNCLAIMED BASE", "Waiting for player")
-	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
-	assignedPlots[player] = nil
-end
-
-function BaseService.GetPlot(player)
-	return assignedPlots[player]
-end
-
-function BaseService.GetDisplaySlots(plot)
-	return plot and plot.displaySlots or {}
-end
-
-function BaseService.SetPlotPadStatus(plot, title, subtitle, color)
-	if plot then
-		updatePadLabel(plot, title, subtitle, color or Color3.fromRGB(255, 85, 85))
-	end
-end
-
-function BaseService.SetPlotPadHealth(plot, title, currentValue, maxValue, color)
-	if plot then
-		updatePadHealth(plot, title, currentValue, maxValue, color or Color3.fromRGB(255, 215, 0))
-	end
-end
-
-function BaseService.UpdateDisplaySlot(slot, card, incomePerSecond)
-	clearDisplayCard(slot)
-
-	if not card then
-		setSlotPrompt(slot, "Add Player", "Inventory Empty", false)
-		return
-	end
-
-	local cardModel = make("Model", {
-		Name = "DisplayCard",
-	}, slot.model)
-
-	local cardPosition = slot.top.Position + Vector3.new(0, 4.2, 0)
-	local cardPart = make("Part", {
-		Name = "CardPart",
-		Anchored = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(24, 20, 10),
-		Size = Vector3.new(0.26, 6.2, 4.25),
-		CFrame = CFrame.lookAt(cardPosition, cardPosition + slot.lookDirection),
-	}, cardModel)
-
-	make("PointLight", {
-		Color = Utils.GetRarityColor(card.rarity),
-		Range = 12,
-		Brightness = 1.7,
-	}, cardPart)
-
-	createDisplayCardFace(Enum.NormalId.Front, card, incomePerSecond, cardPart)
-	createDisplayCardFace(Enum.NormalId.Back, card, incomePerSecond, cardPart)
-
-	slot.cardModel = cardModel
-	slot.model:SetAttribute("Occupied", true)
-	setSlotPrompt(slot, "Remove Player", card.name, true)
-end
-
-function BaseService.SetDisplaySlotAddReady(slot, objectText, enabled)
-	clearDisplayCard(slot)
-	setSlotPrompt(slot, "Add Player", objectText or "From Inventory", enabled)
-end
-
-function BaseService.ClearPlotDisplays(plot)
-	for _, slot in ipairs(plot.displaySlots or {}) do
-		clearDisplayCard(slot)
-		setSlotPrompt(slot, "Add Player", "Inventory Empty", false)
-	end
-end
-
-function BaseService.PlaceCharacterAtPlot(player, character)
-	local plot = assignedPlots[player]
-	local targetCharacter = character or player.Character
-	if not plot or not targetCharacter then
-		return
-	end
-
-	targetCharacter:PivotTo(plot.spawnCFrame)
-end
-
-return BaseService
-]])
-
-makeModule('MarketService', SSS, [[local MarketService = {}
-
-function MarketService.ListCard()
-	return false, "Transfer market has not been wired yet."
-end
-
-function MarketService.BuyListing()
-	return false, "Transfer market has not been wired yet."
-end
-
-return MarketService
-]])
-
 makeModule('RebirthService', SSS, [[local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CardData = require(ReplicatedStorage.Shared.CardData)
@@ -1586,6 +1695,8 @@ local OpenPackFn = makeFunction("OpenPack")
 local SellCardFn = makeFunction("SellCard")
 local SellAllCardsFn = makeFunction("SellAllCards")
 local GetInventoryFn = makeFunction("GetInventory")
+local GetUpgradesFn = makeFunction("GetUpgrades")
+local PurchaseUpgradeFn = makeFunction("PurchaseUpgrade")
 
 PackService.Init(DataService, EconomyService, {
 	UpdateCoins = UpdateCoinsEvent,
@@ -1669,9 +1780,39 @@ local function sendHint(player, message, extraPayload)
 	end
 end
 
-local function getPitchforkDamage(player)
+local function getUpgradeLevel(player, key)
 	local data = DataService.GetData(player)
-	return math.max(Constants.Pitchfork.BaseDamage, data and data.pitchforkPower or Constants.Pitchfork.BaseDamage)
+	if not data or not data.upgrades then
+		return 0
+	end
+	return data.upgrades[key] or 0
+end
+
+local function getUpgradeCost(key, level)
+	local spec = Constants.Upgrades[key]
+	if not spec or level >= spec.maxLevel then
+		return nil
+	end
+	return math.floor(spec.baseCost * (spec.costMultiplier ^ level))
+end
+
+local function computePitchforkDamage(level)
+	local spec = Constants.Upgrades.PitchforkDamage
+	return spec.baseDamage + level * spec.damagePerLevel
+end
+
+local function computeSpawnDelay(level)
+	local spec = Constants.Upgrades.PackSpawnRate
+	return math.max(spec.minDelay, spec.baseDelay - level * spec.delayReductionPerLevel)
+end
+
+local function computeLuckShift(level)
+	local spec = Constants.Upgrades.PadLuck
+	return math.min(level * spec.shiftPerLevel, spec.maxShift)
+end
+
+local function getPitchforkDamage(player)
+	return computePitchforkDamage(getUpgradeLevel(player, "PitchforkDamage"))
 end
 
 local function createSurfaceLabel(face, title, subtitle, color, parent)
@@ -1743,10 +1884,21 @@ local function createSurfaceLabel(face, title, subtitle, color, parent)
 	stripeGradient.Parent = stripes
 end
 
-local function rollPadPackForPlayer(_player)
+local function rollPadPackForPlayer(player)
 	local weights = {}
 	for _, packDef in ipairs(PackConfig.PadSpawnOrder) do
 		table.insert(weights, packDef.padWeight or 1)
+	end
+
+	if player and #weights >= 3 then
+		local shift = computeLuckShift(getUpgradeLevel(player, "PadLuck"))
+		local takeable = math.max(0, weights[1] - 5)
+		local taken = math.min(shift, takeable)
+		weights[1] = weights[1] - taken
+		local toRare = math.floor(taken * 0.6)
+		local toPremium = taken - toRare
+		weights[2] = weights[2] + toRare
+		weights[3] = weights[3] + toPremium
 	end
 
 	local chosenIndex = Utils.WeightedRandom(weights)
@@ -2080,7 +2232,8 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 
 		clearPlotPack(plot)
 		BaseService.SetPlotPadStatus(plot, "Rolling Next Pack", "Another free pack is spawning", openedPackColor)
-		task.delay(1.1, function()
+		local respawnDelay = computeSpawnDelay(getUpgradeLevel(player, "PackSpawnRate"))
+		task.delay(respawnDelay, function()
 			if plot.ownerPlayer == player then
 				spawnPackForPlot(plot)
 			end
@@ -2270,302 +2423,95 @@ SellAllCardsFn.OnServerInvoke = function(player, cardIds)
 	}
 end
 
+local function buildUpgradePayload(player)
+	local payload = {
+		coins = DataService.GetCoins(player),
+		upgrades = {},
+	}
+
+	for _, key in ipairs(Constants.UpgradeKeys) do
+		local spec = Constants.Upgrades[key]
+		local level = getUpgradeLevel(player, key)
+		local nextCost = getUpgradeCost(key, level)
+		local entry = {
+			key = key,
+			displayName = spec.displayName,
+			description = spec.description,
+			level = level,
+			maxLevel = spec.maxLevel,
+			nextCost = nextCost,
+			maxed = level >= spec.maxLevel,
+		}
+
+		if key == "PitchforkDamage" then
+			entry.currentValue = computePitchforkDamage(level)
+			entry.nextValue = computePitchforkDamage(level + 1)
+			entry.valueSuffix = " dmg/swing"
+		elseif key == "PackSpawnRate" then
+			entry.currentValue = computeSpawnDelay(level)
+			entry.nextValue = computeSpawnDelay(level + 1)
+			entry.valueSuffix = "s respawn"
+		elseif key == "PadLuck" then
+			entry.currentValue = computeLuckShift(level)
+			entry.nextValue = computeLuckShift(level + 1)
+			entry.valueSuffix = " luck shift"
+		end
+
+		table.insert(payload.upgrades, entry)
+	end
+
+	return payload
+end
+
+GetUpgradesFn.OnServerInvoke = function(player)
+	return buildUpgradePayload(player)
+end
+
+PurchaseUpgradeFn.OnServerInvoke = function(player, upgradeKey)
+	if type(upgradeKey) ~= "string" or not Constants.Upgrades[upgradeKey] then
+		return { success = false, error = "Unknown upgrade." }
+	end
+
+	local level = getUpgradeLevel(player, upgradeKey)
+	local spec = Constants.Upgrades[upgradeKey]
+	if level >= spec.maxLevel then
+		return { success = false, error = "Upgrade already maxed." }
+	end
+
+	local cost = getUpgradeCost(upgradeKey, level)
+	if not cost then
+		return { success = false, error = "Upgrade already maxed." }
+	end
+
+	local ok, err = DataService.SpendCoins(player, cost)
+	if not ok then
+		return { success = false, error = err or "Not enough coins." }
+	end
+
+	local data = DataService.GetData(player)
+	data.upgrades = data.upgrades or {}
+	data.upgrades[upgradeKey] = level + 1
+	DataService.MarkDirty(player)
+
+	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+
+	local payload = buildUpgradePayload(player)
+	payload.success = true
+	payload.purchasedKey = upgradeKey
+	payload.coinsSpent = cost
+	return payload
+end
+
 print("[UnboxAFootballer] Pack systems ready")
 ]])
 
-makeLocal('PackOpeningUI', sps, [[local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
+makeLocal('BaseUI', sps, [[return
+]])
 
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+makeLocal('CollectionUI', sps, [[return
+]])
 
-for _, child in ipairs(script.Parent:GetChildren()) do
-	if child:IsA("LocalScript") and child ~= script and child.Name == script.Name then
-		child.Disabled = true
-	end
-end
-
-local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-
-local Constants = require(Shared:WaitForChild("Constants"))
-local Utils = require(Shared:WaitForChild("Utils"))
-
-local GetPlayerDataFn = Remotes:WaitForChild("GetPlayerData")
-local UpdateCoinsEvent = Remotes:WaitForChild("UpdateCoins")
-local PackOpenedEvent = Remotes:WaitForChild("PackOpened")
-local PackOpenFailedEvent = Remotes:WaitForChild("PackOpenFailed")
-local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
-
-local UI = Constants.UI
-
-local function make(className, props, parent)
-	props = props or {}
-	local instance = Instance.new(className)
-	for key, value in pairs(props) do
-		instance[key] = value
-	end
-	instance.Parent = parent
-	return instance
-end
-
-local existingGui = playerGui:FindFirstChild("PackOpeningUI")
-if existingGui then
-	existingGui:Destroy()
-end
-
-local function addCorner(parent, radius)
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, radius)
-	corner.Parent = parent
-	return corner
-end
-
-local function addStroke(parent, color, thickness, transparency)
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = color
-	stroke.Thickness = thickness or 1
-	stroke.Transparency = transparency or 0
-	stroke.Parent = parent
-	return stroke
-end
-
-local screenGui = make("ScreenGui", {
-	Name = "PackOpeningUI",
-	ResetOnSpawn = false,
-	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-}, playerGui)
-
-local hudDock = make("Frame", {
-	Name = "HudDock",
-	Size = UDim2.fromOffset(184, 148),
-	Position = UDim2.new(0, 24, 0, 118),
-	BackgroundTransparency = 1,
-}, screenGui)
-
-make("UIListLayout", {
-	FillDirection = Enum.FillDirection.Vertical,
-	HorizontalAlignment = Enum.HorizontalAlignment.Left,
-	VerticalAlignment = Enum.VerticalAlignment.Top,
-	Padding = UDim.new(0, 8),
-}, hudDock)
-
-local coinPill = make("Frame", {
-	LayoutOrder = 1,
-	Size = UDim2.fromOffset(176, 38),
-	BackgroundColor3 = UI.Panel,
-}, hudDock)
-addCorner(coinPill, 12)
-addStroke(coinPill, UI.Gold, 2, 0.15)
-
-make("UIGradient", {
-	Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 24, 38)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 14, 24)),
-	}),
-	Rotation = 90,
-}, coinPill)
-
-local coinIcon = make("TextLabel", {
-	Size = UDim2.fromOffset(22, 22),
-	Position = UDim2.new(0, 8, 0.5, -11),
-	BackgroundColor3 = Color3.fromRGB(35, 30, 10),
-	Text = "C",
-	TextColor3 = UI.Gold,
-	TextScaled = false,
-	TextSize = 17,
-	Font = Enum.Font.GothamBlack,
-}, coinPill)
-addCorner(coinIcon, 8)
-
-make("TextLabel", {
-	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 38, 0, 3),
-	Size = UDim2.new(1, -44, 0, 10),
-	Text = "Coins",
-	TextColor3 = UI.Muted,
-	TextScaled = false,
-	TextSize = 10,
-	Font = Enum.Font.GothamMedium,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, coinPill)
-
-local coinsLabel = make("TextLabel", {
-	Name = "CoinsLabel",
-	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 38, 0, 12),
-	Size = UDim2.new(1, -44, 0, 18),
-	Text = "0",
-	TextColor3 = UI.Text,
-	TextScaled = false,
-	TextSize = 19,
-	Font = Enum.Font.GothamBlack,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, coinPill)
-
-local openShopButton = make("TextButton", {
-	LayoutOrder = 2,
-	Size = UDim2.fromOffset(176, 38),
-	BackgroundColor3 = UI.Gold,
-	Text = "Upgrades",
-	TextColor3 = Color3.fromRGB(20, 14, 8),
-	TextScaled = false,
-	TextSize = 16,
-	Font = Enum.Font.GothamBlack,
-}, hudDock)
-addCorner(openShopButton, 12)
-
-local hintLabel = make("TextLabel", {
-	LayoutOrder = 3,
-	BackgroundTransparency = 1,
-	Size = UDim2.fromOffset(184, 54),
-	Text = "Pitchfork packs open one player. They auto-fill your green displays first.",
-	TextColor3 = UI.Muted,
-	TextScaled = false,
-	TextSize = 12,
-	TextWrapped = true,
-	Font = Enum.Font.GothamMedium,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	TextYAlignment = Enum.TextYAlignment.Top,
-}, hudDock)
-
-local toastHolder = make("Frame", {
-	BackgroundTransparency = 1,
-	Position = UDim2.new(1, -20, 0, 92),
-	AnchorPoint = Vector2.new(1, 0),
-	Size = UDim2.fromOffset(320, 420),
-}, screenGui)
-
-make("UIListLayout", {
-	HorizontalAlignment = Enum.HorizontalAlignment.Right,
-	VerticalAlignment = Enum.VerticalAlignment.Top,
-	Padding = UDim.new(0, 10),
-}, toastHolder)
-
-local function setCoinsDisplay(coins)
-	coinsLabel.Text = Utils.FormatNumber(coins or 0)
-end
-
-local function showToast(text, accent)
-	local toast = make("Frame", {
-		BackgroundColor3 = UI.PanelAlt,
-		Size = UDim2.new(1, 0, 0, 58),
-	}, toastHolder)
-	addCorner(toast, 16)
-	addStroke(toast, accent, 2, 0.25)
-
-	make("Frame", {
-		BackgroundColor3 = accent,
-		BorderSizePixel = 0,
-		Size = UDim2.new(0, 6, 1, -12),
-		Position = UDim2.new(0, 8, 0, 6),
-	}, toast)
-
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 24, 0, 0),
-		Size = UDim2.new(1, -36, 1, 0),
-		Text = text,
-		TextColor3 = UI.Text,
-		TextWrapped = true,
-		TextScaled = true,
-		Font = Enum.Font.GothamBold,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}, toast)
-
-	toast.BackgroundTransparency = 1
-	TweenService:Create(toast, TweenInfo.new(0.18), {
-		BackgroundTransparency = 0,
-	}):Play()
-
-	task.delay(3.2, function()
-		if toast.Parent then
-			TweenService:Create(toast, TweenInfo.new(0.2), {
-				BackgroundTransparency = 1,
-				Size = UDim2.new(1, 0, 0, 0),
-			}):Play()
-			task.wait(0.22)
-			if toast.Parent then
-				toast:Destroy()
-			end
-		end
-	end)
-end
-
-local function refreshStatus()
-	local data = GetPlayerDataFn:InvokeServer()
-	if not data then
-		return
-	end
-
-	setCoinsDisplay(data.coins)
-end
-
-openShopButton.MouseButton1Click:Connect(function()
-	showToast("Upgrades are next: pad luck, pack quality, and pitchfork power.", UI.Gold)
-end)
-
-openShopButton.MouseEnter:Connect(function()
-	TweenService:Create(openShopButton, TweenInfo.new(0.15), {
-		BackgroundColor3 = Color3.fromRGB(255, 229, 70),
-	}):Play()
-end)
-
-openShopButton.MouseLeave:Connect(function()
-	TweenService:Create(openShopButton, TweenInfo.new(0.15), {
-		BackgroundColor3 = UI.Gold,
-	}):Play()
-end)
-
-UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
-	setCoinsDisplay(coins)
-end)
-
-PackOpenedEvent.OnClientEvent:Connect(function(payload)
-	if not payload or not payload.success then
-		return
-	end
-
-	setCoinsDisplay(payload.newCoins)
-
-	if payload.card then
-		local targetText
-		if payload.storedInInventory then
-			targetText = payload.card.name .. " went to inventory because your displays are full."
-		else
-			targetText = payload.card.name .. " is now on display slot " .. tostring(payload.slotIndex) .. " earning +" .. tostring(payload.coinsPerSecond or 0) .. "/s."
-		end
-		showToast(targetText, Utils.GetRarityColor(payload.card.rarity))
-	end
-end)
-
-PackOpenFailedEvent.OnClientEvent:Connect(function(payload)
-	if not payload then
-		return
-	end
-
-	showToast(payload.error or "Pack could not be opened.", UI.Danger)
-end)
-
-PromptPackShopEvent.OnClientEvent:Connect(function(payload)
-	if not payload then
-		return
-	end
-
-	if payload.message then
-		hintLabel.Text = payload.message
-	end
-
-	if payload.coins ~= nil then
-		setCoinsDisplay(payload.coins)
-	end
-end)
-
-task.spawn(function()
-	task.wait(1)
-	refreshStatus()
-end)
+makeLocal('HUDClient', sps, [[return
 ]])
 
 makeLocal('InventoryUI', sps, [[local Players = game:GetService("Players")
@@ -2609,6 +2555,8 @@ local screenGui = make("ScreenGui", {
 	Name = "InventoryUI",
 	ResetOnSpawn = false,
 	Enabled = true,
+	DisplayOrder = 10,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, playerGui)
 
 local toggle = make("TextButton", {
@@ -2625,11 +2573,17 @@ addCorner(toggle, 12)
 
 local panel = make("Frame", {
 	Visible = false,
-	Size = UDim2.new(0, 560, 0, 440),
-	Position = UDim2.new(0, 24, 0, 124),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Size = UDim2.new(0.92, 0, 0.85, 0),
+	Position = UDim2.fromScale(0.5, 0.5),
 	BackgroundColor3 = Constants.UI.Panel,
 }, screenGui)
 addCorner(panel, 18)
+
+local panelSize = Instance.new("UISizeConstraint")
+panelSize.MinSize = Vector2.new(320, 360)
+panelSize.MaxSize = Vector2.new(620, 500)
+panelSize.Parent = panel
 
 local title = make("TextLabel", {
 	BackgroundTransparency = 1,
@@ -2740,6 +2694,301 @@ PackOpenedEvent.OnClientEvent:Connect(refreshIfVisible)
 PromptPackShopEvent.OnClientEvent:Connect(refreshIfVisible)
 ]])
 
+makeLocal('MarketUI', sps, [[return
+]])
+
+makeLocal('PackOpeningUI', sps, [[local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+for _, child in ipairs(script.Parent:GetChildren()) do
+	if child:IsA("LocalScript") and child ~= script and child.Name == script.Name then
+		child.Disabled = true
+	end
+end
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+local Constants = require(Shared:WaitForChild("Constants"))
+local Utils = require(Shared:WaitForChild("Utils"))
+
+local GetPlayerDataFn = Remotes:WaitForChild("GetPlayerData")
+local UpdateCoinsEvent = Remotes:WaitForChild("UpdateCoins")
+local PackOpenedEvent = Remotes:WaitForChild("PackOpened")
+local PackOpenFailedEvent = Remotes:WaitForChild("PackOpenFailed")
+local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
+
+local UI = Constants.UI
+
+local function make(className, props, parent)
+	props = props or {}
+	local instance = Instance.new(className)
+	for key, value in pairs(props) do
+		instance[key] = value
+	end
+	instance.Parent = parent
+	return instance
+end
+
+local existingGui = playerGui:FindFirstChild("PackOpeningUI")
+if existingGui then
+	existingGui:Destroy()
+end
+
+local function addCorner(parent, radius)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = parent
+	return corner
+end
+
+local function addStroke(parent, color, thickness, transparency)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color
+	stroke.Thickness = thickness or 1
+	stroke.Transparency = transparency or 0
+	stroke.Parent = parent
+	return stroke
+end
+
+local screenGui = make("ScreenGui", {
+	Name = "PackOpeningUI",
+	ResetOnSpawn = false,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, playerGui)
+
+local hudDock = make("Frame", {
+	Name = "HudDock",
+	Size = UDim2.fromOffset(200, 96),
+	Position = UDim2.new(0, 24, 0, 118),
+	BackgroundTransparency = 1,
+}, screenGui)
+
+make("UIListLayout", {
+	FillDirection = Enum.FillDirection.Vertical,
+	HorizontalAlignment = Enum.HorizontalAlignment.Left,
+	VerticalAlignment = Enum.VerticalAlignment.Top,
+	Padding = UDim.new(0, 8),
+}, hudDock)
+
+local coinPill = make("Frame", {
+	LayoutOrder = 1,
+	Size = UDim2.fromOffset(176, 38),
+	BackgroundColor3 = UI.Panel,
+}, hudDock)
+addCorner(coinPill, 12)
+addStroke(coinPill, UI.Gold, 2, 0.15)
+
+make("UIGradient", {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 24, 38)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 14, 24)),
+	}),
+	Rotation = 90,
+}, coinPill)
+
+local coinIcon = make("TextLabel", {
+	Size = UDim2.fromOffset(22, 22),
+	Position = UDim2.new(0, 8, 0.5, -11),
+	BackgroundColor3 = Color3.fromRGB(35, 30, 10),
+	Text = "C",
+	TextColor3 = UI.Gold,
+	TextScaled = false,
+	TextSize = 17,
+	Font = Enum.Font.GothamBlack,
+}, coinPill)
+addCorner(coinIcon, 8)
+
+make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 38, 0, 3),
+	Size = UDim2.new(1, -44, 0, 10),
+	Text = "Coins",
+	TextColor3 = UI.Muted,
+	TextScaled = false,
+	TextSize = 10,
+	Font = Enum.Font.GothamMedium,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, coinPill)
+
+local coinsLabel = make("TextLabel", {
+	Name = "CoinsLabel",
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 38, 0, 12),
+	Size = UDim2.new(1, -44, 0, 18),
+	Text = "0",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 19,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, coinPill)
+
+local openShopButton = make("TextButton", {
+	LayoutOrder = 2,
+	Size = UDim2.fromOffset(176, 38),
+	BackgroundColor3 = UI.Gold,
+	Text = "Upgrades",
+	TextColor3 = Color3.fromRGB(20, 14, 8),
+	TextScaled = false,
+	TextSize = 16,
+	Font = Enum.Font.GothamBlack,
+}, hudDock)
+addCorner(openShopButton, 12)
+
+local toastHolder = make("Frame", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(1, -20, 0, 92),
+	AnchorPoint = Vector2.new(1, 0),
+	Size = UDim2.fromOffset(320, 420),
+}, screenGui)
+
+make("UIListLayout", {
+	HorizontalAlignment = Enum.HorizontalAlignment.Right,
+	VerticalAlignment = Enum.VerticalAlignment.Top,
+	Padding = UDim.new(0, 10),
+}, toastHolder)
+
+local function setCoinsDisplay(coins)
+	coinsLabel.Text = Utils.FormatNumber(coins or 0)
+end
+
+local function showToast(text, accent)
+	local toast = make("Frame", {
+		BackgroundColor3 = UI.PanelAlt,
+		Size = UDim2.new(1, 0, 0, 58),
+	}, toastHolder)
+	addCorner(toast, 16)
+	addStroke(toast, accent, 2, 0.25)
+
+	make("Frame", {
+		BackgroundColor3 = accent,
+		BorderSizePixel = 0,
+		Size = UDim2.new(0, 6, 1, -12),
+		Position = UDim2.new(0, 8, 0, 6),
+	}, toast)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 24, 0, 0),
+		Size = UDim2.new(1, -36, 1, 0),
+		Text = text,
+		TextColor3 = UI.Text,
+		TextWrapped = true,
+		TextScaled = true,
+		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, toast)
+
+	toast.BackgroundTransparency = 1
+	TweenService:Create(toast, TweenInfo.new(0.18), {
+		BackgroundTransparency = 0,
+	}):Play()
+
+	task.delay(3.2, function()
+		if toast.Parent then
+			TweenService:Create(toast, TweenInfo.new(0.2), {
+				BackgroundTransparency = 1,
+				Size = UDim2.new(1, 0, 0, 0),
+			}):Play()
+			task.wait(0.22)
+			if toast.Parent then
+				toast:Destroy()
+			end
+		end
+	end)
+end
+
+local function refreshStatus()
+	local data = GetPlayerDataFn:InvokeServer()
+	if not data then
+		return
+	end
+
+	setCoinsDisplay(data.coins)
+end
+
+openShopButton.MouseButton1Click:Connect(function()
+	local upgradesGui = playerGui:FindFirstChild("UpgradesUI")
+	if not upgradesGui then
+		upgradesGui = playerGui:WaitForChild("UpgradesUI", 3)
+	end
+	local toggleEvent = upgradesGui and upgradesGui:FindFirstChild("ToggleEvent")
+	if toggleEvent then
+		toggleEvent:Fire()
+	else
+		showToast("Upgrades UI is still loading. Try again in a second.", UI.Gold)
+	end
+end)
+
+openShopButton.MouseEnter:Connect(function()
+	TweenService:Create(openShopButton, TweenInfo.new(0.15), {
+		BackgroundColor3 = Color3.fromRGB(255, 229, 70),
+	}):Play()
+end)
+
+openShopButton.MouseLeave:Connect(function()
+	TweenService:Create(openShopButton, TweenInfo.new(0.15), {
+		BackgroundColor3 = UI.Gold,
+	}):Play()
+end)
+
+UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
+	setCoinsDisplay(coins)
+end)
+
+PackOpenedEvent.OnClientEvent:Connect(function(payload)
+	if not payload or not payload.success then
+		return
+	end
+
+	setCoinsDisplay(payload.newCoins)
+
+	if payload.card then
+		local targetText
+		if payload.storedInInventory then
+			targetText = payload.card.name .. " went to inventory because your displays are full."
+		else
+			targetText = payload.card.name .. " is now on display slot " .. tostring(payload.slotIndex) .. " earning +" .. tostring(payload.coinsPerSecond or 0) .. "/s."
+		end
+		showToast(targetText, Utils.GetRarityColor(payload.card.rarity))
+	end
+end)
+
+PackOpenFailedEvent.OnClientEvent:Connect(function(payload)
+	if not payload then
+		return
+	end
+
+	showToast(payload.error or "Pack could not be opened.", UI.Danger)
+end)
+
+PromptPackShopEvent.OnClientEvent:Connect(function(payload)
+	if not payload then
+		return
+	end
+
+	if payload.coins ~= nil then
+		setCoinsDisplay(payload.coins)
+	end
+end)
+
+task.spawn(function()
+	task.wait(1)
+	refreshStatus()
+end)
+]])
+
+makeLocal('RebirthUI', sps, [[return
+]])
+
+makeLocal('ShopUI', sps, [[return
+]])
+
 makeLocal('ToolClient', sps, [[local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -2795,25 +3044,309 @@ player.CharacterAdded:Connect(function(character)
 end)
 ]])
 
-makeLocal('HUDClient', sps, [[return
-]])
-
-makeLocal('ShopUI', sps, [[return
-]])
-
 makeLocal('TradeUI', sps, [[return
 ]])
 
-makeLocal('MarketUI', sps, [[return
+makeLocal('UpgradesUI', sps, [[local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+local Constants = require(Shared:WaitForChild("Constants"))
+local Utils = require(Shared:WaitForChild("Utils"))
+
+local GetUpgradesFn = Remotes:WaitForChild("GetUpgrades")
+local PurchaseUpgradeFn = Remotes:WaitForChild("PurchaseUpgrade")
+local UpdateCoinsEvent = Remotes:WaitForChild("UpdateCoins")
+
+local UI = Constants.UI
+
+local function make(className, props, parent)
+	props = props or {}
+	local instance = Instance.new(className)
+	for key, value in pairs(props) do
+		instance[key] = value
+	end
+	instance.Parent = parent
+	return instance
+end
+
+local function addCorner(parent, radius)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = parent
+end
+
+local function addStroke(parent, color, thickness, transparency)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color
+	stroke.Thickness = thickness or 1
+	stroke.Transparency = transparency or 0
+	stroke.Parent = parent
+	return stroke
+end
+
+local existingGui = playerGui:FindFirstChild("UpgradesUI")
+if existingGui then
+	existingGui:Destroy()
+end
+
+local screenGui = make("ScreenGui", {
+	Name = "UpgradesUI",
+	ResetOnSpawn = false,
+	Enabled = true,
+	DisplayOrder = 10,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, playerGui)
+
+local toggleEvent = Instance.new("BindableEvent")
+toggleEvent.Name = "ToggleEvent"
+toggleEvent.Parent = screenGui
+
+local panel = make("Frame", {
+	Visible = false,
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Size = UDim2.new(0.92, 0, 0.85, 0),
+	Position = UDim2.fromScale(0.5, 0.5),
+	BackgroundColor3 = UI.Panel,
+}, screenGui)
+addCorner(panel, 18)
+addStroke(panel, UI.Gold, 2, 0.35)
+
+local panelSize = Instance.new("UISizeConstraint")
+panelSize.MinSize = Vector2.new(320, 360)
+panelSize.MaxSize = Vector2.new(560, 460)
+panelSize.Parent = panel
+
+local title = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1, -24, 0, 38),
+	Position = UDim2.new(0, 16, 0, 12),
+	Text = "Club Upgrades",
+	TextColor3 = UI.Text,
+	TextScaled = true,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, panel)
+
+local coinsHeader = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Size = UDim2.new(0, 220, 0, 24),
+	Position = UDim2.new(1, -236, 0, 18),
+	Text = "0 coins",
+	TextColor3 = UI.Gold,
+	TextScaled = false,
+	TextSize = 18,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Right,
+}, panel)
+
+local closeButton = make("TextButton", {
+	Size = UDim2.fromOffset(32, 32),
+	Position = UDim2.new(1, -44, 0, 46),
+	BackgroundColor3 = UI.PanelAlt,
+	Text = "X",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 16,
+	Font = Enum.Font.GothamBlack,
+}, panel)
+addCorner(closeButton, 8)
+
+local scrolling = make("ScrollingFrame", {
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	Size = UDim2.new(1, -24, 1, -92),
+	Position = UDim2.new(0, 12, 0, 82),
+	CanvasSize = UDim2.new(),
+	ScrollBarThickness = 6,
+}, panel)
+
+local layout = make("UIListLayout", {
+	Padding = UDim.new(0, 10),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, scrolling)
+
+local function formatValue(entry)
+	if entry.key == "PackSpawnRate" then
+		return string.format("%.1f%s", entry.currentValue, entry.valueSuffix)
+	elseif entry.key == "PadLuck" then
+		return string.format("+%d%%%s", entry.currentValue, "")
+	end
+	return string.format("%s%s", tostring(entry.currentValue), entry.valueSuffix or "")
+end
+
+local function formatNextValue(entry)
+	if entry.key == "PackSpawnRate" then
+		return string.format("%.1fs", entry.nextValue)
+	elseif entry.key == "PadLuck" then
+		return string.format("+%d%%", entry.nextValue)
+	end
+	return tostring(entry.nextValue)
+end
+
+local rows = {}
+
+local function clearRows()
+	for _, row in ipairs(rows) do
+		if row.frame.Parent then
+			row.frame:Destroy()
+		end
+	end
+	rows = {}
+end
+
+local function buildRow(entry, index)
+	local row = make("Frame", {
+		LayoutOrder = index,
+		BackgroundColor3 = UI.PanelAlt,
+		Size = UDim2.new(1, -12, 0, 96),
+	}, scrolling)
+	addCorner(row, 14)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 14, 0, 8),
+		Size = UDim2.new(0.6, 0, 0, 22),
+		Text = entry.displayName,
+		TextColor3 = UI.Text,
+		TextScaled = false,
+		TextSize = 18,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, row)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 14, 0, 32),
+		Size = UDim2.new(0.6, 0, 0, 18),
+		Text = entry.description,
+		TextColor3 = UI.Muted,
+		TextScaled = false,
+		TextSize = 13,
+		Font = Enum.Font.GothamMedium,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextWrapped = true,
+	}, row)
+
+	local levelText
+	if entry.maxed then
+		levelText = string.format("Lv %d / %d MAX", entry.level, entry.maxLevel)
+	else
+		levelText = string.format("Lv %d / %d  •  Now: %s  →  Next: %s", entry.level, entry.maxLevel, formatValue(entry), formatNextValue(entry))
+	end
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 14, 0, 58),
+		Size = UDim2.new(0.65, 0, 0, 30),
+		Text = levelText,
+		TextColor3 = UI.Gold,
+		TextScaled = false,
+		TextSize = 14,
+		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, row)
+
+	local buyButton = make("TextButton", {
+		Size = UDim2.fromOffset(148, 56),
+		Position = UDim2.new(1, -160, 0.5, -28),
+		BackgroundColor3 = entry.maxed and UI.PanelAlt or UI.Gold,
+		Text = entry.maxed and "MAX" or ("Buy  •  " .. Utils.FormatNumber(entry.nextCost)),
+		TextColor3 = entry.maxed and UI.Muted or Color3.fromRGB(18, 12, 6),
+		TextScaled = false,
+		TextSize = 16,
+		Font = Enum.Font.GothamBlack,
+		AutoButtonColor = not entry.maxed,
+		Active = not entry.maxed,
+	}, row)
+	addCorner(buyButton, 12)
+
+	table.insert(rows, { frame = row, entry = entry, buyButton = buyButton })
+	return row, buyButton
+end
+
+local refreshing = false
+local pendingPayload
+
+local function renderPayload(payload)
+	if not payload then
+		return
+	end
+	pendingPayload = payload
+	coinsHeader.Text = Utils.FormatNumber(payload.coins or 0) .. " coins"
+	clearRows()
+
+	for index, entry in ipairs(payload.upgrades or {}) do
+		local _, buyButton = buildRow(entry, index)
+		local key = entry.key
+		local cost = entry.nextCost
+		buyButton.MouseButton1Click:Connect(function()
+			if entry.maxed or refreshing then
+				return
+			end
+			if cost and (payload.coins or 0) < cost then
+				buyButton.Text = "Not enough coins"
+				task.delay(0.8, function()
+					if buyButton.Parent then
+						buyButton.Text = "Buy  •  " .. Utils.FormatNumber(cost)
+					end
+				end)
+				return
+			end
+
+			refreshing = true
+			buyButton.Text = "..."
+			local result = PurchaseUpgradeFn:InvokeServer(key)
+			refreshing = false
+			if result and result.success then
+				renderPayload(result)
+			else
+				buyButton.Text = (result and result.error) or "Failed"
+				task.delay(1.2, function()
+					if buyButton.Parent then
+						buyButton.Text = "Buy  •  " .. Utils.FormatNumber(cost)
+					end
+				end)
+			end
+		end)
+	end
+
+	task.defer(function()
+		scrolling.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 12)
+	end)
+end
+
+local function refresh()
+	local payload = GetUpgradesFn:InvokeServer()
+	renderPayload(payload)
+end
+
+local function setVisible(visible)
+	panel.Visible = visible
+	if visible then
+		refresh()
+	end
+end
+
+closeButton.MouseButton1Click:Connect(function()
+	setVisible(false)
+end)
+
+toggleEvent.Event:Connect(function()
+	setVisible(not panel.Visible)
+end)
+
+UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
+	if pendingPayload then
+		pendingPayload.coins = coins
+	end
+	coinsHeader.Text = Utils.FormatNumber(coins or 0) .. " coins"
+end)
 ]])
 
-makeLocal('BaseUI', sps, [[return
-]])
-
-makeLocal('CollectionUI', sps, [[return
-]])
-
-makeLocal('RebirthUI', sps, [[return
-]])
-
-print("[UnboxAFootballer] v6 single-player auto-display setup complete")
+print("[UnboxAFootballer] v7 Rojo-synced fallback setup complete")

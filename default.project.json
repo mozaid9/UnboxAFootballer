@@ -80,6 +80,9 @@
         },
         "TradeUI": {
           "$path": "src/client/TradeUI.client.lua"
+        },
+        "UpgradesUI": {
+          "$path": "src/client/UpgradesUI.client.lua"
         }
       }
     }

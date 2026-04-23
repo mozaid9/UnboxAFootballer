@@ -64,7 +64,7 @@ local screenGui = make("ScreenGui", {
 
 local hudDock = make("Frame", {
 	Name = "HudDock",
-	Size = UDim2.fromOffset(200, 220),
+	Size = UDim2.fromOffset(200, 96),
 	Position = UDim2.new(0, 24, 0, 118),
 	BackgroundTransparency = 1,
 }, screenGui)
@@ -140,20 +140,6 @@ local openShopButton = make("TextButton", {
 	Font = Enum.Font.GothamBlack,
 }, hudDock)
 addCorner(openShopButton, 12)
-
-local hintLabel = make("TextLabel", {
-	LayoutOrder = 3,
-	BackgroundTransparency = 1,
-	Size = UDim2.fromOffset(200, 120),
-	Text = "Pitchfork packs open one player. They auto-fill your green displays first.",
-	TextColor3 = UI.Muted,
-	TextScaled = false,
-	TextSize = 12,
-	TextWrapped = true,
-	Font = Enum.Font.GothamMedium,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	TextYAlignment = Enum.TextYAlignment.Top,
-}, hudDock)
 
 local toastHolder = make("Frame", {
 	BackgroundTransparency = 1,
@@ -285,10 +271,6 @@ end)
 PromptPackShopEvent.OnClientEvent:Connect(function(payload)
 	if not payload then
 		return
-	end
-
-	if payload.message then
-		hintLabel.Text = payload.message
 	end
 
 	if payload.coins ~= nil then
