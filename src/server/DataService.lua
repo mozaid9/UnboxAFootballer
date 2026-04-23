@@ -27,6 +27,7 @@ local DEFAULT_DATA = {
 		PitchforkDamage = 0,
 		PackSpawnRate = 0,
 		PadLuck = 0,
+		MoveSpeed = 0,
 	},
 	totalCardsOpened = 0,
 	totalRebirths = 0,

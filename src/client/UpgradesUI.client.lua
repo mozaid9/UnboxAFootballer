@@ -127,6 +127,8 @@ local function formatValue(entry)
 		return string.format("%.1f%s", entry.currentValue, entry.valueSuffix)
 	elseif entry.key == "PadLuck" then
 		return string.format("+%d%%%s", entry.currentValue, "")
+	elseif entry.key == "MoveSpeed" then
+		return string.format("%d studs/s", entry.currentValue)
 	end
 	return string.format("%s%s", tostring(entry.currentValue), entry.valueSuffix or "")
 end
@@ -136,6 +138,8 @@ local function formatNextValue(entry)
 		return string.format("%.1fs", entry.nextValue)
 	elseif entry.key == "PadLuck" then
 		return string.format("+%d%%", entry.nextValue)
+	elseif entry.key == "MoveSpeed" then
+		return string.format("%d studs/s", entry.nextValue)
 	end
 	return tostring(entry.nextValue)
 end

@@ -32,6 +32,24 @@ local function createSignLabel(text, size, position, color, parent)
 	}, parent)
 end
 
+local function createOwnerSignText(text, size, position, color, textSize, parent)
+	return make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = size,
+		Position = position,
+		Text = text,
+		TextColor3 = color,
+		TextStrokeColor3 = Color3.fromRGB(5, 8, 14),
+		TextStrokeTransparency = 0.65,
+		TextScaled = false,
+		TextSize = textSize,
+		Font = Enum.Font.GothamBold,
+		TextWrapped = false,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextYAlignment = Enum.TextYAlignment.Center,
+	}, parent)
+end
+
 local function formatStadiumTitle(ownerName)
 	if not ownerName or ownerName == "" then
 		return "OPEN STADIUM"
@@ -309,7 +327,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, model)
 
 	local entranceBeamY = entrancePillarHeight + layout.PlotSize.Y / 2 - 0.6
-	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 2.8, 0)
+	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 3.1, 0)
 	local entranceBeam = createFence(
 		model,
 		Vector3.new(entrancePillarWidth + 1, 1.4, entranceWidth + 1.2),
@@ -322,13 +340,13 @@ local function createPlot(plotId, side, laneIndex, position)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(24, 30, 42),
-		Size = Vector3.new(18, 4.8, 0.6),
+		Size = Vector3.new(22, 6.2, 0.6),
 		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
 	}, model)
 
 	local ownerGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
-		PixelsPerStud = 80,
+		PixelsPerStud = 110,
 		LightInfluence = 0,
 	}, ownerSign)
 
@@ -344,8 +362,8 @@ local function createPlot(plotId, side, laneIndex, position)
 		Thickness = 3,
 	}, ownerFrame)
 
-	local ownerNameLabel = createSignLabel("OPEN STADIUM", UDim2.new(1, -18, 0.64, 0), UDim2.new(0, 9, 0.1, 0), Color3.fromRGB(245, 238, 220), ownerFrame)
-	local ownerSubtitleLabel = createSignLabel("Walk in and claim it", UDim2.new(1, -18, 0.16, 0), UDim2.new(0, 9, 0.72, 0), Color3.fromRGB(180, 176, 164), ownerFrame)
+	local ownerNameLabel = createOwnerSignText("OPEN STADIUM", UDim2.new(1, -36, 0, 118), UDim2.new(0, 18, 0, 22), Color3.fromRGB(245, 238, 220), 78, ownerFrame)
+	local ownerSubtitleLabel = createOwnerSignText("Walk in and claim it", UDim2.new(1, -36, 0, 38), UDim2.new(0, 18, 1, -52), Color3.fromRGB(180, 176, 164), 28, ownerFrame)
 	ownerSubtitleLabel.Font = Enum.Font.GothamBold
 
 	local padGui = make("BillboardGui", {

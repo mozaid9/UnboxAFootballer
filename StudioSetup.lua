@@ -1,5 +1,5 @@
 -- ============================================================
--- UNBOX A FOOTBALLER v9 -- ROJO-SYNCED FALLBACK SETUP
+-- UNBOX A FOOTBALLER v10 -- ROJO-SYNCED FALLBACK SETUP
 -- Paste this ENTIRE script into the Roblox Studio Command Bar
 -- and press Enter to install the current prototype.
 -- ============================================================
@@ -64,23 +64,23 @@ wipe('Shared', RS)
 wipe('Remotes', RS)
 wipe('Services', SSS)
 wipe('Main', SSS)
+wipe('BaseService', SSS)
 wipe('DataService', SSS)
 wipe('EconomyService', SSS)
-wipe('PackService', SSS)
-wipe('BaseService', SSS)
 wipe('MarketService', SSS)
+wipe('PackService', SSS)
 wipe('RebirthService', SSS)
 wipe('TradeService', SSS)
-wipe('PackOpeningUI', sps)
-wipe('InventoryUI', sps)
-wipe('HUDClient', sps)
-wipe('ToolClient', sps)
-wipe('ShopUI', sps)
-wipe('TradeUI', sps)
-wipe('MarketUI', sps)
 wipe('BaseUI', sps)
 wipe('CollectionUI', sps)
+wipe('HUDClient', sps)
+wipe('InventoryUI', sps)
+wipe('MarketUI', sps)
+wipe('PackOpeningUI', sps)
 wipe('RebirthUI', sps)
+wipe('ShopUI', sps)
+wipe('ToolClient', sps)
+wipe('TradeUI', sps)
 wipe('UpgradesUI', sps)
 wipe('Pitchfork', STP)
 wipe('Bat', STP)
@@ -221,7 +221,7 @@ Constants.Pitchfork = {
 -- ── Upgrade specs ─────────────────────────────────────────────
 -- Each upgrade has levels 0..maxLevel; cost(level) = floor(baseCost * costMultiplier^level)
 -- is the cost to go from `level` to `level+1`.
-Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnRate", "PadLuck" }
+Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnRate", "PadLuck", "MoveSpeed" }
 
 Constants.Upgrades = {
 	PitchforkDamage = {
@@ -251,6 +251,16 @@ Constants.Upgrades = {
 		costMultiplier = 1.85,
 		shiftPerLevel = 3,
 		maxShift = 30,
+	},
+	MoveSpeed = {
+		displayName = "Sprint Speed",
+		description = "Move around the map and your stadium faster.",
+		maxLevel = 8,
+		baseCost = 300,
+		costMultiplier = 1.7,
+		baseWalkSpeed = 16,
+		speedPerLevel = 2,
+		maxWalkSpeed = 32,
 	},
 }
 
@@ -466,6 +476,24 @@ local function createSignLabel(text, size, position, color, parent)
 		TextColor3 = color,
 		TextScaled = true,
 		Font = Enum.Font.GothamBlack,
+	}, parent)
+end
+
+local function createOwnerSignText(text, size, position, color, textSize, parent)
+	return make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = size,
+		Position = position,
+		Text = text,
+		TextColor3 = color,
+		TextStrokeColor3 = Color3.fromRGB(5, 8, 14),
+		TextStrokeTransparency = 0.65,
+		TextScaled = false,
+		TextSize = textSize,
+		Font = Enum.Font.GothamBold,
+		TextWrapped = false,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextYAlignment = Enum.TextYAlignment.Center,
 	}, parent)
 end
 
@@ -746,7 +774,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, model)
 
 	local entranceBeamY = entrancePillarHeight + layout.PlotSize.Y / 2 - 0.6
-	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 2.8, 0)
+	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 3.1, 0)
 	local entranceBeam = createFence(
 		model,
 		Vector3.new(entrancePillarWidth + 1, 1.4, entranceWidth + 1.2),
@@ -759,13 +787,13 @@ local function createPlot(plotId, side, laneIndex, position)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(24, 30, 42),
-		Size = Vector3.new(18, 4.8, 0.6),
+		Size = Vector3.new(22, 6.2, 0.6),
 		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
 	}, model)
 
 	local ownerGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
-		PixelsPerStud = 80,
+		PixelsPerStud = 110,
 		LightInfluence = 0,
 	}, ownerSign)
 
@@ -781,8 +809,8 @@ local function createPlot(plotId, side, laneIndex, position)
 		Thickness = 3,
 	}, ownerFrame)
 
-	local ownerNameLabel = createSignLabel("OPEN STADIUM", UDim2.new(1, -18, 0.64, 0), UDim2.new(0, 9, 0.1, 0), Color3.fromRGB(245, 238, 220), ownerFrame)
-	local ownerSubtitleLabel = createSignLabel("Walk in and claim it", UDim2.new(1, -18, 0.16, 0), UDim2.new(0, 9, 0.72, 0), Color3.fromRGB(180, 176, 164), ownerFrame)
+	local ownerNameLabel = createOwnerSignText("OPEN STADIUM", UDim2.new(1, -36, 0, 118), UDim2.new(0, 18, 0, 22), Color3.fromRGB(245, 238, 220), 78, ownerFrame)
+	local ownerSubtitleLabel = createOwnerSignText("Walk in and claim it", UDim2.new(1, -36, 0, 38), UDim2.new(0, 18, 1, -52), Color3.fromRGB(180, 176, 164), 28, ownerFrame)
 	ownerSubtitleLabel.Font = Enum.Font.GothamBold
 
 	local padGui = make("BillboardGui", {
@@ -1113,6 +1141,7 @@ local DEFAULT_DATA = {
 		PitchforkDamage = 0,
 		PackSpawnRate = 0,
 		PadLuck = 0,
+		MoveSpeed = 0,
 	},
 	totalCardsOpened = 0,
 	totalRebirths = 0,
@@ -1854,8 +1883,23 @@ local function computeLuckShift(level)
 	return math.min(level * spec.shiftPerLevel, spec.maxShift)
 end
 
+local function computeWalkSpeed(level)
+	local spec = Constants.Upgrades.MoveSpeed
+	return math.min(spec.baseWalkSpeed + level * spec.speedPerLevel, spec.maxWalkSpeed)
+end
+
 local function getPitchforkDamage(player)
 	return computePitchforkDamage(getUpgradeLevel(player, "PitchforkDamage"))
+end
+
+local function applyMovementUpgrade(player, character)
+	local targetCharacter = character or player.Character
+	local humanoid = targetCharacter and targetCharacter:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return
+	end
+
+	humanoid.WalkSpeed = computeWalkSpeed(getUpgradeLevel(player, "MoveSpeed"))
 end
 
 local function createSurfaceLabel(face, title, subtitle, color, parent)
@@ -2309,9 +2353,18 @@ Players.PlayerAdded:Connect(function(player)
 			if player.Parent and character.Parent then
 				BaseService.PlaceCharacterAtPlot(player, character)
 				ensurePitchfork(player)
+				applyMovementUpgrade(player, character)
 			end
 		end)
 	end)
+
+	if player.Character then
+		task.defer(function()
+			if player.Parent and player.Character then
+				applyMovementUpgrade(player, player.Character)
+			end
+		end)
+	end
 
 	if plot then
 		refreshPlotDisplayState(player, plot)
@@ -2498,6 +2551,10 @@ local function buildUpgradePayload(player)
 			entry.currentValue = computeLuckShift(level)
 			entry.nextValue = computeLuckShift(level + 1)
 			entry.valueSuffix = " luck shift"
+		elseif key == "MoveSpeed" then
+			entry.currentValue = computeWalkSpeed(level)
+			entry.nextValue = computeWalkSpeed(level + 1)
+			entry.valueSuffix = " studs/s"
 		end
 
 		table.insert(payload.upgrades, entry)
@@ -2535,6 +2592,10 @@ PurchaseUpgradeFn.OnServerInvoke = function(player, upgradeKey)
 	data.upgrades = data.upgrades or {}
 	data.upgrades[upgradeKey] = level + 1
 	DataService.MarkDirty(player)
+
+	if upgradeKey == "MoveSpeed" then
+		applyMovementUpgrade(player)
+	end
 
 	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
 
@@ -3271,6 +3332,8 @@ local function formatValue(entry)
 		return string.format("%.1f%s", entry.currentValue, entry.valueSuffix)
 	elseif entry.key == "PadLuck" then
 		return string.format("+%d%%%s", entry.currentValue, "")
+	elseif entry.key == "MoveSpeed" then
+		return string.format("%d studs/s", entry.currentValue)
 	end
 	return string.format("%s%s", tostring(entry.currentValue), entry.valueSuffix or "")
 end
@@ -3280,6 +3343,8 @@ local function formatNextValue(entry)
 		return string.format("%.1fs", entry.nextValue)
 	elseif entry.key == "PadLuck" then
 		return string.format("+%d%%", entry.nextValue)
+	elseif entry.key == "MoveSpeed" then
+		return string.format("%d studs/s", entry.nextValue)
 	end
 	return tostring(entry.nextValue)
 end
@@ -3444,4 +3509,4 @@ UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
 end)
 ]])
 
-print("[UnboxAFootballer] v9 Rojo-synced fallback setup complete")
+print("[UnboxAFootballer] v10 Rojo-synced fallback setup complete")

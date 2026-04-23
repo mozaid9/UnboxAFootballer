@@ -78,7 +78,7 @@ Constants.Pitchfork = {
 -- ── Upgrade specs ─────────────────────────────────────────────
 -- Each upgrade has levels 0..maxLevel; cost(level) = floor(baseCost * costMultiplier^level)
 -- is the cost to go from `level` to `level+1`.
-Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnRate", "PadLuck" }
+Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnRate", "PadLuck", "MoveSpeed" }
 
 Constants.Upgrades = {
 	PitchforkDamage = {
@@ -108,6 +108,16 @@ Constants.Upgrades = {
 		costMultiplier = 1.85,
 		shiftPerLevel = 3,
 		maxShift = 30,
+	},
+	MoveSpeed = {
+		displayName = "Sprint Speed",
+		description = "Move around the map and your stadium faster.",
+		maxLevel = 8,
+		baseCost = 300,
+		costMultiplier = 1.7,
+		baseWalkSpeed = 16,
+		speedPerLevel = 2,
+		maxWalkSpeed = 32,
 	},
 }
 

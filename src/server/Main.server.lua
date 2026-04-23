@@ -178,8 +178,23 @@ local function computeLuckShift(level)
 	return math.min(level * spec.shiftPerLevel, spec.maxShift)
 end
 
+local function computeWalkSpeed(level)
+	local spec = Constants.Upgrades.MoveSpeed
+	return math.min(spec.baseWalkSpeed + level * spec.speedPerLevel, spec.maxWalkSpeed)
+end
+
 local function getPitchforkDamage(player)
 	return computePitchforkDamage(getUpgradeLevel(player, "PitchforkDamage"))
+end
+
+local function applyMovementUpgrade(player, character)
+	local targetCharacter = character or player.Character
+	local humanoid = targetCharacter and targetCharacter:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return
+	end
+
+	humanoid.WalkSpeed = computeWalkSpeed(getUpgradeLevel(player, "MoveSpeed"))
 end
 
 local function createSurfaceLabel(face, title, subtitle, color, parent)
@@ -633,9 +648,18 @@ Players.PlayerAdded:Connect(function(player)
 			if player.Parent and character.Parent then
 				BaseService.PlaceCharacterAtPlot(player, character)
 				ensurePitchfork(player)
+				applyMovementUpgrade(player, character)
 			end
 		end)
 	end)
+
+	if player.Character then
+		task.defer(function()
+			if player.Parent and player.Character then
+				applyMovementUpgrade(player, player.Character)
+			end
+		end)
+	end
 
 	if plot then
 		refreshPlotDisplayState(player, plot)
@@ -822,6 +846,10 @@ local function buildUpgradePayload(player)
 			entry.currentValue = computeLuckShift(level)
 			entry.nextValue = computeLuckShift(level + 1)
 			entry.valueSuffix = " luck shift"
+		elseif key == "MoveSpeed" then
+			entry.currentValue = computeWalkSpeed(level)
+			entry.nextValue = computeWalkSpeed(level + 1)
+			entry.valueSuffix = " studs/s"
 		end
 
 		table.insert(payload.upgrades, entry)
@@ -859,6 +887,10 @@ PurchaseUpgradeFn.OnServerInvoke = function(player, upgradeKey)
 	data.upgrades = data.upgrades or {}
 	data.upgrades[upgradeKey] = level + 1
 	DataService.MarkDirty(player)
+
+	if upgradeKey == "MoveSpeed" then
+		applyMovementUpgrade(player)
+	end
 
 	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
 

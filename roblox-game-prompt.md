@@ -152,3 +152,17 @@ src/
 - Glow/particle effects on high-rated card pulls
 
 Build the full project. Start with the shared modules (CardData, PackConfig, Constants), then server services (PackService and DataService first), then client UI (PackOpeningUI first). Prioritise getting the core pack opening loop functional end-to-end before building trading and rebirth.
+
+---
+
+## Future Notes
+
+- Keep `Coins` as the upgrade-buying currency for now.
+- Consider adding `Fans` later as a separate stadium-growth stat:
+  - displayed players generate fans over time
+  - more fans allow more NPC supporters/crowd fill
+  - rebirth can raise stadium capacity and fan ceiling
+- Add a front-of-stadium customiser for the owner later:
+  - rename the stadium
+  - change stadium colours/themes
+  - buy cosmetic stadium add-ons and upgrades
