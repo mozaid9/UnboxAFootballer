@@ -46,7 +46,7 @@ local function createOwnerSignText(text, size, position, color, style, parent)
 		TextScaled = style.textScaled == true,
 		TextSize = style.textSize or 30,
 		Font = style.font or Enum.Font.GothamBold,
-		TextWrapped = false,
+		TextWrapped = style.textWrapped == true,
 		TextXAlignment = style.textXAlignment or Enum.TextXAlignment.Center,
 		TextYAlignment = style.textYAlignment or Enum.TextYAlignment.Center,
 	}, parent)
@@ -63,29 +63,22 @@ end
 
 local function formatStadiumTitle(ownerName)
 	if not ownerName or ownerName == "" then
-		return "OPEN"
+		return "OPEN\nSTADIUM"
 	end
 
-	return string.upper(ownerName) .. "'S"
+	return string.upper(ownerName) .. "'S\nSTADIUM"
 end
 
 local function updateOwnerSign(plot, ownerName, subtitle)
 	if ownerName and ownerName ~= "" then
-		local stadiumSubtitle = subtitle
-		if not stadiumSubtitle or stadiumSubtitle == "" then
-			stadiumSubtitle = "STADIUM"
-		end
-
 		plot.ownerTopLabel.Text = "HOME CLUB"
 		plot.ownerNameLabel.Text = formatStadiumTitle(ownerName)
-		plot.ownerSubtitleLabel.Text = stadiumSubtitle
-		plot.ownerSubtitleLabel.Visible = true
 	else
 		plot.ownerTopLabel.Text = "AVAILABLE PLOT"
-		plot.ownerNameLabel.Text = "OPEN"
-		plot.ownerSubtitleLabel.Text = subtitle ~= nil and subtitle ~= "" and subtitle or "STADIUM"
-		plot.ownerSubtitleLabel.Visible = true
+		plot.ownerNameLabel.Text = "OPEN\nSTADIUM"
 	end
+
+	plot.ownerSubtitleLabel.Visible = false
 end
 
 local function updatePadLabel(plot, title, subtitle, color)
@@ -364,13 +357,13 @@ local function createPlot(plotId, side, laneIndex, position)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(24, 30, 42),
-		Size = Vector3.new(18, 5.8, 0.6),
+		Size = Vector3.new(16, 5.2, 0.6),
 		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
 	}, model)
 
 	local ownerGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
-		PixelsPerStud = 140,
+		PixelsPerStud = 180,
 		LightInfluence = 0,
 	}, ownerSign)
 
@@ -404,33 +397,25 @@ local function createPlot(plotId, side, laneIndex, position)
 
 	local ownerTopLabel = createOwnerSignText("AVAILABLE PLOT", UDim2.new(1, -32, 0, 26), UDim2.new(0, 16, 0, 18), Color3.fromRGB(255, 223, 120), {
 		textScaled = true,
-		minTextSize = 18,
-		maxTextSize = 42,
+		minTextSize = 16,
+		maxTextSize = 28,
 		textStrokeTransparency = 0.9,
 		font = Enum.Font.GothamBlack,
 	}, ownerFrame)
 
-	local ownerNameLabel = createOwnerSignText("OPEN", UDim2.new(1, -36, 0, 94), UDim2.new(0, 18, 0, 60), Color3.fromRGB(245, 238, 220), {
+	local ownerNameLabel = createOwnerSignText("OPEN\nSTADIUM", UDim2.new(1, -36, 0, 126), UDim2.new(0, 18, 0, 46), Color3.fromRGB(245, 238, 220), {
 		textScaled = true,
-		minTextSize = 36,
-		maxTextSize = 128,
-		textStrokeTransparency = 0.58,
+		minTextSize = 28,
+		maxTextSize = 112,
+		textStrokeTransparency = 0.72,
 		font = Enum.Font.GothamBlack,
+		textWrapped = true,
 	}, ownerFrame)
 
-	make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
-		BackgroundTransparency = 0.15,
-		BorderSizePixel = 0,
-		Size = UDim2.new(0.62, 0, 0, 4),
-		Position = UDim2.new(0.19, 0, 0, 162),
-	}, ownerFrame)
-
-	local ownerSubtitleLabel = createOwnerSignText("STADIUM", UDim2.new(1, -36, 0, 34), UDim2.new(0, 18, 0, 178), Color3.fromRGB(214, 206, 184), {
-		textScaled = true,
-		minTextSize = 18,
-		maxTextSize = 44,
-		textStrokeTransparency = 0.82,
+	local ownerSubtitleLabel = createOwnerSignText("", UDim2.new(1, -36, 0, 1), UDim2.new(0, 18, 1, -10), Color3.fromRGB(214, 206, 184), {
+		textScaled = false,
+		textSize = 1,
+		textStrokeTransparency = 1,
 		font = Enum.Font.GothamBold,
 	}, ownerFrame)
 
@@ -544,7 +529,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		displaySlots = displaySlots,
 		spawnCFrame = CFrame.lookAt(
 			spawnPad.Position + Vector3.new(0, 3, 0),
-			spawnPad.Position + Vector3.new(0, 3, 0) + centerDirection
+			spawnPad.Position + Vector3.new(0, 3, 0) - centerDirection
 		),
 	}
 
