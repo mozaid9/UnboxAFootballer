@@ -1,5 +1,5 @@
 -- ============================================================
--- UNBOX A FOOTBALLER v8 -- ROJO-SYNCED FALLBACK SETUP
+-- UNBOX A FOOTBALLER v9 -- ROJO-SYNCED FALLBACK SETUP
 -- Paste this ENTIRE script into the Roblox Studio Command Bar
 -- and press Enter to install the current prototype.
 -- ============================================================
@@ -665,7 +665,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	local frontWallZOffset = (entranceWidth / 2) + (frontWallSegmentLength / 2)
 	local frontWallNorth = createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, -frontWallZOffset))
 	local frontWallSouth = createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, frontWallZOffset))
-	local entrancePillarHeight = wallHeight + 2
+	local entrancePillarHeight = wallHeight + 5.6
 	local entrancePillarX = frontEdgeX + (facingDirection * ((entrancePillarWidth - wallThickness) / 2))
 	local entrancePillarNorth = createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, -(entranceWidth / 2)))
 	local entrancePillarSouth = createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, entranceWidth / 2))
@@ -745,11 +745,12 @@ local function createPlot(plotId, side, laneIndex, position)
 		CFrame = baseCFrame * CFrame.new(facingDirection * padOffset, 0.45, 0),
 	}, model)
 
-	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 1.2)) + Vector3.new(0, wallHeight + 2.7, 0)
+	local entranceBeamY = entrancePillarHeight + layout.PlotSize.Y / 2 - 0.6
+	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 2.8, 0)
 	local entranceBeam = createFence(
 		model,
-		Vector3.new(entrancePillarWidth + 0.8, 1.1, entranceWidth + 0.8),
-		baseCFrame * CFrame.new(frontEdgeX + (facingDirection * 0.8), wallHeight + 2.4, 0)
+		Vector3.new(entrancePillarWidth + 1, 1.4, entranceWidth + 1.2),
+		baseCFrame * CFrame.new(frontEdgeX + (facingDirection * 0.9), entranceBeamY, 0)
 	)
 	_ = entranceBeam
 	local ownerSign = make("Part", {
@@ -758,13 +759,13 @@ local function createPlot(plotId, side, laneIndex, position)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(24, 30, 42),
-		Size = Vector3.new(14, 3.5, 0.6),
+		Size = Vector3.new(18, 4.8, 0.6),
 		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
 	}, model)
 
 	local ownerGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
-		PixelsPerStud = 70,
+		PixelsPerStud = 80,
 		LightInfluence = 0,
 	}, ownerSign)
 
@@ -780,7 +781,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		Thickness = 3,
 	}, ownerFrame)
 
-	local ownerNameLabel = createSignLabel("OPEN STADIUM", UDim2.new(1, -18, 0.56, 0), UDim2.new(0, 9, 0.14, 0), Color3.fromRGB(245, 238, 220), ownerFrame)
+	local ownerNameLabel = createSignLabel("OPEN STADIUM", UDim2.new(1, -18, 0.64, 0), UDim2.new(0, 9, 0.1, 0), Color3.fromRGB(245, 238, 220), ownerFrame)
 	local ownerSubtitleLabel = createSignLabel("Walk in and claim it", UDim2.new(1, -18, 0.16, 0), UDim2.new(0, 9, 0.72, 0), Color3.fromRGB(180, 176, 164), ownerFrame)
 	ownerSubtitleLabel.Font = Enum.Font.GothamBold
 
@@ -3443,4 +3444,4 @@ UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
 end)
 ]])
 
-print("[UnboxAFootballer] v8 Rojo-synced fallback setup complete")
+print("[UnboxAFootballer] v9 Rojo-synced fallback setup complete")
