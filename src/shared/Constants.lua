@@ -64,6 +64,7 @@ Constants.BaseLayout = {
 	EntranceWidth = 16,
 	EntrancePillarWidth = 2.2,
 	PackPadSize = Vector3.new(10, 0.6, 10),
+	PadInfoMaxDistance = 38,
 	DisplaySlotCount = 6,
 	DisplaySlotSize = Vector3.new(7, 3.5, 7),
 }

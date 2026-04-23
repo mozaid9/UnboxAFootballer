@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -61,6 +62,57 @@ local screenGui = make("ScreenGui", {
 	ResetOnSpawn = false,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, playerGui)
+
+local watchedPlots = {}
+
+local function applyPlotPadVisibility(plotModel)
+	if not plotModel or not plotModel.Parent then
+		return
+	end
+
+	local packPad = plotModel:FindFirstChild("PackPad")
+	local padGui = packPad and packPad:FindFirstChild("PadGui")
+	if padGui and padGui:IsA("BillboardGui") then
+		padGui.Enabled = plotModel:GetAttribute("OwnerUserId") == player.UserId
+	end
+end
+
+local function watchPlot(plotModel)
+	if watchedPlots[plotModel] or not plotModel:IsA("Model") then
+		return
+	end
+
+	watchedPlots[plotModel] = true
+	applyPlotPadVisibility(plotModel)
+
+	plotModel:GetAttributeChangedSignal("OwnerUserId"):Connect(function()
+		applyPlotPadVisibility(plotModel)
+	end)
+
+	local packPad = plotModel:FindFirstChild("PackPad")
+	if packPad then
+		packPad.ChildAdded:Connect(function(child)
+			if child.Name == "PadGui" then
+				applyPlotPadVisibility(plotModel)
+			end
+		end)
+	end
+end
+
+task.spawn(function()
+	local basesFolder = Workspace:WaitForChild("PlayerBases", 10)
+	if not basesFolder then
+		return
+	end
+
+	for _, child in ipairs(basesFolder:GetChildren()) do
+		watchPlot(child)
+	end
+
+	basesFolder.ChildAdded:Connect(function(child)
+		watchPlot(child)
+	end)
+end)
 
 local hudDock = make("Frame", {
 	Name = "HudDock",
