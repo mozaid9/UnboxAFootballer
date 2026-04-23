@@ -266,6 +266,60 @@ local function createSurfaceLabel(face, title, subtitle, color, parent)
 	stripeGradient.Parent = stripes
 end
 
+local function pulseLight(light, baseBrightness, peakBrightness, duration)
+	if not light or not light.Parent then
+		return
+	end
+
+	light.Brightness = peakBrightness
+	task.delay(duration or 0.12, function()
+		if light and light.Parent then
+			light.Brightness = baseBrightness
+		end
+	end)
+end
+
+local function playPackHitEffect(plot, settleBrightness)
+	if not plot or not plot.activePackBody then
+		return
+	end
+
+	if plot.activePackHitEmitter then
+		plot.activePackHitEmitter:Emit(14)
+	end
+
+	if plot.activePackHighlight then
+		plot.activePackHighlight.FillTransparency = 0.2
+		plot.activePackHighlight.OutlineTransparency = 0.05
+		task.delay(0.08, function()
+			if plot.activePackHighlight and plot.activePackHighlight.Parent then
+				plot.activePackHighlight.FillTransparency = 1
+				plot.activePackHighlight.OutlineTransparency = 0.82
+			end
+		end)
+	end
+
+	local baseBrightness = settleBrightness or plot.activePackBaseBrightness or 2.8
+	pulseLight(plot.activePackLight, baseBrightness, baseBrightness + 3.4, 0.1)
+
+	for _, part in ipairs(plot.activePackImpactParts or {}) do
+		if part and part.Parent then
+			local originalSize = part.Size
+			local growSize = Vector3.new(originalSize.X + 0.08, originalSize.Y + 0.08, originalSize.Z + 0.08)
+			TweenService:Create(part, TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Size = growSize,
+			}):Play()
+			task.delay(0.07, function()
+				if part and part.Parent then
+					TweenService:Create(part, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Size = originalSize,
+					}):Play()
+				end
+			end)
+		end
+	end
+end
+
 local function rollPadPackForPlayer(player)
 	local weights = {}
 	for _, packDef in ipairs(PackConfig.PadSpawnOrder) do
@@ -423,8 +477,12 @@ local function clearPlotPack(plot)
 	plot.activePackDef = nil
 	plot.activePackBody = nil
 	plot.activePackLight = nil
+	plot.activePackBaseBrightness = nil
 	plot.activePackHitsRemaining = nil
 	plot.activePackMaxHits = nil
+	plot.activePackHitEmitter = nil
+	plot.activePackHighlight = nil
+	plot.activePackImpactParts = nil
 	plot.isOpeningPack = nil
 end
 
@@ -481,6 +539,45 @@ local function spawnPackForPlot(plot)
 	glow.Brightness = 2.8
 	glow.Parent = cardBody
 
+	local hitAttachment = Instance.new("Attachment")
+	hitAttachment.Name = "HitAttachment"
+	hitAttachment.Parent = cardBody
+
+	local hitEmitter = Instance.new("ParticleEmitter")
+	hitEmitter.Name = "HitBurst"
+	hitEmitter.Enabled = false
+	hitEmitter.Rate = 0
+	hitEmitter.Lifetime = NumberRange.new(0.16, 0.28)
+	hitEmitter.Speed = NumberRange.new(2.5, 6.5)
+	hitEmitter.SpreadAngle = Vector2.new(38, 38)
+	hitEmitter.Drag = 4
+	hitEmitter.LightEmission = 1
+	hitEmitter.LightInfluence = 0
+	hitEmitter.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 248, 212)),
+		ColorSequenceKeypoint.new(0.5, packDef.color),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)),
+	})
+	hitEmitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.26),
+		NumberSequenceKeypoint.new(0.35, 0.42),
+		NumberSequenceKeypoint.new(1, 0.02),
+	})
+	hitEmitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.05),
+		NumberSequenceKeypoint.new(0.6, 0.18),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	hitEmitter.Parent = hitAttachment
+
+	local hitHighlight = Instance.new("Highlight")
+	hitHighlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	hitHighlight.FillColor = packDef.color
+	hitHighlight.FillTransparency = 1
+	hitHighlight.OutlineColor = Color3.fromRGB(255, 245, 190)
+	hitHighlight.OutlineTransparency = 0.82
+	hitHighlight.Parent = model
+
 	createSurfaceLabel(Enum.NormalId.Front, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 	createSurfaceLabel(Enum.NormalId.Back, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 
@@ -493,8 +590,12 @@ local function spawnPackForPlot(plot)
 	plot.activePackDef = packDef
 	plot.activePackBody = cardBody
 	plot.activePackLight = glow
+	plot.activePackBaseBrightness = glow.Brightness
 	plot.activePackMaxHits = packDef.hitsRequired or 3
 	plot.activePackHitsRemaining = plot.activePackMaxHits
+	plot.activePackHitEmitter = hitEmitter
+	plot.activePackHighlight = hitHighlight
+	plot.activePackImpactParts = { cardBody, topCap, bottomCap }
 
 	BaseService.SetPlotPadHealth(plot, packDef.displayName, plot.activePackHitsRemaining, plot.activePackMaxHits, packDef.color)
 	sendHint(plot.ownerPlayer, packDef.displayName .. " spawned on your red pad. Crack it with your pitchfork and use Hold E on green slots to swap players.")
@@ -566,10 +667,14 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 
 	local damage = getPitchforkDamage(player)
 	plot.activePackHitsRemaining = math.max(0, (plot.activePackHitsRemaining or plot.activePackMaxHits or 1) - damage)
+	local newBrightness = nil
 
 	if plot.activePackLight then
-		plot.activePackLight.Brightness = 2.4 + ((plot.activePackMaxHits - plot.activePackHitsRemaining) * 0.65)
+		newBrightness = 2.4 + ((plot.activePackMaxHits - plot.activePackHitsRemaining) * 0.65)
+		plot.activePackLight.Brightness = newBrightness
 	end
+
+	playPackHitEffect(plot, newBrightness)
 
 	if plot.activePackHitsRemaining > 0 then
 		BaseService.SetPlotPadHealth(plot, plot.activePackDef.displayName, plot.activePackHitsRemaining, plot.activePackMaxHits, plot.activePackDef.color)
