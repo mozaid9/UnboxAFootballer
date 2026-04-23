@@ -116,8 +116,9 @@ end)
 
 local hudDock = make("Frame", {
 	Name = "HudDock",
-	Size = UDim2.fromOffset(200, 96),
-	Position = UDim2.new(0, 24, 0, 118),
+	AnchorPoint = Vector2.new(0, 1),
+	Size = UDim2.fromOffset(176, 84),
+	Position = UDim2.new(0, 24, 1, -24),
 	BackgroundTransparency = 1,
 }, screenGui)
 
@@ -129,7 +130,7 @@ make("UIListLayout", {
 }, hudDock)
 
 local coinPill = make("Frame", {
-	LayoutOrder = 1,
+	LayoutOrder = 2,
 	Size = UDim2.fromOffset(176, 38),
 	BackgroundColor3 = UI.Panel,
 }, hudDock)
@@ -182,7 +183,7 @@ local coinsLabel = make("TextLabel", {
 }, coinPill)
 
 local openShopButton = make("TextButton", {
-	LayoutOrder = 2,
+	LayoutOrder = 1,
 	Size = UDim2.fromOffset(176, 38),
 	BackgroundColor3 = UI.Gold,
 	Text = "Upgrades",

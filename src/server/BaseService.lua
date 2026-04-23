@@ -55,13 +55,42 @@ local function formatStadiumTitle(ownerName)
 		return "OPEN STADIUM"
 	end
 
-	return string.upper(ownerName) .. "'S STADIUM"
+	return string.upper(ownerName) .. "'S"
 end
 
 local function updateOwnerSign(plot, ownerName, subtitle)
-	plot.ownerNameLabel.Text = formatStadiumTitle(ownerName)
-	plot.ownerSubtitleLabel.Text = subtitle or ""
-	plot.ownerSubtitleLabel.Visible = subtitle ~= nil and subtitle ~= ""
+	if ownerName and ownerName ~= "" then
+		local stadiumSubtitle = subtitle
+		if not stadiumSubtitle or stadiumSubtitle == "" then
+			stadiumSubtitle = "STADIUM"
+		end
+
+		plot.ownerNameLabel.Text = formatStadiumTitle(ownerName)
+		plot.ownerNameLabel.TextSize = 94
+		plot.ownerNameLabel.Size = UDim2.new(1, -40, 0, 140)
+		plot.ownerNameLabel.Position = UDim2.new(0, 20, 0, 18)
+		plot.ownerNameLabel.Font = Enum.Font.GothamBlack
+
+		plot.ownerSubtitleLabel.Text = stadiumSubtitle
+		plot.ownerSubtitleLabel.TextSize = 36
+		plot.ownerSubtitleLabel.Size = UDim2.new(1, -40, 0, 52)
+		plot.ownerSubtitleLabel.Position = UDim2.new(0, 20, 0, 162)
+		plot.ownerSubtitleLabel.Font = Enum.Font.GothamBlack
+		plot.ownerSubtitleLabel.Visible = true
+	else
+		plot.ownerNameLabel.Text = "OPEN STADIUM"
+		plot.ownerNameLabel.TextSize = 78
+		plot.ownerNameLabel.Size = UDim2.new(1, -36, 0, 118)
+		plot.ownerNameLabel.Position = UDim2.new(0, 18, 0, 22)
+		plot.ownerNameLabel.Font = Enum.Font.GothamBold
+
+		plot.ownerSubtitleLabel.Text = subtitle or ""
+		plot.ownerSubtitleLabel.TextSize = 28
+		plot.ownerSubtitleLabel.Size = UDim2.new(1, -36, 0, 38)
+		plot.ownerSubtitleLabel.Position = UDim2.new(0, 18, 1, -52)
+		plot.ownerSubtitleLabel.Font = Enum.Font.GothamBold
+		plot.ownerSubtitleLabel.Visible = subtitle ~= nil and subtitle ~= ""
+	end
 end
 
 local function updatePadLabel(plot, title, subtitle, color)
@@ -346,7 +375,7 @@ local function createPlot(plotId, side, laneIndex, position)
 
 	local ownerGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
-		PixelsPerStud = 110,
+		PixelsPerStud = 140,
 		LightInfluence = 0,
 	}, ownerSign)
 

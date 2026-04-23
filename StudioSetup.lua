@@ -1,5 +1,5 @@
 -- ============================================================
--- UNBOX A FOOTBALLER v10 -- ROJO-SYNCED FALLBACK SETUP
+-- UNBOX A FOOTBALLER v11 -- ROJO-SYNCED FALLBACK SETUP
 -- Paste this ENTIRE script into the Roblox Studio Command Bar
 -- and press Enter to install the current prototype.
 -- ============================================================
@@ -502,13 +502,42 @@ local function formatStadiumTitle(ownerName)
 		return "OPEN STADIUM"
 	end
 
-	return string.upper(ownerName) .. "'S STADIUM"
+	return string.upper(ownerName) .. "'S"
 end
 
 local function updateOwnerSign(plot, ownerName, subtitle)
-	plot.ownerNameLabel.Text = formatStadiumTitle(ownerName)
-	plot.ownerSubtitleLabel.Text = subtitle or ""
-	plot.ownerSubtitleLabel.Visible = subtitle ~= nil and subtitle ~= ""
+	if ownerName and ownerName ~= "" then
+		local stadiumSubtitle = subtitle
+		if not stadiumSubtitle or stadiumSubtitle == "" then
+			stadiumSubtitle = "STADIUM"
+		end
+
+		plot.ownerNameLabel.Text = formatStadiumTitle(ownerName)
+		plot.ownerNameLabel.TextSize = 94
+		plot.ownerNameLabel.Size = UDim2.new(1, -40, 0, 140)
+		plot.ownerNameLabel.Position = UDim2.new(0, 20, 0, 18)
+		plot.ownerNameLabel.Font = Enum.Font.GothamBlack
+
+		plot.ownerSubtitleLabel.Text = stadiumSubtitle
+		plot.ownerSubtitleLabel.TextSize = 36
+		plot.ownerSubtitleLabel.Size = UDim2.new(1, -40, 0, 52)
+		plot.ownerSubtitleLabel.Position = UDim2.new(0, 20, 0, 162)
+		plot.ownerSubtitleLabel.Font = Enum.Font.GothamBlack
+		plot.ownerSubtitleLabel.Visible = true
+	else
+		plot.ownerNameLabel.Text = "OPEN STADIUM"
+		plot.ownerNameLabel.TextSize = 78
+		plot.ownerNameLabel.Size = UDim2.new(1, -36, 0, 118)
+		plot.ownerNameLabel.Position = UDim2.new(0, 18, 0, 22)
+		plot.ownerNameLabel.Font = Enum.Font.GothamBold
+
+		plot.ownerSubtitleLabel.Text = subtitle or ""
+		plot.ownerSubtitleLabel.TextSize = 28
+		plot.ownerSubtitleLabel.Size = UDim2.new(1, -36, 0, 38)
+		plot.ownerSubtitleLabel.Position = UDim2.new(0, 18, 1, -52)
+		plot.ownerSubtitleLabel.Font = Enum.Font.GothamBold
+		plot.ownerSubtitleLabel.Visible = subtitle ~= nil and subtitle ~= ""
+	end
 end
 
 local function updatePadLabel(plot, title, subtitle, color)
@@ -793,7 +822,7 @@ local function createPlot(plotId, side, laneIndex, position)
 
 	local ownerGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
-		PixelsPerStud = 110,
+		PixelsPerStud = 140,
 		LightInfluence = 0,
 	}, ownerSign)
 
@@ -2664,13 +2693,14 @@ local screenGui = make("ScreenGui", {
 }, playerGui)
 
 local toggle = make("TextButton", {
-	Size = UDim2.fromOffset(118, 34),
-	Position = UDim2.new(0, 24, 0, 76),
+	AnchorPoint = Vector2.new(0, 1),
+	Size = UDim2.fromOffset(176, 38),
+	Position = UDim2.new(0, 24, 1, -116),
 	BackgroundColor3 = Constants.UI.Panel,
 	Text = "Inventory",
 	TextColor3 = Constants.UI.Text,
 	TextScaled = false,
-	TextSize = 15,
+	TextSize = 16,
 	Font = Enum.Font.GothamBlack,
 }, screenGui)
 addCorner(toggle, 12)
@@ -2919,8 +2949,9 @@ end)
 
 local hudDock = make("Frame", {
 	Name = "HudDock",
-	Size = UDim2.fromOffset(200, 96),
-	Position = UDim2.new(0, 24, 0, 118),
+	AnchorPoint = Vector2.new(0, 1),
+	Size = UDim2.fromOffset(176, 84),
+	Position = UDim2.new(0, 24, 1, -24),
 	BackgroundTransparency = 1,
 }, screenGui)
 
@@ -2932,7 +2963,7 @@ make("UIListLayout", {
 }, hudDock)
 
 local coinPill = make("Frame", {
-	LayoutOrder = 1,
+	LayoutOrder = 2,
 	Size = UDim2.fromOffset(176, 38),
 	BackgroundColor3 = UI.Panel,
 }, hudDock)
@@ -2985,7 +3016,7 @@ local coinsLabel = make("TextLabel", {
 }, coinPill)
 
 local openShopButton = make("TextButton", {
-	LayoutOrder = 2,
+	LayoutOrder = 1,
 	Size = UDim2.fromOffset(176, 38),
 	BackgroundColor3 = UI.Gold,
 	Text = "Upgrades",
@@ -3509,4 +3540,4 @@ UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
 end)
 ]])
 
-print("[UnboxAFootballer] v10 Rojo-synced fallback setup complete")
+print("[UnboxAFootballer] v11 Rojo-synced fallback setup complete")

@@ -44,13 +44,14 @@ local screenGui = make("ScreenGui", {
 }, playerGui)
 
 local toggle = make("TextButton", {
-	Size = UDim2.fromOffset(118, 34),
-	Position = UDim2.new(0, 24, 0, 76),
+	AnchorPoint = Vector2.new(0, 1),
+	Size = UDim2.fromOffset(176, 38),
+	Position = UDim2.new(0, 24, 1, -116),
 	BackgroundColor3 = Constants.UI.Panel,
 	Text = "Inventory",
 	TextColor3 = Constants.UI.Text,
 	TextScaled = false,
-	TextSize = 15,
+	TextSize = 16,
 	Font = Enum.Font.GothamBlack,
 }, screenGui)
 addCorner(toggle, 12)
