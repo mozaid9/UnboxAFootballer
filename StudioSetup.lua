@@ -1,5 +1,5 @@
 -- ============================================================
--- UNBOX A FOOTBALLER v13 -- ROJO-SYNCED FALLBACK SETUP
+-- UNBOX A FOOTBALLER v14 -- ROJO-SYNCED FALLBACK SETUP
 -- Paste this ENTIRE script into the Roblox Studio Command Bar
 -- and press Enter to install the current prototype.
 -- ============================================================
@@ -510,22 +510,40 @@ end
 
 local function formatStadiumTitle(ownerName)
 	if not ownerName or ownerName == "" then
-		return "OPEN\nSTADIUM"
+		return "OPEN"
 	end
 
-	return string.upper(ownerName) .. "'S\nSTADIUM"
+	return string.upper(ownerName) .. "'S"
+end
+
+local function getOwnerNameTextSize(ownerName)
+	local label = formatStadiumTitle(ownerName)
+	local length = string.len(label)
+	if length <= 6 then
+		return 138
+	elseif length <= 9 then
+		return 122
+	elseif length <= 12 then
+		return 108
+	else
+		return 94
+	end
 end
 
 local function updateOwnerSign(plot, ownerName, subtitle)
 	if ownerName and ownerName ~= "" then
 		plot.ownerTopLabel.Text = "HOME CLUB"
 		plot.ownerNameLabel.Text = formatStadiumTitle(ownerName)
+		plot.ownerNameLabel.TextSize = getOwnerNameTextSize(ownerName)
+		plot.ownerSubtitleLabel.Text = "STADIUM"
 	else
 		plot.ownerTopLabel.Text = "AVAILABLE PLOT"
-		plot.ownerNameLabel.Text = "OPEN\nSTADIUM"
+		plot.ownerNameLabel.Text = "OPEN"
+		plot.ownerNameLabel.TextSize = 128
+		plot.ownerSubtitleLabel.Text = "STADIUM"
 	end
 
-	plot.ownerSubtitleLabel.Visible = false
+	plot.ownerSubtitleLabel.Visible = true
 end
 
 local function updatePadLabel(plot, title, subtitle, color)
@@ -842,28 +860,33 @@ local function createPlot(plotId, side, laneIndex, position)
 		Position = UDim2.fromOffset(0, 0),
 	}, ownerFrame)
 
-	local ownerTopLabel = createOwnerSignText("AVAILABLE PLOT", UDim2.new(1, -32, 0, 26), UDim2.new(0, 16, 0, 18), Color3.fromRGB(255, 223, 120), {
-		textScaled = true,
-		minTextSize = 16,
-		maxTextSize = 28,
+	local ownerTopLabel = createOwnerSignText("AVAILABLE PLOT", UDim2.fromScale(0.72, 0.08), UDim2.fromScale(0.14, 0.08), Color3.fromRGB(255, 223, 120), {
+		textScaled = false,
+		textSize = 44,
 		textStrokeTransparency = 0.9,
 		font = Enum.Font.GothamBlack,
 	}, ownerFrame)
 
-	local ownerNameLabel = createOwnerSignText("OPEN\nSTADIUM", UDim2.new(1, -36, 0, 126), UDim2.new(0, 18, 0, 46), Color3.fromRGB(245, 238, 220), {
-		textScaled = true,
-		minTextSize = 28,
-		maxTextSize = 112,
-		textStrokeTransparency = 0.72,
+	local ownerNameLabel = createOwnerSignText("OPEN", UDim2.fromScale(0.82, 0.2), UDim2.fromScale(0.09, 0.23), Color3.fromRGB(245, 238, 220), {
+		textScaled = false,
+		textSize = 128,
+		textStrokeTransparency = 0.78,
 		font = Enum.Font.GothamBlack,
-		textWrapped = true,
 	}, ownerFrame)
 
-	local ownerSubtitleLabel = createOwnerSignText("", UDim2.new(1, -36, 0, 1), UDim2.new(0, 18, 1, -10), Color3.fromRGB(214, 206, 184), {
+	make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
+		BackgroundTransparency = 0.12,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(0.58, 0.014),
+		Position = UDim2.fromScale(0.21, 0.52),
+	}, ownerFrame)
+
+	local ownerSubtitleLabel = createOwnerSignText("STADIUM", UDim2.fromScale(0.72, 0.11), UDim2.fromScale(0.14, 0.57), Color3.fromRGB(214, 206, 184), {
 		textScaled = false,
-		textSize = 1,
-		textStrokeTransparency = 1,
-		font = Enum.Font.GothamBold,
+		textSize = 74,
+		textStrokeTransparency = 0.88,
+		font = Enum.Font.GothamBlack,
 	}, ownerFrame)
 
 	local padGui = make("BillboardGui", {
@@ -976,8 +999,8 @@ local function createPlot(plotId, side, laneIndex, position)
 		displaySlots = displaySlots,
 		spawnCFrame = CFrame.lookAt(
 			spawnPad.Position + Vector3.new(0, 3, 0),
-			spawnPad.Position + Vector3.new(0, 3, 0) - centerDirection
-		),
+			packPad.Position + Vector3.new(0, 3, 0)
+		) * CFrame.Angles(0, math.pi, 0),
 	}
 
 	updateOwnerSign(plot, nil, "")
@@ -3670,4 +3693,4 @@ UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
 end)
 ]])
 
-print("[UnboxAFootballer] v13 Rojo-synced fallback setup complete")
+print("[UnboxAFootballer] v14 Rojo-synced fallback setup complete")
