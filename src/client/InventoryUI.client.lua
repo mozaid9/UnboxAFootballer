@@ -39,6 +39,8 @@ local screenGui = make("ScreenGui", {
 	Name = "InventoryUI",
 	ResetOnSpawn = false,
 	Enabled = true,
+	DisplayOrder = 10,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, playerGui)
 
 local toggle = make("TextButton", {
@@ -55,11 +57,17 @@ addCorner(toggle, 12)
 
 local panel = make("Frame", {
 	Visible = false,
-	Size = UDim2.new(0, 560, 0, 440),
-	Position = UDim2.new(0, 24, 0, 124),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Size = UDim2.new(0.92, 0, 0.85, 0),
+	Position = UDim2.fromScale(0.5, 0.5),
 	BackgroundColor3 = Constants.UI.Panel,
 }, screenGui)
 addCorner(panel, 18)
+
+local panelSize = Instance.new("UISizeConstraint")
+panelSize.MinSize = Vector2.new(320, 360)
+panelSize.MaxSize = Vector2.new(620, 500)
+panelSize.Parent = panel
 
 local title = make("TextLabel", {
 	BackgroundTransparency = 1,

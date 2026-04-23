@@ -64,7 +64,7 @@ local screenGui = make("ScreenGui", {
 
 local hudDock = make("Frame", {
 	Name = "HudDock",
-	Size = UDim2.fromOffset(184, 148),
+	Size = UDim2.fromOffset(200, 220),
 	Position = UDim2.new(0, 24, 0, 118),
 	BackgroundTransparency = 1,
 }, screenGui)
@@ -144,7 +144,7 @@ addCorner(openShopButton, 12)
 local hintLabel = make("TextLabel", {
 	LayoutOrder = 3,
 	BackgroundTransparency = 1,
-	Size = UDim2.fromOffset(184, 54),
+	Size = UDim2.fromOffset(200, 120),
 	Text = "Pitchfork packs open one player. They auto-fill your green displays first.",
 	TextColor3 = UI.Muted,
 	TextScaled = false,
@@ -228,7 +228,16 @@ local function refreshStatus()
 end
 
 openShopButton.MouseButton1Click:Connect(function()
-	showToast("Upgrades are next: pad luck, pack quality, and pitchfork power.", UI.Gold)
+	local upgradesGui = playerGui:FindFirstChild("UpgradesUI")
+	if not upgradesGui then
+		upgradesGui = playerGui:WaitForChild("UpgradesUI", 3)
+	end
+	local toggleEvent = upgradesGui and upgradesGui:FindFirstChild("ToggleEvent")
+	if toggleEvent then
+		toggleEvent:Fire()
+	else
+		showToast("Upgrades UI is still loading. Try again in a second.", UI.Gold)
+	end
 end)
 
 openShopButton.MouseEnter:Connect(function()

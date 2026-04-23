@@ -52,44 +52,34 @@
       "StarterPlayerScripts": {
         "$className": "StarterPlayerScripts",
         "BaseUI": {
-          "$className": "LocalScript",
-          "$path": "src/client/BaseUI.lua"
+          "$path": "src/client/BaseUI.client.lua"
         },
         "CollectionUI": {
-          "$className": "LocalScript",
-          "$path": "src/client/CollectionUI.lua"
+          "$path": "src/client/CollectionUI.client.lua"
         },
         "HUDClient": {
-          "$className": "LocalScript",
-          "$path": "src/client/HUDClient.lua"
+          "$path": "src/client/HUDClient.client.lua"
         },
         "InventoryUI": {
-          "$className": "LocalScript",
-          "$path": "src/client/InventoryUI.lua"
+          "$path": "src/client/InventoryUI.client.lua"
         },
         "MarketUI": {
-          "$className": "LocalScript",
-          "$path": "src/client/MarketUI.lua"
+          "$path": "src/client/MarketUI.client.lua"
         },
         "PackOpeningUI": {
-          "$className": "LocalScript",
-          "$path": "src/client/PackOpeningUI.lua"
+          "$path": "src/client/PackOpeningUI.client.lua"
         },
         "RebirthUI": {
-          "$className": "LocalScript",
-          "$path": "src/client/RebirthUI.lua"
+          "$path": "src/client/RebirthUI.client.lua"
         },
         "ShopUI": {
-          "$className": "LocalScript",
-          "$path": "src/client/ShopUI.lua"
+          "$path": "src/client/ShopUI.client.lua"
         },
         "ToolClient": {
-          "$className": "LocalScript",
-          "$path": "src/client/ToolClient.lua"
+          "$path": "src/client/ToolClient.client.lua"
         },
         "TradeUI": {
-          "$className": "LocalScript",
-          "$path": "src/client/TradeUI.lua"
+          "$path": "src/client/TradeUI.client.lua"
         }
       }
     }
