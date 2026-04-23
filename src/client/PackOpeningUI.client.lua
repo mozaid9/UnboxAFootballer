@@ -65,6 +65,45 @@ local screenGui = make("ScreenGui", {
 
 local watchedPlots = {}
 
+local function getOwnedPlot()
+	local basesFolder = Workspace:FindFirstChild("PlayerBases")
+	if not basesFolder then
+		return nil
+	end
+
+	for _, child in ipairs(basesFolder:GetChildren()) do
+		if child:IsA("Model") and child:GetAttribute("OwnerUserId") == player.UserId then
+			return child
+		end
+	end
+
+	return nil
+end
+
+local function snapCameraToOwnedBase(character)
+	local camera = Workspace.CurrentCamera
+	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local plotModel = getOwnedPlot()
+	local packPad = plotModel and plotModel:FindFirstChild("PackPad")
+	if not camera or not rootPart or not humanoid or not packPad then
+		return
+	end
+
+	camera.CameraType = Enum.CameraType.Custom
+	camera.CameraSubject = humanoid
+
+	local lookTarget = packPad.Position + Vector3.new(0, 3, 0)
+	local forward = (lookTarget - rootPart.Position)
+	if forward.Magnitude < 0.1 then
+		return
+	end
+	forward = forward.Unit
+
+	local cameraPosition = rootPart.Position - (forward * 12) + Vector3.new(0, 5, 0)
+	camera.CFrame = CFrame.lookAt(cameraPosition, lookTarget)
+end
+
 local function applyPlotPadVisibility(plotModel)
 	if not plotModel or not plotModel.Parent then
 		return
@@ -335,3 +374,17 @@ task.spawn(function()
 	task.wait(1)
 	refreshStatus()
 end)
+
+local function onCharacterAdded(character)
+	task.delay(0.25, function()
+		if player.Parent and character.Parent then
+			snapCameraToOwnedBase(character)
+		end
+	end)
+end
+
+if player.Character then
+	onCharacterAdded(player.Character)
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
