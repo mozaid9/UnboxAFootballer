@@ -76,6 +76,8 @@ Constants.FanPlaza = {
 	MaxStadiumVisitors = 8,
 	VisitorRouteChance = 0.48,
 	NpcWalkSpeed = 13,
+	StadiumVisitPauseMin = 4,
+	StadiumVisitPauseMax = 8,
 }
 
 Constants.Pitchfork = {

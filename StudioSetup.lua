@@ -220,6 +220,8 @@ Constants.FanPlaza = {
 	MaxStadiumVisitors = 8,
 	VisitorRouteChance = 0.48,
 	NpcWalkSpeed = 13,
+	StadiumVisitPauseMin = 4,
+	StadiumVisitPauseMax = 8,
 }
 
 Constants.Pitchfork = {
@@ -1613,7 +1615,7 @@ local function createFanNpc(index)
 		CanTouch = false,
 		Transparency = 1,
 		Size = Vector3.new(0.2, 0.2, 0.2),
-		CFrame = CFrame.new(0, 2.2, 0),
+		CFrame = CFrame.new(0, 2.8, 0),
 	}, model)
 	model.PrimaryPart = root
 
@@ -1623,8 +1625,8 @@ local function createFanNpc(index)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = shirtColor,
-		Size = Vector3.new(1.15, 1.25, 0.55),
-		CFrame = CFrame.new(0, 2.25, 0),
+		Size = Vector3.new(1.55, 1.85, 0.7),
+		CFrame = CFrame.new(0, 2.9, 0),
 	}, model)
 
 	make("Part", {
@@ -1634,8 +1636,8 @@ local function createFanNpc(index)
 		Shape = Enum.PartType.Ball,
 		Material = Enum.Material.SmoothPlastic,
 		Color = skinColor,
-		Size = Vector3.new(0.82, 0.82, 0.82),
-		CFrame = CFrame.new(0, 3.15, 0),
+		Size = Vector3.new(1.08, 1.08, 1.08),
+		CFrame = CFrame.new(0, 4.15, 0),
 	}, model)
 
 	make("Part", {
@@ -1644,8 +1646,8 @@ local function createFanNpc(index)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(26, 28, 34),
-		Size = Vector3.new(0.42, 0.85, 0.42),
-		CFrame = CFrame.new(-0.28, 1.22, 0),
+		Size = Vector3.new(0.5, 1.15, 0.5),
+		CFrame = CFrame.new(-0.34, 1.35, 0),
 	}, model)
 
 	make("Part", {
@@ -1654,8 +1656,8 @@ local function createFanNpc(index)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(26, 28, 34),
-		Size = Vector3.new(0.42, 0.85, 0.42),
-		CFrame = CFrame.new(0.28, 1.22, 0),
+		Size = Vector3.new(0.5, 1.15, 0.5),
+		CFrame = CFrame.new(0.34, 1.35, 0),
 	}, model)
 
 	make("Part", {
@@ -1664,8 +1666,8 @@ local function createFanNpc(index)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = skinColor,
-		Size = Vector3.new(0.3, 0.9, 0.3),
-		CFrame = CFrame.new(-0.78, 2.2, 0),
+		Size = Vector3.new(0.36, 1.3, 0.36),
+		CFrame = CFrame.new(-1.0, 2.85, 0),
 	}, model)
 
 	make("Part", {
@@ -1674,8 +1676,8 @@ local function createFanNpc(index)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = skinColor,
-		Size = Vector3.new(0.3, 0.9, 0.3),
-		CFrame = CFrame.new(0.78, 2.2, 0),
+		Size = Vector3.new(0.36, 1.3, 0.36),
+		CFrame = CFrame.new(1.0, 2.85, 0),
 	}, model)
 
 	return model
@@ -1684,7 +1686,17 @@ end
 local function getPlotEntrancePoint(plot)
 	local floorPosition = plot.floor.Position
 	local frontX = floorPosition.X + (plot.facingDirection * ((layout.PlotSize.X / 2) + 7))
-	return Vector3.new(frontX, 2.2, floorPosition.Z)
+	return Vector3.new(frontX, 2.8, floorPosition.Z)
+end
+
+local function getPlotSeatPoint(plot)
+	local floorPosition = plot.floor.Position
+	local sideZ = math.random(1, 2) == 1 and -1 or 1
+	local rowDepth = math.random(11, 18)
+	local xOffset = math.random(-18, 18)
+	local z = floorPosition.Z + (sideZ * rowDepth)
+	local x = floorPosition.X + (xOffset * plot.facingDirection)
+	return Vector3.new(x, 2.8, z)
 end
 
 local function getPlotWeight(plot)
@@ -1745,20 +1757,34 @@ local function makeRoute()
 	local startPoint = math.random(1, 2) == 1 and northGate or southGate
 	local endPoint = startPoint == northGate and southGate or northGate
 	local loopPoint = math.random(1, 2) == 1 and westLoop or eastLoop
-	local route = { startPoint, center, loopPoint }
+	local route = {
+		{ position = startPoint },
+		{ position = center },
+		{ position = loopPoint },
+	}
 
 	if math.random() < plazaConfig.VisitorRouteChance then
 		local plot = chooseVisitorPlot()
 		if plot then
-			table.insert(route, Vector3.new(0, 2.2, plot.floor.Position.Z))
-			table.insert(route, getPlotEntrancePoint(plot))
-			table.insert(route, Vector3.new(0, 2.2, plot.floor.Position.Z))
+			local stadiumPathPoint = Vector3.new(0, 2.8, plot.floor.Position.Z)
+			table.insert(route, { position = stadiumPathPoint })
+			table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.35 })
+			table.insert(route, {
+				position = getPlotSeatPoint(plot),
+				pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),
+			})
+			table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.2 })
+			table.insert(route, { position = stadiumPathPoint })
 		end
 	end
 
-	table.insert(route, center)
-	table.insert(route, endPoint)
+	table.insert(route, { position = center })
+	table.insert(route, { position = endPoint })
 	return route
+end
+
+local function getStepPosition(step)
+	return typeof(step) == "Vector3" and step or step.position
 end
 
 local function moveModelTo(model, targetPosition)
@@ -1803,10 +1829,17 @@ local function runFan(model)
 		while running and model.Parent do
 			local route = makeRoute()
 			if route and #route >= 2 then
-				model:PivotTo(CFrame.lookAt(route[1], route[2]))
+				local startPoint = getStepPosition(route[1])
+				local nextPoint = getStepPosition(route[2])
+				model:PivotTo(CFrame.lookAt(startPoint, nextPoint))
 				for index = 2, #route do
-					if not moveModelTo(model, route[index]) then
+					local step = route[index]
+					local targetPosition = getStepPosition(step)
+					if not moveModelTo(model, targetPosition) then
 						return
+					end
+					if typeof(step) == "table" and step.pause and step.pause > 0 then
+						task.wait(step.pause)
 					end
 					task.wait(math.random(8, 22) / 100)
 				end
