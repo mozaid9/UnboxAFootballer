@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
@@ -19,6 +20,51 @@ local function make(className, props, parent)
 	end
 	instance.Parent = parent
 	return instance
+end
+
+local function replaceLightingEffect(className, name, props)
+	local oldEffect = Lighting:FindFirstChild(name)
+	if oldEffect then
+		oldEffect:Destroy()
+	end
+
+	props = props or {}
+	props.Name = name
+	return make(className, props, Lighting)
+end
+
+local function configureMapLighting()
+	Lighting.ClockTime = 20.15
+	Lighting.Brightness = 2
+	Lighting.Ambient = Color3.fromRGB(38, 45, 58)
+	Lighting.OutdoorAmbient = Color3.fromRGB(24, 30, 42)
+	Lighting.EnvironmentDiffuseScale = 0.45
+	Lighting.EnvironmentSpecularScale = 0.8
+	Lighting.FogColor = Color3.fromRGB(18, 25, 38)
+	Lighting.FogStart = 240
+	Lighting.FogEnd = 620
+
+	replaceLightingEffect("Atmosphere", "UnboxNightAtmosphere", {
+		Density = 0.24,
+		Offset = 0.08,
+		Color = Color3.fromRGB(165, 185, 210),
+		Decay = Color3.fromRGB(18, 22, 32),
+		Glare = 0.25,
+		Haze = 1.7,
+	})
+
+	replaceLightingEffect("BloomEffect", "UnboxGoldBloom", {
+		Intensity = 0.55,
+		Size = 28,
+		Threshold = 1.25,
+	})
+
+	replaceLightingEffect("ColorCorrectionEffect", "UnboxColorGrade", {
+		Brightness = -0.04,
+		Contrast = 0.16,
+		Saturation = 0.08,
+		TintColor = Color3.fromRGB(235, 242, 255),
+	})
 end
 
 local function createSignLabel(text, size, position, color, parent)
@@ -107,7 +153,7 @@ local function createFence(parent, size, cframe)
 		Anchored = true,
 		CanCollide = true,
 		Material = Enum.Material.Concrete,
-		Color = Color3.fromRGB(76, 80, 90),
+		Color = Color3.fromRGB(28, 36, 50),
 		Size = size,
 		CFrame = cframe,
 	}, parent)
@@ -118,7 +164,7 @@ local function createStadiumTier(parent, size, cframe)
 		Anchored = true,
 		CanCollide = true,
 		Material = Enum.Material.Concrete,
-		Color = Color3.fromRGB(102, 108, 120),
+		Color = Color3.fromRGB(53, 61, 76),
 		Size = size,
 		CFrame = cframe,
 	}, parent)
@@ -129,7 +175,7 @@ local function createStadiumWedge(parent, size, cframe)
 		Anchored = true,
 		CanCollide = true,
 		Material = Enum.Material.Concrete,
-		Color = Color3.fromRGB(120, 126, 138),
+		Color = Color3.fromRGB(66, 75, 92),
 		Size = size,
 		CFrame = cframe,
 	}, parent)
@@ -148,6 +194,127 @@ local function createGlowStrip(parent, name, size, cframe, color, transparency)
 	}, parent)
 end
 
+local createSurfaceText
+
+local function createPlanter(parent, position, scale)
+	scale = scale or 1
+
+	local model = make("Model", {
+		Name = "Planter",
+	}, parent)
+
+	make("Part", {
+		Name = "Base",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(18, 23, 34),
+		Size = Vector3.new(4.2, 1.2, 4.2) * scale,
+		CFrame = CFrame.new(position + Vector3.new(0, 0.6 * scale, 0)),
+	}, model)
+
+	make("Part", {
+		Name = "Bush",
+		Anchored = true,
+		CanCollide = false,
+		Shape = Enum.PartType.Ball,
+		Material = Enum.Material.Grass,
+		Color = Color3.fromRGB(42, 126, 52),
+		Size = Vector3.new(4.6, 3.4, 4.6) * scale,
+		CFrame = CFrame.new(position + Vector3.new(0, 2.4 * scale, 0)),
+	}, model)
+
+	createGlowStrip(model, "PlanterTrim", Vector3.new(4.5, 0.14, 4.5) * scale, CFrame.new(position + Vector3.new(0, 1.25 * scale, 0)), Color3.fromRGB(255, 183, 53), 0.35)
+	return model
+end
+
+local function createFloodlightRig(parent, name, position, targetPosition)
+	local model = make("Model", {
+		Name = name,
+	}, parent)
+
+	local poleHeight = 28
+	make("Part", {
+		Name = "Pole",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Metal,
+		Color = Color3.fromRGB(24, 30, 42),
+		Size = Vector3.new(1.2, poleHeight, 1.2),
+		CFrame = CFrame.new(position + Vector3.new(0, poleHeight / 2, 0)),
+	}, model)
+
+	local panelPosition = position + Vector3.new(0, poleHeight + 1.5, 0)
+	local panel = make("Part", {
+		Name = "LightPanel",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(8, 12, 20),
+		Size = Vector3.new(11, 5.5, 0.55),
+		CFrame = CFrame.lookAt(panelPosition, targetPosition),
+	}, model)
+
+	for row = 1, 2 do
+		for column = 1, 4 do
+			local x = -3.9 + ((column - 1) * 2.6)
+			local y = -1.15 + ((row - 1) * 2.3)
+			make("Part", {
+				Name = "Bulb",
+				Anchored = true,
+				CanCollide = false,
+				Shape = Enum.PartType.Ball,
+				Material = Enum.Material.Neon,
+				Color = Color3.fromRGB(245, 245, 235),
+				Size = Vector3.new(1.25, 1.25, 0.35),
+				CFrame = panel.CFrame * CFrame.new(x, y, -0.38),
+			}, model)
+		end
+	end
+
+	make("SpotLight", {
+		Name = "FloodBeam",
+		Face = Enum.NormalId.Front,
+		Color = Color3.fromRGB(255, 245, 218),
+		Range = 170,
+		Angle = 72,
+		Brightness = 4.6,
+		Shadows = true,
+	}, panel)
+
+	return model
+end
+
+local function createVerticalBanner(parent, name, position, lookTarget, title)
+	local model = make("Model", {
+		Name = name,
+	}, parent)
+
+	make("Part", {
+		Name = "Post",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Metal,
+		Color = Color3.fromRGB(24, 30, 42),
+		Size = Vector3.new(0.55, 10, 0.55),
+		CFrame = CFrame.new(position + Vector3.new(0, 5, 0)),
+	}, model)
+
+	local banner = make("Part", {
+		Name = "Banner",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(8, 12, 20),
+		Size = Vector3.new(4.8, 8.5, 0.35),
+		CFrame = CFrame.lookAt(position + Vector3.new(0, 6.2, 0), lookTarget),
+	}, model)
+	createSurfaceText(banner, title, "FOOTBALLER")
+	createGlowStrip(model, "BannerGlow", Vector3.new(5.2, 0.18, 0.5), banner.CFrame * CFrame.new(0, -4.45, -0.08), Color3.fromRGB(255, 215, 0), 0.1)
+
+	return model
+end
+
 local function createWaypoint(parent, name, position)
 	make("Part", {
 		Name = name,
@@ -161,7 +328,7 @@ local function createWaypoint(parent, name, position)
 	}, parent)
 end
 
-local function createSurfaceText(part, title, subtitle)
+createSurfaceText = function(part, title, subtitle)
 	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
 		local gui = make("SurfaceGui", {
 			Face = face,
@@ -321,13 +488,14 @@ local function createFanPlaza(mapWidth, mapLength)
 		Anchored = true,
 		CanCollide = false,
 		Material = Enum.Material.Slate,
-		Color = Color3.fromRGB(68, 74, 86),
-		Size = Vector3.new(40, 0.18, mapLength - 64),
+		Color = Color3.fromRGB(34, 41, 55),
+		Size = Vector3.new(54, 0.18, mapLength - 64),
 		CFrame = CFrame.new(0, 0.24, 0),
 	}, plaza)
 
-	createGlowStrip(plaza, "MainGoldLineLeft", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(-22, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.18)
-	createGlowStrip(plaza, "MainGoldLineRight", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(22, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.18)
+	createGlowStrip(plaza, "MainGoldLineLeft", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(-29, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.12)
+	createGlowStrip(plaza, "MainGoldLineRight", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(29, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.12)
+	createGlowStrip(plaza, "MainCenterGlow", Vector3.new(8, 0.18, mapLength - 100), CFrame.new(0, 0.36, 0), Color3.fromRGB(255, 180, 46), 0.82)
 
 	for laneIndex = 1, layout.PlotsPerSide do
 		local laneZ = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
@@ -336,12 +504,12 @@ local function createFanPlaza(mapWidth, mapLength)
 			Anchored = true,
 			CanCollide = false,
 			Material = Enum.Material.Slate,
-			Color = Color3.fromRGB(62, 68, 80),
-			Size = Vector3.new((layout.SideOffset * 2) - 36, 0.14, 12),
+			Color = Color3.fromRGB(36, 43, 56),
+			Size = Vector3.new((layout.SideOffset * 2) - 22, 0.14, 14),
 			CFrame = CFrame.new(0, 0.28, laneZ),
 		}, plaza)
-		createGlowStrip(plaza, "StadiumPathGoldA" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 42, 0.18, 0.25), CFrame.new(0, 0.42, laneZ - 6), Color3.fromRGB(255, 215, 0), 0.28)
-		createGlowStrip(plaza, "StadiumPathGoldB" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 42, 0.18, 0.25), CFrame.new(0, 0.42, laneZ + 6), Color3.fromRGB(255, 215, 0), 0.28)
+		createGlowStrip(plaza, "StadiumPathGoldA" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 28, 0.18, 0.25), CFrame.new(0, 0.42, laneZ - 7), Color3.fromRGB(255, 215, 0), 0.2)
+		createGlowStrip(plaza, "StadiumPathGoldB" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 28, 0.18, 0.25), CFrame.new(0, 0.42, laneZ + 7), Color3.fromRGB(255, 215, 0), 0.2)
 	end
 
 	local statueBase = make("Part", {
@@ -356,7 +524,8 @@ local function createFanPlaza(mapWidth, mapLength)
 	}, plaza)
 	_ = statueBase
 
-	createGlowStrip(plaza, "PedestalGlow", Vector3.new(24, 0.22, 24), CFrame.new(0, 1.52, 0), Color3.fromRGB(255, 215, 0), 0.4)
+	createGlowStrip(plaza, "PedestalGlow", Vector3.new(24, 0.22, 24), CFrame.new(0, 1.52, 0), Color3.fromRGB(255, 215, 0), 0.22)
+	createGlowStrip(plaza, "OuterPedestalGlow", Vector3.new(34, 0.16, 34), CFrame.new(0, 0.5, 0), Color3.fromRGB(255, 180, 48), 0.64)
 
 	local ball = make("Part", {
 		Name = "GoldFootball",
@@ -372,7 +541,7 @@ local function createFanPlaza(mapWidth, mapLength)
 	make("PointLight", {
 		Color = Color3.fromRGB(255, 215, 0),
 		Range = 34,
-		Brightness = 1.2,
+		Brightness = 1.8,
 		Shadows = false,
 	}, ball)
 
@@ -389,6 +558,35 @@ local function createFanPlaza(mapWidth, mapLength)
 
 	createFanGate(plaza, "NorthFanGate", northZ, -1)
 	createFanGate(plaza, "SouthFanGate", southZ, 1)
+
+	local bannerConfigs = {
+		{ position = Vector3.new(-24, 0, -20), title = "FANS" },
+		{ position = Vector3.new(24, 0, -20), title = "PACKS" },
+		{ position = Vector3.new(-24, 0, 20), title = "CLUB" },
+		{ position = Vector3.new(24, 0, 20), title = "STARS" },
+	}
+	for index, config in ipairs(bannerConfigs) do
+		createVerticalBanner(plaza, "PlazaBanner" .. index, config.position, Vector3.new(0, 6, 0), config.title)
+	end
+
+	local planterPositions = {
+		Vector3.new(-34, 0, -28),
+		Vector3.new(34, 0, -28),
+		Vector3.new(-34, 0, 28),
+		Vector3.new(34, 0, 28),
+		Vector3.new(-18, 0, northZ - 18),
+		Vector3.new(18, 0, northZ - 18),
+		Vector3.new(-18, 0, southZ + 18),
+		Vector3.new(18, 0, southZ + 18),
+	}
+	for _, planterPosition in ipairs(planterPositions) do
+		createPlanter(plaza, planterPosition, 0.9)
+	end
+
+	createFloodlightRig(plaza, "NorthWestFloodlight", Vector3.new(-50, 0, northZ - 18), Vector3.new(0, 2, 0))
+	createFloodlightRig(plaza, "NorthEastFloodlight", Vector3.new(50, 0, northZ - 18), Vector3.new(0, 2, 0))
+	createFloodlightRig(plaza, "SouthWestFloodlight", Vector3.new(-50, 0, southZ + 18), Vector3.new(0, 2, 0))
+	createFloodlightRig(plaza, "SouthEastFloodlight", Vector3.new(50, 0, southZ + 18), Vector3.new(0, 2, 0))
 
 	createWaypoint(waypointFolder, "NorthGate", Vector3.new(0, 2.2, northZ - 10))
 	createWaypoint(waypointFolder, "SouthGate", Vector3.new(0, 2.2, southZ + 10))
@@ -583,10 +781,16 @@ local function createPlot(plotId, side, laneIndex, position)
 		Name = "Floor",
 		Anchored = true,
 		Material = Enum.Material.Grass,
-		Color = Color3.fromRGB(78, 148, 72),
+		Color = Color3.fromRGB(55, 127, 67),
 		Size = layout.PlotSize,
 		CFrame = baseCFrame,
 	}, model)
+
+	local trimY = layout.PlotSize.Y / 2 + 0.62
+	createGlowStrip(model, "FrontGoldTrim", Vector3.new(0.32, 0.16, layout.PlotSize.Z - 3), baseCFrame * CFrame.new(frontEdgeX - (facingDirection * 0.8), trimY, 0), Color3.fromRGB(255, 200, 62), 0.16)
+	createGlowStrip(model, "BackGoldTrim", Vector3.new(0.28, 0.12, layout.PlotSize.Z - 4), baseCFrame * CFrame.new(backEdgeX + (facingDirection * 0.8), trimY, 0), Color3.fromRGB(255, 190, 52), 0.45)
+	createGlowStrip(model, "NorthGoldTrim", Vector3.new(layout.PlotSize.X - 4, 0.14, 0.28), baseCFrame * CFrame.new(0, trimY, -layout.PlotSize.Z / 2 + 0.9), Color3.fromRGB(255, 190, 52), 0.24)
+	createGlowStrip(model, "SouthGoldTrim", Vector3.new(layout.PlotSize.X - 4, 0.14, 0.28), baseCFrame * CFrame.new(0, trimY, layout.PlotSize.Z / 2 - 0.9), Color3.fromRGB(255, 190, 52), 0.24)
 
 	local borderTop = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, -layout.PlotSize.Z / 2))
 	local borderBottom = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, layout.PlotSize.Z / 2))
@@ -713,6 +917,14 @@ local function createPlot(plotId, side, laneIndex, position)
 		Size = Vector3.new(16, 4.4, 0.6),
 		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
 	}, model)
+
+	make("PointLight", {
+		Name = "OwnerSignGlow",
+		Color = Color3.fromRGB(255, 211, 86),
+		Range = 22,
+		Brightness = 1.15,
+		Shadows = false,
+	}, ownerSign)
 
 	local ownerGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
@@ -905,6 +1117,7 @@ function BaseService.BuildBaseMap()
 	plots = {}
 	assignedPlots = {}
 	animatedTurnstiles = {}
+	configureMapLighting()
 
 	if basesFolder then
 		basesFolder:Destroy()
@@ -920,8 +1133,8 @@ function BaseService.BuildBaseMap()
 		Name = "LobbyGround",
 		Anchored = true,
 		CanCollide = true,
-		Material = Enum.Material.Concrete,
-		Color = Color3.fromRGB(48, 54, 64),
+		Material = Enum.Material.Slate,
+		Color = Color3.fromRGB(18, 24, 34),
 		Size = Vector3.new(mapWidth, 4, mapLength),
 		CFrame = CFrame.new(0, -2.0, 0),
 	}, basesFolder)
@@ -930,8 +1143,8 @@ function BaseService.BuildBaseMap()
 		Name = "LobbyPlaza",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.Pebble,
-		Color = Color3.fromRGB(86, 94, 108),
+		Material = Enum.Material.Cobblestone,
+		Color = Color3.fromRGB(46, 54, 68),
 		Size = Vector3.new(mapWidth - 8, 0.2, mapLength - 8),
 		CFrame = CFrame.new(0, 0.1, 0),
 	}, basesFolder)

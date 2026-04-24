@@ -167,6 +167,13 @@ Build the full project. Start with the shared modules (CardData, PackConfig, Con
   - north/south turnstile gates
   - simple moving NPC fans
   - some NPCs route toward owned stadiums based on accumulated Fans
+- Visual north-star pass started:
+  - night stadium lighting and atmosphere
+  - darker plaza materials
+  - brighter gold path trims
+  - floodlight rigs around the plaza
+  - plaza banners and planters
+  - stronger gold trims on player stadium bases
 - Add a front-of-stadium customiser for the owner later:
   - rename the stadium
   - change stadium colours/themes
