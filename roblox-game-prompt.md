@@ -157,10 +157,10 @@ Build the full project. Start with the shared modules (CardData, PackConfig, Con
 
 ## Future Notes
 
-- Keep `Coins` as the upgrade-buying currency for now.
-- Consider adding `Fans` later as a separate stadium-growth stat:
-  - displayed players generate fans over time
-  - more fans allow more NPC supporters/crowd fill
+- `Fans` are now the player-facing progression currency.
+- Keep the old internal `coins` datastore/remotes until a safe migration is planned:
+  - displayed players generate Fans over time
+  - more Fans can unlock NPC supporters/crowd fill
   - rebirth can raise stadium capacity and fan ceiling
 - Add a front-of-stadium customiser for the owner later:
   - rename the stadium

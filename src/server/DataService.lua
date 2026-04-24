@@ -195,7 +195,7 @@ function DataService.SpendCoins(player, amount)
 	end
 
 	if data.coins < amount then
-		return false, "Not enough coins."
+		return false, "Not enough Fans."
 	end
 
 	data.coins -= amount

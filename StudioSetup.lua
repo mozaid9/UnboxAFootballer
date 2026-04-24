@@ -1462,7 +1462,7 @@ function DataService.SpendCoins(player, amount)
 	end
 
 	if data.coins < amount then
-		return false, "Not enough coins."
+		return false, "Not enough Fans."
 	end
 
 	data.coins -= amount
@@ -1823,7 +1823,7 @@ function PackService.OpenPack(player, packId, options)
 	else
 		local ok, err = EconomyService.SpendCoins(player, packDef.cost)
 		if not ok then
-			return false, { error = err or "Not enough coins." }
+			return false, { error = err or "Not enough Fans." }
 		end
 	end
 
@@ -1891,7 +1891,7 @@ function RebirthService.CanRebirth(player)
 
 	local requiredCoins = RebirthService.GetRequiredCoins(data.rebirthTier or 0)
 	if (data.coins or 0) < requiredCoins then
-		return false, "You need more coins."
+		return false, "You need more Fans."
 	end
 
 	for _, card in ipairs(CardData.Pool) do
@@ -2969,7 +2969,7 @@ PurchaseUpgradeFn.OnServerInvoke = function(player, upgradeKey)
 
 	local ok, err = DataService.SpendCoins(player, cost)
 	if not ok then
-		return { success = false, error = err or "Not enough coins." }
+		return { success = false, error = err or "Not enough Fans." }
 	end
 
 	local data = DataService.GetData(player)
@@ -3347,7 +3347,7 @@ function refreshInventory()
 			isSubmitting = false
 
 			if result and result.success then
-				statusOverride = card.name .. " sold for +" .. tostring(result.coinsEarned or card.sellValue) .. " coins."
+				statusOverride = card.name .. " sold for +" .. tostring(result.coinsEarned or card.sellValue) .. " Fans."
 				refreshInventory()
 				return
 			end
@@ -3689,7 +3689,7 @@ local function createWalletRow(parent, order, labelText, iconText, iconColor)
 	return valueLabel, plusButton
 end
 
-local coinsLabel, addCoinsButton = createWalletRow(walletDock, 1, "Coins", "C", UI.Gold)
+local fansLabel, addFansButton = createWalletRow(walletDock, 1, "Fans", "F", UI.Gold)
 local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "D", Color3.fromRGB(69, 207, 255))
 
 local function createMenuButton(order, text, accentColor)
@@ -3727,7 +3727,7 @@ make("UIListLayout", {
 }, toastHolder)
 
 local function setCoinsDisplay(coins)
-	coinsLabel.Text = Utils.FormatNumber(coins or 0)
+	fansLabel.Text = Utils.FormatNumber(coins or 0)
 end
 
 local function setGemsDisplay(gems)
@@ -3825,8 +3825,8 @@ shopButton.MouseButton1Click:Connect(function()
 	showToast("Shop is coming soon. Pack tiers and cosmetics will live here.", Color3.fromRGB(74, 185, 98))
 end)
 
-addCoinsButton.MouseButton1Click:Connect(function()
-	showToast("Coin purchases are coming later. For now, earn coins from display players.", UI.Gold)
+addFansButton.MouseButton1Click:Connect(function()
+	showToast("Fans come from displayed players. Future boosts will help you grow faster.", UI.Gold)
 end)
 
 addGemsButton.MouseButton1Click:Connect(function()
@@ -3849,7 +3849,7 @@ PackOpenedEvent.OnClientEvent:Connect(function(payload)
 		if payload.storedInInventory then
 			targetText = payload.card.name .. " went to inventory because your displays are full."
 		else
-			targetText = payload.card.name .. " is now on display slot " .. tostring(payload.slotIndex) .. " earning +" .. tostring(payload.coinsPerSecond or 0) .. "/s."
+			targetText = payload.card.name .. " is now on display slot " .. tostring(payload.slotIndex) .. " earning +" .. tostring(payload.coinsPerSecond or 0) .. " Fans/s."
 		end
 		showToast(targetText, Utils.GetRarityColor(payload.card.rarity))
 	end
@@ -4048,7 +4048,7 @@ local coinsHeader = make("TextLabel", {
 	BackgroundTransparency = 1,
 	Size = UDim2.new(0, 220, 0, 24),
 	Position = UDim2.new(1, -236, 0, 18),
-	Text = "0 coins",
+	Text = "0 Fans",
 	TextColor3 = UI.Gold,
 	TextScaled = false,
 	TextSize = 18,
@@ -4193,7 +4193,7 @@ local function renderPayload(payload)
 		return
 	end
 	pendingPayload = payload
-	coinsHeader.Text = Utils.FormatNumber(payload.coins or 0) .. " coins"
+	coinsHeader.Text = Utils.FormatNumber(payload.coins or 0) .. " Fans"
 	clearRows()
 
 	for index, entry in ipairs(payload.upgrades or {}) do
@@ -4205,7 +4205,7 @@ local function renderPayload(payload)
 				return
 			end
 			if cost and (payload.coins or 0) < cost then
-				buyButton.Text = "Not enough coins"
+				buyButton.Text = "Not enough Fans"
 				task.delay(0.8, function()
 					if buyButton.Parent then
 						buyButton.Text = "Buy  •  " .. Utils.FormatNumber(cost)
@@ -4270,7 +4270,7 @@ UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
 	if pendingPayload then
 		pendingPayload.coins = coins
 	end
-	coinsHeader.Text = Utils.FormatNumber(coins or 0) .. " coins"
+	coinsHeader.Text = Utils.FormatNumber(coins or 0) .. " Fans"
 end)
 ]])
 

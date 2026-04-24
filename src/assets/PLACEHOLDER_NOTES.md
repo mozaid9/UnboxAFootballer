@@ -8,7 +8,7 @@ Replace these once you have real assets uploaded to Roblox.
 |-------------------|-------------------------------------|-------------------------------------|
 | Card flip         | Each card reveal (flip animation)   | "card flip" / "paper swoosh"        |
 | Rare pull         | When a Rare Gold card flips open    | "golden fanfare" / "rare item"      |
-| Coins received    | When coins are added (sell/reward)  | "coin collect" / "cha-ching"        |
+| Fans received     | When fans are added (sell/reward)   | "crowd cheer" / "cha-ching"         |
 | Pack open         | When the reveal screen appears      | "pack rip" / "envelope open"        |
 | Button click      | All button presses                  | "UI click" / "button press"         |
 

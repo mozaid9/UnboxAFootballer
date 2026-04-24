@@ -89,7 +89,7 @@ local coinsHeader = make("TextLabel", {
 	BackgroundTransparency = 1,
 	Size = UDim2.new(0, 220, 0, 24),
 	Position = UDim2.new(1, -236, 0, 18),
-	Text = "0 coins",
+	Text = "0 Fans",
 	TextColor3 = UI.Gold,
 	TextScaled = false,
 	TextSize = 18,
@@ -234,7 +234,7 @@ local function renderPayload(payload)
 		return
 	end
 	pendingPayload = payload
-	coinsHeader.Text = Utils.FormatNumber(payload.coins or 0) .. " coins"
+	coinsHeader.Text = Utils.FormatNumber(payload.coins or 0) .. " Fans"
 	clearRows()
 
 	for index, entry in ipairs(payload.upgrades or {}) do
@@ -246,7 +246,7 @@ local function renderPayload(payload)
 				return
 			end
 			if cost and (payload.coins or 0) < cost then
-				buyButton.Text = "Not enough coins"
+				buyButton.Text = "Not enough Fans"
 				task.delay(0.8, function()
 					if buyButton.Parent then
 						buyButton.Text = "Buy  •  " .. Utils.FormatNumber(cost)
@@ -311,5 +311,5 @@ UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
 	if pendingPayload then
 		pendingPayload.coins = coins
 	end
-	coinsHeader.Text = Utils.FormatNumber(coins or 0) .. " coins"
+	coinsHeader.Text = Utils.FormatNumber(coins or 0) .. " Fans"
 end)

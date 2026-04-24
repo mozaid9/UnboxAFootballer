@@ -1048,7 +1048,7 @@ PurchaseUpgradeFn.OnServerInvoke = function(player, upgradeKey)
 
 	local ok, err = DataService.SpendCoins(player, cost)
 	if not ok then
-		return { success = false, error = err or "Not enough coins." }
+		return { success = false, error = err or "Not enough Fans." }
 	end
 
 	local data = DataService.GetData(player)

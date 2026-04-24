@@ -343,7 +343,7 @@ function refreshInventory()
 			isSubmitting = false
 
 			if result and result.success then
-				statusOverride = card.name .. " sold for +" .. tostring(result.coinsEarned or card.sellValue) .. " coins."
+				statusOverride = card.name .. " sold for +" .. tostring(result.coinsEarned or card.sellValue) .. " Fans."
 				refreshInventory()
 				return
 			end

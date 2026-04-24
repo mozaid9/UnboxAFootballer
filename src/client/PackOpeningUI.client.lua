@@ -276,7 +276,7 @@ local function createWalletRow(parent, order, labelText, iconText, iconColor)
 	return valueLabel, plusButton
 end
 
-local coinsLabel, addCoinsButton = createWalletRow(walletDock, 1, "Coins", "C", UI.Gold)
+local fansLabel, addFansButton = createWalletRow(walletDock, 1, "Fans", "F", UI.Gold)
 local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "D", Color3.fromRGB(69, 207, 255))
 
 local function createMenuButton(order, text, accentColor)
@@ -314,7 +314,7 @@ make("UIListLayout", {
 }, toastHolder)
 
 local function setCoinsDisplay(coins)
-	coinsLabel.Text = Utils.FormatNumber(coins or 0)
+	fansLabel.Text = Utils.FormatNumber(coins or 0)
 end
 
 local function setGemsDisplay(gems)
@@ -412,8 +412,8 @@ shopButton.MouseButton1Click:Connect(function()
 	showToast("Shop is coming soon. Pack tiers and cosmetics will live here.", Color3.fromRGB(74, 185, 98))
 end)
 
-addCoinsButton.MouseButton1Click:Connect(function()
-	showToast("Coin purchases are coming later. For now, earn coins from display players.", UI.Gold)
+addFansButton.MouseButton1Click:Connect(function()
+	showToast("Fans come from displayed players. Future boosts will help you grow faster.", UI.Gold)
 end)
 
 addGemsButton.MouseButton1Click:Connect(function()
@@ -436,7 +436,7 @@ PackOpenedEvent.OnClientEvent:Connect(function(payload)
 		if payload.storedInInventory then
 			targetText = payload.card.name .. " went to inventory because your displays are full."
 		else
-			targetText = payload.card.name .. " is now on display slot " .. tostring(payload.slotIndex) .. " earning +" .. tostring(payload.coinsPerSecond or 0) .. "/s."
+			targetText = payload.card.name .. " is now on display slot " .. tostring(payload.slotIndex) .. " earning +" .. tostring(payload.coinsPerSecond or 0) .. " Fans/s."
 		end
 		showToast(targetText, Utils.GetRarityColor(payload.card.rarity))
 	end

@@ -23,7 +23,7 @@ function RebirthService.CanRebirth(player)
 
 	local requiredCoins = RebirthService.GetRequiredCoins(data.rebirthTier or 0)
 	if (data.coins or 0) < requiredCoins then
-		return false, "You need more coins."
+		return false, "You need more Fans."
 	end
 
 	for _, card in ipairs(CardData.Pool) do

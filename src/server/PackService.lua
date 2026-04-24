@@ -129,7 +129,7 @@ function PackService.OpenPack(player, packId, options)
 	else
 		local ok, err = EconomyService.SpendCoins(player, packDef.cost)
 		if not ok then
-			return false, { error = err or "Not enough coins." }
+			return false, { error = err or "Not enough Fans." }
 		end
 	end
 
