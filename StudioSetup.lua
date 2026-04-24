@@ -1,5 +1,5 @@
 -- ============================================================
--- UNBOX A FOOTBALLER v15 -- ROJO-SYNCED FALLBACK SETUP
+-- UNBOX A FOOTBALLER v16 -- ROJO-SYNCED FALLBACK SETUP
 -- Paste this ENTIRE script into the Roblox Studio Command Bar
 -- and press Enter to install the current prototype.
 -- ============================================================
@@ -510,38 +510,24 @@ end
 
 local function formatStadiumTitle(ownerName)
 	if not ownerName or ownerName == "" then
-		return "OPEN STADIUM"
+		return "OPEN"
 	end
 
-	return string.upper(ownerName) .. "'S STADIUM"
-end
-
-local function getOwnerNameTextSize(ownerName)
-	local label = formatStadiumTitle(ownerName)
-	local length = string.len(label)
-	if length <= 13 then
-		return 84
-	elseif length <= 16 then
-		return 74
-	elseif length <= 20 then
-		return 66
-	else
-		return 58
-	end
+	return string.upper(ownerName) .. "'S"
 end
 
 local function updateOwnerSign(plot, ownerName, subtitle)
 	if ownerName and ownerName ~= "" then
 		plot.ownerTopLabel.Text = "HOME CLUB"
 		plot.ownerNameLabel.Text = formatStadiumTitle(ownerName)
-		plot.ownerNameLabel.TextSize = getOwnerNameTextSize(ownerName)
+		plot.ownerSubtitleLabel.Text = "STADIUM"
 	else
 		plot.ownerTopLabel.Text = "AVAILABLE PLOT"
-		plot.ownerNameLabel.Text = "OPEN STADIUM"
-		plot.ownerNameLabel.TextSize = 76
+		plot.ownerNameLabel.Text = "OPEN"
+		plot.ownerSubtitleLabel.Text = "STADIUM"
 	end
 
-	plot.ownerSubtitleLabel.Visible = false
+	plot.ownerSubtitleLabel.Visible = true
 end
 
 local function updatePadLabel(plot, title, subtitle, color)
@@ -820,13 +806,13 @@ local function createPlot(plotId, side, laneIndex, position)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(24, 30, 42),
-		Size = Vector3.new(16, 5.2, 0.6),
+		Size = Vector3.new(16, 4.4, 0.6),
 		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
 	}, model)
 
 	local ownerGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
-		PixelsPerStud = 180,
+		PixelsPerStud = 160,
 		LightInfluence = 0,
 	}, ownerSign)
 
@@ -858,18 +844,20 @@ local function createPlot(plotId, side, laneIndex, position)
 		Position = UDim2.fromOffset(0, 0),
 	}, ownerFrame)
 
-	local ownerTopLabel = createOwnerSignText("AVAILABLE PLOT", UDim2.fromScale(0.72, 0.08), UDim2.fromScale(0.14, 0.08), Color3.fromRGB(255, 223, 120), {
-		textScaled = false,
-		textSize = 22,
+	local ownerTopLabel = createOwnerSignText("AVAILABLE PLOT", UDim2.fromScale(0.7, 0.12), UDim2.fromScale(0.15, 0.08), Color3.fromRGB(255, 223, 120), {
+		textScaled = true,
+		minTextSize = 24,
+		maxTextSize = 58,
 		textStrokeTransparency = 0.9,
-		font = Enum.Font.GothamBold,
+		font = Enum.Font.GothamBlack,
 	}, ownerFrame)
 
-	local ownerNameLabel = createOwnerSignText("OPEN STADIUM", UDim2.fromScale(0.88, 0.24), UDim2.fromScale(0.06, 0.28), Color3.fromRGB(245, 238, 220), {
-		textScaled = false,
-		textSize = 76,
-		textStrokeTransparency = 0.82,
-		font = Enum.Font.GothamBold,
+	local ownerNameLabel = createOwnerSignText("OPEN", UDim2.fromScale(0.86, 0.3), UDim2.fromScale(0.07, 0.25), Color3.fromRGB(245, 238, 220), {
+		textScaled = true,
+		minTextSize = 64,
+		maxTextSize = 240,
+		textStrokeTransparency = 0.72,
+		font = Enum.Font.GothamBlack,
 	}, ownerFrame)
 
 	make("Frame", {
@@ -877,14 +865,15 @@ local function createPlot(plotId, side, laneIndex, position)
 		BackgroundTransparency = 0.12,
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(0.58, 0.014),
-		Position = UDim2.fromScale(0.21, 0.72),
+		Position = UDim2.fromScale(0.21, 0.58),
 	}, ownerFrame)
 
-	local ownerSubtitleLabel = createOwnerSignText("", UDim2.fromScale(0.7, 0.08), UDim2.fromScale(0.15, 0.78), Color3.fromRGB(214, 206, 184), {
-		textScaled = false,
-		textSize = 18,
-		textStrokeTransparency = 1,
-		font = Enum.Font.GothamBold,
+	local ownerSubtitleLabel = createOwnerSignText("STADIUM", UDim2.fromScale(0.76, 0.2), UDim2.fromScale(0.12, 0.64), Color3.fromRGB(214, 206, 184), {
+		textScaled = true,
+		minTextSize = 44,
+		maxTextSize = 160,
+		textStrokeTransparency = 0.84,
+		font = Enum.Font.GothamBlack,
 	}, ownerFrame)
 
 	local padGui = make("BillboardGui", {
@@ -3744,4 +3733,4 @@ UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
 end)
 ]])
 
-print("[UnboxAFootballer] v15 Rojo-synced fallback setup complete")
+print("[UnboxAFootballer] v16 Rojo-synced fallback setup complete")
