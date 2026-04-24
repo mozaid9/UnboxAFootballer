@@ -66,7 +66,9 @@ function Utils.GetPassiveIncome(rating)
 end
 
 function Utils.GetRarityColor(rarity)
-	if rarity == "Rare Gold" then
+	if rarity == "Premium Gold" then
+		return Constants.UI.PremiumGold
+	elseif rarity == "Rare Gold" then
 		return Constants.UI.RareGold
 	end
 	return Constants.UI.Gold

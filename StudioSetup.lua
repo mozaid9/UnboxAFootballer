@@ -276,6 +276,7 @@ Constants.UI = {
 	PanelAlt = Color3.fromRGB(18, 23, 39),
 	Gold = Color3.fromRGB(255, 215, 0),
 	RareGold = Color3.fromRGB(255, 170, 48),
+	PremiumGold = Color3.fromRGB(240, 248, 255),
 	Text = Color3.fromRGB(245, 238, 220),
 	Muted = Color3.fromRGB(170, 165, 150),
 	Success = Color3.fromRGB(78, 181, 105),
@@ -436,7 +437,9 @@ function Utils.GetPassiveIncome(rating)
 end
 
 function Utils.GetRarityColor(rarity)
-	if rarity == "Rare Gold" then
+	if rarity == "Premium Gold" then
+		return Constants.UI.PremiumGold
+	elseif rarity == "Rare Gold" then
 		return Constants.UI.RareGold
 	end
 	return Constants.UI.Gold
@@ -582,6 +585,10 @@ local function createStadiumWedge(parent, size, cframe)
 end
 
 local function createDisplayCardFace(face, card, incomePerSecond, parent)
+	local rarityColor = Utils.GetRarityColor(card.rarity)
+	local isPremium = card.rarity == "Premium Gold"
+	local trimColor = isPremium and Color3.fromRGB(252, 240, 200) or Color3.fromRGB(218, 170, 52)
+
 	local gui = make("SurfaceGui", {
 		Face = face,
 		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
@@ -589,31 +596,90 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		LightInfluence = 0,
 	}, parent)
 
+	-- Outer card frame
 	local frame = make("Frame", {
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.fromRGB(20, 18, 10),
+		BackgroundColor3 = Color3.fromRGB(38, 26, 10),
 		BorderSizePixel = 0,
 	}, gui)
 
+	-- Vertical rarity gradient — bright at top, deep brown at bottom
 	make("UIGradient", {
 		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(252, 234, 158)),
-			ColorSequenceKeypoint.new(0.45, Utils.GetRarityColor(card.rarity)),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(112, 82, 14)),
+			ColorSequenceKeypoint.new(0, rarityColor),
+			ColorSequenceKeypoint.new(0.48, rarityColor:Lerp(Color3.fromRGB(86, 60, 18), 0.45)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(34, 22, 8)),
 		}),
-		Rotation = 22,
+		Rotation = 90,
 	}, frame)
 
+	-- Outer gold trim
 	make("UIStroke", {
-		Color = Color3.fromRGB(24, 18, 8),
-		Thickness = 2,
+		Color = trimColor,
+		Thickness = 4,
 	}, frame)
 
-	createSignLabel(tostring(card.rating), UDim2.new(0.32, 0, 0.16, 0), UDim2.new(0.08, 0, 0.05, 0), Color3.fromRGB(24, 16, 8), frame).TextXAlignment = Enum.TextXAlignment.Left
-	createSignLabel(card.position, UDim2.new(0.26, 0, 0.08, 0), UDim2.new(0.08, 0, 0.16, 0), Color3.fromRGB(48, 38, 12), frame).TextXAlignment = Enum.TextXAlignment.Left
-	createSignLabel(card.name, UDim2.new(0.82, 0, 0.14, 0), UDim2.new(0.09, 0, 0.56, 0), Color3.fromRGB(30, 22, 10), frame)
-	createSignLabel(card.nation, UDim2.new(0.74, 0, 0.08, 0), UDim2.new(0.13, 0, 0.72, 0), Color3.fromRGB(54, 42, 14), frame)
-	createSignLabel("+" .. tostring(incomePerSecond) .. "/s", UDim2.new(0.78, 0, 0.1, 0), UDim2.new(0.11, 0, 0.84, 0), Color3.fromRGB(22, 74, 38), frame)
+	-- Inner inset border detail
+	local innerBorder = make("Frame", {
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, -14, 1, -14),
+		Position = UDim2.fromOffset(7, 7),
+	}, frame)
+	make("UIStroke", {
+		Color = Color3.fromRGB(24, 16, 4),
+		Thickness = 1.5,
+		Transparency = 0.35,
+	}, innerBorder)
+
+	-- Rating (dominant, top-left)
+	local ratingLabel = createSignLabel(tostring(card.rating), UDim2.new(0.34, 0, 0.24, 0), UDim2.new(0.1, 0, 0.06, 0), Color3.fromRGB(22, 12, 2), frame)
+	ratingLabel.TextXAlignment = Enum.TextXAlignment.Left
+	make("UIStroke", {
+		Color = trimColor,
+		Thickness = 1.6,
+		Transparency = 0.15,
+	}, ratingLabel)
+
+	-- Position (under rating)
+	local positionLabel = createSignLabel(card.position, UDim2.new(0.28, 0, 0.1, 0), UDim2.new(0.11, 0, 0.3, 0), Color3.fromRGB(34, 22, 6), frame)
+	positionLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+	-- Divider band between top cluster and name
+	make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(22, 14, 4),
+		BorderSizePixel = 0,
+		Size = UDim2.new(0.74, 0, 0, 2),
+		Position = UDim2.new(0.13, 0, 0.44, 0),
+	}, frame)
+
+	-- Player name (big, centered)
+	local nameLabel = createSignLabel(card.name, UDim2.new(0.84, 0, 0.16, 0), UDim2.new(0.08, 0, 0.48, 0), Color3.fromRGB(22, 12, 4), frame)
+	make("UIStroke", {
+		Color = trimColor,
+		Thickness = 1.2,
+		Transparency = 0.3,
+	}, nameLabel)
+
+	-- Nation (below name)
+	createSignLabel(card.nation, UDim2.new(0.78, 0, 0.08, 0), UDim2.new(0.11, 0, 0.67, 0), Color3.fromRGB(46, 32, 10), frame)
+
+	-- Income pill at bottom
+	local incomePill = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(26, 58, 32),
+		Size = UDim2.new(0.72, 0, 0.11, 0),
+		Position = UDim2.new(0.14, 0, 0.82, 0),
+		BorderSizePixel = 0,
+	}, frame)
+	local pillCorner = Instance.new("UICorner")
+	pillCorner.CornerRadius = UDim.new(1, 0)
+	pillCorner.Parent = incomePill
+	make("UIStroke", {
+		Color = Color3.fromRGB(126, 214, 142),
+		Thickness = 1.5,
+		Transparency = 0.3,
+	}, incomePill)
+
+	createSignLabel("+" .. tostring(incomePerSecond) .. " /s", UDim2.fromScale(0.9, 0.72), UDim2.fromScale(0.05, 0.14), Color3.fromRGB(228, 255, 220), incomePill)
 end
 
 local function clearDisplayCard(slot)
@@ -962,7 +1028,8 @@ local function createPlot(plotId, side, laneIndex, position)
 	for slotIndex = 1, layout.DisplaySlotCount do
 		local localOffset = slotOffsets[slotIndex]
 		local worldOffset = Vector3.new(localOffset.X * facingDirection, localOffset.Y, localOffset.Z)
-		displaySlots[slotIndex] = createDisplaySlot(displayFolder, slotIndex, baseCFrame * CFrame.new(worldOffset), centerDirection)
+		local slotLookDirection = localOffset.Z < 0 and Vector3.new(0, 0, 1) or Vector3.new(0, 0, -1)
+		displaySlots[slotIndex] = createDisplaySlot(displayFolder, slotIndex, baseCFrame * CFrame.new(worldOffset), slotLookDirection)
 	end
 
 	local plot = {
@@ -2360,7 +2427,7 @@ local function spawnPackForPlot(plot)
 	cardBody.Anchored = true
 	cardBody.Material = Enum.Material.SmoothPlastic
 	cardBody.Color = Color3.fromRGB(28, 22, 8)
-	cardBody.Size = Vector3.new(0.3, 8, 5.4)
+	cardBody.Size = Vector3.new(5.4, 8, 0.3)
 	cardBody.CFrame = rootCFrame
 	cardBody.Parent = model
 
@@ -2369,7 +2436,7 @@ local function spawnPackForPlot(plot)
 	topCap.Anchored = true
 	topCap.Material = Enum.Material.SmoothPlastic
 	topCap.Color = Color3.fromRGB(28, 22, 8)
-	topCap.Size = Vector3.new(0.3, 1.4, 5.4)
+	topCap.Size = Vector3.new(5.4, 1.4, 0.3)
 	topCap.CFrame = cardBody.CFrame * CFrame.new(0, 4.65, 0) * CFrame.Angles(0, 0, math.rad(180))
 	topCap.Parent = model
 
@@ -2378,7 +2445,7 @@ local function spawnPackForPlot(plot)
 	bottomCap.Anchored = true
 	bottomCap.Material = Enum.Material.SmoothPlastic
 	bottomCap.Color = Color3.fromRGB(20, 16, 6)
-	bottomCap.Size = Vector3.new(0.3, 1.6, 5.4)
+	bottomCap.Size = Vector3.new(5.4, 1.6, 0.3)
 	bottomCap.CFrame = cardBody.CFrame * CFrame.new(0, -4.8, 0)
 	bottomCap.Parent = model
 
@@ -3043,6 +3110,7 @@ local currentMode = "inventory"
 local targetSlotIndex = nil
 local isSubmitting = false
 local statusOverride = nil
+local refreshToken = 0
 
 local function clearEntries()
 	for _, child in ipairs(scrolling:GetChildren()) do
@@ -3098,8 +3166,18 @@ local function mergeInventoryRows(inventory)
 end
 
 local function refreshInventory()
-	clearEntries()
+	refreshToken += 1
+	local myToken = refreshToken
+
 	local inventory = mergeInventoryRows(GetInventoryFn:InvokeServer())
+
+	-- If another refresh started while we were yielded on InvokeServer, bail so we
+	-- don't append a stale render on top of (or before) the newer one.
+	if myToken ~= refreshToken then
+		return
+	end
+
+	clearEntries()
 	local isSlotPicker = currentMode == "slotPicker"
 
 	if isSlotPicker then

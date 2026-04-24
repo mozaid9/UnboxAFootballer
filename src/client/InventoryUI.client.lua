@@ -127,6 +127,7 @@ local currentMode = "inventory"
 local targetSlotIndex = nil
 local isSubmitting = false
 local statusOverride = nil
+local refreshToken = 0
 
 local function clearEntries()
 	for _, child in ipairs(scrolling:GetChildren()) do
@@ -182,8 +183,18 @@ local function mergeInventoryRows(inventory)
 end
 
 local function refreshInventory()
-	clearEntries()
+	refreshToken += 1
+	local myToken = refreshToken
+
 	local inventory = mergeInventoryRows(GetInventoryFn:InvokeServer())
+
+	-- If another refresh started while we were yielded on InvokeServer, bail so we
+	-- don't append a stale render on top of (or before) the newer one.
+	if myToken ~= refreshToken then
+		return
+	end
+
+	clearEntries()
 	local isSlotPicker = currentMode == "slotPicker"
 
 	if isSlotPicker then

@@ -527,7 +527,7 @@ local function spawnPackForPlot(plot)
 	cardBody.Anchored = true
 	cardBody.Material = Enum.Material.SmoothPlastic
 	cardBody.Color = Color3.fromRGB(28, 22, 8)
-	cardBody.Size = Vector3.new(0.3, 8, 5.4)
+	cardBody.Size = Vector3.new(5.4, 8, 0.3)
 	cardBody.CFrame = rootCFrame
 	cardBody.Parent = model
 
@@ -536,7 +536,7 @@ local function spawnPackForPlot(plot)
 	topCap.Anchored = true
 	topCap.Material = Enum.Material.SmoothPlastic
 	topCap.Color = Color3.fromRGB(28, 22, 8)
-	topCap.Size = Vector3.new(0.3, 1.4, 5.4)
+	topCap.Size = Vector3.new(5.4, 1.4, 0.3)
 	topCap.CFrame = cardBody.CFrame * CFrame.new(0, 4.65, 0) * CFrame.Angles(0, 0, math.rad(180))
 	topCap.Parent = model
 
@@ -545,7 +545,7 @@ local function spawnPackForPlot(plot)
 	bottomCap.Anchored = true
 	bottomCap.Material = Enum.Material.SmoothPlastic
 	bottomCap.Color = Color3.fromRGB(20, 16, 6)
-	bottomCap.Size = Vector3.new(0.3, 1.6, 5.4)
+	bottomCap.Size = Vector3.new(5.4, 1.6, 0.3)
 	bottomCap.CFrame = cardBody.CFrame * CFrame.new(0, -4.8, 0)
 	bottomCap.Parent = model
 

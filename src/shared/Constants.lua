@@ -133,6 +133,7 @@ Constants.UI = {
 	PanelAlt = Color3.fromRGB(18, 23, 39),
 	Gold = Color3.fromRGB(255, 215, 0),
 	RareGold = Color3.fromRGB(255, 170, 48),
+	PremiumGold = Color3.fromRGB(240, 248, 255),
 	Text = Color3.fromRGB(245, 238, 220),
 	Muted = Color3.fromRGB(170, 165, 150),
 	Success = Color3.fromRGB(78, 181, 105),
