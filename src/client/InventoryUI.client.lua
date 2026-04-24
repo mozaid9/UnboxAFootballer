@@ -13,6 +13,8 @@ local Utils = require(Shared:WaitForChild("Utils"))
 local GetInventoryFn = Remotes:WaitForChild("GetInventory")
 local PackOpenedEvent = Remotes:WaitForChild("PackOpened")
 local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
+local OpenSlotPickerEvent = Remotes:WaitForChild("OpenSlotPicker")
+local PlaceInventoryCardInSlotFn = Remotes:WaitForChild("PlaceInventoryCardInSlot")
 
 local function make(className, props, parent)
 	props = props or {}
@@ -72,7 +74,7 @@ panelSize.Parent = panel
 
 local title = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Size = UDim2.new(1, -24, 0, 36),
+	Size = UDim2.new(1, -72, 0, 36),
 	Position = UDim2.new(0, 12, 0, 10),
 	Text = "Club Inventory",
 	TextColor3 = Constants.UI.Text,
@@ -81,20 +83,48 @@ local title = make("TextLabel", {
 	TextXAlignment = Enum.TextXAlignment.Left,
 }, panel)
 
+local closeButton = make("TextButton", {
+	AnchorPoint = Vector2.new(1, 0),
+	Size = UDim2.fromOffset(36, 36),
+	Position = UDim2.new(1, -12, 0, 10),
+	BackgroundColor3 = Constants.UI.PanelAlt,
+	Text = "X",
+	TextColor3 = Constants.UI.Text,
+	TextScaled = true,
+	Font = Enum.Font.GothamBlack,
+}, panel)
+addCorner(closeButton, 10)
+
+local statusLabel = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1, -24, 0, 24),
+	Position = UDim2.new(0, 12, 0, 48),
+	Text = "",
+	TextColor3 = Constants.UI.Muted,
+	TextScaled = true,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Font = Enum.Font.GothamBold,
+}, panel)
+
 local scrolling = make("ScrollingFrame", {
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
-	Size = UDim2.new(1, -24, 1, -64),
-	Position = UDim2.new(0, 12, 0, 52),
+	Size = UDim2.new(1, -24, 1, -94),
+	Position = UDim2.new(0, 12, 0, 82),
 	CanvasSize = UDim2.new(),
 	ScrollBarThickness = 6,
 }, panel)
 
 local layout = make("UIGridLayout", {
-	CellSize = UDim2.fromOffset(120, 148),
+	CellSize = UDim2.fromOffset(126, 176),
 	CellPadding = UDim2.fromOffset(12, 12),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, scrolling)
+
+local currentMode = "inventory"
+local targetSlotIndex = nil
+local isPlacing = false
+local statusOverride = nil
 
 local function clearEntries()
 	for _, child in ipairs(scrolling:GetChildren()) do
@@ -104,9 +134,48 @@ local function clearEntries()
 	end
 end
 
+local function closePanel()
+	panel.Visible = false
+	currentMode = "inventory"
+	targetSlotIndex = nil
+	statusOverride = nil
+	statusLabel.Text = ""
+end
+
 local function refreshInventory()
 	clearEntries()
 	local inventory = GetInventoryFn:InvokeServer() or {}
+	local isSlotPicker = currentMode == "slotPicker"
+
+	if isSlotPicker then
+		title.Text = "Choose Player"
+		statusLabel.Text = "Pick a stored player for display slot " .. tostring(targetSlotIndex) .. "."
+	else
+		title.Text = "Club Inventory"
+		statusLabel.Text = #inventory > 0 and "Stored players earn money when placed on green display slots." or "Stored players will appear here when your displays are full."
+	end
+	if statusOverride then
+		statusLabel.Text = statusOverride
+		statusOverride = nil
+	end
+
+	if #inventory == 0 then
+		local emptyState = make("Frame", {
+			BackgroundColor3 = Constants.UI.PanelAlt,
+		}, scrolling)
+		addCorner(emptyState, 14)
+
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1, -16, 1, -16),
+			Position = UDim2.fromOffset(8, 8),
+			Text = "No stored players yet",
+			TextColor3 = Constants.UI.Muted,
+			TextScaled = true,
+			TextWrapped = true,
+			Font = Enum.Font.GothamBlack,
+		}, emptyState)
+	end
 
 	for index, card in ipairs(inventory) do
 		local tile = make("Frame", {
@@ -149,12 +218,46 @@ local function refreshInventory()
 		make("TextLabel", {
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0.08, 0, 0.8, 0),
-			Size = UDim2.new(0.84, 0, 0.12, 0),
+			Size = UDim2.new(0.84, 0, 0.1, 0),
 			Text = "Stored x" .. tostring(card.quantity) .. " • +" .. tostring(Utils.GetPassiveIncome(card.rating)) .. "/s",
 			TextColor3 = Utils.GetRarityColor(card.rarity),
 			TextScaled = true,
 			Font = Enum.Font.GothamBold,
 		}, tile)
+
+		if isSlotPicker then
+			local placeButton = make("TextButton", {
+				AnchorPoint = Vector2.new(0.5, 1),
+				Position = UDim2.new(0.5, 0, 1, -8),
+				Size = UDim2.new(0.82, 0, 0, 30),
+				BackgroundColor3 = Color3.fromRGB(74, 185, 98),
+				Text = "Place",
+				TextColor3 = Constants.UI.Text,
+				TextScaled = true,
+				Font = Enum.Font.GothamBlack,
+			}, tile)
+			addCorner(placeButton, 10)
+
+			placeButton.MouseButton1Click:Connect(function()
+				if isPlacing then
+					return
+				end
+
+				isPlacing = true
+				placeButton.Text = "Placing..."
+
+				local result = PlaceInventoryCardInSlotFn:InvokeServer(targetSlotIndex, card.id)
+				isPlacing = false
+
+				if result and result.success then
+					closePanel()
+					return
+				end
+
+				statusOverride = (result and result.error) or "Could not place that player."
+				refreshInventory()
+			end)
+		end
 	end
 
 	task.defer(function()
@@ -165,9 +268,14 @@ end
 toggle.MouseButton1Click:Connect(function()
 	panel.Visible = not panel.Visible
 	if panel.Visible then
+		currentMode = "inventory"
+		targetSlotIndex = nil
+		statusOverride = nil
 		refreshInventory()
 	end
 end)
+
+closeButton.MouseButton1Click:Connect(closePanel)
 
 local function refreshIfVisible()
 	if panel.Visible then
@@ -177,3 +285,11 @@ end
 
 PackOpenedEvent.OnClientEvent:Connect(refreshIfVisible)
 PromptPackShopEvent.OnClientEvent:Connect(refreshIfVisible)
+
+OpenSlotPickerEvent.OnClientEvent:Connect(function(payload)
+	currentMode = "slotPicker"
+	targetSlotIndex = payload and payload.slotIndex
+	statusOverride = nil
+	panel.Visible = true
+	refreshInventory()
+end)

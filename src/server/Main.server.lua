@@ -56,6 +56,7 @@ local PackOpenedEvent = makeEvent("PackOpened")
 local PackOpenFailedEvent = makeEvent("PackOpenFailed")
 local PromptPackShopEvent = makeEvent("PromptPackShop")
 local RequestPitchforkHitEvent = makeEvent("RequestPitchforkHit")
+local OpenSlotPickerEvent = makeEvent("OpenSlotPicker")
 
 local GetPlayerDataFn = makeFunction("GetPlayerData")
 local OpenPackFn = makeFunction("OpenPack")
@@ -64,6 +65,7 @@ local SellAllCardsFn = makeFunction("SellAllCards")
 local GetInventoryFn = makeFunction("GetInventory")
 local GetUpgradesFn = makeFunction("GetUpgrades")
 local PurchaseUpgradeFn = makeFunction("PurchaseUpgrade")
+local PlaceInventoryCardInSlotFn = makeFunction("PlaceInventoryCardInSlot")
 
 PackService.Init(DataService, EconomyService, {
 	UpdateCoins = UpdateCoinsEvent,
@@ -389,7 +391,7 @@ local function refreshPlotDisplayState(player, plot)
 			BaseService.UpdateDisplaySlot(slot, displayedCard, Utils.GetPassiveIncome(displayedCard.rating))
 		else
 			local bestInventoryCard = getBestInventoryCard(player)
-			BaseService.SetDisplaySlotAddReady(slot, bestInventoryCard and bestInventoryCard.name or "Inventory Empty", bestInventoryCard ~= nil)
+			BaseService.SetDisplaySlotAddReady(slot, bestInventoryCard and "Choose Player" or "Inventory Empty", bestInventoryCard ~= nil)
 		end
 	end
 end
@@ -397,6 +399,16 @@ end
 local function getFirstEmptyDisplaySlot(player, plot)
 	for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
 		if not DataService.GetDisplayedCard(player, slot.slotIndex) then
+			return slot
+		end
+	end
+
+	return nil
+end
+
+local function getDisplaySlotByIndex(plot, slotIndex)
+	for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
+		if slot.slotIndex == slotIndex then
 			return slot
 		end
 	end
@@ -454,19 +466,23 @@ local function moveDisplayedCardToInventory(player, plot, slot)
 	return true, card
 end
 
-local function addInventoryCardToDisplay(player, plot, slot)
-	local bestCard = getBestInventoryCard(player)
-	if not bestCard then
-		return false, "You do not have a stored player to add."
+local function addInventoryCardToDisplay(player, plot, slot, cardId)
+	local card = getCardById(cardId)
+	if not card then
+		return false, "Choose a valid player."
 	end
 
-	if not DataService.RemoveCard(player, bestCard.id) then
+	if DataService.GetDisplayedCard(player, slot.slotIndex) then
+		return false, "That display slot is already occupied."
+	end
+
+	if not DataService.RemoveCard(player, card.id) then
 		return false, "That player is no longer in your inventory."
 	end
 
-	placeCardOnDisplay(player, plot, slot, bestCard.id)
+	placeCardOnDisplay(player, plot, slot, card.id)
 	refreshPlotDisplayState(player, plot)
-	return true, bestCard
+	return true, card
 end
 
 local function clearPlotPack(plot)
@@ -620,12 +636,17 @@ for _, plot in ipairs(BaseService.GetPlots()) do
 					PackOpenFailedEvent:FireClient(player, { error = cardOrError })
 				end
 			else
-				local ok, cardOrError = addInventoryCardToDisplay(player, plot, slot)
-				if ok then
-					sendHint(player, cardOrError.name .. " added to display slot " .. tostring(slot.slotIndex) .. " for +" .. tostring(Utils.GetPassiveIncome(cardOrError.rating)) .. "/s.")
-				else
-					PackOpenFailedEvent:FireClient(player, { error = cardOrError })
+				if not getBestInventoryCard(player) then
+					PackOpenFailedEvent:FireClient(player, {
+						error = "You do not have a stored player to add.",
+					})
+					return
 				end
+
+				OpenSlotPickerEvent:FireClient(player, {
+					slotIndex = slot.slotIndex,
+				})
+				sendHint(player, "Choose a stored player for display slot " .. tostring(slot.slotIndex) .. ".")
 			end
 		end)
 	end
@@ -858,6 +879,36 @@ GetInventoryFn.OnServerInvoke = function(player)
 	end)
 
 	return inventory
+end
+
+PlaceInventoryCardInSlotFn.OnServerInvoke = function(player, slotIndex, cardId)
+	if type(slotIndex) ~= "number" or type(cardId) ~= "number" then
+		return { success = false, error = "Choose a valid player and display slot." }
+	end
+
+	local plot = BaseService.GetPlot(player)
+	if not plot or plot.ownerPlayer ~= player then
+		return { success = false, error = "You do not have an active stadium yet." }
+	end
+
+	local slot = getDisplaySlotByIndex(plot, slotIndex)
+	if not slot then
+		return { success = false, error = "That display slot does not exist." }
+	end
+
+	local ok, cardOrError = addInventoryCardToDisplay(player, plot, slot, cardId)
+	if not ok then
+		return { success = false, error = cardOrError }
+	end
+
+	sendHint(player, cardOrError.name .. " added to display slot " .. tostring(slotIndex) .. " for +" .. tostring(Utils.GetPassiveIncome(cardOrError.rating)) .. "/s.")
+
+	return {
+		success = true,
+		card = cardOrError,
+		slotIndex = slotIndex,
+		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
+	}
 end
 
 OpenPackFn.OnServerInvoke = function(player, packId)
