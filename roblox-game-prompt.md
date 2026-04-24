@@ -162,6 +162,11 @@ Build the full project. Start with the shared modules (CardData, PackConfig, Con
   - displayed players generate Fans over time
   - more Fans can unlock NPC supporters/crowd fill
   - rebirth can raise stadium capacity and fan ceiling
+- Fan Plaza first pass exists:
+  - central football statue/plaza
+  - north/south turnstile gates
+  - simple moving NPC fans
+  - some NPCs route toward owned stadiums based on accumulated Fans
 - Add a front-of-stadium customiser for the owner later:
   - rename the stadium
   - change stadium colours/themes

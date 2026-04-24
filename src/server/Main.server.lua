@@ -22,6 +22,7 @@ local DataService = require(ServerScriptService:WaitForChild("DataService"))
 local EconomyService = require(ServerScriptService:WaitForChild("EconomyService"))
 local PackService = require(ServerScriptService:WaitForChild("PackService"))
 local BaseService = require(ServerScriptService:WaitForChild("BaseService"))
+local CrowdService = require(ServerScriptService:WaitForChild("CrowdService"))
 local RebirthService = require(ServerScriptService:WaitForChild("RebirthService"))
 
 local PackConfig = require(Shared:WaitForChild("PackConfig"))
@@ -76,6 +77,7 @@ EconomyService.Init(DataService)
 RebirthService.Init(DataService)
 
 BaseService.BuildBaseMap()
+CrowdService.Init(BaseService, DataService)
 
 local swingCooldowns = {}
 

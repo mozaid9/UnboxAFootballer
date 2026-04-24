@@ -65,6 +65,7 @@ wipe('Remotes', RS)
 wipe('Services', SSS)
 wipe('Main', SSS)
 wipe('BaseService', SSS)
+wipe('CrowdService', SSS)
 wipe('DataService', SSS)
 wipe('EconomyService', SSS)
 wipe('MarketService', SSS)
@@ -210,6 +211,15 @@ Constants.BaseLayout = {
 	PadInfoMaxDistance = 38,
 	DisplaySlotCount = 6,
 	DisplaySlotSize = Vector3.new(7, 3.5, 7),
+}
+
+Constants.FanPlaza = {
+	CrowdNpcCount = 20,
+	FansPerVisibleNpc = 75000,
+	BaseStadiumCapacity = 4,
+	MaxStadiumVisitors = 8,
+	VisitorRouteChance = 0.48,
+	NpcWalkSpeed = 13,
 }
 
 Constants.Pitchfork = {
@@ -460,6 +470,7 @@ local layout = Constants.BaseLayout
 local basesFolder
 local plots = {}
 local assignedPlots = {}
+local animatedTurnstiles = {}
 
 local function make(className, props, parent)
 	local instance = Instance.new(className)
@@ -582,6 +593,271 @@ local function createStadiumWedge(parent, size, cframe)
 		Size = size,
 		CFrame = cframe,
 	}, parent)
+end
+
+local function createGlowStrip(parent, name, size, cframe, color, transparency)
+	make("Part", {
+		Name = name,
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.Neon,
+		Color = color or Color3.fromRGB(255, 215, 0),
+		Transparency = transparency or 0.18,
+		Size = size,
+		CFrame = cframe,
+	}, parent)
+end
+
+local function createWaypoint(parent, name, position)
+	make("Part", {
+		Name = name,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(2, 2, 2),
+		CFrame = CFrame.new(position),
+	}, parent)
+end
+
+local function createSurfaceText(part, title, subtitle)
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local gui = make("SurfaceGui", {
+			Face = face,
+			PixelsPerStud = 90,
+			LightInfluence = 0,
+		}, part)
+
+		local frame = make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(8, 12, 20),
+			BorderSizePixel = 0,
+			Size = UDim2.fromScale(1, 1),
+		}, gui)
+
+		make("UIStroke", {
+			Color = Color3.fromRGB(255, 215, 0),
+			Thickness = 3,
+		}, frame)
+
+		createSignLabel(title, UDim2.fromScale(0.92, 0.42), UDim2.fromScale(0.04, 0.15), Color3.fromRGB(255, 215, 0), frame)
+		if subtitle and subtitle ~= "" then
+			local subtitleLabel = createSignLabel(subtitle, UDim2.fromScale(0.86, 0.22), UDim2.fromScale(0.07, 0.62), Color3.fromRGB(245, 238, 220), frame)
+			subtitleLabel.Font = Enum.Font.GothamBold
+		end
+	end
+end
+
+local function createTurnstile(parent, cframe)
+	local model = make("Model", {
+		Name = "Turnstile",
+	}, parent)
+
+	local post = make("Part", {
+		Name = "Post",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Metal,
+		Color = Color3.fromRGB(170, 130, 42),
+		Size = Vector3.new(0.35, 3.4, 0.35),
+		CFrame = cframe,
+	}, model)
+
+	local arms = {}
+	for index = 1, 4 do
+		local angle = math.rad((index - 1) * 90)
+		local arm = make("Part", {
+			Name = "Arm" .. index,
+			Anchored = true,
+			CanCollide = false,
+			Material = Enum.Material.Metal,
+			Color = Color3.fromRGB(255, 215, 0),
+			Size = Vector3.new(2.3, 0.14, 0.14),
+			CFrame = cframe * CFrame.new(0, 0.25, 0) * CFrame.Angles(0, angle, 0),
+		}, model)
+		table.insert(arms, { part = arm, angle = angle })
+	end
+
+	table.insert(animatedTurnstiles, {
+		post = post,
+		arms = arms,
+		baseCFrame = cframe,
+	})
+
+	return model
+end
+
+local function startTurnstileAnimations()
+	for _, turnstile in ipairs(animatedTurnstiles) do
+		task.spawn(function()
+			local spin = math.random() * math.pi
+			while turnstile.post.Parent do
+				spin += math.rad(4)
+				for _, armData in ipairs(turnstile.arms) do
+					if armData.part.Parent then
+						armData.part.CFrame = turnstile.baseCFrame * CFrame.new(0, 0.25, 0) * CFrame.Angles(0, spin + armData.angle, 0)
+					end
+				end
+				task.wait(0.04)
+			end
+		end)
+	end
+end
+
+local function createFanGate(parent, name, z, facingDirection)
+	local gate = make("Model", {
+		Name = name,
+	}, parent)
+
+	local center = Vector3.new(0, 0, z)
+	local columnColor = Color3.fromRGB(24, 30, 42)
+	local signColor = Color3.fromRGB(8, 12, 20)
+	local lookDirection = Vector3.new(0, 0, facingDirection)
+
+	make("Part", {
+		Name = "LeftColumn",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Concrete,
+		Color = columnColor,
+		Size = Vector3.new(4, 13, 4),
+		CFrame = CFrame.new(center + Vector3.new(-17, 6.5, 0)),
+	}, gate)
+
+	make("Part", {
+		Name = "RightColumn",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Concrete,
+		Color = columnColor,
+		Size = Vector3.new(4, 13, 4),
+		CFrame = CFrame.new(center + Vector3.new(17, 6.5, 0)),
+	}, gate)
+
+	make("Part", {
+		Name = "TopBeam",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Concrete,
+		Color = columnColor,
+		Size = Vector3.new(40, 3, 4),
+		CFrame = CFrame.new(center + Vector3.new(0, 11.5, 0)),
+	}, gate)
+
+	local sign = make("Part", {
+		Name = "WelcomeSign",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = signColor,
+		Size = Vector3.new(30, 5, 0.5),
+		CFrame = CFrame.lookAt(center + Vector3.new(0, 15.2, -facingDirection * 0.3), center + Vector3.new(0, 15.2, -facingDirection * 0.3) + lookDirection),
+	}, gate)
+	createSurfaceText(sign, "WELCOME FANS", "TURNSTILES")
+
+	for index = 1, 3 do
+		local x = -8 + ((index - 1) * 8)
+		createTurnstile(gate, CFrame.new(center + Vector3.new(x, 2.1, -facingDirection * 2)))
+		createGlowStrip(gate, "GateLight" .. index, Vector3.new(4.2, 0.18, 1.4), CFrame.new(center + Vector3.new(x, 0.2, -facingDirection * 5.2)), Color3.fromRGB(65, 255, 112), 0.05)
+	end
+
+	return gate
+end
+
+local function createFanPlaza(mapWidth, mapLength)
+	local plaza = make("Model", {
+		Name = "FanPlaza",
+	}, basesFolder)
+
+	local waypointFolder = make("Folder", {
+		Name = "Waypoints",
+	}, plaza)
+
+	local northZ = (mapLength / 2) - 32
+	local southZ = -(mapLength / 2) + 32
+
+	make("Part", {
+		Name = "MainWalkway",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.Slate,
+		Color = Color3.fromRGB(68, 74, 86),
+		Size = Vector3.new(40, 0.18, mapLength - 64),
+		CFrame = CFrame.new(0, 0.24, 0),
+	}, plaza)
+
+	createGlowStrip(plaza, "MainGoldLineLeft", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(-22, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.18)
+	createGlowStrip(plaza, "MainGoldLineRight", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(22, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.18)
+
+	for laneIndex = 1, layout.PlotsPerSide do
+		local laneZ = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
+		make("Part", {
+			Name = "StadiumPath" .. laneIndex,
+			Anchored = true,
+			CanCollide = false,
+			Material = Enum.Material.Slate,
+			Color = Color3.fromRGB(62, 68, 80),
+			Size = Vector3.new((layout.SideOffset * 2) - 36, 0.14, 12),
+			CFrame = CFrame.new(0, 0.28, laneZ),
+		}, plaza)
+		createGlowStrip(plaza, "StadiumPathGoldA" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 42, 0.18, 0.25), CFrame.new(0, 0.42, laneZ - 6), Color3.fromRGB(255, 215, 0), 0.28)
+		createGlowStrip(plaza, "StadiumPathGoldB" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 42, 0.18, 0.25), CFrame.new(0, 0.42, laneZ + 6), Color3.fromRGB(255, 215, 0), 0.28)
+	end
+
+	local statueBase = make("Part", {
+		Name = "FanPlazaPedestal",
+		Anchored = true,
+		CanCollide = true,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(18, 23, 34),
+		Size = Vector3.new(22, 1.1, 22),
+		CFrame = CFrame.new(0, 0.9, 0),
+	}, plaza)
+	_ = statueBase
+
+	createGlowStrip(plaza, "PedestalGlow", Vector3.new(24, 0.22, 24), CFrame.new(0, 1.52, 0), Color3.fromRGB(255, 215, 0), 0.4)
+
+	local ball = make("Part", {
+		Name = "GoldFootball",
+		Anchored = true,
+		CanCollide = false,
+		Shape = Enum.PartType.Ball,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(255, 202, 61),
+		Size = Vector3.new(8, 8, 8),
+		CFrame = CFrame.new(0, 6.0, 0),
+	}, plaza)
+
+	make("PointLight", {
+		Color = Color3.fromRGB(255, 215, 0),
+		Range = 34,
+		Brightness = 1.2,
+		Shadows = false,
+	}, ball)
+
+	local plazaSign = make("Part", {
+		Name = "FanPlazaSign",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(8, 12, 20),
+		Size = Vector3.new(18, 3.2, 0.5),
+		CFrame = CFrame.lookAt(Vector3.new(0, 3.2, -13), Vector3.new(0, 3.2, -40)),
+	}, plaza)
+	createSurfaceText(plazaSign, "FAN PLAZA", "")
+
+	createFanGate(plaza, "NorthFanGate", northZ, -1)
+	createFanGate(plaza, "SouthFanGate", southZ, 1)
+
+	createWaypoint(waypointFolder, "NorthGate", Vector3.new(0, 2.2, northZ - 10))
+	createWaypoint(waypointFolder, "SouthGate", Vector3.new(0, 2.2, southZ + 10))
+	createWaypoint(waypointFolder, "Center", Vector3.new(0, 2.2, 0))
+	createWaypoint(waypointFolder, "WestLoop", Vector3.new(-16, 2.2, 0))
+	createWaypoint(waypointFolder, "EastLoop", Vector3.new(16, 2.2, 0))
+
+	startTurnstileAnimations()
+	return plaza
 end
 
 local function createDisplayCardFace(face, card, incomePerSecond, parent)
@@ -1088,6 +1364,7 @@ end
 function BaseService.BuildBaseMap()
 	plots = {}
 	assignedPlots = {}
+	animatedTurnstiles = {}
 
 	if basesFolder then
 		basesFolder:Destroy()
@@ -1118,6 +1395,8 @@ function BaseService.BuildBaseMap()
 		Size = Vector3.new(mapWidth - 8, 0.2, mapLength - 8),
 		CFrame = CFrame.new(0, 0.1, 0),
 	}, basesFolder)
+
+	createFanPlaza(mapWidth, mapLength)
 
 	for sideIndex = 1, 2 do
 		for laneIndex = 1, layout.PlotsPerSide do
@@ -1263,6 +1542,320 @@ function BaseService.PlaceCharacterAtPlot(player, character)
 end
 
 return BaseService
+]])
+
+makeModule('CrowdService', SSS, [[local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
+local Constants = require(ReplicatedStorage.Shared.Constants)
+
+local CrowdService = {}
+
+local BaseService
+local DataService
+local fanFolder
+local running = false
+
+local plazaConfig = Constants.FanPlaza
+local layout = Constants.BaseLayout
+
+local shirtColors = {
+	Color3.fromRGB(18, 23, 34),
+	Color3.fromRGB(32, 96, 62),
+	Color3.fromRGB(120, 72, 38),
+	Color3.fromRGB(38, 72, 120),
+	Color3.fromRGB(118, 92, 28),
+	Color3.fromRGB(92, 46, 120),
+}
+
+local skinColors = {
+	Color3.fromRGB(234, 184, 146),
+	Color3.fromRGB(199, 142, 91),
+	Color3.fromRGB(141, 85, 54),
+	Color3.fromRGB(246, 215, 176),
+}
+
+local function make(className, props, parent)
+	local instance = Instance.new(className)
+	for key, value in pairs(props or {}) do
+		instance[key] = value
+	end
+	instance.Parent = parent
+	return instance
+end
+
+local function getWaypoint(name)
+	local basesFolder = Workspace:FindFirstChild("PlayerBases")
+	local plaza = basesFolder and basesFolder:FindFirstChild("FanPlaza")
+	local waypoints = plaza and plaza:FindFirstChild("Waypoints")
+	return waypoints and waypoints:FindFirstChild(name)
+end
+
+local function getPoint(name)
+	local waypoint = getWaypoint(name)
+	return waypoint and waypoint.Position
+end
+
+local function createFanNpc(index)
+	local model = make("Model", {
+		Name = "FanNPC" .. index,
+	}, fanFolder)
+
+	local shirtColor = shirtColors[math.random(1, #shirtColors)]
+	local skinColor = skinColors[math.random(1, #skinColors)]
+
+	local root = make("Part", {
+		Name = "Root",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(0.2, 0.2, 0.2),
+		CFrame = CFrame.new(0, 2.2, 0),
+	}, model)
+	model.PrimaryPart = root
+
+	make("Part", {
+		Name = "Torso",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = shirtColor,
+		Size = Vector3.new(1.15, 1.25, 0.55),
+		CFrame = CFrame.new(0, 2.25, 0),
+	}, model)
+
+	make("Part", {
+		Name = "Head",
+		Anchored = true,
+		CanCollide = false,
+		Shape = Enum.PartType.Ball,
+		Material = Enum.Material.SmoothPlastic,
+		Color = skinColor,
+		Size = Vector3.new(0.82, 0.82, 0.82),
+		CFrame = CFrame.new(0, 3.15, 0),
+	}, model)
+
+	make("Part", {
+		Name = "LeftLeg",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(26, 28, 34),
+		Size = Vector3.new(0.42, 0.85, 0.42),
+		CFrame = CFrame.new(-0.28, 1.22, 0),
+	}, model)
+
+	make("Part", {
+		Name = "RightLeg",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(26, 28, 34),
+		Size = Vector3.new(0.42, 0.85, 0.42),
+		CFrame = CFrame.new(0.28, 1.22, 0),
+	}, model)
+
+	make("Part", {
+		Name = "LeftArm",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = skinColor,
+		Size = Vector3.new(0.3, 0.9, 0.3),
+		CFrame = CFrame.new(-0.78, 2.2, 0),
+	}, model)
+
+	make("Part", {
+		Name = "RightArm",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = skinColor,
+		Size = Vector3.new(0.3, 0.9, 0.3),
+		CFrame = CFrame.new(0.78, 2.2, 0),
+	}, model)
+
+	return model
+end
+
+local function getPlotEntrancePoint(plot)
+	local floorPosition = plot.floor.Position
+	local frontX = floorPosition.X + (plot.facingDirection * ((layout.PlotSize.X / 2) + 7))
+	return Vector3.new(frontX, 2.2, floorPosition.Z)
+end
+
+local function getPlotWeight(plot)
+	if not plot.ownerPlayer or not DataService then
+		return 0
+	end
+
+	local fans = DataService.GetCoins(plot.ownerPlayer)
+	local visibleFromFans = math.floor((fans or 0) / plazaConfig.FansPerVisibleNpc)
+	local capacity = math.min(plazaConfig.MaxStadiumVisitors, plazaConfig.BaseStadiumCapacity + math.floor((fans or 0) / 500000))
+	return math.clamp(visibleFromFans, 0, capacity)
+end
+
+local function chooseVisitorPlot()
+	if not BaseService then
+		return nil
+	end
+
+	local weightedPlots = {}
+	local totalWeight = 0
+	for _, plot in ipairs(BaseService.GetPlots()) do
+		local weight = getPlotWeight(plot)
+		if weight > 0 then
+			totalWeight += weight
+			table.insert(weightedPlots, {
+				plot = plot,
+				weight = weight,
+			})
+		end
+	end
+
+	if totalWeight <= 0 then
+		return nil
+	end
+
+	local roll = math.random() * totalWeight
+	local cumulative = 0
+	for _, entry in ipairs(weightedPlots) do
+		cumulative += entry.weight
+		if roll <= cumulative then
+			return entry.plot
+		end
+	end
+
+	return weightedPlots[#weightedPlots].plot
+end
+
+local function makeRoute()
+	local northGate = getPoint("NorthGate")
+	local southGate = getPoint("SouthGate")
+	local center = getPoint("Center")
+	local westLoop = getPoint("WestLoop")
+	local eastLoop = getPoint("EastLoop")
+	if not northGate or not southGate or not center or not westLoop or not eastLoop then
+		return nil
+	end
+
+	local startPoint = math.random(1, 2) == 1 and northGate or southGate
+	local endPoint = startPoint == northGate and southGate or northGate
+	local loopPoint = math.random(1, 2) == 1 and westLoop or eastLoop
+	local route = { startPoint, center, loopPoint }
+
+	if math.random() < plazaConfig.VisitorRouteChance then
+		local plot = chooseVisitorPlot()
+		if plot then
+			table.insert(route, Vector3.new(0, 2.2, plot.floor.Position.Z))
+			table.insert(route, getPlotEntrancePoint(plot))
+			table.insert(route, Vector3.new(0, 2.2, plot.floor.Position.Z))
+		end
+	end
+
+	table.insert(route, center)
+	table.insert(route, endPoint)
+	return route
+end
+
+local function moveModelTo(model, targetPosition)
+	if not model.Parent or not model.PrimaryPart then
+		return false
+	end
+
+	local current = model:GetPivot()
+	local currentPosition = current.Position
+	local flatTarget = Vector3.new(targetPosition.X, currentPosition.Y, targetPosition.Z)
+	local distance = (flatTarget - currentPosition).Magnitude
+	if distance < 0.05 then
+		return true
+	end
+
+	local direction = flatTarget - currentPosition
+	local targetCFrame = CFrame.lookAt(flatTarget, flatTarget + direction.Unit)
+	local duration = math.max(0.35, distance / plazaConfig.NpcWalkSpeed)
+
+	local cframeValue = Instance.new("CFrameValue")
+	cframeValue.Value = current
+	local connection = cframeValue:GetPropertyChangedSignal("Value"):Connect(function()
+		if model.Parent then
+			model:PivotTo(cframeValue.Value)
+		end
+	end)
+
+	local tween = TweenService:Create(cframeValue, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+		Value = targetCFrame,
+	})
+	tween:Play()
+	tween.Completed:Wait()
+	connection:Disconnect()
+	cframeValue:Destroy()
+
+	return model.Parent ~= nil
+end
+
+local function runFan(model)
+	task.spawn(function()
+		task.wait(math.random() * 2)
+		while running and model.Parent do
+			local route = makeRoute()
+			if route and #route >= 2 then
+				model:PivotTo(CFrame.lookAt(route[1], route[2]))
+				for index = 2, #route do
+					if not moveModelTo(model, route[index]) then
+						return
+					end
+					task.wait(math.random(8, 22) / 100)
+				end
+			else
+				task.wait(1)
+			end
+		end
+	end)
+end
+
+function CrowdService.Init(baseService, dataService)
+	if running then
+		return
+	end
+
+	BaseService = baseService
+	DataService = dataService
+	running = true
+
+	task.spawn(function()
+		local basesFolder = Workspace:WaitForChild("PlayerBases", 10)
+		if not basesFolder then
+			return
+		end
+
+		if fanFolder and fanFolder.Parent then
+			fanFolder:Destroy()
+		end
+
+		fanFolder = make("Folder", {
+			Name = "FanCrowd",
+		}, basesFolder)
+
+		for index = 1, plazaConfig.CrowdNpcCount do
+			local fan = createFanNpc(index)
+			runFan(fan)
+		end
+	end)
+end
+
+function CrowdService.Stop()
+	running = false
+	if fanFolder then
+		fanFolder:Destroy()
+		fanFolder = nil
+	end
+end
+
+return CrowdService
 ]])
 
 makeModule('DataService', SSS, [[local DataStoreService = game:GetService("DataStoreService")
@@ -1943,6 +2536,7 @@ local DataService = require(ServerScriptService:WaitForChild("DataService"))
 local EconomyService = require(ServerScriptService:WaitForChild("EconomyService"))
 local PackService = require(ServerScriptService:WaitForChild("PackService"))
 local BaseService = require(ServerScriptService:WaitForChild("BaseService"))
+local CrowdService = require(ServerScriptService:WaitForChild("CrowdService"))
 local RebirthService = require(ServerScriptService:WaitForChild("RebirthService"))
 
 local PackConfig = require(Shared:WaitForChild("PackConfig"))
@@ -1997,6 +2591,7 @@ EconomyService.Init(DataService)
 RebirthService.Init(DataService)
 
 BaseService.BuildBaseMap()
+CrowdService.Init(BaseService, DataService)
 
 local swingCooldowns = {}
 

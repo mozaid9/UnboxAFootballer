@@ -10,6 +10,7 @@ local layout = Constants.BaseLayout
 local basesFolder
 local plots = {}
 local assignedPlots = {}
+local animatedTurnstiles = {}
 
 local function make(className, props, parent)
 	local instance = Instance.new(className)
@@ -132,6 +133,271 @@ local function createStadiumWedge(parent, size, cframe)
 		Size = size,
 		CFrame = cframe,
 	}, parent)
+end
+
+local function createGlowStrip(parent, name, size, cframe, color, transparency)
+	make("Part", {
+		Name = name,
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.Neon,
+		Color = color or Color3.fromRGB(255, 215, 0),
+		Transparency = transparency or 0.18,
+		Size = size,
+		CFrame = cframe,
+	}, parent)
+end
+
+local function createWaypoint(parent, name, position)
+	make("Part", {
+		Name = name,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(2, 2, 2),
+		CFrame = CFrame.new(position),
+	}, parent)
+end
+
+local function createSurfaceText(part, title, subtitle)
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local gui = make("SurfaceGui", {
+			Face = face,
+			PixelsPerStud = 90,
+			LightInfluence = 0,
+		}, part)
+
+		local frame = make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(8, 12, 20),
+			BorderSizePixel = 0,
+			Size = UDim2.fromScale(1, 1),
+		}, gui)
+
+		make("UIStroke", {
+			Color = Color3.fromRGB(255, 215, 0),
+			Thickness = 3,
+		}, frame)
+
+		createSignLabel(title, UDim2.fromScale(0.92, 0.42), UDim2.fromScale(0.04, 0.15), Color3.fromRGB(255, 215, 0), frame)
+		if subtitle and subtitle ~= "" then
+			local subtitleLabel = createSignLabel(subtitle, UDim2.fromScale(0.86, 0.22), UDim2.fromScale(0.07, 0.62), Color3.fromRGB(245, 238, 220), frame)
+			subtitleLabel.Font = Enum.Font.GothamBold
+		end
+	end
+end
+
+local function createTurnstile(parent, cframe)
+	local model = make("Model", {
+		Name = "Turnstile",
+	}, parent)
+
+	local post = make("Part", {
+		Name = "Post",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Metal,
+		Color = Color3.fromRGB(170, 130, 42),
+		Size = Vector3.new(0.35, 3.4, 0.35),
+		CFrame = cframe,
+	}, model)
+
+	local arms = {}
+	for index = 1, 4 do
+		local angle = math.rad((index - 1) * 90)
+		local arm = make("Part", {
+			Name = "Arm" .. index,
+			Anchored = true,
+			CanCollide = false,
+			Material = Enum.Material.Metal,
+			Color = Color3.fromRGB(255, 215, 0),
+			Size = Vector3.new(2.3, 0.14, 0.14),
+			CFrame = cframe * CFrame.new(0, 0.25, 0) * CFrame.Angles(0, angle, 0),
+		}, model)
+		table.insert(arms, { part = arm, angle = angle })
+	end
+
+	table.insert(animatedTurnstiles, {
+		post = post,
+		arms = arms,
+		baseCFrame = cframe,
+	})
+
+	return model
+end
+
+local function startTurnstileAnimations()
+	for _, turnstile in ipairs(animatedTurnstiles) do
+		task.spawn(function()
+			local spin = math.random() * math.pi
+			while turnstile.post.Parent do
+				spin += math.rad(4)
+				for _, armData in ipairs(turnstile.arms) do
+					if armData.part.Parent then
+						armData.part.CFrame = turnstile.baseCFrame * CFrame.new(0, 0.25, 0) * CFrame.Angles(0, spin + armData.angle, 0)
+					end
+				end
+				task.wait(0.04)
+			end
+		end)
+	end
+end
+
+local function createFanGate(parent, name, z, facingDirection)
+	local gate = make("Model", {
+		Name = name,
+	}, parent)
+
+	local center = Vector3.new(0, 0, z)
+	local columnColor = Color3.fromRGB(24, 30, 42)
+	local signColor = Color3.fromRGB(8, 12, 20)
+	local lookDirection = Vector3.new(0, 0, facingDirection)
+
+	make("Part", {
+		Name = "LeftColumn",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Concrete,
+		Color = columnColor,
+		Size = Vector3.new(4, 13, 4),
+		CFrame = CFrame.new(center + Vector3.new(-17, 6.5, 0)),
+	}, gate)
+
+	make("Part", {
+		Name = "RightColumn",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Concrete,
+		Color = columnColor,
+		Size = Vector3.new(4, 13, 4),
+		CFrame = CFrame.new(center + Vector3.new(17, 6.5, 0)),
+	}, gate)
+
+	make("Part", {
+		Name = "TopBeam",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Concrete,
+		Color = columnColor,
+		Size = Vector3.new(40, 3, 4),
+		CFrame = CFrame.new(center + Vector3.new(0, 11.5, 0)),
+	}, gate)
+
+	local sign = make("Part", {
+		Name = "WelcomeSign",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = signColor,
+		Size = Vector3.new(30, 5, 0.5),
+		CFrame = CFrame.lookAt(center + Vector3.new(0, 15.2, -facingDirection * 0.3), center + Vector3.new(0, 15.2, -facingDirection * 0.3) + lookDirection),
+	}, gate)
+	createSurfaceText(sign, "WELCOME FANS", "TURNSTILES")
+
+	for index = 1, 3 do
+		local x = -8 + ((index - 1) * 8)
+		createTurnstile(gate, CFrame.new(center + Vector3.new(x, 2.1, -facingDirection * 2)))
+		createGlowStrip(gate, "GateLight" .. index, Vector3.new(4.2, 0.18, 1.4), CFrame.new(center + Vector3.new(x, 0.2, -facingDirection * 5.2)), Color3.fromRGB(65, 255, 112), 0.05)
+	end
+
+	return gate
+end
+
+local function createFanPlaza(mapWidth, mapLength)
+	local plaza = make("Model", {
+		Name = "FanPlaza",
+	}, basesFolder)
+
+	local waypointFolder = make("Folder", {
+		Name = "Waypoints",
+	}, plaza)
+
+	local northZ = (mapLength / 2) - 32
+	local southZ = -(mapLength / 2) + 32
+
+	make("Part", {
+		Name = "MainWalkway",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.Slate,
+		Color = Color3.fromRGB(68, 74, 86),
+		Size = Vector3.new(40, 0.18, mapLength - 64),
+		CFrame = CFrame.new(0, 0.24, 0),
+	}, plaza)
+
+	createGlowStrip(plaza, "MainGoldLineLeft", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(-22, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.18)
+	createGlowStrip(plaza, "MainGoldLineRight", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(22, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.18)
+
+	for laneIndex = 1, layout.PlotsPerSide do
+		local laneZ = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
+		make("Part", {
+			Name = "StadiumPath" .. laneIndex,
+			Anchored = true,
+			CanCollide = false,
+			Material = Enum.Material.Slate,
+			Color = Color3.fromRGB(62, 68, 80),
+			Size = Vector3.new((layout.SideOffset * 2) - 36, 0.14, 12),
+			CFrame = CFrame.new(0, 0.28, laneZ),
+		}, plaza)
+		createGlowStrip(plaza, "StadiumPathGoldA" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 42, 0.18, 0.25), CFrame.new(0, 0.42, laneZ - 6), Color3.fromRGB(255, 215, 0), 0.28)
+		createGlowStrip(plaza, "StadiumPathGoldB" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 42, 0.18, 0.25), CFrame.new(0, 0.42, laneZ + 6), Color3.fromRGB(255, 215, 0), 0.28)
+	end
+
+	local statueBase = make("Part", {
+		Name = "FanPlazaPedestal",
+		Anchored = true,
+		CanCollide = true,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(18, 23, 34),
+		Size = Vector3.new(22, 1.1, 22),
+		CFrame = CFrame.new(0, 0.9, 0),
+	}, plaza)
+	_ = statueBase
+
+	createGlowStrip(plaza, "PedestalGlow", Vector3.new(24, 0.22, 24), CFrame.new(0, 1.52, 0), Color3.fromRGB(255, 215, 0), 0.4)
+
+	local ball = make("Part", {
+		Name = "GoldFootball",
+		Anchored = true,
+		CanCollide = false,
+		Shape = Enum.PartType.Ball,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(255, 202, 61),
+		Size = Vector3.new(8, 8, 8),
+		CFrame = CFrame.new(0, 6.0, 0),
+	}, plaza)
+
+	make("PointLight", {
+		Color = Color3.fromRGB(255, 215, 0),
+		Range = 34,
+		Brightness = 1.2,
+		Shadows = false,
+	}, ball)
+
+	local plazaSign = make("Part", {
+		Name = "FanPlazaSign",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(8, 12, 20),
+		Size = Vector3.new(18, 3.2, 0.5),
+		CFrame = CFrame.lookAt(Vector3.new(0, 3.2, -13), Vector3.new(0, 3.2, -40)),
+	}, plaza)
+	createSurfaceText(plazaSign, "FAN PLAZA", "")
+
+	createFanGate(plaza, "NorthFanGate", northZ, -1)
+	createFanGate(plaza, "SouthFanGate", southZ, 1)
+
+	createWaypoint(waypointFolder, "NorthGate", Vector3.new(0, 2.2, northZ - 10))
+	createWaypoint(waypointFolder, "SouthGate", Vector3.new(0, 2.2, southZ + 10))
+	createWaypoint(waypointFolder, "Center", Vector3.new(0, 2.2, 0))
+	createWaypoint(waypointFolder, "WestLoop", Vector3.new(-16, 2.2, 0))
+	createWaypoint(waypointFolder, "EastLoop", Vector3.new(16, 2.2, 0))
+
+	startTurnstileAnimations()
+	return plaza
 end
 
 local function createDisplayCardFace(face, card, incomePerSecond, parent)
@@ -638,6 +904,7 @@ end
 function BaseService.BuildBaseMap()
 	plots = {}
 	assignedPlots = {}
+	animatedTurnstiles = {}
 
 	if basesFolder then
 		basesFolder:Destroy()
@@ -668,6 +935,8 @@ function BaseService.BuildBaseMap()
 		Size = Vector3.new(mapWidth - 8, 0.2, mapLength - 8),
 		CFrame = CFrame.new(0, 0.1, 0),
 	}, basesFolder)
+
+	createFanPlaza(mapWidth, mapLength)
 
 	for sideIndex = 1, 2 do
 		for laneIndex = 1, layout.PlotsPerSide do

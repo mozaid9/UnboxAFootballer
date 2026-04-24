@@ -69,6 +69,15 @@ Constants.BaseLayout = {
 	DisplaySlotSize = Vector3.new(7, 3.5, 7),
 }
 
+Constants.FanPlaza = {
+	CrowdNpcCount = 20,
+	FansPerVisibleNpc = 75000,
+	BaseStadiumCapacity = 4,
+	MaxStadiumVisitors = 8,
+	VisitorRouteChance = 0.48,
+	NpcWalkSpeed = 13,
+}
+
 Constants.Pitchfork = {
 	BaseDamage = 1,
 	SwingCooldown = 0.42,

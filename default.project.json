@@ -25,6 +25,9 @@
       "BaseService": {
         "$path": "src/server/BaseService.lua"
       },
+      "CrowdService": {
+        "$path": "src/server/CrowdService.lua"
+      },
       "DataService": {
         "$path": "src/server/DataService.lua"
       },
