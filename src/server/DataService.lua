@@ -37,6 +37,56 @@ local DEFAULT_DATA = {
 local cache = {}
 local dirtyPlayers = {}
 
+local function normalizeInventoryData(data)
+	if not data then
+		return false
+	end
+
+	if type(data.inventory) ~= "table" then
+		data.inventory = {}
+		return true
+	end
+
+	local normalized = {}
+	local changed = false
+
+	for key, amount in pairs(data.inventory) do
+		local cardId = tonumber(key)
+		local count = tonumber(amount)
+		if cardId and count and count > 0 then
+			local normalizedKey = tostring(math.floor(cardId))
+			local normalizedCount = math.floor(count)
+			normalized[normalizedKey] = (normalized[normalizedKey] or 0) + normalizedCount
+
+			if type(key) ~= "string" or key ~= normalizedKey or amount ~= normalizedCount then
+				changed = true
+			end
+		else
+			changed = true
+		end
+	end
+
+	for key, amount in pairs(normalized) do
+		if data.inventory[key] ~= amount then
+			changed = true
+			break
+		end
+	end
+
+	for key in pairs(data.inventory) do
+		if normalized[key] == nil then
+			changed = true
+			break
+		end
+	end
+
+	if changed then
+		data.inventory = normalized
+	end
+
+	return changed
+end
+
 local function deepMergeDefaults(source, defaults)
 	local merged = {}
 	for key, defaultValue in pairs(defaults) do
@@ -85,6 +135,7 @@ function DataService.LoadPlayer(player)
 	end)
 
 	cache[player] = deepMergeDefaults(ok and storedData or {}, DEFAULT_DATA)
+	normalizeInventoryData(cache[player])
 	DataService.MarkDirty(player)
 	return cache[player]
 end
@@ -157,6 +208,9 @@ function DataService.AddCard(player, cardId, amount)
 	if not data then
 		return false
 	end
+	if normalizeInventoryData(data) then
+		DataService.MarkDirty(player)
+	end
 
 	local key = tostring(cardId)
 	local delta = amount or 1
@@ -169,6 +223,9 @@ function DataService.RemoveCard(player, cardId, amount)
 	local data = cache[player]
 	if not data then
 		return false
+	end
+	if normalizeInventoryData(data) then
+		DataService.MarkDirty(player)
 	end
 
 	local key = tostring(cardId)
@@ -194,6 +251,9 @@ function DataService.GetCardCount(player, cardId)
 	if not data then
 		return 0
 	end
+	if normalizeInventoryData(data) then
+		DataService.MarkDirty(player)
+	end
 	return data.inventory[tostring(cardId)] or 0
 end
 
@@ -205,6 +265,9 @@ function DataService.GetInventory(player)
 	local data = cache[player]
 	if not data then
 		return {}
+	end
+	if normalizeInventoryData(data) then
+		DataService.MarkDirty(player)
 	end
 	return data.inventory
 end

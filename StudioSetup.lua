@@ -1215,6 +1215,56 @@ local DEFAULT_DATA = {
 local cache = {}
 local dirtyPlayers = {}
 
+local function normalizeInventoryData(data)
+	if not data then
+		return false
+	end
+
+	if type(data.inventory) ~= "table" then
+		data.inventory = {}
+		return true
+	end
+
+	local normalized = {}
+	local changed = false
+
+	for key, amount in pairs(data.inventory) do
+		local cardId = tonumber(key)
+		local count = tonumber(amount)
+		if cardId and count and count > 0 then
+			local normalizedKey = tostring(math.floor(cardId))
+			local normalizedCount = math.floor(count)
+			normalized[normalizedKey] = (normalized[normalizedKey] or 0) + normalizedCount
+
+			if type(key) ~= "string" or key ~= normalizedKey or amount ~= normalizedCount then
+				changed = true
+			end
+		else
+			changed = true
+		end
+	end
+
+	for key, amount in pairs(normalized) do
+		if data.inventory[key] ~= amount then
+			changed = true
+			break
+		end
+	end
+
+	for key in pairs(data.inventory) do
+		if normalized[key] == nil then
+			changed = true
+			break
+		end
+	end
+
+	if changed then
+		data.inventory = normalized
+	end
+
+	return changed
+end
+
 local function deepMergeDefaults(source, defaults)
 	local merged = {}
 	for key, defaultValue in pairs(defaults) do
@@ -1263,6 +1313,7 @@ function DataService.LoadPlayer(player)
 	end)
 
 	cache[player] = deepMergeDefaults(ok and storedData or {}, DEFAULT_DATA)
+	normalizeInventoryData(cache[player])
 	DataService.MarkDirty(player)
 	return cache[player]
 end
@@ -1335,6 +1386,9 @@ function DataService.AddCard(player, cardId, amount)
 	if not data then
 		return false
 	end
+	if normalizeInventoryData(data) then
+		DataService.MarkDirty(player)
+	end
 
 	local key = tostring(cardId)
 	local delta = amount or 1
@@ -1347,6 +1401,9 @@ function DataService.RemoveCard(player, cardId, amount)
 	local data = cache[player]
 	if not data then
 		return false
+	end
+	if normalizeInventoryData(data) then
+		DataService.MarkDirty(player)
 	end
 
 	local key = tostring(cardId)
@@ -1372,6 +1429,9 @@ function DataService.GetCardCount(player, cardId)
 	if not data then
 		return 0
 	end
+	if normalizeInventoryData(data) then
+		DataService.MarkDirty(player)
+	end
 	return data.inventory[tostring(cardId)] or 0
 end
 
@@ -1383,6 +1443,9 @@ function DataService.GetInventory(player)
 	local data = cache[player]
 	if not data then
 		return {}
+	end
+	if normalizeInventoryData(data) then
+		DataService.MarkDirty(player)
 	end
 	return data.inventory
 end
@@ -2622,22 +2685,32 @@ GetInventoryFn.OnServerInvoke = function(player)
 		return {}
 	end
 
-	local inventory = {}
-	for key, amount in pairs(data.inventory) do
+	local inventoryById = {}
+	for key, amount in pairs(DataService.GetInventory(player)) do
 		local cardId = tonumber(key)
 		local card = cardId and CardData.ById[cardId]
 		if card and amount > 0 then
-			table.insert(inventory, {
-				id = card.id,
-				name = card.name,
-				nation = card.nation,
-				position = card.position,
-				rating = card.rating,
-				rarity = card.rarity,
-				quantity = amount,
-				sellValue = Utils.GetSellValue(card.rating),
-			})
+			local existing = inventoryById[card.id]
+			if existing then
+				existing.quantity += amount
+			else
+				inventoryById[card.id] = {
+					id = card.id,
+					name = card.name,
+					nation = card.nation,
+					position = card.position,
+					rating = card.rating,
+					rarity = card.rarity,
+					quantity = amount,
+					sellValue = Utils.GetSellValue(card.rating),
+				}
+			end
 		end
+	end
+
+	local inventory = {}
+	for _, cardEntry in pairs(inventoryById) do
+		table.insert(inventory, cardEntry)
 	end
 
 	table.sort(inventory, function(a, b)
@@ -2704,6 +2777,7 @@ SellCardFn.OnServerInvoke = function(player, cardId)
 	local earned = Utils.GetSellValue(card.rating)
 	EconomyService.AddCoins(player, earned)
 	refreshPlotDisplayState(player, BaseService.GetPlot(player))
+	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
 
 	return {
 		success = true,
@@ -2729,6 +2803,7 @@ SellAllCardsFn.OnServerInvoke = function(player, cardIds)
 
 	if total > 0 then
 		EconomyService.AddCoins(player, total)
+		UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
 	end
 	refreshPlotDisplayState(player, BaseService.GetPlot(player))
 
@@ -2851,6 +2926,7 @@ local Constants = require(Shared:WaitForChild("Constants"))
 local Utils = require(Shared:WaitForChild("Utils"))
 
 local GetInventoryFn = Remotes:WaitForChild("GetInventory")
+local SellCardFn = Remotes:WaitForChild("SellCard")
 local PackOpenedEvent = Remotes:WaitForChild("PackOpened")
 local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
 local OpenSlotPickerEvent = Remotes:WaitForChild("OpenSlotPicker")
@@ -2963,7 +3039,7 @@ local layout = make("UIGridLayout", {
 
 local currentMode = "inventory"
 local targetSlotIndex = nil
-local isPlacing = false
+local isSubmitting = false
 local statusOverride = nil
 
 local function clearEntries()
@@ -3065,8 +3141,9 @@ local function refreshInventory()
 			Font = Enum.Font.GothamBold,
 		}, tile)
 
+		local actionButton
 		if isSlotPicker then
-			local placeButton = make("TextButton", {
+			actionButton = make("TextButton", {
 				AnchorPoint = Vector2.new(0.5, 1),
 				Position = UDim2.new(0.5, 0, 1, -8),
 				Size = UDim2.new(0.82, 0, 0, 30),
@@ -3076,18 +3153,32 @@ local function refreshInventory()
 				TextScaled = true,
 				Font = Enum.Font.GothamBlack,
 			}, tile)
-			addCorner(placeButton, 10)
+		else
+			actionButton = make("TextButton", {
+				AnchorPoint = Vector2.new(0.5, 1),
+				Position = UDim2.new(0.5, 0, 1, -8),
+				Size = UDim2.new(0.82, 0, 0, 30),
+				BackgroundColor3 = Constants.UI.Danger,
+				Text = "Sell +" .. tostring(card.sellValue),
+				TextColor3 = Constants.UI.Text,
+				TextScaled = true,
+				Font = Enum.Font.GothamBlack,
+			}, tile)
+		end
+		addCorner(actionButton, 10)
 
-			placeButton.MouseButton1Click:Connect(function()
-				if isPlacing then
-					return
-				end
+		actionButton.MouseButton1Click:Connect(function()
+			if isSubmitting then
+				return
+			end
 
-				isPlacing = true
-				placeButton.Text = "Placing..."
+			isSubmitting = true
+
+			if isSlotPicker then
+				actionButton.Text = "Placing..."
 
 				local result = PlaceInventoryCardInSlotFn:InvokeServer(targetSlotIndex, card.id)
-				isPlacing = false
+				isSubmitting = false
 
 				if result and result.success then
 					closePanel()
@@ -3096,8 +3187,22 @@ local function refreshInventory()
 
 				statusOverride = (result and result.error) or "Could not place that player."
 				refreshInventory()
-			end)
-		end
+				return
+			end
+
+			actionButton.Text = "Selling..."
+			local result = SellCardFn:InvokeServer(card.id)
+			isSubmitting = false
+
+			if result and result.success then
+				statusOverride = card.name .. " sold for +" .. tostring(result.coinsEarned or card.sellValue) .. " coins."
+				refreshInventory()
+				return
+			end
+
+			statusOverride = (result and result.error) or "Could not sell that player."
+			refreshInventory()
+		end)
 	end
 
 	task.defer(function()

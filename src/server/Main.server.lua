@@ -853,22 +853,32 @@ GetInventoryFn.OnServerInvoke = function(player)
 		return {}
 	end
 
-	local inventory = {}
-	for key, amount in pairs(data.inventory) do
+	local inventoryById = {}
+	for key, amount in pairs(DataService.GetInventory(player)) do
 		local cardId = tonumber(key)
 		local card = cardId and CardData.ById[cardId]
 		if card and amount > 0 then
-			table.insert(inventory, {
-				id = card.id,
-				name = card.name,
-				nation = card.nation,
-				position = card.position,
-				rating = card.rating,
-				rarity = card.rarity,
-				quantity = amount,
-				sellValue = Utils.GetSellValue(card.rating),
-			})
+			local existing = inventoryById[card.id]
+			if existing then
+				existing.quantity += amount
+			else
+				inventoryById[card.id] = {
+					id = card.id,
+					name = card.name,
+					nation = card.nation,
+					position = card.position,
+					rating = card.rating,
+					rarity = card.rarity,
+					quantity = amount,
+					sellValue = Utils.GetSellValue(card.rating),
+				}
+			end
 		end
+	end
+
+	local inventory = {}
+	for _, cardEntry in pairs(inventoryById) do
+		table.insert(inventory, cardEntry)
 	end
 
 	table.sort(inventory, function(a, b)
@@ -935,6 +945,7 @@ SellCardFn.OnServerInvoke = function(player, cardId)
 	local earned = Utils.GetSellValue(card.rating)
 	EconomyService.AddCoins(player, earned)
 	refreshPlotDisplayState(player, BaseService.GetPlot(player))
+	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
 
 	return {
 		success = true,
@@ -960,6 +971,7 @@ SellAllCardsFn.OnServerInvoke = function(player, cardIds)
 
 	if total > 0 then
 		EconomyService.AddCoins(player, total)
+		UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
 	end
 	refreshPlotDisplayState(player, BaseService.GetPlot(player))
 

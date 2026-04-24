@@ -11,6 +11,7 @@ local Constants = require(Shared:WaitForChild("Constants"))
 local Utils = require(Shared:WaitForChild("Utils"))
 
 local GetInventoryFn = Remotes:WaitForChild("GetInventory")
+local SellCardFn = Remotes:WaitForChild("SellCard")
 local PackOpenedEvent = Remotes:WaitForChild("PackOpened")
 local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
 local OpenSlotPickerEvent = Remotes:WaitForChild("OpenSlotPicker")
@@ -123,7 +124,7 @@ local layout = make("UIGridLayout", {
 
 local currentMode = "inventory"
 local targetSlotIndex = nil
-local isPlacing = false
+local isSubmitting = false
 local statusOverride = nil
 
 local function clearEntries()
@@ -225,8 +226,9 @@ local function refreshInventory()
 			Font = Enum.Font.GothamBold,
 		}, tile)
 
+		local actionButton
 		if isSlotPicker then
-			local placeButton = make("TextButton", {
+			actionButton = make("TextButton", {
 				AnchorPoint = Vector2.new(0.5, 1),
 				Position = UDim2.new(0.5, 0, 1, -8),
 				Size = UDim2.new(0.82, 0, 0, 30),
@@ -236,18 +238,32 @@ local function refreshInventory()
 				TextScaled = true,
 				Font = Enum.Font.GothamBlack,
 			}, tile)
-			addCorner(placeButton, 10)
+		else
+			actionButton = make("TextButton", {
+				AnchorPoint = Vector2.new(0.5, 1),
+				Position = UDim2.new(0.5, 0, 1, -8),
+				Size = UDim2.new(0.82, 0, 0, 30),
+				BackgroundColor3 = Constants.UI.Danger,
+				Text = "Sell +" .. tostring(card.sellValue),
+				TextColor3 = Constants.UI.Text,
+				TextScaled = true,
+				Font = Enum.Font.GothamBlack,
+			}, tile)
+		end
+		addCorner(actionButton, 10)
 
-			placeButton.MouseButton1Click:Connect(function()
-				if isPlacing then
-					return
-				end
+		actionButton.MouseButton1Click:Connect(function()
+			if isSubmitting then
+				return
+			end
 
-				isPlacing = true
-				placeButton.Text = "Placing..."
+			isSubmitting = true
+
+			if isSlotPicker then
+				actionButton.Text = "Placing..."
 
 				local result = PlaceInventoryCardInSlotFn:InvokeServer(targetSlotIndex, card.id)
-				isPlacing = false
+				isSubmitting = false
 
 				if result and result.success then
 					closePanel()
@@ -256,8 +272,22 @@ local function refreshInventory()
 
 				statusOverride = (result and result.error) or "Could not place that player."
 				refreshInventory()
-			end)
-		end
+				return
+			end
+
+			actionButton.Text = "Selling..."
+			local result = SellCardFn:InvokeServer(card.id)
+			isSubmitting = false
+
+			if result and result.success then
+				statusOverride = card.name .. " sold for +" .. tostring(result.coinsEarned or card.sellValue) .. " coins."
+				refreshInventory()
+				return
+			end
+
+			statusOverride = (result and result.error) or "Could not sell that player."
+			refreshInventory()
+		end)
 	end
 
 	task.defer(function()
