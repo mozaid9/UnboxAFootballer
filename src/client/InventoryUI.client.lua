@@ -47,7 +47,12 @@ local screenGui = make("ScreenGui", {
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, playerGui)
 
+local toggleEvent = Instance.new("BindableEvent")
+toggleEvent.Name = "ToggleEvent"
+toggleEvent.Parent = screenGui
+
 local toggle = make("TextButton", {
+	Visible = false,
 	AnchorPoint = Vector2.new(0, 1),
 	Size = UDim2.fromOffset(176, 38),
 	Position = UDim2.new(0, 24, 1, -116),
@@ -128,6 +133,7 @@ local targetSlotIndex = nil
 local isSubmitting = false
 local statusOverride = nil
 local refreshToken = 0
+local refreshInventory
 
 local function clearEntries()
 	for _, child in ipairs(scrolling:GetChildren()) do
@@ -143,6 +149,14 @@ local function closePanel()
 	targetSlotIndex = nil
 	statusOverride = nil
 	statusLabel.Text = ""
+end
+
+local function openInventoryPanel()
+	currentMode = "inventory"
+	targetSlotIndex = nil
+	statusOverride = nil
+	panel.Visible = true
+	refreshInventory()
 end
 
 local function mergeInventoryRows(inventory)
@@ -182,7 +196,7 @@ local function mergeInventoryRows(inventory)
 	return merged
 end
 
-local function refreshInventory()
+function refreshInventory()
 	refreshToken += 1
 	local myToken = refreshToken
 
@@ -345,16 +359,22 @@ local function refreshInventory()
 end
 
 toggle.MouseButton1Click:Connect(function()
-	panel.Visible = not panel.Visible
-	if panel.Visible then
-		currentMode = "inventory"
-		targetSlotIndex = nil
-		statusOverride = nil
-		refreshInventory()
+	if panel.Visible and currentMode == "inventory" then
+		closePanel()
+	else
+		openInventoryPanel()
 	end
 end)
 
 closeButton.MouseButton1Click:Connect(closePanel)
+
+toggleEvent.Event:Connect(function()
+	if panel.Visible and currentMode == "inventory" then
+		closePanel()
+	else
+		openInventoryPanel()
+	end
+end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then

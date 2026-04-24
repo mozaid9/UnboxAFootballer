@@ -400,6 +400,27 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, model)
 	_ = packPadBorder
 
+	local packStage = make("Part", {
+		Name = "PackStageGlow",
+		Anchored = true,
+		CanCollide = false,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 215, 0),
+		Transparency = 0.42,
+		Size = Vector3.new(14, 0.25, 14),
+		CFrame = packPad.CFrame * CFrame.new(0, -0.36, 0),
+	}, model)
+	_ = packStage
+
+	make("PointLight", {
+		Name = "PackStageLight",
+		Color = Color3.fromRGB(255, 210, 80),
+		Range = 22,
+		Brightness = 1.15,
+		Shadows = false,
+	}, packPad)
+
 	local spawnPad = make("Part", {
 		Name = "SpawnPad",
 		Anchored = true,

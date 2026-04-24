@@ -850,6 +850,27 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, model)
 	_ = packPadBorder
 
+	local packStage = make("Part", {
+		Name = "PackStageGlow",
+		Anchored = true,
+		CanCollide = false,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 215, 0),
+		Transparency = 0.42,
+		Size = Vector3.new(14, 0.25, 14),
+		CFrame = packPad.CFrame * CFrame.new(0, -0.36, 0),
+	}, model)
+	_ = packStage
+
+	make("PointLight", {
+		Name = "PackStageLight",
+		Color = Color3.fromRGB(255, 210, 80),
+		Range = 22,
+		Brightness = 1.15,
+		Shadows = false,
+	}, packPad)
+
 	local spawnPad = make("Part", {
 		Name = "SpawnPad",
 		Anchored = true,
@@ -3030,7 +3051,12 @@ local screenGui = make("ScreenGui", {
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, playerGui)
 
+local toggleEvent = Instance.new("BindableEvent")
+toggleEvent.Name = "ToggleEvent"
+toggleEvent.Parent = screenGui
+
 local toggle = make("TextButton", {
+	Visible = false,
 	AnchorPoint = Vector2.new(0, 1),
 	Size = UDim2.fromOffset(176, 38),
 	Position = UDim2.new(0, 24, 1, -116),
@@ -3111,6 +3137,7 @@ local targetSlotIndex = nil
 local isSubmitting = false
 local statusOverride = nil
 local refreshToken = 0
+local refreshInventory
 
 local function clearEntries()
 	for _, child in ipairs(scrolling:GetChildren()) do
@@ -3126,6 +3153,14 @@ local function closePanel()
 	targetSlotIndex = nil
 	statusOverride = nil
 	statusLabel.Text = ""
+end
+
+local function openInventoryPanel()
+	currentMode = "inventory"
+	targetSlotIndex = nil
+	statusOverride = nil
+	panel.Visible = true
+	refreshInventory()
 end
 
 local function mergeInventoryRows(inventory)
@@ -3165,7 +3200,7 @@ local function mergeInventoryRows(inventory)
 	return merged
 end
 
-local function refreshInventory()
+function refreshInventory()
 	refreshToken += 1
 	local myToken = refreshToken
 
@@ -3328,16 +3363,22 @@ local function refreshInventory()
 end
 
 toggle.MouseButton1Click:Connect(function()
-	panel.Visible = not panel.Visible
-	if panel.Visible then
-		currentMode = "inventory"
-		targetSlotIndex = nil
-		statusOverride = nil
-		refreshInventory()
+	if panel.Visible and currentMode == "inventory" then
+		closePanel()
+	else
+		openInventoryPanel()
 	end
 end)
 
 closeButton.MouseButton1Click:Connect(closePanel)
+
+toggleEvent.Event:Connect(function()
+	if panel.Visible and currentMode == "inventory" then
+		closePanel()
+	else
+		openInventoryPanel()
+	end
+end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then
@@ -3525,85 +3566,152 @@ task.spawn(function()
 	end)
 end)
 
-local hudDock = make("Frame", {
-	Name = "HudDock",
+local sidebar = make("Frame", {
+	Name = "Sidebar",
 	AnchorPoint = Vector2.new(0, 1),
-	Size = UDim2.fromOffset(176, 84),
-	Position = UDim2.new(0, 24, 1, -24),
-	BackgroundTransparency = 1,
+	Size = UDim2.fromOffset(168, 188),
+	Position = UDim2.new(0, 20, 1, -20),
+	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+	BackgroundTransparency = 0.12,
 }, screenGui)
-
-make("UIListLayout", {
-	FillDirection = Enum.FillDirection.Vertical,
-	HorizontalAlignment = Enum.HorizontalAlignment.Left,
-	VerticalAlignment = Enum.VerticalAlignment.Top,
-	Padding = UDim.new(0, 8),
-}, hudDock)
-
-local coinPill = make("Frame", {
-	LayoutOrder = 2,
-	Size = UDim2.fromOffset(176, 38),
-	BackgroundColor3 = UI.Panel,
-}, hudDock)
-addCorner(coinPill, 12)
-addStroke(coinPill, UI.Gold, 2, 0.15)
+addCorner(sidebar, 16)
+addStroke(sidebar, UI.Gold, 1.25, 0.72)
 
 make("UIGradient", {
 	Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 24, 38)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 14, 24)),
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(16, 22, 38)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(7, 10, 18)),
 	}),
 	Rotation = 90,
-}, coinPill)
+}, sidebar)
 
-local coinIcon = make("TextLabel", {
-	Size = UDim2.fromOffset(22, 22),
-	Position = UDim2.new(0, 8, 0.5, -11),
-	BackgroundColor3 = Color3.fromRGB(35, 30, 10),
-	Text = "C",
-	TextColor3 = UI.Gold,
-	TextScaled = false,
-	TextSize = 17,
-	Font = Enum.Font.GothamBlack,
-}, coinPill)
-addCorner(coinIcon, 8)
+local sidebarPadding = make("UIPadding", {
+	PaddingTop = UDim.new(0, 8),
+	PaddingBottom = UDim.new(0, 8),
+	PaddingLeft = UDim.new(0, 8),
+	PaddingRight = UDim.new(0, 8),
+}, sidebar)
+_ = sidebarPadding
 
-make("TextLabel", {
-	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 38, 0, 3),
-	Size = UDim2.new(1, -44, 0, 10),
-	Text = "Coins",
-	TextColor3 = UI.Muted,
-	TextScaled = false,
-	TextSize = 10,
-	Font = Enum.Font.GothamMedium,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, coinPill)
+make("UIListLayout", {
+	FillDirection = Enum.FillDirection.Vertical,
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	VerticalAlignment = Enum.VerticalAlignment.Top,
+	Padding = UDim.new(0, 7),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, sidebar)
 
-local coinsLabel = make("TextLabel", {
-	Name = "CoinsLabel",
-	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 38, 0, 12),
-	Size = UDim2.new(1, -44, 0, 18),
-	Text = "0",
-	TextColor3 = UI.Text,
-	TextScaled = false,
-	TextSize = 19,
-	Font = Enum.Font.GothamBlack,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, coinPill)
+local walletDock = make("Frame", {
+	Name = "WalletDock",
+	AnchorPoint = Vector2.new(1, 1),
+	Size = UDim2.fromOffset(218, 98),
+	Position = UDim2.new(1, -20, 1, -20),
+	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+	BackgroundTransparency = 0.1,
+}, screenGui)
+addCorner(walletDock, 16)
+addStroke(walletDock, UI.Gold, 1.25, 0.72)
 
-local openShopButton = make("TextButton", {
-	LayoutOrder = 1,
-	Size = UDim2.fromOffset(176, 38),
-	BackgroundColor3 = UI.Gold,
-	Text = "Upgrades",
-	TextColor3 = Color3.fromRGB(20, 14, 8),
-	TextScaled = false,
-	TextSize = 16,
-	Font = Enum.Font.GothamBlack,
-}, hudDock)
-addCorner(openShopButton, 12)
+local walletPadding = make("UIPadding", {
+	PaddingTop = UDim.new(0, 8),
+	PaddingBottom = UDim.new(0, 8),
+	PaddingLeft = UDim.new(0, 8),
+	PaddingRight = UDim.new(0, 8),
+}, walletDock)
+_ = walletPadding
+
+make("UIListLayout", {
+	FillDirection = Enum.FillDirection.Vertical,
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	VerticalAlignment = Enum.VerticalAlignment.Top,
+	Padding = UDim.new(0, 6),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, walletDock)
+
+local function createWalletRow(parent, order, labelText, iconText, iconColor)
+	local row = make("Frame", {
+		LayoutOrder = order,
+		Size = UDim2.new(1, 0, 0, 38),
+		BackgroundColor3 = UI.Panel,
+	}, parent)
+	addCorner(row, 10)
+	addStroke(row, iconColor, 1.5, 0.7)
+
+	local icon = make("TextLabel", {
+		Size = UDim2.fromOffset(26, 26),
+		Position = UDim2.new(0, 8, 0.5, -13),
+		BackgroundColor3 = iconColor:Lerp(Color3.fromRGB(0, 0, 0), 0.72),
+		Text = iconText,
+		TextColor3 = iconColor,
+		TextScaled = false,
+		TextSize = 17,
+		Font = Enum.Font.GothamBlack,
+	}, row)
+	addCorner(icon, 9)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 42, 0, 3),
+		Size = UDim2.new(1, -82, 0, 12),
+		Text = labelText,
+		TextColor3 = UI.Muted,
+		TextScaled = false,
+		TextSize = 10,
+		Font = Enum.Font.GothamMedium,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, row)
+
+	local valueLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 42, 0, 14),
+		Size = UDim2.new(1, -82, 0, 22),
+		Text = "0",
+		TextColor3 = UI.Text,
+		TextScaled = false,
+		TextSize = 18,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, row)
+
+	local plusButton = make("TextButton", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Size = UDim2.fromOffset(24, 24),
+		Position = UDim2.new(1, -8, 0.5, 0),
+		BackgroundColor3 = Color3.fromRGB(32, 128, 55),
+		Text = "+",
+		TextColor3 = UI.Text,
+		TextScaled = false,
+		TextSize = 18,
+		Font = Enum.Font.GothamBlack,
+	}, row)
+	addCorner(plusButton, 8)
+
+	return valueLabel, plusButton
+end
+
+local coinsLabel, addCoinsButton = createWalletRow(walletDock, 1, "Coins", "C", UI.Gold)
+local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "D", Color3.fromRGB(69, 207, 255))
+
+local function createMenuButton(order, text, accentColor)
+	local button = make("TextButton", {
+		LayoutOrder = order,
+		Size = UDim2.new(1, 0, 0, 36),
+		BackgroundColor3 = accentColor,
+		Text = text,
+		TextColor3 = accentColor == UI.Gold and Color3.fromRGB(20, 14, 8) or UI.Text,
+		TextScaled = false,
+		TextSize = 15,
+		Font = Enum.Font.GothamBlack,
+		AutoButtonColor = true,
+	}, sidebar)
+	addCorner(button, 9)
+	return button
+end
+
+local inventoryButton = createMenuButton(1, "Inventory", UI.PanelAlt)
+local upgradesButton = createMenuButton(2, "Upgrades", UI.Gold)
+local questsButton = createMenuButton(3, "Quests", Color3.fromRGB(42, 54, 126))
+local shopButton = createMenuButton(4, "Shop", Color3.fromRGB(25, 118, 55))
 
 local toastHolder = make("Frame", {
 	BackgroundTransparency = 1,
@@ -3620,6 +3728,10 @@ make("UIListLayout", {
 
 local function setCoinsDisplay(coins)
 	coinsLabel.Text = Utils.FormatNumber(coins or 0)
+end
+
+local function setGemsDisplay(gems)
+	gemsLabel.Text = Utils.FormatNumber(gems or 0)
 end
 
 local function showToast(text, accent)
@@ -3668,6 +3780,21 @@ local function showToast(text, accent)
 	end)
 end
 
+local function fireGuiToggle(guiName)
+	local targetGui = playerGui:FindFirstChild(guiName)
+	if not targetGui then
+		targetGui = playerGui:WaitForChild(guiName, 3)
+	end
+
+	local toggleEvent = targetGui and targetGui:FindFirstChild("ToggleEvent")
+	if toggleEvent then
+		toggleEvent:Fire()
+		return true
+	end
+
+	return false
+end
+
 local function refreshStatus()
 	local data = GetPlayerDataFn:InvokeServer()
 	if not data then
@@ -3675,31 +3802,35 @@ local function refreshStatus()
 	end
 
 	setCoinsDisplay(data.coins)
+	setGemsDisplay(data.gems)
 end
 
-openShopButton.MouseButton1Click:Connect(function()
-	local upgradesGui = playerGui:FindFirstChild("UpgradesUI")
-	if not upgradesGui then
-		upgradesGui = playerGui:WaitForChild("UpgradesUI", 3)
+inventoryButton.MouseButton1Click:Connect(function()
+	if not fireGuiToggle("InventoryUI") then
+		showToast("Inventory UI is still loading. Try again in a second.", UI.Gold)
 	end
-	local toggleEvent = upgradesGui and upgradesGui:FindFirstChild("ToggleEvent")
-	if toggleEvent then
-		toggleEvent:Fire()
-	else
+end)
+
+upgradesButton.MouseButton1Click:Connect(function()
+	if not fireGuiToggle("UpgradesUI") then
 		showToast("Upgrades UI is still loading. Try again in a second.", UI.Gold)
 	end
 end)
 
-openShopButton.MouseEnter:Connect(function()
-	TweenService:Create(openShopButton, TweenInfo.new(0.15), {
-		BackgroundColor3 = Color3.fromRGB(255, 229, 70),
-	}):Play()
+questsButton.MouseButton1Click:Connect(function()
+	showToast("Quests are coming soon. This button is ready for the next system.", Color3.fromRGB(110, 130, 255))
 end)
 
-openShopButton.MouseLeave:Connect(function()
-	TweenService:Create(openShopButton, TweenInfo.new(0.15), {
-		BackgroundColor3 = UI.Gold,
-	}):Play()
+shopButton.MouseButton1Click:Connect(function()
+	showToast("Shop is coming soon. Pack tiers and cosmetics will live here.", Color3.fromRGB(74, 185, 98))
+end)
+
+addCoinsButton.MouseButton1Click:Connect(function()
+	showToast("Coin purchases are coming later. For now, earn coins from display players.", UI.Gold)
+end)
+
+addGemsButton.MouseButton1Click:Connect(function()
+	showToast("Gems are planned for premium packs and cosmetics later.", Color3.fromRGB(69, 207, 255))
 end)
 
 UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
