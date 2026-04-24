@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -306,6 +307,16 @@ toggle.MouseButton1Click:Connect(function()
 end)
 
 closeButton.MouseButton1Click:Connect(closePanel)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then
+		return
+	end
+
+	if input.KeyCode == Enum.KeyCode.Escape and panel.Visible then
+		closePanel()
+	end
+end)
 
 local function refreshIfVisible()
 	if panel.Visible then
