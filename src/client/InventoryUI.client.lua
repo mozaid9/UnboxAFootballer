@@ -118,7 +118,7 @@ local scrolling = make("ScrollingFrame", {
 }, panel)
 
 local layout = make("UIGridLayout", {
-	CellSize = UDim2.fromOffset(126, 176),
+	CellSize = UDim2.fromOffset(126, 190),
 	CellPadding = UDim2.fromOffset(12, 12),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, scrolling)
@@ -144,9 +144,46 @@ local function closePanel()
 	statusLabel.Text = ""
 end
 
+local function mergeInventoryRows(inventory)
+	local byId = {}
+	local merged = {}
+
+	for _, card in ipairs(inventory or {}) do
+		local cardId = tonumber(card.id)
+		if cardId then
+			local existing = byId[cardId]
+			if existing then
+				existing.quantity += tonumber(card.quantity) or 0
+			else
+				local entry = {
+					id = cardId,
+					name = card.name,
+					nation = card.nation,
+					position = card.position,
+					rating = card.rating,
+					rarity = card.rarity,
+					quantity = tonumber(card.quantity) or 1,
+					sellValue = card.sellValue,
+				}
+				byId[cardId] = entry
+				table.insert(merged, entry)
+			end
+		end
+	end
+
+	table.sort(merged, function(a, b)
+		if a.rating == b.rating then
+			return a.name < b.name
+		end
+		return a.rating > b.rating
+	end)
+
+	return merged
+end
+
 local function refreshInventory()
 	clearEntries()
-	local inventory = GetInventoryFn:InvokeServer() or {}
+	local inventory = mergeInventoryRows(GetInventoryFn:InvokeServer())
 	local isSlotPicker = currentMode == "slotPicker"
 
 	if isSlotPicker then
@@ -219,8 +256,8 @@ local function refreshInventory()
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0.08, 0, 0.8, 0),
-			Size = UDim2.new(0.84, 0, 0.1, 0),
+			Position = UDim2.new(0.08, 0, 0.73, 0),
+			Size = UDim2.new(0.84, 0, 0.07, 0),
 			Text = "Stored x" .. tostring(card.quantity) .. " • +" .. tostring(Utils.GetPassiveIncome(card.rating)) .. "/s",
 			TextColor3 = Utils.GetRarityColor(card.rarity),
 			TextScaled = true,
@@ -234,7 +271,7 @@ local function refreshInventory()
 				Position = UDim2.new(0.5, 0, 1, -8),
 				Size = UDim2.new(0.82, 0, 0, 30),
 				BackgroundColor3 = Color3.fromRGB(74, 185, 98),
-				Text = "Place",
+				Text = card.quantity > 1 and ("Place x" .. tostring(card.quantity)) or "Place",
 				TextColor3 = Constants.UI.Text,
 				TextScaled = true,
 				Font = Enum.Font.GothamBlack,
@@ -245,7 +282,7 @@ local function refreshInventory()
 				Position = UDim2.new(0.5, 0, 1, -8),
 				Size = UDim2.new(0.82, 0, 0, 30),
 				BackgroundColor3 = Constants.UI.Danger,
-				Text = "Sell +" .. tostring(card.sellValue),
+				Text = "Sell 1 +" .. tostring(card.sellValue),
 				TextColor3 = Constants.UI.Text,
 				TextScaled = true,
 				Font = Enum.Font.GothamBlack,

@@ -510,21 +510,25 @@ end
 
 local function formatStadiumTitle(ownerName)
 	if not ownerName or ownerName == "" then
-		return "OPEN STADIUM"
+		return "OPEN"
 	end
 
-	return string.upper(ownerName) .. "'S STADIUM"
+	return string.upper(ownerName) .. "'S"
 end
 
 local function updateOwnerSign(plot, ownerName, subtitle)
 	if ownerName and ownerName ~= "" then
+		plot.ownerTopLabel.Text = "HOME CLUB"
 		plot.ownerNameLabel.Text = formatStadiumTitle(ownerName)
+		plot.ownerSubtitleLabel.Text = "STADIUM"
 	else
-		plot.ownerNameLabel.Text = "OPEN STADIUM"
+		plot.ownerTopLabel.Text = "AVAILABLE PLOT"
+		plot.ownerNameLabel.Text = "OPEN"
+		plot.ownerSubtitleLabel.Text = "STADIUM"
 	end
 
-	plot.ownerTopLabel.Visible = false
-	plot.ownerSubtitleLabel.Visible = false
+	plot.ownerTopLabel.Visible = true
+	plot.ownerSubtitleLabel.Visible = true
 end
 
 local function updatePadLabel(plot, title, subtitle, color)
@@ -790,7 +794,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, model)
 
 	local entranceBeamY = entrancePillarHeight + layout.PlotSize.Y / 2 - 0.6
-	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 2.7, 0)
+	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 3.1, 0)
 	local entranceBeam = createFence(
 		model,
 		Vector3.new(entrancePillarWidth + 1, 1.4, entranceWidth + 1.2),
@@ -803,7 +807,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(24, 30, 42),
-		Size = Vector3.new(18, 3.4, 0.6),
+		Size = Vector3.new(16, 4.4, 0.6),
 		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
 	}, model)
 
@@ -849,10 +853,10 @@ local function createPlot(plotId, side, laneIndex, position)
 		font = Enum.Font.GothamBlack,
 	}, ownerFrame)
 
-	local ownerNameLabel = createOwnerSignText("OPEN STADIUM", UDim2.fromScale(0.9, 0.42), UDim2.fromScale(0.05, 0.28), Color3.fromRGB(245, 238, 220), {
+	local ownerNameLabel = createOwnerSignText("OPEN", UDim2.fromScale(0.86, 0.3), UDim2.fromScale(0.07, 0.25), Color3.fromRGB(245, 238, 220), {
 		textScaled = true,
-		minTextSize = 46,
-		maxTextSize = 170,
+		minTextSize = 64,
+		maxTextSize = 240,
 		textStrokeTransparency = 0.72,
 		font = Enum.Font.GothamBlack,
 	}, ownerFrame)
@@ -3030,7 +3034,7 @@ local scrolling = make("ScrollingFrame", {
 }, panel)
 
 local layout = make("UIGridLayout", {
-	CellSize = UDim2.fromOffset(126, 176),
+	CellSize = UDim2.fromOffset(126, 190),
 	CellPadding = UDim2.fromOffset(12, 12),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, scrolling)
@@ -3056,9 +3060,46 @@ local function closePanel()
 	statusLabel.Text = ""
 end
 
+local function mergeInventoryRows(inventory)
+	local byId = {}
+	local merged = {}
+
+	for _, card in ipairs(inventory or {}) do
+		local cardId = tonumber(card.id)
+		if cardId then
+			local existing = byId[cardId]
+			if existing then
+				existing.quantity += tonumber(card.quantity) or 0
+			else
+				local entry = {
+					id = cardId,
+					name = card.name,
+					nation = card.nation,
+					position = card.position,
+					rating = card.rating,
+					rarity = card.rarity,
+					quantity = tonumber(card.quantity) or 1,
+					sellValue = card.sellValue,
+				}
+				byId[cardId] = entry
+				table.insert(merged, entry)
+			end
+		end
+	end
+
+	table.sort(merged, function(a, b)
+		if a.rating == b.rating then
+			return a.name < b.name
+		end
+		return a.rating > b.rating
+	end)
+
+	return merged
+end
+
 local function refreshInventory()
 	clearEntries()
-	local inventory = GetInventoryFn:InvokeServer() or {}
+	local inventory = mergeInventoryRows(GetInventoryFn:InvokeServer())
 	local isSlotPicker = currentMode == "slotPicker"
 
 	if isSlotPicker then
@@ -3131,8 +3172,8 @@ local function refreshInventory()
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0.08, 0, 0.8, 0),
-			Size = UDim2.new(0.84, 0, 0.1, 0),
+			Position = UDim2.new(0.08, 0, 0.73, 0),
+			Size = UDim2.new(0.84, 0, 0.07, 0),
 			Text = "Stored x" .. tostring(card.quantity) .. " • +" .. tostring(Utils.GetPassiveIncome(card.rating)) .. "/s",
 			TextColor3 = Utils.GetRarityColor(card.rarity),
 			TextScaled = true,
@@ -3146,7 +3187,7 @@ local function refreshInventory()
 				Position = UDim2.new(0.5, 0, 1, -8),
 				Size = UDim2.new(0.82, 0, 0, 30),
 				BackgroundColor3 = Color3.fromRGB(74, 185, 98),
-				Text = "Place",
+				Text = card.quantity > 1 and ("Place x" .. tostring(card.quantity)) or "Place",
 				TextColor3 = Constants.UI.Text,
 				TextScaled = true,
 				Font = Enum.Font.GothamBlack,
@@ -3157,7 +3198,7 @@ local function refreshInventory()
 				Position = UDim2.new(0.5, 0, 1, -8),
 				Size = UDim2.new(0.82, 0, 0, 30),
 				BackgroundColor3 = Constants.UI.Danger,
-				Text = "Sell +" .. tostring(card.sellValue),
+				Text = "Sell 1 +" .. tostring(card.sellValue),
 				TextColor3 = Constants.UI.Text,
 				TextScaled = true,
 				Font = Enum.Font.GothamBlack,

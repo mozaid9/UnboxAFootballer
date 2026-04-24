@@ -63,21 +63,25 @@ end
 
 local function formatStadiumTitle(ownerName)
 	if not ownerName or ownerName == "" then
-		return "OPEN STADIUM"
+		return "OPEN"
 	end
 
-	return string.upper(ownerName) .. "'S STADIUM"
+	return string.upper(ownerName) .. "'S"
 end
 
 local function updateOwnerSign(plot, ownerName, subtitle)
 	if ownerName and ownerName ~= "" then
+		plot.ownerTopLabel.Text = "HOME CLUB"
 		plot.ownerNameLabel.Text = formatStadiumTitle(ownerName)
+		plot.ownerSubtitleLabel.Text = "STADIUM"
 	else
-		plot.ownerNameLabel.Text = "OPEN STADIUM"
+		plot.ownerTopLabel.Text = "AVAILABLE PLOT"
+		plot.ownerNameLabel.Text = "OPEN"
+		plot.ownerSubtitleLabel.Text = "STADIUM"
 	end
 
-	plot.ownerTopLabel.Visible = false
-	plot.ownerSubtitleLabel.Visible = false
+	plot.ownerTopLabel.Visible = true
+	plot.ownerSubtitleLabel.Visible = true
 end
 
 local function updatePadLabel(plot, title, subtitle, color)
@@ -343,7 +347,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, model)
 
 	local entranceBeamY = entrancePillarHeight + layout.PlotSize.Y / 2 - 0.6
-	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 2.7, 0)
+	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 3.1, 0)
 	local entranceBeam = createFence(
 		model,
 		Vector3.new(entrancePillarWidth + 1, 1.4, entranceWidth + 1.2),
@@ -356,7 +360,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(24, 30, 42),
-		Size = Vector3.new(18, 3.4, 0.6),
+		Size = Vector3.new(16, 4.4, 0.6),
 		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
 	}, model)
 
@@ -402,10 +406,10 @@ local function createPlot(plotId, side, laneIndex, position)
 		font = Enum.Font.GothamBlack,
 	}, ownerFrame)
 
-	local ownerNameLabel = createOwnerSignText("OPEN STADIUM", UDim2.fromScale(0.9, 0.42), UDim2.fromScale(0.05, 0.28), Color3.fromRGB(245, 238, 220), {
+	local ownerNameLabel = createOwnerSignText("OPEN", UDim2.fromScale(0.86, 0.3), UDim2.fromScale(0.07, 0.25), Color3.fromRGB(245, 238, 220), {
 		textScaled = true,
-		minTextSize = 46,
-		maxTextSize = 170,
+		minTextSize = 64,
+		maxTextSize = 240,
 		textStrokeTransparency = 0.72,
 		font = Enum.Font.GothamBlack,
 	}, ownerFrame)
