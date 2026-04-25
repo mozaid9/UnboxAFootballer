@@ -80,8 +80,10 @@ Constants.FanZone = {
 	StadiumVisitPauseMin = 30,
 	StadiumVisitPauseMax = 90,
 	KioskAssets = {
-		Food = 0,
-		Drink = 0,
+		{ id = 124755798177818, label = "POPCORN" },
+		{ id = 91415101160071,  label = "HOT DOGS" },
+		{ id = 73722014035299,  label = "BURGERS" },
+		{ id = 92061684664312,  label = "DRINKS" },
 	},
 }
 

@@ -368,12 +368,8 @@ local function makeRoute(laneOffset)
 	local center = getPoint("Center")
 	local westLoop = getPoint("WestLoop")
 	local eastLoop = getPoint("EastLoop")
-	local foodNorth = getPoint("FoodNorth")
-	local foodSouth = getPoint("FoodSouth")
-	local foodNorthWest = getPoint("FoodNorthWest")
-	local foodNorthEast = getPoint("FoodNorthEast")
-	local foodSouthWest = getPoint("FoodSouthWest")
-	local foodSouthEast = getPoint("FoodSouthEast")
+	local foodCenterWest = getPoint("FoodCenterWest")
+	local foodCenterEast = getPoint("FoodCenterEast")
 	if not northGate or not southGate or not center or not westLoop or not eastLoop then
 		return nil
 	end
@@ -393,28 +389,25 @@ local function makeRoute(laneOffset)
 		{ position = lane(rawLoop) },
 	}
 
-	-- Configured chance: detour to the food kiosk near the entry gate.
-	-- NPCs choose the kiosk on their lane side and stop close to the counter.
+	-- Configured chance: detour to the food kiosk cluster at the centre.
+	-- NPCs step toward the kiosk on their lane side, hold a prop, pause,
+	-- then continue toward their loop waypoint.
 	-- isFood = true tells runFan to hand a prop to the NPC before the pause.
 	if math.random() < (plazaConfig.FoodStopChance or 0.30) then
 		local westSide = laneOffset < 0
-		local rawFood
-		if rawStart == northGate then
-			rawFood = westSide and foodNorthWest or foodNorthEast
-			rawFood = rawFood or foodNorth
-		else
-			rawFood = westSide and foodSouthWest or foodSouthEast
-			rawFood = rawFood or foodSouth
-		end
+		local rawFood = westSide and foodCenterWest or foodCenterEast
+		rawFood = rawFood or foodCenterWest or foodCenterEast  -- fallback
 
 		if rawFood then
-			local kioskSideX = westSide and -12 or 12
-			local kioskZNudge = rawStart == northGate and 4 or -4
-			table.insert(route, 2, {
+			local kioskSideX = westSide and -24 or 24
+			local kioskZ = westSide and -10 or 10
+			-- Insert between "center" and "loop" steps so NPC passes the
+			-- kiosk area naturally in the middle of their plaza walk.
+			table.insert(route, 3, {
 				position = rawFood,
 				pause = math.random(8, 18),
 				isFood = true,
-				lookAt = Vector3.new(kioskSideX, rawFood.Y, rawFood.Z + kioskZNudge),
+				lookAt = Vector3.new(kioskSideX, rawFood.Y, kioskZ),
 			})
 		end
 	end

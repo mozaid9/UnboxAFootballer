@@ -8,6 +8,7 @@ if ServerScriptService:GetAttribute("UnboxMainBooted") then
 	return
 end
 ServerScriptService:SetAttribute("UnboxMainBooted", true)
+Players.CharacterAutoLoads = false
 
 for _, child in ipairs(ServerScriptService:GetChildren()) do
 	if child:IsA("Script") and child ~= script and child.Name == script.Name then
@@ -84,6 +85,7 @@ BaseService.BuildBaseMap()
 CrowdService.Init(BaseService, DataService)
 
 local swingCooldowns = {}
+local initializedPlayers = {}
 
 local function makeToolPart(name, size, color, cframe, parent)
 	local part = Instance.new("Part")
@@ -134,12 +136,35 @@ end
 
 local function ensurePitchfork(player)
 	local backpack = player:FindFirstChild("Backpack") or player:WaitForChild("Backpack", 5)
+	local starterGear = player:FindFirstChild("StarterGear") or player:WaitForChild("StarterGear", 5)
 	local character = player.Character
 
 	local hasEquipped = character and character:FindFirstChild("Pitchfork")
+	if starterGear and not starterGear:FindFirstChild("Pitchfork") then
+		createPitchforkTool().Parent = starterGear
+	end
+
 	if backpack and not hasEquipped and not backpack:FindFirstChild("Pitchfork") then
 		createPitchforkTool().Parent = backpack
 	end
+end
+
+local function placeCharacterAtOwnedPlot(player, character)
+	if not player or not player.Parent or not character or not character.Parent then
+		return false
+	end
+
+	local placed = BaseService.PlaceCharacterAtPlot(player, character)
+	ensurePitchfork(player)
+
+	task.delay(0.75, function()
+		if player.Parent and character.Parent then
+			BaseService.PlaceCharacterAtPlot(player, character)
+			ensurePitchfork(player)
+		end
+	end)
+
+	return placed
 end
 
 local function sendHint(player, message, extraPayload)
@@ -375,7 +400,9 @@ local function getDisplayedIncomePerSecond(player)
 	local displayedCards = DataService.GetDisplayedCards(player)
 	local total = 0
 	local data = DataService.GetData(player)
-	local multiplier = RebirthService.GetFanMultiplier(data and data.rebirthTier or 0)
+	local multiplier = type(RebirthService.GetFanMultiplier) == "function"
+		and RebirthService.GetFanMultiplier(data and data.rebirthTier or 0)
+		or 1
 
 	for _, cardId in pairs(displayedCards) do
 		local card = getCardById(cardId)
@@ -393,7 +420,9 @@ local function getCardIncome(player, card)
 	end
 
 	local data = DataService.GetData(player)
-	local multiplier = RebirthService.GetFanMultiplier(data and data.rebirthTier or 0)
+	local multiplier = type(RebirthService.GetFanMultiplier) == "function"
+		and RebirthService.GetFanMultiplier(data and data.rebirthTier or 0)
+		or 1
 	return math.floor(Utils.GetPassiveIncome(card.rating) * multiplier)
 end
 
@@ -866,27 +895,40 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	end
 end)
 
-Players.PlayerAdded:Connect(function(player)
+local function handlePlayerAdded(player)
+	if initializedPlayers[player] then
+		ensurePitchfork(player)
+		if player.Character then
+			placeCharacterAtOwnedPlot(player, player.Character)
+		end
+		return
+	end
+	initializedPlayers[player] = true
+
 	local data = DataService.LoadPlayer(player)
 	local plot = BaseService.AssignPlot(player)
 	EconomyService.EnsureStarterCoins(player)
 	EconomyService.TryGrantDailyReward(player)
 	ensurePitchfork(player)
 
-	if player.Character then
+	player.CharacterAdded:Connect(function(character)
 		task.defer(function()
-			if player.Parent then
-				BaseService.PlaceCharacterAtPlot(player, player.Character)
+			if player.Parent and character.Parent then
+				placeCharacterAtOwnedPlot(player, character)
+				applyMovementUpgrade(player, character)
 			end
 		end)
-	end
 
-	player.CharacterAdded:Connect(function(character)
-		task.delay(0.15, function()
-			if player.Parent and character.Parent then
-				BaseService.PlaceCharacterAtPlot(player, character)
-				ensurePitchfork(player)
-				applyMovementUpgrade(player, character)
+		task.defer(function()
+			local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid", 5)
+			if humanoid then
+				humanoid.Died:Once(function()
+					task.delay(3, function()
+						if player.Parent then
+							player:LoadCharacter()
+						end
+					end)
+				end)
 			end
 		end)
 	end)
@@ -894,7 +936,14 @@ Players.PlayerAdded:Connect(function(player)
 	if player.Character then
 		task.defer(function()
 			if player.Parent and player.Character then
+				placeCharacterAtOwnedPlot(player, player.Character)
 				applyMovementUpgrade(player, player.Character)
+			end
+		end)
+	else
+		task.defer(function()
+			if player.Parent then
+				player:LoadCharacter()
 			end
 		end)
 	end
@@ -913,9 +962,16 @@ Players.PlayerAdded:Connect(function(player)
 	end)
 
 	return data
-end)
+end
+
+Players.PlayerAdded:Connect(handlePlayerAdded)
+
+for _, player in ipairs(Players:GetPlayers()) do
+	task.spawn(handlePlayerAdded, player)
+end
 
 Players.PlayerRemoving:Connect(function(player)
+	initializedPlayers[player] = nil
 	swingCooldowns[player] = nil
 	DataService.SavePlayer(player)
 	DataService.UnloadPlayer(player)
@@ -953,7 +1009,9 @@ GetPlayerDataFn.OnServerInvoke = function(player)
 		gems = data.gems or 0,
 		rebirthTier = data.rebirthTier or 0,
 		rebirthTokens = data.rebirthTokens or 0,
-		fanMultiplier = RebirthService.GetFanMultiplier(data.rebirthTier or 0),
+		fanMultiplier = type(RebirthService.GetFanMultiplier) == "function"
+			and RebirthService.GetFanMultiplier(data.rebirthTier or 0)
+			or 1,
 		totalCardsOpened = data.totalCardsOpened or 0,
 		totalPacksOpened = DataService.GetTotalPacksOpened(player),
 		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),

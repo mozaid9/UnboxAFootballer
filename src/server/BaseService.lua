@@ -196,7 +196,7 @@ local function createStadiumTier(parent, size, cframe)
 		Anchored = true,
 		CanCollide = true,
 		Material = Enum.Material.Concrete,
-		Color = Color3.fromRGB(53, 61, 76),
+		Color = Color3.fromRGB(66, 76, 94),
 		Size = size,
 		CFrame = cframe,
 	}, parent)
@@ -207,7 +207,7 @@ local function createStadiumWedge(parent, size, cframe)
 		Anchored = true,
 		CanCollide = true,
 		Material = Enum.Material.Concrete,
-		Color = Color3.fromRGB(66, 75, 92),
+		Color = Color3.fromRGB(78, 88, 108),
 		Size = size,
 		CFrame = cframe,
 	}, parent)
@@ -752,26 +752,44 @@ local function tryCreateImportedKiosk(parent, name, position, signText, facingPo
 	return model
 end
 
-local function createFoodKiosk(parent, name, position, signText, facingPos)
-	local isDrinkStall = string.find(string.upper(signText), "DRINK") ~= nil
-	local assetId = isDrinkStall and fanZoneConfig.KioskAssets.Drink or fanZoneConfig.KioskAssets.Food
+-- Per-stall colour palettes so each fallback booth looks distinct even
+-- when InsertService can't load the Toolbox model.
+local KIOSK_THEMES = {
+	-- 1: POPCORN — warm butter yellow
+	{ booth = Color3.fromRGB(34, 28, 10),  canopy = Color3.fromRGB(252, 210, 0),  stripe = Color3.fromRGB(232, 160, 0),  sign = Color3.fromRGB(255, 210, 40),  light = Color3.fromRGB(255, 215, 80) },
+	-- 2: HOT DOGS — classic red & mustard
+	{ booth = Color3.fromRGB(168, 28, 18),  canopy = Color3.fromRGB(232, 48, 24),  stripe = Color3.fromRGB(248, 195, 0),  sign = Color3.fromRGB(255, 185, 30),  light = Color3.fromRGB(255, 140, 40) },
+	-- 3: BURGERS — rich brown & orange
+	{ booth = Color3.fromRGB(82, 44, 14),   canopy = Color3.fromRGB(188, 100, 24), stripe = Color3.fromRGB(240, 155, 30), sign = Color3.fromRGB(248, 130, 18),  light = Color3.fromRGB(240, 120, 30) },
+	-- 4: DRINKS — cool blue & cyan
+	{ booth = Color3.fromRGB(14, 42, 88),   canopy = Color3.fromRGB(28, 120, 200), stripe = Color3.fromRGB(60, 200, 228), sign = Color3.fromRGB(90, 200, 255),  light = Color3.fromRGB(80, 180, 255) },
+}
+
+local function createFoodKiosk(parent, name, position, kioskIndex, facingPos)
+	local assets = fanZoneConfig.KioskAssets
+	local asset = type(assets) == "table" and assets[kioskIndex or 1]
+	local assetId = asset and asset.id or 0
+	local signText = asset and asset.label or "FOOD"
 	local importedModel = tryCreateImportedKiosk(parent, name, position, signText, facingPos, assetId)
 	if importedModel then
 		return importedModel
 	end
+
+	-- Fallback: hand-built primitive booth with a theme unique to this stall.
+	local theme = KIOSK_THEMES[kioskIndex] or KIOSK_THEMES[1]
 
 	local model = make("Model", { Name = name }, parent)
 
 	local flatFacing = Vector3.new(facingPos.X, 0, facingPos.Z)
 	local boothCF = CFrame.lookAt(position + Vector3.new(0, 2.1, 0), flatFacing + Vector3.new(0, 2.1, 0))
 
-	-- Main booth body — bright red so it pops against the dark plaza
+	-- Main booth body
 	make("Part", {
 		Name = "Booth",
 		Anchored = true,
 		CanCollide = true,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(168, 38, 24),
+		Color = theme.booth,
 		Size = Vector3.new(6.5, 4.2, 2.4),
 		CFrame = boothCF,
 	}, model)
@@ -798,38 +816,38 @@ local function createFoodKiosk(parent, name, position, signText, facingPos)
 		CFrame = boothCF * CFrame.new(0, 0.45, 1.32),
 	}, model)
 
-	-- Canopy — bright yellow base
+	-- Canopy
 	make("Part", {
 		Name = "Canopy",
 		Anchored = true,
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(252, 210, 0),
+		Color = theme.canopy,
 		Size = Vector3.new(8.0, 0.40, 4.6),
 		CFrame = boothCF * CFrame.new(0, 2.38, 0.95),
 	}, model)
 
-	-- Three red stripes across the canopy — classic market-stall look
+	-- Three contrasting stripes across the canopy
 	for i = 1, 3 do
 		make("Part", {
 			Name = "CanopyStripe" .. i,
 			Anchored = true,
 			CanCollide = false,
 			Material = Enum.Material.SmoothPlastic,
-			Color = Color3.fromRGB(208, 30, 18),
+			Color = theme.stripe,
 			Size = Vector3.new(8.0, 0.42, 0.62),
 			CFrame = boothCF * CFrame.new(0, 2.39, -1.0 + (i - 1) * 1.08),
 		}, model)
 	end
 
-	-- Large neon sign above the canopy — highly visible from a distance
+	-- Large neon sign above the canopy — themed colour per stall
 	local sign = make("Part", {
 		Name = "KioskSign",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(255, 170, 40),
-		Transparency = 0.12,
+		Material = Enum.Material.Neon,
+		Color = theme.sign,
+		Transparency = 0.18,
 		Size = Vector3.new(6.0, 1.4, 0.22),
 		CFrame = boothCF * CFrame.new(0, 3.55, 1.24),
 	}, model)
@@ -843,26 +861,26 @@ local function createFoodKiosk(parent, name, position, signText, facingPos)
 		BackgroundTransparency = 1,
 		Size = UDim2.fromScale(1, 1),
 		Text = signText,
-		TextColor3 = Color3.fromRGB(28, 10, 0),
+		TextColor3 = Color3.fromRGB(12, 8, 2),
 		TextScaled = true,
 		Font = Enum.Font.GothamBlack,
 	}, signGui)
 
-	-- Bright warm light spills onto nearby NPCs
+	-- Coloured light spills onto nearby NPCs
 	make("PointLight", {
-		Color = Color3.fromRGB(255, 158, 42),
-		Range = 12,
-		Brightness = 0.45,
+		Color = theme.light,
+		Range = 14,
+		Brightness = 0.55,
 		Shadows = false,
 	}, sign)
 
-	-- Gold neon strip along the canopy front lip
+	-- Matching neon strip along the canopy front lip
 	createGlowStrip(
 		model,
 		"CanopyTrim",
 		Vector3.new(8.2, 0.18, 0.22),
 		boothCF * CFrame.new(0, 2.19, 3.22),
-		Color3.fromRGB(255, 200, 40),
+		theme.stripe,
 		0.42
 	)
 
@@ -953,9 +971,9 @@ local function createFanZone(mapWidth, mapLength)
 	}, plaza)
 	createGlowStrip(plaza, "Tier3Ring", Vector3.new(12, 0.16, 12), CFrame.new(0, 8.52, 0), Color3.fromRGB(255, 215, 0), 0.25)
 
-	-- Ground-level glow halos
-	createGlowStrip(plaza, "OuterPedestalGlow", Vector3.new(40, 0.15, 40), CFrame.new(0, 0.46, 0), Color3.fromRGB(255, 175, 44), 0.65)
-	createGlowStrip(plaza, "InnerPedestalGlow", Vector3.new(28, 0.18, 28), CFrame.new(0, 0.50, 0), Color3.fromRGB(255, 215, 0), 0.35)
+	-- Ground-level glow halos (subtle — just enough to accent the podium)
+	createGlowStrip(plaza, "OuterPedestalGlow", Vector3.new(40, 0.15, 40), CFrame.new(0, 0.46, 0), Color3.fromRGB(255, 175, 44), 0.82)
+	createGlowStrip(plaza, "InnerPedestalGlow", Vector3.new(28, 0.18, 28), CFrame.new(0, 0.50, 0), Color3.fromRGB(255, 215, 0), 0.70)
 
 	-- ── Planter ring around the podium ────────────────────────────────
 	-- Six smaller planters form a decorative circle at radius 17, just
@@ -981,8 +999,8 @@ local function createFanZone(mapWidth, mapLength)
 
 	make("PointLight", {
 		Color = Color3.fromRGB(255, 215, 0),
-		Range = 26,
-		Brightness = 0.85,
+		Range = 16,
+		Brightness = 0.38,
 		Shadows = false,
 	}, ball)
 
@@ -1014,34 +1032,22 @@ local function createFanZone(mapWidth, mapLength)
 	createFanGate(plaza, "SouthFanGate", southZ, 1)
 
 	-- ── Food & drinks kiosks ──────────────────────────────────────────
-	-- Two stalls flank each gate entrance.  NPCs detour here, pause to
-	-- "buy something", then carry on through the Fan Zone.
-	local kioskInset = 22   -- studs inside from each gate (toward Z=0)
-	local kioskX    = 12   -- studs either side of the central walkway
-	local walkwayX  = 0    -- the central path that NPCs walk along
-
-	-- North pair (just inside the north gate, facing the walkway center)
+	-- Four stalls form a square around the central podium.  NPCs detour
+	-- here as they pass through the plaza, then carry on to their exit.
 	-- Y=0.35 sits the booth base flush on the plaza surface (top ≈ Y=0.33)
-	createFoodKiosk(plaza, "KioskNorthWest",
-		Vector3.new(-kioskX, 0.35, northZ - kioskInset),
-		"HOT DOGS",
-		Vector3.new(walkwayX, 0.35, northZ - kioskInset))
+	local center0 = Vector3.new(0, 0.35, 0)  -- all stalls face the podium
 
-	createFoodKiosk(plaza, "KioskNorthEast",
-		Vector3.new(kioskX, 0.35, northZ - kioskInset),
-		"DRINKS",
-		Vector3.new(walkwayX, 0.35, northZ - kioskInset))
+	createFoodKiosk(plaza, "KioskNW",
+		Vector3.new(-24, 0.35, -10), 1, center0)  -- POPCORN
 
-	-- South pair (just inside the south gate, facing the walkway center)
-	createFoodKiosk(plaza, "KioskSouthWest",
-		Vector3.new(-kioskX, 0.35, southZ + kioskInset),
-		"SNACKS",
-		Vector3.new(walkwayX, 0.35, southZ + kioskInset))
+	createFoodKiosk(plaza, "KioskNE",
+		Vector3.new(24, 0.35, -10),  2, center0)  -- HOT DOGS
 
-	createFoodKiosk(plaza, "KioskSouthEast",
-		Vector3.new(kioskX, 0.35, southZ + kioskInset),
-		"COLD DRINKS",
-		Vector3.new(walkwayX, 0.35, southZ + kioskInset))
+	createFoodKiosk(plaza, "KioskSW",
+		Vector3.new(-24, 0.35, 10),  3, center0)  -- BURGERS
+
+	createFoodKiosk(plaza, "KioskSE",
+		Vector3.new(24, 0.35, 10),   4, center0)  -- DRINKS
 
 	local bannerConfigs = {
 		{ position = Vector3.new(-24, 0, -20), title = "FANS" },
@@ -1088,19 +1094,38 @@ local function createFanZone(mapWidth, mapLength)
 		createLightPost(plaza, "LaneEastLightB" .. laneIndex, Vector3.new(36, 0, laneZ + 12), Vector3.new(layout.SideOffset, 1, laneZ))
 	end
 
+	-- ── Player spawn ─────────────────────────────────────────────────
+	-- Roblox Studio adds a default SpawnLocation at (0,0,0) which drops
+	-- players onto the central podium.  Remove EVERY SpawnLocation in the
+	-- Workspace (including the studio default) then place ours just inside
+	-- the south gate so players start at the fan zone entrance.
+	for _, child in ipairs(Workspace:GetChildren()) do
+		if child:IsA("SpawnLocation") then
+			child:Destroy()
+		end
+	end
+	local spawnLoc = make("SpawnLocation", {
+		Name = "FanZoneSpawn",
+		Anchored = true,
+		CanCollide = true,
+		Neutral = true,
+		AllowTeamChangeOnTouch = false,
+		Duration = 0,
+		Transparency = 1,
+		Size = Vector3.new(8, 1, 8),
+		CFrame = CFrame.new(0, 0.75, southZ + 6),
+	}, Workspace)
+	_ = spawnLoc
+
 	createWaypoint(waypointFolder, "NorthGate", Vector3.new(0, 3.1, northZ - 10))
 	createWaypoint(waypointFolder, "SouthGate", Vector3.new(0, 3.1, southZ + 10))
 	createWaypoint(waypointFolder, "Center", Vector3.new(0, 3.1, 0))
 	createWaypoint(waypointFolder, "WestLoop", Vector3.new(-16, 3.1, 0))
 	createWaypoint(waypointFolder, "EastLoop", Vector3.new(16, 3.1, 0))
-	-- Food stand stops: close to the serving counters, not the walkway centre.
-	-- Keep the old center names too as safe fallbacks for older crowd routes.
-	createWaypoint(waypointFolder, "FoodNorth", Vector3.new(0, 3.1, northZ - 26))
-	createWaypoint(waypointFolder, "FoodSouth", Vector3.new(0, 3.1, southZ + 26))
-	createWaypoint(waypointFolder, "FoodNorthWest", Vector3.new(-6.2, 3.1, northZ - kioskInset))
-	createWaypoint(waypointFolder, "FoodNorthEast", Vector3.new(6.2, 3.1, northZ - kioskInset))
-	createWaypoint(waypointFolder, "FoodSouthWest", Vector3.new(-6.2, 3.1, southZ + kioskInset))
-	createWaypoint(waypointFolder, "FoodSouthEast", Vector3.new(6.2, 3.1, southZ + kioskInset))
+	-- Food stand stops: NPCs step off the central walkway toward the
+	-- kiosk on their lane side, look at it, pause, then return to route.
+	createWaypoint(waypointFolder, "FoodCenterWest", Vector3.new(-16, 3.1, -5))
+	createWaypoint(waypointFolder, "FoodCenterEast", Vector3.new(16, 3.1, 5))
 
 	startTurnstileAnimations()
 	return plaza
@@ -1409,6 +1434,28 @@ local function createPlot(plotId, side, laneIndex, position)
 		CFrame = baseCFrame * CFrame.new(facingDirection * padOffset, 0.45, 0),
 	}, model)
 
+	local spawnCFrame = CFrame.lookAt(
+		spawnPad.Position + Vector3.new(0, 3, 0),
+		packPad.Position + Vector3.new(0, 3, 0)
+	)
+
+	local spawnLocation = make("SpawnLocation", {
+		Name = "PlayerSpawn",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Neutral = true,
+		AllowTeamChangeOnTouch = false,
+		Duration = 0,
+		Transparency = 1,
+		Size = Vector3.new(7, 0.4, 7),
+		CFrame = CFrame.lookAt(
+			spawnPad.Position + Vector3.new(0, 0.9, 0),
+			packPad.Position + Vector3.new(0, 0.9, 0)
+		),
+	}, model)
+
 	local entranceBeamY = entrancePillarHeight + layout.PlotSize.Y / 2 - 0.6
 	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 3.1, 0)
 	local entranceBeam = createFence(
@@ -1502,68 +1549,114 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, ownerFrame)
 
 	local milestoneSignPosition = position
-		+ Vector3.new(backEdgeX - (facingDirection * 7.2), 5.2, 0)
+		+ Vector3.new(backEdgeX - (facingDirection * 7.2), 5.5, 0)
 	local milestoneSign = make("Part", {
 		Name = "PackMilestoneBillboard",
 		Anchored = true,
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(8, 12, 20),
-		Size = Vector3.new(14.5, 5.2, 0.5),
+		Color = Color3.fromRGB(6, 9, 16),
+		Size = Vector3.new(15.5, 7.0, 0.5),
 		CFrame = CFrame.lookAt(milestoneSignPosition, milestoneSignPosition + centerDirection),
 	}, model)
 
+	-- Neon glow light so the board is visible across the plaza
+	make("PointLight", {
+		Color = Color3.fromRGB(255, 215, 0),
+		Range = 18,
+		Brightness = 0.55,
+		Shadows = false,
+	}, milestoneSign)
+
 	local milestoneGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
-		PixelsPerStud = 95,
+		PixelsPerStud = 80,
 		LightInfluence = 0,
 	}, milestoneSign)
 
 	local milestoneFrame = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(9, 13, 22),
+		BackgroundColor3 = Color3.fromRGB(7, 10, 18),
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(1, 1),
 	}, milestoneGui)
+	make("UICorner", { CornerRadius = UDim.new(0, 10) }, milestoneFrame)
 
+	-- Gold border
 	make("UIStroke", {
 		Color = Color3.fromRGB(255, 215, 0),
-		Thickness = 2,
-		Transparency = 0.15,
+		Thickness = 3,
+		Transparency = 0.0,
 	}, milestoneFrame)
 
-	local milestoneTitleLabel = createOwnerSignText("PACK MILESTONES", UDim2.fromScale(0.9, 0.18), UDim2.fromScale(0.05, 0.08), Color3.fromRGB(255, 215, 0), {
+	-- Bright gold accent strip across the top
+	local topStrip = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
+		BorderSizePixel = 0,
+		Size = UDim2.new(1, 0, 0, 6),
+		Position = UDim2.fromScale(0, 0),
+		ZIndex = 2,
+	}, milestoneFrame)
+	make("UICorner", { CornerRadius = UDim.new(0, 10) }, topStrip)
+	_ = topStrip
+
+	-- "PACK MILESTONES" header
+	local milestoneTitleLabel = createOwnerSignText("\u{2605} PACK MILESTONES", UDim2.fromScale(0.9, 0.14), UDim2.fromScale(0.05, 0.06), Color3.fromRGB(255, 215, 0), {
 		textScaled = true,
-		minTextSize = 18,
-		maxTextSize = 48,
-		textStrokeTransparency = 0.7,
+		minTextSize = 14,
+		maxTextSize = 38,
+		textStrokeTransparency = 0.65,
 		font = Enum.Font.GothamBlack,
 	}, milestoneFrame)
 	_ = milestoneTitleLabel
 
-	local milestonePacksLabel = createOwnerSignText("0 PACKS OPENED", UDim2.fromScale(0.86, 0.22), UDim2.fromScale(0.07, 0.3), Color3.fromRGB(245, 238, 220), {
+	-- Large packs-opened counter — most prominent element
+	local milestonePacksLabel = createOwnerSignText("0 PACKS OPENED", UDim2.fromScale(0.92, 0.28), UDim2.fromScale(0.04, 0.22), Color3.fromRGB(255, 245, 220), {
 		textScaled = true,
-		minTextSize = 20,
-		maxTextSize = 64,
-		textStrokeTransparency = 0.72,
+		minTextSize = 22,
+		maxTextSize = 72,
+		textStrokeTransparency = 0.60,
 		font = Enum.Font.GothamBlack,
 	}, milestoneFrame)
 
-	local milestoneNextLabel = createOwnerSignText("NEXT: 50 - RARE PACK", UDim2.fromScale(0.84, 0.14), UDim2.fromScale(0.08, 0.58), Color3.fromRGB(190, 184, 164), {
+	-- Thin divider line between counter and next-milestone row
+	make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
+		BackgroundTransparency = 0.55,
+		BorderSizePixel = 0,
+		Size = UDim2.new(0.82, 0, 0, 2),
+		Position = UDim2.fromScale(0.09, 0.535),
+	}, milestoneFrame)
+
+	-- "NEXT:" label — smaller, muted
+	createOwnerSignText("NEXT REWARD", UDim2.fromScale(0.88, 0.10), UDim2.fromScale(0.06, 0.56), Color3.fromRGB(170, 165, 148), {
 		textScaled = true,
-		minTextSize = 14,
-		maxTextSize = 34,
-		textStrokeTransparency = 0.84,
+		minTextSize = 10,
+		maxTextSize = 24,
+		textStrokeTransparency = 0.88,
 		font = Enum.Font.GothamBold,
 	}, milestoneFrame)
 
-	local milestoneBarBack = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(35, 40, 54),
-		BorderSizePixel = 0,
-		Size = UDim2.fromScale(0.78, 0.075),
-		Position = UDim2.fromScale(0.11, 0.78),
+	-- Reward name — prominent gold text
+	local milestoneNextLabel = createOwnerSignText("50 PACKS \u{2192} RARE PACK", UDim2.fromScale(0.88, 0.14), UDim2.fromScale(0.06, 0.64), Color3.fromRGB(255, 210, 80), {
+		textScaled = true,
+		minTextSize = 12,
+		maxTextSize = 36,
+		textStrokeTransparency = 0.68,
+		font = Enum.Font.GothamBlack,
 	}, milestoneFrame)
-	make("UICorner", {
-		CornerRadius = UDim.new(0, 8),
+
+	-- Progress bar — taller, more visible
+	local milestoneBarBack = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(28, 34, 50),
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(0.84, 0.095),
+		Position = UDim2.fromScale(0.08, 0.83),
+	}, milestoneFrame)
+	make("UICorner", { CornerRadius = UDim.new(1, 0) }, milestoneBarBack)
+	make("UIStroke", {
+		Color = Color3.fromRGB(255, 215, 0),
+		Thickness = 2,
+		Transparency = 0.55,
 	}, milestoneBarBack)
 
 	local milestoneBarFill = make("Frame", {
@@ -1571,8 +1664,15 @@ local function createPlot(plotId, side, laneIndex, position)
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(0, 1),
 	}, milestoneBarBack)
-	make("UICorner", {
-		CornerRadius = UDim.new(0, 8),
+	make("UICorner", { CornerRadius = UDim.new(1, 0) }, milestoneBarFill)
+
+	-- Inner shimmer layer on the fill to give it depth
+	make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(255, 255, 200),
+		BackgroundTransparency = 0.55,
+		BorderSizePixel = 0,
+		Size = UDim2.new(1, 0, 0.4, 0),
+		Position = UDim2.fromScale(0, 0),
 	}, milestoneBarFill)
 
 	local padGui = make("BillboardGui", {
@@ -1669,7 +1769,10 @@ local function createPlot(plotId, side, laneIndex, position)
 	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0, entranceWidth / 2 + 6), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightNorth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, -(layout.PlotSize.Z / 2 + 5)), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightSouth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, layout.PlotSize.Z / 2 + 5), packPad.Position + Vector3.new(0, 2, 0))
-	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 30, 0.12, Color3.fromRGB(255, 232, 184))
+	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 42, 0.26, Color3.fromRGB(255, 232, 184))
+	createSoftFillLight(model, "BackStandFill", position + Vector3.new(backEdgeX - (facingDirection * 6), 8, 0), 34, 0.2, Color3.fromRGB(225, 234, 255))
+	createSoftFillLight(model, "NorthStandFill", position + Vector3.new(0, 7, -(layout.PlotSize.Z / 2 + 7)), 28, 0.16, Color3.fromRGB(255, 226, 170))
+	createSoftFillLight(model, "SouthStandFill", position + Vector3.new(0, 7, layout.PlotSize.Z / 2 + 7), 28, 0.16, Color3.fromRGB(255, 226, 170))
 
 	local plot = {
 		id = plotId,
@@ -1680,6 +1783,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		floor = floor,
 		packPad = packPad,
 		spawnPad = spawnPad,
+		spawnLocation = spawnLocation,
 		ownerSign = ownerSign,
 		ownerTopLabel = ownerTopLabel,
 		ownerNameLabel = ownerNameLabel,
@@ -1695,10 +1799,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		padBarBack = padBarBack,
 		padBarFill = padBarFill,
 		displaySlots = displaySlots,
-		spawnCFrame = CFrame.lookAt(
-			spawnPad.Position + Vector3.new(0, 3, 0),
-			packPad.Position + Vector3.new(0, 3, 0)
-		),
+		spawnCFrame = spawnCFrame,
 	}
 
 	updateOwnerSign(plot, nil, "")
@@ -1712,6 +1813,15 @@ function BaseService.BuildBaseMap()
 	assignedPlots = {}
 	animatedTurnstiles = {}
 	configureMapLighting()
+
+	-- Remove the Studio-default SpawnLocation (and any leftover ones) so
+	-- players don't spawn on the podium at world-origin.  We add our own
+	-- SpawnLocation inside createFanZone near the south gate.
+	for _, desc in ipairs(Workspace:GetDescendants()) do
+		if desc:IsA("SpawnLocation") then
+			desc:Destroy()
+		end
+	end
 
 	if basesFolder then
 		basesFolder:Destroy()
@@ -1782,6 +1892,9 @@ function BaseService.AssignPlot(player)
 			updateOwnerSign(plot, player.DisplayName, "")
 			updatePadLabel(plot, "Rolling Pack", "Preparing your next spawn", Color3.fromRGB(255, 170, 48))
 			assignedPlots[player] = plot
+			if plot.spawnLocation then
+				player.RespawnLocation = plot.spawnLocation
+			end
 			return plot
 		end
 	end
@@ -1808,6 +1921,9 @@ function BaseService.ReleasePlot(player)
 	BaseService.UpdatePackMilestone(plot, 0)
 	updateOwnerSign(plot, nil, "")
 	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
+	if player.RespawnLocation == plot.spawnLocation then
+		player.RespawnLocation = nil
+	end
 	assignedPlots[player] = nil
 end
 
@@ -1827,7 +1943,7 @@ function BaseService.UpdatePackMilestone(plot, totalPacks)
 	totalPacks = math.max(0, totalPacks or 0)
 	local milestone = getNextPackMilestone(totalPacks)
 	plot.milestonePacksLabel.Text = Utils.FormatNumber(totalPacks) .. " PACKS OPENED"
-	plot.milestoneNextLabel.Text = string.format("NEXT: %d - %s", milestone.nextAt, string.upper(milestone.reward))
+	plot.milestoneNextLabel.Text = string.format("%d PACKS \u{2192} %s", milestone.nextAt, string.upper(milestone.reward))
 	plot.milestoneBarFill.Size = UDim2.fromScale(milestone.progress, 1)
 end
 
@@ -1895,10 +2011,19 @@ function BaseService.PlaceCharacterAtPlot(player, character)
 	local plot = assignedPlots[player]
 	local targetCharacter = character or player.Character
 	if not plot or not targetCharacter then
-		return
+		return false
+	end
+
+	local rootPart = targetCharacter:FindFirstChild("HumanoidRootPart") or targetCharacter:WaitForChild("HumanoidRootPart", 5)
+	if not rootPart then
+		warn("[UnboxAFootballer] Could not move player to base; HumanoidRootPart missing for " .. player.Name)
+		return false
 	end
 
 	targetCharacter:PivotTo(plot.spawnCFrame)
+	rootPart.AssemblyLinearVelocity = Vector3.zero
+	rootPart.AssemblyAngularVelocity = Vector3.zero
+	return true
 end
 
 return BaseService
