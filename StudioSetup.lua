@@ -4581,16 +4581,40 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	local openedPackColor = plot.activePackDef.color
 	local openedPackWorldPosition = plot.activePackBody.Position + Vector3.new(0, 2.5, 0)
 
-	local ok, result = PackService.OpenPack(player, openedPackId, {
+	local openCallOk, ok, result = pcall(PackService.OpenPack, player, openedPackId, {
 		ignoreCost = true,
 		source = "pitchfork",
 	})
 
+	if not openCallOk then
+		warn("[UnboxAFootballer] PackService.OpenPack crashed:", ok)
+		ok = false
+		result = { error = "Pack opening failed. Please try again." }
+	end
+
 	if ok then
 		local pulledCard = result.card or (result.cards and result.cards[1]) or nil
-		local storageResult = autoStorePulledCard(player, plot, pulledCard)
+		if not pulledCard then
+			plot.isOpeningPack = nil
+			plot.activePackHitsRemaining = math.max(1, plot.activePackHitsRemaining or 1)
+			BaseService.SetPlotPadHealth(plot, plot.activePackDef.displayName, plot.activePackHitsRemaining, plot.activePackMaxHits, plot.activePackDef.color)
+			PackOpenFailedEvent:FireClient(player, { error = "Pack roll failed. Please try again." })
+			return
+		end
+
+		local storageOk, storageResult = pcall(autoStorePulledCard, player, plot, pulledCard)
+		if not storageOk then
+			warn("[UnboxAFootballer] Auto-store failed; falling back to inventory:", storageResult)
+			DataService.AddCard(player, pulledCard.id)
+			refreshPlotDisplayState(player, plot)
+			storageResult = {
+				storedInInventory = true,
+				slotIndex = nil,
+				slotWorldPosition = nil,
+			}
+		end
+
 		local passiveIncome = getCardIncome(player, pulledCard)
-		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
 
 		PackOpenedEvent:FireClient(player, {
 			success = true,
@@ -4605,6 +4629,11 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 			coinsPerSecond = passiveIncome,
 			passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
 		})
+
+		local milestoneOk, milestoneErr = pcall(BaseService.UpdatePackMilestone, plot, DataService.GetTotalPacksOpened(player))
+		if not milestoneOk then
+			warn("[UnboxAFootballer] Pack milestone update failed:", milestoneErr)
+		end
 
 		if pulledCard then
 			if storageResult.storedInInventory then
@@ -5553,6 +5582,7 @@ end
 local screenGui = make("ScreenGui", {
 	Name = "PackOpeningUI",
 	ResetOnSpawn = false,
+	DisplayOrder = 8,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, playerGui)
 
@@ -5969,7 +5999,9 @@ local function showCardReveal(payload)
 
 	-- ── Card panel (compact: 180 × 256 px) ───────────────────────────
 	local CARD_W, CARD_H = 180, 256
-	local revealStart = getWorldScreenTarget(payload.packWorldPosition, UDim2.new(0.5, 0, 0.42, 0))
+	-- Keep the reveal itself predictably visible. The fly-off still targets the
+	-- actual 3D slot/inventory destination, which is the bit that matters.
+	local revealStart = UDim2.new(0.5, 0, 0.46, 0)
 
 	local cardPanel = make("Frame", {
 		Name = "CardReveal",
@@ -6159,7 +6191,12 @@ PackOpenedEvent.OnClientEvent:Connect(function(payload)
 	setCoinsDisplay(payload.newCoins)
 
 	if payload.card then
-		showCardReveal(payload)
+		local ok, err = pcall(showCardReveal, payload)
+		if not ok then
+			warn("[UnboxAFootballer] Card reveal failed:", err)
+			local destination = payload.storedInInventory and "Inventory" or ("display slot " .. tostring(payload.slotIndex or "?"))
+			showToast(payload.card.name .. " added to " .. destination .. ".", UI.Gold)
+		end
 	end
 end)
 

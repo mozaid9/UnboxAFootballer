@@ -60,6 +60,7 @@ end
 local screenGui = make("ScreenGui", {
 	Name = "PackOpeningUI",
 	ResetOnSpawn = false,
+	DisplayOrder = 8,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, playerGui)
 
@@ -476,7 +477,9 @@ local function showCardReveal(payload)
 
 	-- ── Card panel (compact: 180 × 256 px) ───────────────────────────
 	local CARD_W, CARD_H = 180, 256
-	local revealStart = getWorldScreenTarget(payload.packWorldPosition, UDim2.new(0.5, 0, 0.42, 0))
+	-- Keep the reveal itself predictably visible. The fly-off still targets the
+	-- actual 3D slot/inventory destination, which is the bit that matters.
+	local revealStart = UDim2.new(0.5, 0, 0.46, 0)
 
 	local cardPanel = make("Frame", {
 		Name = "CardReveal",
@@ -666,7 +669,12 @@ PackOpenedEvent.OnClientEvent:Connect(function(payload)
 	setCoinsDisplay(payload.newCoins)
 
 	if payload.card then
-		showCardReveal(payload)
+		local ok, err = pcall(showCardReveal, payload)
+		if not ok then
+			warn("[UnboxAFootballer] Card reveal failed:", err)
+			local destination = payload.storedInInventory and "Inventory" or ("display slot " .. tostring(payload.slotIndex or "?"))
+			showToast(payload.card.name .. " added to " .. destination .. ".", UI.Gold)
+		end
 	end
 end)
 

@@ -788,16 +788,40 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	local openedPackColor = plot.activePackDef.color
 	local openedPackWorldPosition = plot.activePackBody.Position + Vector3.new(0, 2.5, 0)
 
-	local ok, result = PackService.OpenPack(player, openedPackId, {
+	local openCallOk, ok, result = pcall(PackService.OpenPack, player, openedPackId, {
 		ignoreCost = true,
 		source = "pitchfork",
 	})
 
+	if not openCallOk then
+		warn("[UnboxAFootballer] PackService.OpenPack crashed:", ok)
+		ok = false
+		result = { error = "Pack opening failed. Please try again." }
+	end
+
 	if ok then
 		local pulledCard = result.card or (result.cards and result.cards[1]) or nil
-		local storageResult = autoStorePulledCard(player, plot, pulledCard)
+		if not pulledCard then
+			plot.isOpeningPack = nil
+			plot.activePackHitsRemaining = math.max(1, plot.activePackHitsRemaining or 1)
+			BaseService.SetPlotPadHealth(plot, plot.activePackDef.displayName, plot.activePackHitsRemaining, plot.activePackMaxHits, plot.activePackDef.color)
+			PackOpenFailedEvent:FireClient(player, { error = "Pack roll failed. Please try again." })
+			return
+		end
+
+		local storageOk, storageResult = pcall(autoStorePulledCard, player, plot, pulledCard)
+		if not storageOk then
+			warn("[UnboxAFootballer] Auto-store failed; falling back to inventory:", storageResult)
+			DataService.AddCard(player, pulledCard.id)
+			refreshPlotDisplayState(player, plot)
+			storageResult = {
+				storedInInventory = true,
+				slotIndex = nil,
+				slotWorldPosition = nil,
+			}
+		end
+
 		local passiveIncome = getCardIncome(player, pulledCard)
-		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
 
 		PackOpenedEvent:FireClient(player, {
 			success = true,
@@ -812,6 +836,11 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 			coinsPerSecond = passiveIncome,
 			passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
 		})
+
+		local milestoneOk, milestoneErr = pcall(BaseService.UpdatePackMilestone, plot, DataService.GetTotalPacksOpened(player))
+		if not milestoneOk then
+			warn("[UnboxAFootballer] Pack milestone update failed:", milestoneErr)
+		end
 
 		if pulledCard then
 			if storageResult.storedInInventory then
