@@ -75,6 +75,7 @@ Constants.FanZone = {
 	BaseStadiumCapacity = 4,
 	MaxStadiumVisitors = 8,
 	VisitorRouteChance = 0.48,
+	FoodStopChance = 0.55,
 	NpcWalkSpeed = 13,
 	StadiumVisitPauseMin = 30,
 	StadiumVisitPauseMax = 90,
@@ -109,6 +110,7 @@ Constants.Pitchfork = {
 	BaseDamage = 1,
 	SwingCooldown = 0.42,
 	HitRange = 12,
+	HitFacingDot = 0.5,
 }
 
 -- ── Upgrade specs ─────────────────────────────────────────────

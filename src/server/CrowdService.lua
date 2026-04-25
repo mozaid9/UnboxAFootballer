@@ -246,12 +246,12 @@ local function setFoodProp(model, enabled)
 	local propModel = make("Model", {
 		Name = "FoodProp",
 	}, model)
-	-- Front is local -Z for CFrame.lookAt. Keep the prop slightly in front of
-	-- the right hand so it doesn't get hidden inside the blocky arm.
-	local propCFrame = pivot * CFrame.new(1.65, -0.48, -0.62)
+	-- Front is local -Z for CFrame.lookAt. Keep the prop high, bright, and
+	-- slightly in front of the right hand so it reads clearly from gameplay view.
+	local propCFrame = pivot * CFrame.new(1.72, -0.05, -0.95)
 	local propColor = FOOD_COLORS[math.random(1, #FOOD_COLORS)]
 
-	make("Part", {
+	local cup = make("Part", {
 		Name = "Cup",
 		Anchored = true,
 		CanCollide = false,
@@ -259,9 +259,17 @@ local function setFoodProp(model, enabled)
 		CanTouch = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = propColor,
-		Size = Vector3.new(0.5, 0.7, 0.5),
+		Size = Vector3.new(0.72, 0.92, 0.72),
 		CFrame = propCFrame,
 	}, propModel)
+
+	make("PointLight", {
+		Name = "CupGlow",
+		Color = propColor,
+		Range = 5,
+		Brightness = 0.35,
+		Shadows = false,
+	}, cup)
 
 	make("Part", {
 		Name = "Lid",
@@ -271,8 +279,8 @@ local function setFoodProp(model, enabled)
 		CanTouch = false,
 		Material = Enum.Material.Neon,
 		Color = Color3.fromRGB(255, 235, 160),
-		Size = Vector3.new(0.56, 0.08, 0.56),
-		CFrame = propCFrame * CFrame.new(0, 0.39, 0),
+		Size = Vector3.new(0.80, 0.10, 0.80),
+		CFrame = propCFrame * CFrame.new(0, 0.51, 0),
 	}, propModel)
 
 	make("Part", {
@@ -283,8 +291,8 @@ local function setFoodProp(model, enabled)
 		CanTouch = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(245, 245, 245),
-		Size = Vector3.new(0.08, 0.62, 0.08),
-		CFrame = propCFrame * CFrame.new(0.16, 0.66, -0.04) * CFrame.Angles(0, 0, math.rad(12)),
+		Size = Vector3.new(0.10, 0.82, 0.10),
+		CFrame = propCFrame * CFrame.new(0.20, 0.86, -0.06) * CFrame.Angles(0, 0, math.rad(12)),
 	}, propModel)
 end
 
@@ -385,10 +393,10 @@ local function makeRoute(laneOffset)
 		{ position = lane(rawLoop) },
 	}
 
-	-- 30 % chance: detour to the food kiosk near the entry gate.
+	-- Configured chance: detour to the food kiosk near the entry gate.
 	-- NPCs choose the kiosk on their lane side and stop close to the counter.
 	-- isFood = true tells runFan to hand a prop to the NPC before the pause.
-	if math.random() < 0.30 then
+	if math.random() < (plazaConfig.FoodStopChance or 0.30) then
 		local westSide = laneOffset < 0
 		local rawFood
 		if rawStart == northGate then

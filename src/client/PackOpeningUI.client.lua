@@ -426,6 +426,38 @@ UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
 	setCoinsDisplay(coins)
 end)
 
+local function getGuiCenterTarget(guiObject, fallback)
+	if not guiObject or not guiObject.Parent then
+		return fallback
+	end
+
+	local size = guiObject.AbsoluteSize
+	if size.X <= 0 or size.Y <= 0 then
+		return fallback
+	end
+
+	local position = guiObject.AbsolutePosition
+	return UDim2.fromOffset(position.X + (size.X / 2), position.Y + (size.Y / 2))
+end
+
+local function getWorldScreenTarget(worldPosition, fallback)
+	if typeof(worldPosition) ~= "Vector3" then
+		return fallback
+	end
+
+	local camera = Workspace.CurrentCamera
+	if not camera then
+		return fallback
+	end
+
+	local screenPoint, onScreen = camera:WorldToViewportPoint(worldPosition)
+	if not onScreen or screenPoint.Z <= 0 then
+		return fallback
+	end
+
+	return UDim2.fromOffset(screenPoint.X, screenPoint.Y)
+end
+
 -- ── Compact card reveal ───────────────────────────────────────────────────────
 -- Appears near the pack, shows player info briefly, then flies toward the
 -- destination slot (or inventory corner).  No full-screen overlay — keeps the
@@ -444,12 +476,12 @@ local function showCardReveal(payload)
 
 	-- ── Card panel (compact: 180 × 256 px) ───────────────────────────
 	local CARD_W, CARD_H = 180, 256
+	local revealStart = getWorldScreenTarget(payload.packWorldPosition, UDim2.new(0.5, 0, 0.42, 0))
 
 	local cardPanel = make("Frame", {
 		Name = "CardReveal",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		-- Slightly above screen centre — pack is usually in the upper half of view
-		Position = UDim2.new(0.5, 0, 0.42, 0),
+		Position = revealStart,
 		Size = UDim2.fromOffset(CARD_W, CARD_H),
 		BackgroundColor3 = rarityColor:Lerp(Color3.fromRGB(10, 5, 2), 0.68),
 		ZIndex = 200,
@@ -603,10 +635,9 @@ local function showCardReveal(payload)
 			return
 		end
 
-		-- Inventory → bottom-left corner; display slot → bottom-right corner
 		local flyTarget = toInventory
-			and UDim2.new(0.06, 0, 0.92, 0)
-			or UDim2.new(0.92, 0, 0.92, 0)
+			and getGuiCenterTarget(inventoryButton, UDim2.new(0.16, 0, 0.72, 0))
+			or getWorldScreenTarget(payload.slotWorldPosition, UDim2.new(0.5, 0, 0.72, 0))
 
 		TweenService:Create(
 			cardPanel,

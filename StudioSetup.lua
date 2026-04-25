@@ -219,6 +219,7 @@ Constants.FanZone = {
 	BaseStadiumCapacity = 4,
 	MaxStadiumVisitors = 8,
 	VisitorRouteChance = 0.48,
+	FoodStopChance = 0.55,
 	NpcWalkSpeed = 13,
 	StadiumVisitPauseMin = 30,
 	StadiumVisitPauseMax = 90,
@@ -253,6 +254,7 @@ Constants.Pitchfork = {
 	BaseDamage = 1,
 	SwingCooldown = 0.42,
 	HitRange = 12,
+	HitFacingDot = 0.5,
 }
 
 -- ── Upgrade specs ─────────────────────────────────────────────
@@ -526,11 +528,11 @@ end
 
 local function configureMapLighting()
 	Lighting.ClockTime = 19.25
-	Lighting.Brightness = 2.6
-	Lighting.Ambient = Color3.fromRGB(58, 66, 86)
-	Lighting.OutdoorAmbient = Color3.fromRGB(42, 50, 70)
-	Lighting.EnvironmentDiffuseScale = 0.52
-	Lighting.EnvironmentSpecularScale = 0.8
+	Lighting.Brightness = 2.05
+	Lighting.Ambient = Color3.fromRGB(44, 52, 70)
+	Lighting.OutdoorAmbient = Color3.fromRGB(34, 42, 60)
+	Lighting.EnvironmentDiffuseScale = 0.42
+	Lighting.EnvironmentSpecularScale = 0.58
 	Lighting.FogColor = Color3.fromRGB(42, 51, 68)
 	Lighting.FogStart = 320
 	Lighting.FogEnd = 760
@@ -545,15 +547,15 @@ local function configureMapLighting()
 	})
 
 	replaceLightingEffect("BloomEffect", "UnboxGoldBloom", {
-		Intensity = 0.32,  -- was 0.22 — more glow on the gold neon strips
-		Size = 18,         -- was 16 — slightly wider halo
-		Threshold = 1.65,  -- was 1.85 — catches more neon emitters
+		Intensity = 0.16,
+		Size = 12,
+		Threshold = 2.05,
 	})
 
 	replaceLightingEffect("ColorCorrectionEffect", "UnboxColorGrade", {
-		Brightness = 0.02,  -- was 0.01 — slightly lifted shadows
-		Contrast = 0.06,
-		Saturation = 0.14,  -- was 0.08 — richer colours without over-saturation
+		Brightness = 0,
+		Contrast = 0.05,
+		Saturation = 0.08,
 		TintColor = Color3.fromRGB(242, 247, 255),
 	})
 end
@@ -796,17 +798,17 @@ local function createFloodlightRig(parent, name, position, targetPosition)
 		Name = "FloodBeam",
 		Face = Enum.NormalId.Front,
 		Color = Color3.fromRGB(255, 245, 218),
-		Range = 168,
-		Angle = 74,
-		Brightness = 3.2,
+		Range = 118,
+		Angle = 56,
+		Brightness = 1.15,
 		Shadows = false,
 	}, panel)
 
 	make("PointLight", {
 		Name = "FloodFill",
 		Color = Color3.fromRGB(255, 235, 190),
-		Range = 36,
-		Brightness = 0.25,
+		Range = 24,
+		Brightness = 0.08,
 		Shadows = false,
 	}, panel)
 
@@ -1315,9 +1317,9 @@ local function createFoodKiosk(parent, name, position, signText, facingPos)
 		Name = "KioskSign",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.Neon,
+		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(255, 170, 40),
-		Transparency = 0.05,
+		Transparency = 0.12,
 		Size = Vector3.new(6.0, 1.4, 0.22),
 		CFrame = boothCF * CFrame.new(0, 3.55, 1.24),
 	}, model)
@@ -1339,8 +1341,8 @@ local function createFoodKiosk(parent, name, position, signText, facingPos)
 	-- Bright warm light spills onto nearby NPCs
 	make("PointLight", {
 		Color = Color3.fromRGB(255, 158, 42),
-		Range = 28,
-		Brightness = 2.4,
+		Range = 12,
+		Brightness = 0.45,
 		Shadows = false,
 	}, sign)
 
@@ -1351,7 +1353,7 @@ local function createFoodKiosk(parent, name, position, signText, facingPos)
 		Vector3.new(8.2, 0.18, 0.22),
 		boothCF * CFrame.new(0, 2.19, 3.22),
 		Color3.fromRGB(255, 200, 40),
-		0.10
+		0.42
 	)
 
 	return model
@@ -1469,8 +1471,8 @@ local function createFanZone(mapWidth, mapLength)
 
 	make("PointLight", {
 		Color = Color3.fromRGB(255, 215, 0),
-		Range = 42,
-		Brightness = 2.2,
+		Range = 26,
+		Brightness = 0.85,
 		Shadows = false,
 	}, ball)
 
@@ -1883,8 +1885,8 @@ local function createPlot(plotId, side, laneIndex, position)
 	make("PointLight", {
 		Name = "PackStageLight",
 		Color = Color3.fromRGB(255, 210, 80),
-		Range = 14,
-		Brightness = 0.45,
+		Range = 10,
+		Brightness = 0.22,
 		Shadows = false,
 	}, packPad)
 
@@ -2157,7 +2159,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0, entranceWidth / 2 + 6), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightNorth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, -(layout.PlotSize.Z / 2 + 5)), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightSouth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, layout.PlotSize.Z / 2 + 5), packPad.Position + Vector3.new(0, 2, 0))
-	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 42, 0.38, Color3.fromRGB(255, 232, 184))
+	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 30, 0.12, Color3.fromRGB(255, 232, 184))
 
 	local plot = {
 		id = plotId,
@@ -2355,8 +2357,8 @@ function BaseService.UpdateDisplaySlot(slot, card, incomePerSecond)
 
 	make("PointLight", {
 		Color = Utils.GetRarityColor(card.rarity),
-		Range = 8,
-		Brightness = 0.85,
+		Range = 7,
+		Brightness = 0.45,
 	}, cardPart)
 
 	createDisplayCardFace(Enum.NormalId.Front, card, incomePerSecond, cardPart)
@@ -2641,12 +2643,12 @@ local function setFoodProp(model, enabled)
 	local propModel = make("Model", {
 		Name = "FoodProp",
 	}, model)
-	-- Front is local -Z for CFrame.lookAt. Keep the prop slightly in front of
-	-- the right hand so it doesn't get hidden inside the blocky arm.
-	local propCFrame = pivot * CFrame.new(1.65, -0.48, -0.62)
+	-- Front is local -Z for CFrame.lookAt. Keep the prop high, bright, and
+	-- slightly in front of the right hand so it reads clearly from gameplay view.
+	local propCFrame = pivot * CFrame.new(1.72, -0.05, -0.95)
 	local propColor = FOOD_COLORS[math.random(1, #FOOD_COLORS)]
 
-	make("Part", {
+	local cup = make("Part", {
 		Name = "Cup",
 		Anchored = true,
 		CanCollide = false,
@@ -2654,9 +2656,17 @@ local function setFoodProp(model, enabled)
 		CanTouch = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = propColor,
-		Size = Vector3.new(0.5, 0.7, 0.5),
+		Size = Vector3.new(0.72, 0.92, 0.72),
 		CFrame = propCFrame,
 	}, propModel)
+
+	make("PointLight", {
+		Name = "CupGlow",
+		Color = propColor,
+		Range = 5,
+		Brightness = 0.35,
+		Shadows = false,
+	}, cup)
 
 	make("Part", {
 		Name = "Lid",
@@ -2666,8 +2676,8 @@ local function setFoodProp(model, enabled)
 		CanTouch = false,
 		Material = Enum.Material.Neon,
 		Color = Color3.fromRGB(255, 235, 160),
-		Size = Vector3.new(0.56, 0.08, 0.56),
-		CFrame = propCFrame * CFrame.new(0, 0.39, 0),
+		Size = Vector3.new(0.80, 0.10, 0.80),
+		CFrame = propCFrame * CFrame.new(0, 0.51, 0),
 	}, propModel)
 
 	make("Part", {
@@ -2678,8 +2688,8 @@ local function setFoodProp(model, enabled)
 		CanTouch = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(245, 245, 245),
-		Size = Vector3.new(0.08, 0.62, 0.08),
-		CFrame = propCFrame * CFrame.new(0.16, 0.66, -0.04) * CFrame.Angles(0, 0, math.rad(12)),
+		Size = Vector3.new(0.10, 0.82, 0.10),
+		CFrame = propCFrame * CFrame.new(0.20, 0.86, -0.06) * CFrame.Angles(0, 0, math.rad(12)),
 	}, propModel)
 end
 
@@ -2780,10 +2790,10 @@ local function makeRoute(laneOffset)
 		{ position = lane(rawLoop) },
 	}
 
-	-- 30 % chance: detour to the food kiosk near the entry gate.
+	-- Configured chance: detour to the food kiosk near the entry gate.
 	-- NPCs choose the kiosk on their lane side and stop close to the counter.
 	-- isFood = true tells runFan to hand a prop to the NPC before the pause.
-	if math.random() < 0.30 then
+	if math.random() < (plazaConfig.FoodStopChance or 0.30) then
 		local westSide = laneOffset < 0
 		local rawFood
 		if rawStart == northGate then
@@ -4090,8 +4100,8 @@ local function playPackHitEffect(plot, settleBrightness)
 		end)
 	end
 
-	local baseBrightness = settleBrightness or plot.activePackBaseBrightness or 2.8
-	pulseLight(plot.activePackLight, baseBrightness, baseBrightness + 3.4, 0.1)
+	local baseBrightness = settleBrightness or plot.activePackBaseBrightness or 1.15
+	pulseLight(plot.activePackLight, baseBrightness, baseBrightness + 1.25, 0.1)
 
 	for _, part in ipairs(plot.activePackImpactParts or {}) do
 		if part and part.Parent then
@@ -4233,6 +4243,7 @@ local function autoStorePulledCard(player, plot, card)
 		return {
 			storedInInventory = true,
 			slotIndex = nil,
+			slotWorldPosition = nil,
 		}
 	end
 
@@ -4243,6 +4254,7 @@ local function autoStorePulledCard(player, plot, card)
 		return {
 			storedInInventory = false,
 			slotIndex = emptySlot.slotIndex,
+			slotWorldPosition = emptySlot.top.Position + Vector3.new(0, 4.4, 0),
 		}
 	end
 
@@ -4251,6 +4263,7 @@ local function autoStorePulledCard(player, plot, card)
 	return {
 		storedInInventory = true,
 		slotIndex = nil,
+		slotWorldPosition = nil,
 	}
 end
 
@@ -4352,8 +4365,8 @@ local function spawnPackForPlot(plot)
 
 	local glow = Instance.new("PointLight")
 	glow.Color = packDef.color
-	glow.Range = 18
-	glow.Brightness = 2.8
+	glow.Range = 12
+	glow.Brightness = 1.15
 	glow.Parent = cardBody
 
 	local hitAttachment = Instance.new("Attachment")
@@ -4489,18 +4502,35 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	end
 
 	local plot = BaseService.GetPlot(player)
-	if not plot or not plot.activePackDef or not plot.activePackBody or plot.isOpeningPack then
+	if plot and plot.isOpeningPack then
+		return
+	end
+
+	if not plot or not plot.activePackDef or not plot.activePackBody then
 		PackOpenFailedEvent:FireClient(player, {
 			error = "Your next pack is still spawning.",
 		})
 		return
 	end
 
-	if (rootPart.Position - plot.activePackBody.Position).Magnitude > Constants.Pitchfork.HitRange then
+	local packDelta = plot.activePackBody.Position - rootPart.Position
+	if packDelta.Magnitude > Constants.Pitchfork.HitRange then
 		PackOpenFailedEvent:FireClient(player, {
 			error = "Move closer to the pack on your red pad.",
 		})
 		return
+	end
+
+	local flatPackDelta = Vector3.new(packDelta.X, 0, packDelta.Z)
+	local flatLookVector = Vector3.new(rootPart.CFrame.LookVector.X, 0, rootPart.CFrame.LookVector.Z)
+	if flatPackDelta.Magnitude > 0.1 and flatLookVector.Magnitude > 0.1 then
+		local facingDot = flatLookVector.Unit:Dot(flatPackDelta.Unit)
+		if facingDot < (Constants.Pitchfork.HitFacingDot or 0.5) then
+			PackOpenFailedEvent:FireClient(player, {
+				error = "Face the pack directly before swinging.",
+			})
+			return
+		end
 	end
 
 	local damage = getPitchforkDamage(player)
@@ -4508,7 +4538,7 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	local newBrightness = nil
 
 	if plot.activePackLight then
-		newBrightness = 2.4 + ((plot.activePackMaxHits - plot.activePackHitsRemaining) * 0.65)
+		newBrightness = 1.15 + ((plot.activePackMaxHits - plot.activePackHitsRemaining) * 0.28)
 		plot.activePackLight.Brightness = newBrightness
 	end
 
@@ -4528,8 +4558,8 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 		plot.activePackHitEmitter:Emit(44)
 	end
 	if plot.activePackLight then
-		plot.activePackLight.Brightness = 12
-		plot.activePackLight.Range = 52
+		plot.activePackLight.Brightness = 4.8
+		plot.activePackLight.Range = 24
 	end
 	if plot.activePackHighlight then
 		plot.activePackHighlight.FillTransparency = 0
@@ -4549,6 +4579,7 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 
 	local openedPackId = plot.activePackDef.id
 	local openedPackColor = plot.activePackDef.color
+	local openedPackWorldPosition = plot.activePackBody.Position + Vector3.new(0, 2.5, 0)
 
 	local ok, result = PackService.OpenPack(player, openedPackId, {
 		ignoreCost = true,
@@ -4569,6 +4600,8 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 			card = pulledCard,
 			storedInInventory = storageResult.storedInInventory,
 			slotIndex = storageResult.slotIndex,
+			slotWorldPosition = storageResult.slotWorldPosition,
+			packWorldPosition = openedPackWorldPosition,
 			coinsPerSecond = passiveIncome,
 			passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
 		})
@@ -4965,6 +4998,8 @@ ClaimFreePackFn.OnServerInvoke = function(player)
 		card = pulledCard,
 		storedInInventory = storageResult.storedInInventory,
 		slotIndex = storageResult.slotIndex,
+		slotWorldPosition = storageResult.slotWorldPosition,
+		packWorldPosition = plot and (plot.packPad.Position + Vector3.new(0, 6, 0)) or nil,
 		coinsPerSecond = passiveIncome,
 		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
 	})
@@ -5884,6 +5919,38 @@ UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
 	setCoinsDisplay(coins)
 end)
 
+local function getGuiCenterTarget(guiObject, fallback)
+	if not guiObject or not guiObject.Parent then
+		return fallback
+	end
+
+	local size = guiObject.AbsoluteSize
+	if size.X <= 0 or size.Y <= 0 then
+		return fallback
+	end
+
+	local position = guiObject.AbsolutePosition
+	return UDim2.fromOffset(position.X + (size.X / 2), position.Y + (size.Y / 2))
+end
+
+local function getWorldScreenTarget(worldPosition, fallback)
+	if typeof(worldPosition) ~= "Vector3" then
+		return fallback
+	end
+
+	local camera = Workspace.CurrentCamera
+	if not camera then
+		return fallback
+	end
+
+	local screenPoint, onScreen = camera:WorldToViewportPoint(worldPosition)
+	if not onScreen or screenPoint.Z <= 0 then
+		return fallback
+	end
+
+	return UDim2.fromOffset(screenPoint.X, screenPoint.Y)
+end
+
 -- ── Compact card reveal ───────────────────────────────────────────────────────
 -- Appears near the pack, shows player info briefly, then flies toward the
 -- destination slot (or inventory corner).  No full-screen overlay — keeps the
@@ -5902,12 +5969,12 @@ local function showCardReveal(payload)
 
 	-- ── Card panel (compact: 180 × 256 px) ───────────────────────────
 	local CARD_W, CARD_H = 180, 256
+	local revealStart = getWorldScreenTarget(payload.packWorldPosition, UDim2.new(0.5, 0, 0.42, 0))
 
 	local cardPanel = make("Frame", {
 		Name = "CardReveal",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		-- Slightly above screen centre — pack is usually in the upper half of view
-		Position = UDim2.new(0.5, 0, 0.42, 0),
+		Position = revealStart,
 		Size = UDim2.fromOffset(CARD_W, CARD_H),
 		BackgroundColor3 = rarityColor:Lerp(Color3.fromRGB(10, 5, 2), 0.68),
 		ZIndex = 200,
@@ -6061,10 +6128,9 @@ local function showCardReveal(payload)
 			return
 		end
 
-		-- Inventory → bottom-left corner; display slot → bottom-right corner
 		local flyTarget = toInventory
-			and UDim2.new(0.06, 0, 0.92, 0)
-			or UDim2.new(0.92, 0, 0.92, 0)
+			and getGuiCenterTarget(inventoryButton, UDim2.new(0.16, 0, 0.72, 0))
+			or getWorldScreenTarget(payload.slotWorldPosition, UDim2.new(0.5, 0, 0.72, 0))
 
 		TweenService:Create(
 			cardPanel,

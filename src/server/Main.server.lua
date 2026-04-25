@@ -307,8 +307,8 @@ local function playPackHitEffect(plot, settleBrightness)
 		end)
 	end
 
-	local baseBrightness = settleBrightness or plot.activePackBaseBrightness or 2.8
-	pulseLight(plot.activePackLight, baseBrightness, baseBrightness + 3.4, 0.1)
+	local baseBrightness = settleBrightness or plot.activePackBaseBrightness or 1.15
+	pulseLight(plot.activePackLight, baseBrightness, baseBrightness + 1.25, 0.1)
 
 	for _, part in ipairs(plot.activePackImpactParts or {}) do
 		if part and part.Parent then
@@ -450,6 +450,7 @@ local function autoStorePulledCard(player, plot, card)
 		return {
 			storedInInventory = true,
 			slotIndex = nil,
+			slotWorldPosition = nil,
 		}
 	end
 
@@ -460,6 +461,7 @@ local function autoStorePulledCard(player, plot, card)
 		return {
 			storedInInventory = false,
 			slotIndex = emptySlot.slotIndex,
+			slotWorldPosition = emptySlot.top.Position + Vector3.new(0, 4.4, 0),
 		}
 	end
 
@@ -468,6 +470,7 @@ local function autoStorePulledCard(player, plot, card)
 	return {
 		storedInInventory = true,
 		slotIndex = nil,
+		slotWorldPosition = nil,
 	}
 end
 
@@ -569,8 +572,8 @@ local function spawnPackForPlot(plot)
 
 	local glow = Instance.new("PointLight")
 	glow.Color = packDef.color
-	glow.Range = 18
-	glow.Brightness = 2.8
+	glow.Range = 12
+	glow.Brightness = 1.15
 	glow.Parent = cardBody
 
 	local hitAttachment = Instance.new("Attachment")
@@ -706,18 +709,35 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	end
 
 	local plot = BaseService.GetPlot(player)
-	if not plot or not plot.activePackDef or not plot.activePackBody or plot.isOpeningPack then
+	if plot and plot.isOpeningPack then
+		return
+	end
+
+	if not plot or not plot.activePackDef or not plot.activePackBody then
 		PackOpenFailedEvent:FireClient(player, {
 			error = "Your next pack is still spawning.",
 		})
 		return
 	end
 
-	if (rootPart.Position - plot.activePackBody.Position).Magnitude > Constants.Pitchfork.HitRange then
+	local packDelta = plot.activePackBody.Position - rootPart.Position
+	if packDelta.Magnitude > Constants.Pitchfork.HitRange then
 		PackOpenFailedEvent:FireClient(player, {
 			error = "Move closer to the pack on your red pad.",
 		})
 		return
+	end
+
+	local flatPackDelta = Vector3.new(packDelta.X, 0, packDelta.Z)
+	local flatLookVector = Vector3.new(rootPart.CFrame.LookVector.X, 0, rootPart.CFrame.LookVector.Z)
+	if flatPackDelta.Magnitude > 0.1 and flatLookVector.Magnitude > 0.1 then
+		local facingDot = flatLookVector.Unit:Dot(flatPackDelta.Unit)
+		if facingDot < (Constants.Pitchfork.HitFacingDot or 0.5) then
+			PackOpenFailedEvent:FireClient(player, {
+				error = "Face the pack directly before swinging.",
+			})
+			return
+		end
 	end
 
 	local damage = getPitchforkDamage(player)
@@ -725,7 +745,7 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	local newBrightness = nil
 
 	if plot.activePackLight then
-		newBrightness = 2.4 + ((plot.activePackMaxHits - plot.activePackHitsRemaining) * 0.65)
+		newBrightness = 1.15 + ((plot.activePackMaxHits - plot.activePackHitsRemaining) * 0.28)
 		plot.activePackLight.Brightness = newBrightness
 	end
 
@@ -745,8 +765,8 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 		plot.activePackHitEmitter:Emit(44)
 	end
 	if plot.activePackLight then
-		plot.activePackLight.Brightness = 12
-		plot.activePackLight.Range = 52
+		plot.activePackLight.Brightness = 4.8
+		plot.activePackLight.Range = 24
 	end
 	if plot.activePackHighlight then
 		plot.activePackHighlight.FillTransparency = 0
@@ -766,6 +786,7 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 
 	local openedPackId = plot.activePackDef.id
 	local openedPackColor = plot.activePackDef.color
+	local openedPackWorldPosition = plot.activePackBody.Position + Vector3.new(0, 2.5, 0)
 
 	local ok, result = PackService.OpenPack(player, openedPackId, {
 		ignoreCost = true,
@@ -786,6 +807,8 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 			card = pulledCard,
 			storedInInventory = storageResult.storedInInventory,
 			slotIndex = storageResult.slotIndex,
+			slotWorldPosition = storageResult.slotWorldPosition,
+			packWorldPosition = openedPackWorldPosition,
 			coinsPerSecond = passiveIncome,
 			passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
 		})
@@ -1182,6 +1205,8 @@ ClaimFreePackFn.OnServerInvoke = function(player)
 		card = pulledCard,
 		storedInInventory = storageResult.storedInInventory,
 		slotIndex = storageResult.slotIndex,
+		slotWorldPosition = storageResult.slotWorldPosition,
+		packWorldPosition = plot and (plot.packPad.Position + Vector3.new(0, 6, 0)) or nil,
 		coinsPerSecond = passiveIncome,
 		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
 	})

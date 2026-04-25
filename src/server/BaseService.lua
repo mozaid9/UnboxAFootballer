@@ -38,11 +38,11 @@ end
 
 local function configureMapLighting()
 	Lighting.ClockTime = 19.25
-	Lighting.Brightness = 2.6
-	Lighting.Ambient = Color3.fromRGB(58, 66, 86)
-	Lighting.OutdoorAmbient = Color3.fromRGB(42, 50, 70)
-	Lighting.EnvironmentDiffuseScale = 0.52
-	Lighting.EnvironmentSpecularScale = 0.8
+	Lighting.Brightness = 2.05
+	Lighting.Ambient = Color3.fromRGB(44, 52, 70)
+	Lighting.OutdoorAmbient = Color3.fromRGB(34, 42, 60)
+	Lighting.EnvironmentDiffuseScale = 0.42
+	Lighting.EnvironmentSpecularScale = 0.58
 	Lighting.FogColor = Color3.fromRGB(42, 51, 68)
 	Lighting.FogStart = 320
 	Lighting.FogEnd = 760
@@ -57,15 +57,15 @@ local function configureMapLighting()
 	})
 
 	replaceLightingEffect("BloomEffect", "UnboxGoldBloom", {
-		Intensity = 0.32,  -- was 0.22 — more glow on the gold neon strips
-		Size = 18,         -- was 16 — slightly wider halo
-		Threshold = 1.65,  -- was 1.85 — catches more neon emitters
+		Intensity = 0.16,
+		Size = 12,
+		Threshold = 2.05,
 	})
 
 	replaceLightingEffect("ColorCorrectionEffect", "UnboxColorGrade", {
-		Brightness = 0.02,  -- was 0.01 — slightly lifted shadows
-		Contrast = 0.06,
-		Saturation = 0.14,  -- was 0.08 — richer colours without over-saturation
+		Brightness = 0,
+		Contrast = 0.05,
+		Saturation = 0.08,
 		TintColor = Color3.fromRGB(242, 247, 255),
 	})
 end
@@ -308,17 +308,17 @@ local function createFloodlightRig(parent, name, position, targetPosition)
 		Name = "FloodBeam",
 		Face = Enum.NormalId.Front,
 		Color = Color3.fromRGB(255, 245, 218),
-		Range = 168,
-		Angle = 74,
-		Brightness = 3.2,
+		Range = 118,
+		Angle = 56,
+		Brightness = 1.15,
 		Shadows = false,
 	}, panel)
 
 	make("PointLight", {
 		Name = "FloodFill",
 		Color = Color3.fromRGB(255, 235, 190),
-		Range = 36,
-		Brightness = 0.25,
+		Range = 24,
+		Brightness = 0.08,
 		Shadows = false,
 	}, panel)
 
@@ -827,9 +827,9 @@ local function createFoodKiosk(parent, name, position, signText, facingPos)
 		Name = "KioskSign",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.Neon,
+		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(255, 170, 40),
-		Transparency = 0.05,
+		Transparency = 0.12,
 		Size = Vector3.new(6.0, 1.4, 0.22),
 		CFrame = boothCF * CFrame.new(0, 3.55, 1.24),
 	}, model)
@@ -851,8 +851,8 @@ local function createFoodKiosk(parent, name, position, signText, facingPos)
 	-- Bright warm light spills onto nearby NPCs
 	make("PointLight", {
 		Color = Color3.fromRGB(255, 158, 42),
-		Range = 28,
-		Brightness = 2.4,
+		Range = 12,
+		Brightness = 0.45,
 		Shadows = false,
 	}, sign)
 
@@ -863,7 +863,7 @@ local function createFoodKiosk(parent, name, position, signText, facingPos)
 		Vector3.new(8.2, 0.18, 0.22),
 		boothCF * CFrame.new(0, 2.19, 3.22),
 		Color3.fromRGB(255, 200, 40),
-		0.10
+		0.42
 	)
 
 	return model
@@ -981,8 +981,8 @@ local function createFanZone(mapWidth, mapLength)
 
 	make("PointLight", {
 		Color = Color3.fromRGB(255, 215, 0),
-		Range = 42,
-		Brightness = 2.2,
+		Range = 26,
+		Brightness = 0.85,
 		Shadows = false,
 	}, ball)
 
@@ -1395,8 +1395,8 @@ local function createPlot(plotId, side, laneIndex, position)
 	make("PointLight", {
 		Name = "PackStageLight",
 		Color = Color3.fromRGB(255, 210, 80),
-		Range = 14,
-		Brightness = 0.45,
+		Range = 10,
+		Brightness = 0.22,
 		Shadows = false,
 	}, packPad)
 
@@ -1669,7 +1669,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0, entranceWidth / 2 + 6), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightNorth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, -(layout.PlotSize.Z / 2 + 5)), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightSouth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, layout.PlotSize.Z / 2 + 5), packPad.Position + Vector3.new(0, 2, 0))
-	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 42, 0.38, Color3.fromRGB(255, 232, 184))
+	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 30, 0.12, Color3.fromRGB(255, 232, 184))
 
 	local plot = {
 		id = plotId,
@@ -1867,8 +1867,8 @@ function BaseService.UpdateDisplaySlot(slot, card, incomePerSecond)
 
 	make("PointLight", {
 		Color = Utils.GetRarityColor(card.rarity),
-		Range = 8,
-		Brightness = 0.85,
+		Range = 7,
+		Brightness = 0.45,
 	}, cardPart)
 
 	createDisplayCardFace(Enum.NormalId.Front, card, incomePerSecond, cardPart)
