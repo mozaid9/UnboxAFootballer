@@ -69,7 +69,7 @@ Constants.BaseLayout = {
 	DisplaySlotSize = Vector3.new(7, 3.5, 7),
 }
 
-Constants.FanPlaza = {
+Constants.FanZone = {
 	CrowdNpcCount = 20,
 	FansPerVisibleNpc = 75000,
 	BaseStadiumCapacity = 4,
@@ -78,12 +78,37 @@ Constants.FanPlaza = {
 	NpcWalkSpeed = 13,
 	StadiumVisitPauseMin = 30,
 	StadiumVisitPauseMax = 90,
+	KioskAssets = {
+		Food = 0,
+		Drink = 0,
+	},
+}
+
+Constants.PackMilestones = {
+	{ interval = 50, reward = "Rare Pack" },
+	{ interval = 100, reward = "Special Pack" },
+	{ interval = 500, reward = "Player Pick" },
+}
+
+Constants.Rebirth = {
+	BaseFanRequirement = 1000000,
+	FanRequirementMultiplier = 2,
+	RequiredSpecialCards = 3,
+	SpecialRarity = "Premium Gold",
+	StartingFansAfterRebirth = Constants.StartingCoins,
+	MultiplierMilestones = {
+		{ tier = 0, multiplier = 1 },
+		{ tier = 1, multiplier = 1.2 },
+		{ tier = 2, multiplier = 1.4 },
+		{ tier = 5, multiplier = 2 },
+		{ tier = 10, multiplier = 5 },
+	},
 }
 
 Constants.Pitchfork = {
 	BaseDamage = 1,
 	SwingCooldown = 0.42,
-	HitRange = 24,
+	HitRange = 12,
 }
 
 -- ── Upgrade specs ─────────────────────────────────────────────

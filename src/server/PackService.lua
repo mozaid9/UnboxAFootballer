@@ -152,6 +152,7 @@ function PackService.OpenPack(player, packId, options)
 	end
 
 	data.totalCardsOpened = (data.totalCardsOpened or 0) + #cards
+	data.totalPacksOpened = (data.totalPacksOpened or 0) + 1
 	DataService.MarkDirty(player)
 
 	if Remotes and Remotes.UpdateCoins then

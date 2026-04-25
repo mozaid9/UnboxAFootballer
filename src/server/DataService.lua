@@ -30,6 +30,7 @@ local DEFAULT_DATA = {
 		MoveSpeed = 0,
 	},
 	totalCardsOpened = 0,
+	totalPacksOpened = 0,
 	totalRebirths = 0,
 	collectionRewards = {},
 }
@@ -303,6 +304,32 @@ function DataService.ClearDisplayedCard(player, slotIndex)
 	end
 
 	data.baseLayoutData.displayedCards[tostring(slotIndex)] = nil
+	DataService.MarkDirty(player)
+	return true
+end
+
+function DataService.GetTotalPacksOpened(player)
+	local data = cache[player]
+	return data and (data.totalPacksOpened or data.totalCardsOpened or 0) or 0
+end
+
+function DataService.ResetForRebirth(player, startingFans)
+	local data = cache[player]
+	if not data then
+		return false
+	end
+
+	data.coins = startingFans or Constants.StartingCoins
+	data.inventory = {}
+	data.baseLayoutData.displayedCards = {}
+	data.upgrades = {
+		PitchforkDamage = 0,
+		PackSpawnRate = 0,
+		PadLuck = 0,
+		MoveSpeed = 0,
+	}
+	data.totalCardsOpened = 0
+	data.totalPacksOpened = 0
 	DataService.MarkDirty(player)
 	return true
 end

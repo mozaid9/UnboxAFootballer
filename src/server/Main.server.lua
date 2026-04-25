@@ -67,6 +67,10 @@ local GetInventoryFn = makeFunction("GetInventory")
 local GetUpgradesFn = makeFunction("GetUpgrades")
 local PurchaseUpgradeFn = makeFunction("PurchaseUpgrade")
 local PlaceInventoryCardInSlotFn = makeFunction("PlaceInventoryCardInSlot")
+local ClaimFreePackFn = makeFunction("ClaimFreePack")
+local ClaimDailyRewardFn = makeFunction("ClaimDailyReward")
+local GetRebirthStatusFn = makeFunction("GetRebirthStatus")
+local RequestRebirthFn = makeFunction("RequestRebirth")
 
 PackService.Init(DataService, EconomyService, {
 	UpdateCoins = UpdateCoinsEvent,
@@ -370,15 +374,27 @@ end
 local function getDisplayedIncomePerSecond(player)
 	local displayedCards = DataService.GetDisplayedCards(player)
 	local total = 0
+	local data = DataService.GetData(player)
+	local multiplier = RebirthService.GetFanMultiplier(data and data.rebirthTier or 0)
 
 	for _, cardId in pairs(displayedCards) do
 		local card = getCardById(cardId)
 		if card then
-			total += Utils.GetPassiveIncome(card.rating)
+			total += math.floor(Utils.GetPassiveIncome(card.rating) * multiplier)
 		end
 	end
 
 	return total
+end
+
+local function getCardIncome(player, card)
+	if not card then
+		return 0
+	end
+
+	local data = DataService.GetData(player)
+	local multiplier = RebirthService.GetFanMultiplier(data and data.rebirthTier or 0)
+	return math.floor(Utils.GetPassiveIncome(card.rating) * multiplier)
 end
 
 local function refreshPlotDisplayState(player, plot)
@@ -390,7 +406,7 @@ local function refreshPlotDisplayState(player, plot)
 		local displayedCardId = DataService.GetDisplayedCard(player, slot.slotIndex)
 		local displayedCard = getCardById(displayedCardId)
 		if displayedCard then
-			BaseService.UpdateDisplaySlot(slot, displayedCard, Utils.GetPassiveIncome(displayedCard.rating))
+			BaseService.UpdateDisplaySlot(slot, displayedCard, getCardIncome(player, displayedCard))
 		else
 			local bestInventoryCard = getBestInventoryCard(player)
 			BaseService.SetDisplaySlotAddReady(slot, bestInventoryCard and "Choose Player" or "Inventory Empty", bestInventoryCard ~= nil)
@@ -425,7 +441,7 @@ local function placeCardOnDisplay(player, plot, slot, cardId)
 	end
 
 	DataService.SetDisplayedCard(player, slot.slotIndex, card.id)
-	BaseService.UpdateDisplaySlot(slot, card, Utils.GetPassiveIncome(card.rating))
+	BaseService.UpdateDisplaySlot(slot, card, getCardIncome(player, card))
 	return true
 end
 
@@ -599,10 +615,26 @@ local function spawnPackForPlot(plot)
 	createSurfaceLabel(Enum.NormalId.Front, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 	createSurfaceLabel(Enum.NormalId.Back, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 
-	local floatTween = TweenService:Create(cardBody, TweenInfo.new(1.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
-		CFrame = cardBody.CFrame * CFrame.new(0, 0.35, 0) * CFrame.Angles(0, math.rad(4), 0),
-	})
-	floatTween:Play()
+	-- Continuous idle: slow spin + gentle float.  All three parts updated together so
+	-- they never drift apart (the old tween only moved cardBody, leaving caps behind).
+	local packOriginX = basePosition.X
+	local packOriginY = basePosition.Y + 5.4
+	local packOriginZ = basePosition.Z
+	local packSpinAngle = 0
+	task.spawn(function()
+		while model.Parent do
+			packSpinAngle = packSpinAngle + math.rad(34) / 30 -- ≈ 34°/s slow spin
+			local floatY = packOriginY + math.sin(os.clock() * 1.3) * 0.30
+			local baseCF = CFrame.new(packOriginX, floatY, packOriginZ)
+				* CFrame.Angles(0, packSpinAngle, 0)
+			if model.Parent then
+				cardBody.CFrame = baseCF
+				topCap.CFrame = baseCF * CFrame.new(0, 4.65, 0) * CFrame.Angles(0, 0, math.rad(180))
+				bottomCap.CFrame = baseCF * CFrame.new(0, -4.8, 0)
+			end
+			task.wait(1 / 30)
+		end
+	end)
 
 	plot.activePackModel = model
 	plot.activePackDef = packDef
@@ -707,6 +739,31 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	plot.isOpeningPack = true
 	BaseService.SetPlotPadStatus(plot, "Pack Cracked", "Claiming your player", plot.activePackDef.color)
 
+	-- ── Pack crack burst animation ────────────────────────────────────
+	-- Fire before the card pull so players see the pack explode open.
+	if plot.activePackHitEmitter then
+		plot.activePackHitEmitter:Emit(44)
+	end
+	if plot.activePackLight then
+		plot.activePackLight.Brightness = 12
+		plot.activePackLight.Range = 52
+	end
+	if plot.activePackHighlight then
+		plot.activePackHighlight.FillTransparency = 0
+		plot.activePackHighlight.FillColor = Color3.fromRGB(255, 255, 255)
+	end
+	-- Expand + fade all three pack parts simultaneously
+	for _, part in ipairs(plot.activePackImpactParts or {}) do
+		if part and part.Parent then
+			TweenService:Create(
+				part,
+				TweenInfo.new(0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ Size = part.Size * 1.65, Transparency = 1 }
+			):Play()
+		end
+	end
+	task.wait(0.38) -- hold the drama before the card appears
+
 	local openedPackId = plot.activePackDef.id
 	local openedPackColor = plot.activePackDef.color
 
@@ -718,7 +775,8 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	if ok then
 		local pulledCard = result.card or (result.cards and result.cards[1]) or nil
 		local storageResult = autoStorePulledCard(player, plot, pulledCard)
-		local passiveIncome = pulledCard and Utils.GetPassiveIncome(pulledCard.rating) or 0
+		local passiveIncome = getCardIncome(player, pulledCard)
+		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
 
 		PackOpenedEvent:FireClient(player, {
 			success = true,
@@ -791,6 +849,7 @@ Players.PlayerAdded:Connect(function(player)
 
 	if plot then
 		refreshPlotDisplayState(player, plot)
+		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
 		spawnPackForPlot(plot)
 	end
 
@@ -841,10 +900,18 @@ GetPlayerDataFn.OnServerInvoke = function(player)
 		coins = data.coins,
 		gems = data.gems or 0,
 		rebirthTier = data.rebirthTier or 0,
+		rebirthTokens = data.rebirthTokens or 0,
+		fanMultiplier = RebirthService.GetFanMultiplier(data.rebirthTier or 0),
 		totalCardsOpened = data.totalCardsOpened or 0,
+		totalPacksOpened = DataService.GetTotalPacksOpened(player),
 		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
 		canClaimFreePack = EconomyService.CanClaimFreePack(player),
 		freePackRemaining = EconomyService.GetFreePackRemaining(player),
+		canClaimDailyReward = EconomyService.CanClaimDailyReward(player),
+		dailyRewardRemaining = math.max(
+			0,
+			Constants.DailyRewardCooldown - (os.time() - (data.lastDailyReward or 0))
+		),
 		inventoryCounts = data.inventory,
 	}
 end
@@ -913,7 +980,7 @@ PlaceInventoryCardInSlotFn.OnServerInvoke = function(player, slotIndex, cardId)
 		return { success = false, error = cardOrError }
 	end
 
-	sendHint(player, cardOrError.name .. " added to display slot " .. tostring(slotIndex) .. " for +" .. tostring(Utils.GetPassiveIncome(cardOrError.rating)) .. "/s.")
+	sendHint(player, cardOrError.name .. " added to display slot " .. tostring(slotIndex) .. " for +" .. tostring(getCardIncome(player, cardOrError)) .. "/s.")
 
 	return {
 		success = true,
@@ -1069,6 +1136,119 @@ PurchaseUpgradeFn.OnServerInvoke = function(player, upgradeKey)
 	payload.purchasedKey = upgradeKey
 	payload.coinsSpent = cost
 	return payload
+end
+
+-- ── Free Pack claim ───────────────────────────────────────────────────────────
+-- Player taps "CLAIM FREE PACK" in the Shop panel.  We stamp the cooldown here
+-- (EconomyService.ClaimFreePack), open a Gold Pack with ignoreCost so no Fans
+-- are charged, auto-store the card, then fire PackOpenedEvent so the card reveal
+-- screen appears exactly like a pitchfork crack.
+ClaimFreePackFn.OnServerInvoke = function(player)
+	local ok, err = EconomyService.ClaimFreePack(player)
+	if not ok then
+		return { success = false, error = err or "Free pack not ready." }
+	end
+
+	local packOk, result = PackService.OpenPack(player, "GoldPack", { ignoreCost = true })
+	if not packOk then
+		-- Rare: pack logic failed after cooldown was already stamped.  Let it
+		-- ride — player can retry on next cooldown.
+		return { success = false, error = result and result.error or "Pack failed. Try again." }
+	end
+
+	local pulledCard = result.card or (result.cards and result.cards[1]) or nil
+	local plot = BaseService.GetPlot(player)
+	local storageResult
+
+	if plot then
+		storageResult = autoStorePulledCard(player, plot, pulledCard)
+	else
+		if pulledCard then
+			DataService.AddCard(player, pulledCard.id)
+		end
+		storageResult = { storedInInventory = true, slotIndex = nil }
+	end
+
+	local passiveIncome = getCardIncome(player, pulledCard)
+	if plot then
+		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
+	end
+
+	PackOpenedEvent:FireClient(player, {
+		success = true,
+		packId = result.packId,
+		packName = result.packName,
+		newCoins = result.newCoins,
+		card = pulledCard,
+		storedInInventory = storageResult.storedInInventory,
+		slotIndex = storageResult.slotIndex,
+		coinsPerSecond = passiveIncome,
+		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
+	})
+
+	return {
+		success = true,
+		freePackRemaining = Constants.FreePackCooldown,
+	}
+end
+
+-- ── Daily Reward claim ────────────────────────────────────────────────────────
+-- Normally granted automatically on login, but players can also claim through
+-- the Shop if 24 h have elapsed while they're still in the session.
+ClaimDailyRewardFn.OnServerInvoke = function(player)
+	local granted = EconomyService.TryGrantDailyReward(player)
+	if not granted then
+		local data = DataService.GetData(player)
+		local remaining = data
+				and math.max(0, Constants.DailyRewardCooldown - (os.time() - (data.lastDailyReward or 0)))
+			or Constants.DailyRewardCooldown
+		return {
+			success = false,
+			error = "Daily reward not ready yet.",
+			dailyRewardRemaining = remaining,
+		}
+	end
+
+	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+
+	return {
+		success = true,
+		coinsAwarded = Constants.DailyRewardCoins,
+		newCoins = DataService.GetCoins(player),
+		dailyRewardRemaining = Constants.DailyRewardCooldown,
+	}
+end
+
+GetRebirthStatusFn.OnServerInvoke = function(player)
+	return RebirthService.GetStatus(player)
+end
+
+RequestRebirthFn.OnServerInvoke = function(player)
+	local ok, result = RebirthService.PerformRebirth(player)
+	if not ok then
+		return {
+			success = false,
+			status = result,
+			error = result and result.reason or "You cannot rebirth yet.",
+		}
+	end
+
+	local plot = BaseService.GetPlot(player)
+	if plot then
+		BaseService.ClearPlotDisplays(plot)
+		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
+		refreshPlotDisplayState(player, plot)
+	end
+
+	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+	sendHint(player, "Rebirth complete! Your stadium reset, but your permanent fan multiplier increased.")
+
+	return {
+		success = true,
+		status = result,
+		coins = DataService.GetCoins(player),
+		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
+	}
 end
 
 print("[UnboxAFootballer] Pack systems ready")

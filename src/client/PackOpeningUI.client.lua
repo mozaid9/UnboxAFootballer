@@ -409,7 +409,9 @@ questsButton.MouseButton1Click:Connect(function()
 end)
 
 shopButton.MouseButton1Click:Connect(function()
-	showToast("Shop is coming soon. Pack tiers and cosmetics will live here.", Color3.fromRGB(74, 185, 98))
+	if not fireGuiToggle("ShopUI") then
+		showToast("Shop is still loading. Try again in a second.", Color3.fromRGB(74, 185, 98))
+	end
 end)
 
 addFansButton.MouseButton1Click:Connect(function()
@@ -424,6 +426,207 @@ UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
 	setCoinsDisplay(coins)
 end)
 
+-- ── Compact card reveal ───────────────────────────────────────────────────────
+-- Appears near the pack, shows player info briefly, then flies toward the
+-- destination slot (or inventory corner).  No full-screen overlay — keeps the
+-- world visible while the card pops.  Auto-destroys in ~2 s.
+local function showCardReveal(payload)
+	local card = payload.card
+	if not card then
+		return
+	end
+
+	local rarityColor = Utils.GetRarityColor(card.rarity)
+	local isPremium = card.rarity == "Premium Gold"
+	local trimColor = isPremium and Color3.fromRGB(210, 228, 255) or Color3.fromRGB(218, 168, 48)
+	local income = payload.coinsPerSecond or 0
+	local toInventory = payload.storedInInventory == true
+
+	-- ── Card panel (compact: 180 × 256 px) ───────────────────────────
+	local CARD_W, CARD_H = 180, 256
+
+	local cardPanel = make("Frame", {
+		Name = "CardReveal",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		-- Slightly above screen centre — pack is usually in the upper half of view
+		Position = UDim2.new(0.5, 0, 0.42, 0),
+		Size = UDim2.fromOffset(CARD_W, CARD_H),
+		BackgroundColor3 = rarityColor:Lerp(Color3.fromRGB(10, 5, 2), 0.68),
+		ZIndex = 200,
+	}, screenGui)
+	addCorner(cardPanel, 16)
+	addStroke(cardPanel, trimColor, 3)
+
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.14)),
+			ColorSequenceKeypoint.new(0.44, rarityColor),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(6, 3, 1)),
+		}),
+		Rotation = 158,
+	}, cardPanel)
+
+	-- UIScale at 0.05 → 1 for the bounce pop-in
+	local cardScale = make("UIScale", { Scale = 0.05 }, cardPanel)
+
+	-- Rating (top-left)
+	local ratingLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(12, 10),
+		Size = UDim2.fromOffset(50, 42),
+		Text = tostring(card.rating),
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 202,
+	}, cardPanel)
+	addStroke(ratingLabel, Color3.fromRGB(6, 3, 1), 2, 0.22)
+
+	-- Position (below rating)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(13, 52),
+		Size = UDim2.fromOffset(44, 14),
+		Text = card.position,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextScaled = false,
+		TextSize = 11,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 202,
+	}, cardPanel)
+
+	-- Nation (top-right)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 13),
+		Size = UDim2.fromOffset(84, 14),
+		Text = card.nation,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextScaled = false,
+		TextSize = 11,
+		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		ZIndex = 202,
+	}, cardPanel)
+
+	-- Divider
+	make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 70),
+		Size = UDim2.new(0.84, 0, 0, 1.5),
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BackgroundTransparency = 0.55,
+		BorderSizePixel = 0,
+		ZIndex = 202,
+	}, cardPanel)
+
+	-- Monogram circle
+	local monogram = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 78),
+		Size = UDim2.fromOffset(84, 84),
+		BackgroundColor3 = rarityColor:Lerp(Color3.fromRGB(0, 0, 0), 0.55),
+		BackgroundTransparency = 0.42,
+		ZIndex = 201,
+	}, cardPanel)
+	addCorner(monogram, 42)
+	addStroke(monogram, Color3.fromRGB(255, 255, 255), 1.2, 0.62)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = string.upper(string.sub(card.name, 1, 1)),
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextTransparency = 0.30,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 202,
+	}, monogram)
+
+	-- Player name
+	local nameLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 170),
+		Size = UDim2.new(0.90, 0, 0, 46),
+		Text = string.upper(card.name),
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextScaled = true,
+		TextWrapped = true,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		ZIndex = 202,
+	}, cardPanel)
+	make("UITextSizeConstraint", { MinTextSize = 9, MaxTextSize = 22 }, nameLabel)
+	addStroke(nameLabel, Color3.fromRGB(6, 3, 1), 1.2, 0.20)
+
+	-- Destination + income pill (bottom of card)
+	local destStr = toInventory
+		and ("→ Inventory  ·  +" .. Utils.FormatNumber(income) .. "/s")
+		or ("→ Slot " .. tostring(payload.slotIndex) .. "  ·  +" .. Utils.FormatNumber(income) .. "/s")
+	local pillBg = toInventory and Color3.fromRGB(40, 50, 80) or Color3.fromRGB(22, 74, 38)
+	local pillAccent = toInventory and Color3.fromRGB(110, 130, 210) or Color3.fromRGB(74, 185, 98)
+
+	local pill = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -10),
+		Size = UDim2.fromOffset(158, 26),
+		BackgroundColor3 = pillBg,
+		ZIndex = 202,
+	}, cardPanel)
+	addCorner(pill, 13)
+	addStroke(pill, pillAccent, 1.2, 0.28)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = destStr,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextScaled = false,
+		TextSize = 11,
+		Font = Enum.Font.GothamBold,
+		ZIndex = 203,
+	}, pill)
+
+	-- ── Pop-in animation ─────────────────────────────────────────────
+	task.wait(0.04)
+	TweenService:Create(cardScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1,
+	}):Play()
+
+	-- ── Fly-off after 1.4 s ──────────────────────────────────────────
+	-- Card shrinks and slides toward the destination corner so it feels like
+	-- it "drops into" the slot or inventory rather than just disappearing.
+	task.delay(1.4, function()
+		if not cardPanel.Parent then
+			return
+		end
+
+		-- Inventory → bottom-left corner; display slot → bottom-right corner
+		local flyTarget = toInventory
+			and UDim2.new(0.06, 0, 0.92, 0)
+			or UDim2.new(0.92, 0, 0.92, 0)
+
+		TweenService:Create(
+			cardPanel,
+			TweenInfo.new(0.32, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ Position = flyTarget }
+		):Play()
+		TweenService:Create(
+			cardScale,
+			TweenInfo.new(0.32, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ Scale = 0 }
+		):Play()
+
+		task.delay(0.35, function()
+			if cardPanel.Parent then
+				cardPanel:Destroy()
+			end
+		end)
+	end)
+end
+
 PackOpenedEvent.OnClientEvent:Connect(function(payload)
 	if not payload or not payload.success then
 		return
@@ -432,13 +635,7 @@ PackOpenedEvent.OnClientEvent:Connect(function(payload)
 	setCoinsDisplay(payload.newCoins)
 
 	if payload.card then
-		local targetText
-		if payload.storedInInventory then
-			targetText = payload.card.name .. " went to inventory because your displays are full."
-		else
-			targetText = payload.card.name .. " is now on display slot " .. tostring(payload.slotIndex) .. " earning +" .. tostring(payload.coinsPerSecond or 0) .. " Fans/s."
-		end
-		showToast(targetText, Utils.GetRarityColor(payload.card.rarity))
+		showCardReveal(payload)
 	end
 end)
 

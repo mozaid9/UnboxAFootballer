@@ -11,16 +11,24 @@ local DataService
 local fanFolder
 local running = false
 
-local plazaConfig = Constants.FanPlaza
+local plazaConfig = Constants.FanZone
 local layout = Constants.BaseLayout
 
+-- Football jersey palette — bright, varied, instantly readable as a crowd
 local shirtColors = {
-	Color3.fromRGB(18, 23, 34),
-	Color3.fromRGB(32, 96, 62),
-	Color3.fromRGB(120, 72, 38),
-	Color3.fromRGB(38, 72, 120),
-	Color3.fromRGB(118, 92, 28),
-	Color3.fromRGB(92, 46, 120),
+	Color3.fromRGB(192, 26, 26),    -- red (Arsenal / Man Utd)
+	Color3.fromRGB(24, 78, 170),    -- royal blue (Chelsea)
+	Color3.fromRGB(108, 174, 228),  -- sky blue (Man City)
+	Color3.fromRGB(20, 110, 48),    -- green (Celtic / Forest)
+	Color3.fromRGB(230, 186, 28),   -- yellow (Dortmund / Brazil)
+	Color3.fromRGB(148, 20, 148),   -- purple (Fiorentina)
+	Color3.fromRGB(224, 88, 24),    -- orange (Netherlands)
+	Color3.fromRGB(236, 236, 236),  -- white (Real Madrid)
+	Color3.fromRGB(16, 26, 86),     -- dark navy (Everton)
+	Color3.fromRGB(164, 12, 58),    -- claret (Aston Villa)
+	Color3.fromRGB(28, 28, 28),     -- black (Juventus)
+	Color3.fromRGB(32, 96, 62),     -- dark green
+	Color3.fromRGB(120, 72, 38),    -- brown / amber
 }
 
 local skinColors = {
@@ -30,7 +38,15 @@ local skinColors = {
 	Color3.fromRGB(246, 215, 176),
 }
 
-local STANDING_PIVOT_HEIGHT = 2.8
+local STANDING_PIVOT_HEIGHT = 3.1
+
+-- Colours for the small food/drink prop NPCs carry after a kiosk stop
+local FOOD_COLORS = {
+	Color3.fromRGB(255, 200, 70),   -- yellow (hot dog / chips)
+	Color3.fromRGB(200, 55, 30),    -- red (drink cup)
+	Color3.fromRGB(255, 140, 40),   -- orange (fanta)
+	Color3.fromRGB(235, 235, 235),  -- white (popcorn)
+}
 local STAND_TIERS = {
 	{ zOffset = 24.2, surfaceY = 1.9 },
 	{ zOffset = 27.1, surfaceY = 2.8 },
@@ -48,7 +64,7 @@ end
 
 local function getWaypoint(name)
 	local basesFolder = Workspace:FindFirstChild("PlayerBases")
-	local plaza = basesFolder and basesFolder:FindFirstChild("FanPlaza")
+	local plaza = basesFolder and basesFolder:FindFirstChild("FanZone")
 	local waypoints = plaza and plaza:FindFirstChild("Waypoints")
 	return waypoints and waypoints:FindFirstChild(name)
 end
@@ -164,7 +180,7 @@ local function createFanNpc(index)
 		Material = Enum.Material.SmoothPlastic,
 		Color = pantsColor,
 		Size = Vector3.new(0.95, 2.25, 0.95),
-		CFrame = CFrame.new(-0.5, 1.18, 0),
+		CFrame = CFrame.new(-0.5, 1.48, 0),
 	}, model)
 
 	make("Part", {
@@ -174,7 +190,7 @@ local function createFanNpc(index)
 		Material = Enum.Material.SmoothPlastic,
 		Color = pantsColor,
 		Size = Vector3.new(0.95, 2.25, 0.95),
-		CFrame = CFrame.new(0.5, 1.18, 0),
+		CFrame = CFrame.new(0.5, 1.48, 0),
 	}, model)
 
 	return model
@@ -213,6 +229,63 @@ local function setFanPose(model, pose)
 	setPartLocal(model, "Right Arm", CFrame.new(1.5, 0, 0), Vector3.new(1, 2, 1))
 	setPartLocal(model, "Left Leg", CFrame.new(-0.5, -1.62, 0), Vector3.new(0.95, 2.25, 0.95))
 	setPartLocal(model, "Right Leg", CFrame.new(0.5, -1.62, 0), Vector3.new(0.95, 2.25, 0.95))
+end
+
+-- Attaches or removes a small food/drink prop near the NPC's right hand.
+-- Because all parts are anchored and moved via PivotTo, the prop stays at a
+-- fixed offset from the model pivot — right arm area — automatically.
+local function setFoodProp(model, enabled)
+	local existing = model:FindFirstChild("FoodProp")
+	if existing then
+		existing:Destroy()
+	end
+	if not enabled or not model.Parent then
+		return
+	end
+	local pivot = model:GetPivot()
+	local propModel = make("Model", {
+		Name = "FoodProp",
+	}, model)
+	-- Front is local -Z for CFrame.lookAt. Keep the prop slightly in front of
+	-- the right hand so it doesn't get hidden inside the blocky arm.
+	local propCFrame = pivot * CFrame.new(1.65, -0.48, -0.62)
+	local propColor = FOOD_COLORS[math.random(1, #FOOD_COLORS)]
+
+	make("Part", {
+		Name = "Cup",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = propColor,
+		Size = Vector3.new(0.5, 0.7, 0.5),
+		CFrame = propCFrame,
+	}, propModel)
+
+	make("Part", {
+		Name = "Lid",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 235, 160),
+		Size = Vector3.new(0.56, 0.08, 0.56),
+		CFrame = propCFrame * CFrame.new(0, 0.39, 0),
+	}, propModel)
+
+	make("Part", {
+		Name = "Straw",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(245, 245, 245),
+		Size = Vector3.new(0.08, 0.62, 0.08),
+		CFrame = propCFrame * CFrame.new(0.16, 0.66, -0.04) * CFrame.Angles(0, 0, math.rad(12)),
+	}, propModel)
 end
 
 local function getPlotEntrancePoint(plot)
@@ -277,45 +350,88 @@ local function chooseVisitorPlot()
 	return weightedPlots[#weightedPlots].plot
 end
 
-local function makeRoute()
+-- laneOffset: X-axis nudge (studs) so each NPC walks a slightly different
+-- track through the plaza — prevents them all overlapping on the centre line.
+local function makeRoute(laneOffset)
+	laneOffset = laneOffset or 0
+
 	local northGate = getPoint("NorthGate")
 	local southGate = getPoint("SouthGate")
 	local center = getPoint("Center")
 	local westLoop = getPoint("WestLoop")
 	local eastLoop = getPoint("EastLoop")
+	local foodNorth = getPoint("FoodNorth")
+	local foodSouth = getPoint("FoodSouth")
+	local foodNorthWest = getPoint("FoodNorthWest")
+	local foodNorthEast = getPoint("FoodNorthEast")
+	local foodSouthWest = getPoint("FoodSouthWest")
+	local foodSouthEast = getPoint("FoodSouthEast")
 	if not northGate or not southGate or not center or not westLoop or not eastLoop then
 		return nil
 	end
 
-	local startPoint = math.random(1, 2) == 1 and northGate or southGate
-	local endPoint = startPoint == northGate and southGate or northGate
-	local loopPoint = math.random(1, 2) == 1 and westLoop or eastLoop
+	-- Apply lane offset to all main-walkway positions (not stadium sub-paths).
+	local function lane(pos)
+		return Vector3.new(pos.X + laneOffset, pos.Y, pos.Z)
+	end
+
+	local rawStart = math.random(1, 2) == 1 and northGate or southGate
+	local rawEnd   = rawStart == northGate and southGate or northGate
+	local rawLoop  = math.random(1, 2) == 1 and westLoop or eastLoop
+
 	local route = {
-		{ position = startPoint },
-		{ position = center },
-		{ position = loopPoint },
+		{ position = lane(rawStart) },
+		{ position = lane(center) },
+		{ position = lane(rawLoop) },
 	}
+
+	-- 30 % chance: detour to the food kiosk near the entry gate.
+	-- NPCs choose the kiosk on their lane side and stop close to the counter.
+	-- isFood = true tells runFan to hand a prop to the NPC before the pause.
+	if math.random() < 0.30 then
+		local westSide = laneOffset < 0
+		local rawFood
+		if rawStart == northGate then
+			rawFood = westSide and foodNorthWest or foodNorthEast
+			rawFood = rawFood or foodNorth
+		else
+			rawFood = westSide and foodSouthWest or foodSouthEast
+			rawFood = rawFood or foodSouth
+		end
+
+		if rawFood then
+			local kioskSideX = westSide and -12 or 12
+			local kioskZNudge = rawStart == northGate and 4 or -4
+			table.insert(route, 2, {
+				position = rawFood,
+				pause = math.random(8, 18),
+				isFood = true,
+				lookAt = Vector3.new(kioskSideX, rawFood.Y, rawFood.Z + kioskZNudge),
+			})
+		end
+	end
 
 	if math.random() < plazaConfig.VisitorRouteChance then
 		local plot = chooseVisitorPlot()
 		if plot then
-			local stadiumPathPoint = Vector3.new(0, STANDING_PIVOT_HEIGHT, plot.floor.Position.Z)
+			-- Stadium sub-path: use laneOffset on the central-Z approach only
+			local stadiumPathPoint = Vector3.new(laneOffset, STANDING_PIVOT_HEIGHT, plot.floor.Position.Z)
 			table.insert(route, { position = stadiumPathPoint })
 			table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.35 })
 			table.insert(route, {
 				position = getPlotSeatPoint(plot),
 				pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),
-				-- After arriving, pivot to face the pitch centre so fans watch the game.
 				lookAt = plot.floor.Position,
 				pose = "seated",
+				clearFood = true,   -- drop food prop before sitting
 			})
 			table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.2 })
 			table.insert(route, { position = stadiumPathPoint })
 		end
 	end
 
-	table.insert(route, { position = center })
-	table.insert(route, { position = endPoint })
+	table.insert(route, { position = lane(center) })
+	table.insert(route, { position = lane(rawEnd) })
 	return route
 end
 
@@ -365,27 +481,38 @@ local function moveModelTo(model, targetPosition)
 end
 
 local function runFan(model)
+	-- Each NPC gets a fixed lane offset for its lifetime so it always walks
+	-- a consistent track through the plaza rather than drifting to the centre.
+	-- Range: ±8 studs; avoid the very centre (±1) so there's a visible gap.
+	local laneSign = math.random(1, 2) == 1 and 1 or -1
+	local laneOffset = laneSign * (math.random(15, 80) / 10)   -- 1.5 – 8.0 studs
+
 	task.spawn(function()
 		task.wait(math.random() * 2)
 		while running and model.Parent do
-			local route = makeRoute()
+			local route = makeRoute(laneOffset)
 			if route and #route >= 2 then
 				setFanPose(model, "standing")
 				local startPoint = getStepPosition(route[1])
 				local nextPoint = getStepPosition(route[2])
 				model:PivotTo(CFrame.lookAt(startPoint, nextPoint))
 				setFanPose(model, "standing")
+
+				local hasFood = false
+
 				for index = 2, #route do
 					local step = route[index]
 					local targetPosition = getStepPosition(step)
+
 					if typeof(step) ~= "table" or step.pose ~= "seated" then
 						setFanPose(model, "standing")
 					end
+
 					if not moveModelTo(model, targetPosition) then
 						return
 					end
-					-- If this step has a look-at target (e.g. fans facing the pitch while seated),
-					-- snap the pivot to face that point before the pause begins.
+
+					-- Face look-at target before pause (e.g. seated fans face the pitch)
 					if typeof(step) == "table" and step.lookAt and model.Parent then
 						local pivot = model:GetPivot()
 						local flatLookAt = Vector3.new(step.lookAt.X, pivot.Position.Y, step.lookAt.Z)
@@ -394,13 +521,35 @@ local function runFan(model)
 							model:PivotTo(CFrame.lookAt(pivot.Position, flatLookAt))
 						end
 					end
+
+					-- Seated pose
 					if typeof(step) == "table" and step.pose == "seated" then
 						setFanPose(model, "seated")
 					end
+
+					-- Hand the NPC a prop BEFORE the pause so they hold it while
+					-- waiting at the kiosk (looks like they received their order)
+					if typeof(step) == "table" and step.isFood and not hasFood then
+						setFoodProp(model, true)
+						hasFood = true
+					end
+
+					-- Drop food prop before sitting so it doesn't float oddly
+					if typeof(step) == "table" and step.clearFood and hasFood then
+						setFoodProp(model, false)
+						hasFood = false
+					end
+
 					if typeof(step) == "table" and step.pause and step.pause > 0 then
 						task.wait(step.pause)
 					end
+
 					task.wait(math.random(8, 22) / 100)
+				end
+
+				-- Clear prop at end of route
+				if hasFood then
+					setFoodProp(model, false)
 				end
 			else
 				task.wait(1)

@@ -213,7 +213,7 @@ Constants.BaseLayout = {
 	DisplaySlotSize = Vector3.new(7, 3.5, 7),
 }
 
-Constants.FanPlaza = {
+Constants.FanZone = {
 	CrowdNpcCount = 20,
 	FansPerVisibleNpc = 75000,
 	BaseStadiumCapacity = 4,
@@ -222,12 +222,37 @@ Constants.FanPlaza = {
 	NpcWalkSpeed = 13,
 	StadiumVisitPauseMin = 30,
 	StadiumVisitPauseMax = 90,
+	KioskAssets = {
+		Food = 0,
+		Drink = 0,
+	},
+}
+
+Constants.PackMilestones = {
+	{ interval = 50, reward = "Rare Pack" },
+	{ interval = 100, reward = "Special Pack" },
+	{ interval = 500, reward = "Player Pick" },
+}
+
+Constants.Rebirth = {
+	BaseFanRequirement = 1000000,
+	FanRequirementMultiplier = 2,
+	RequiredSpecialCards = 3,
+	SpecialRarity = "Premium Gold",
+	StartingFansAfterRebirth = Constants.StartingCoins,
+	MultiplierMilestones = {
+		{ tier = 0, multiplier = 1 },
+		{ tier = 1, multiplier = 1.2 },
+		{ tier = 2, multiplier = 1.4 },
+		{ tier = 5, multiplier = 2 },
+		{ tier = 10, multiplier = 5 },
+	},
 }
 
 Constants.Pitchfork = {
 	BaseDamage = 1,
 	SwingCooldown = 0.42,
-	HitRange = 24,
+	HitRange = 12,
 }
 
 -- ── Upgrade specs ─────────────────────────────────────────────
@@ -296,6 +321,7 @@ Constants.UI = {
 }
 
 return Constants
+
 ]])
 
 makeModule('PackConfig', shared, [[local PackConfig = {}
@@ -463,6 +489,7 @@ return Utils
 makeModule('BaseService', SSS, [[local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
+local InsertService = game:GetService("InsertService")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Utils = require(ReplicatedStorage.Shared.Utils)
@@ -470,6 +497,8 @@ local Utils = require(ReplicatedStorage.Shared.Utils)
 local BaseService = {}
 
 local layout = Constants.BaseLayout
+local fanZoneConfig = Constants.FanZone
+local packMilestones = Constants.PackMilestones
 local basesFolder
 local plots = {}
 local assignedPlots = {}
@@ -516,15 +545,15 @@ local function configureMapLighting()
 	})
 
 	replaceLightingEffect("BloomEffect", "UnboxGoldBloom", {
-		Intensity = 0.22,
-		Size = 16,
-		Threshold = 1.85,
+		Intensity = 0.32,  -- was 0.22 — more glow on the gold neon strips
+		Size = 18,         -- was 16 — slightly wider halo
+		Threshold = 1.65,  -- was 1.85 — catches more neon emitters
 	})
 
 	replaceLightingEffect("ColorCorrectionEffect", "UnboxColorGrade", {
-		Brightness = 0.01,
+		Brightness = 0.02,  -- was 0.01 — slightly lifted shadows
 		Contrast = 0.06,
-		Saturation = 0.08,
+		Saturation = 0.14,  -- was 0.08 — richer colours without over-saturation
 		TintColor = Color3.fromRGB(242, 247, 255),
 	})
 end
@@ -576,6 +605,35 @@ local function formatStadiumTitle(ownerName)
 	end
 
 	return string.upper(ownerName) .. "'S"
+end
+
+local function getNextPackMilestone(totalPacks)
+	totalPacks = math.max(0, totalPacks or 0)
+
+	local bestMilestone
+	for _, milestone in ipairs(packMilestones or {}) do
+		local interval = milestone.interval
+		if type(interval) == "number" and interval > 0 then
+			local nextAt = (math.floor(totalPacks / interval) + 1) * interval
+			local previousAt = nextAt - interval
+			local progress = math.clamp((totalPacks - previousAt) / interval, 0, 1)
+			if not bestMilestone or nextAt < bestMilestone.nextAt or (nextAt == bestMilestone.nextAt and interval > bestMilestone.interval) then
+				bestMilestone = {
+					interval = interval,
+					nextAt = nextAt,
+					progress = progress,
+					reward = milestone.reward or "Reward",
+				}
+			end
+		end
+	end
+
+	return bestMilestone or {
+		interval = 50,
+		nextAt = 50,
+		progress = 0,
+		reward = "Rare Pack",
+	}
 end
 
 local function updateOwnerSign(plot, ownerName, subtitle)
@@ -799,9 +857,9 @@ local function createLightPost(parent, name, position, targetPosition)
 		Name = "PostBeam",
 		Face = Enum.NormalId.Front,
 		Color = Color3.fromRGB(255, 236, 188),
-		Range = 62,
-		Angle = 72,
-		Brightness = 1.35,
+		Range = 56,
+		Angle = 46,
+		Brightness = 0.62,
 		Shadows = false,
 	}, head)
 
@@ -1011,10 +1069,66 @@ local function createFanGate(parent, name, z, facingDirection)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = signColor,
-		Size = Vector3.new(30, 5, 0.5),
-		CFrame = CFrame.lookAt(center + Vector3.new(0, 15.2, -facingDirection * 0.3), center + Vector3.new(0, 15.2, -facingDirection * 0.3) + lookDirection),
+		Size = Vector3.new(30, 7.5, 0.5),
+		CFrame = CFrame.lookAt(center + Vector3.new(0, 16.5, -facingDirection * 0.3), center + Vector3.new(0, 16.5, -facingDirection * 0.3) + lookDirection),
 	}, gate)
-	createSurfaceText(sign, "WELCOME FANS", "TURNSTILES")
+
+	-- Custom sign GUI — fixed size constraints prevent text squishing on a wide panel
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local gui = make("SurfaceGui", {
+			Face = face,
+			PixelsPerStud = 50,
+			LightInfluence = 0,
+		}, sign)
+
+		local frame = make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(8, 12, 20),
+			BorderSizePixel = 0,
+			Size = UDim2.fromScale(1, 1),
+		}, gui)
+
+		make("UIStroke", { Color = Color3.fromRGB(255, 215, 0), Thickness = 3 }, frame)
+
+		-- Gold top accent bar
+		make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(255, 215, 0),
+			BorderSizePixel = 0,
+			Size = UDim2.new(1, 0, 0, 8),
+		}, frame)
+
+		-- "WELCOME FANS!" — large, constrained so it doesn't over-stretch
+		local title = make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(0.88, 0.52),
+			Position = UDim2.fromScale(0.06, 0.07),
+			Text = "WELCOME FANS!",
+			TextColor3 = Color3.fromRGB(255, 215, 0),
+			TextScaled = true,
+			Font = Enum.Font.GothamBlack,
+		}, frame)
+		make("UITextSizeConstraint", { MaxTextSize = 110, MinTextSize = 20 }, title)
+
+		-- Divider
+		make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(255, 215, 0),
+			BackgroundTransparency = 0.4,
+			BorderSizePixel = 0,
+			Size = UDim2.fromScale(0.75, 0.022),
+			Position = UDim2.fromScale(0.125, 0.62),
+		}, frame)
+
+		-- "TURNSTILES" — smaller subtitle
+		local sub = make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(0.6, 0.26),
+			Position = UDim2.fromScale(0.2, 0.66),
+			Text = "TURNSTILES",
+			TextColor3 = Color3.fromRGB(195, 188, 168),
+			TextScaled = true,
+			Font = Enum.Font.GothamBold,
+		}, frame)
+		make("UITextSizeConstraint", { MaxTextSize = 55, MinTextSize = 10 }, sub)
+	end
 
 	for index = 1, 3 do
 		local x = -8 + ((index - 1) * 8)
@@ -1025,9 +1139,227 @@ local function createFanGate(parent, name, z, facingDirection)
 	return gate
 end
 
-local function createFanPlaza(mapWidth, mapLength)
+-- ── Food kiosk ────────────────────────────────────────────────────────────────
+-- Concession stand with bright red/yellow market colours so it reads clearly
+-- against the dark plaza.  `position` is the base centre (Y=0).
+-- `facingPos` is the direction the serving counter faces (toward the walkway).
+local function sanitizeImportedAsset(root)
+	for _, descendant in ipairs(root:GetDescendants()) do
+		if descendant:IsA("Script") or descendant:IsA("LocalScript") or descendant:IsA("ModuleScript") then
+			descendant:Destroy()
+		elseif descendant:IsA("BasePart") then
+			descendant.Anchored = true
+			descendant.CanCollide = true
+		end
+	end
+end
+
+local function tryCreateImportedKiosk(parent, name, position, signText, facingPos, assetId)
+	if type(assetId) ~= "number" or assetId <= 0 then
+		return nil
+	end
+
+	local loadedOk, assetRoot = pcall(function()
+		return InsertService:LoadAsset(assetId)
+	end)
+
+	if not loadedOk or not assetRoot then
+		warn("[BaseService] Could not load kiosk asset", assetId, assetRoot)
+		return nil
+	end
+
+	local model = make("Model", { Name = name }, parent)
+	for _, child in ipairs(assetRoot:GetChildren()) do
+		child.Parent = model
+	end
+	assetRoot:Destroy()
+	sanitizeImportedAsset(model)
+
+	local hasParts = false
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			hasParts = true
+			break
+		end
+	end
+
+	if not hasParts then
+		model:Destroy()
+		warn("[BaseService] Kiosk asset has no usable parts", assetId)
+		return nil
+	end
+
+	local _, size = model:GetBoundingBox()
+	local maxHorizontal = math.max(size.X, size.Z, 0.1)
+	local scale = math.clamp(8.5 / maxHorizontal, 0.15, 4)
+	pcall(function()
+		model:ScaleTo(scale)
+	end)
+
+	local targetCFrame = CFrame.lookAt(
+		position,
+		Vector3.new(facingPos.X, position.Y, facingPos.Z)
+	)
+	model:PivotTo(targetCFrame)
+
+	local boundsCFrame, boundsSize = model:GetBoundingBox()
+	local bottomY = boundsCFrame.Position.Y - (boundsSize.Y / 2)
+	model:PivotTo(model:GetPivot() + Vector3.new(0, position.Y - bottomY, 0))
+
+	local sign = make("Part", {
+		Name = "KioskLoadedSign",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 183, 53),
+		Transparency = 0.18,
+		Size = Vector3.new(5.2, 1.05, 0.2),
+		CFrame = targetCFrame * CFrame.new(0, 4.6, 2.15),
+	}, model)
+	local signGui = make("SurfaceGui", {
+		Face = Enum.NormalId.Front,
+		PixelsPerStud = 90,
+		LightInfluence = 0,
+	}, sign)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = signText,
+		TextColor3 = Color3.fromRGB(20, 12, 0),
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+	}, signGui)
+
+	make("PointLight", {
+		Color = Color3.fromRGB(255, 175, 68),
+		Range = 24,
+		Brightness = 1.4,
+		Shadows = false,
+	}, sign)
+
+	return model
+end
+
+local function createFoodKiosk(parent, name, position, signText, facingPos)
+	local isDrinkStall = string.find(string.upper(signText), "DRINK") ~= nil
+	local assetId = isDrinkStall and fanZoneConfig.KioskAssets.Drink or fanZoneConfig.KioskAssets.Food
+	local importedModel = tryCreateImportedKiosk(parent, name, position, signText, facingPos, assetId)
+	if importedModel then
+		return importedModel
+	end
+
+	local model = make("Model", { Name = name }, parent)
+
+	local flatFacing = Vector3.new(facingPos.X, 0, facingPos.Z)
+	local boothCF = CFrame.lookAt(position + Vector3.new(0, 2.1, 0), flatFacing + Vector3.new(0, 2.1, 0))
+
+	-- Main booth body — bright red so it pops against the dark plaza
+	make("Part", {
+		Name = "Booth",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(168, 38, 24),
+		Size = Vector3.new(6.5, 4.2, 2.4),
+		CFrame = boothCF,
+	}, model)
+
+	-- White trim band across the top of the booth front
+	make("Part", {
+		Name = "BoothTopTrim",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(238, 232, 215),
+		Size = Vector3.new(6.5, 0.32, 2.42),
+		CFrame = boothCF * CFrame.new(0, 2.26, 0),
+	}, model)
+
+	-- Serving counter — wood-look tan slab protruding toward customers
+	make("Part", {
+		Name = "Counter",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(205, 172, 112),
+		Size = Vector3.new(6.5, 0.30, 1.2),
+		CFrame = boothCF * CFrame.new(0, 0.45, 1.32),
+	}, model)
+
+	-- Canopy — bright yellow base
+	make("Part", {
+		Name = "Canopy",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(252, 210, 0),
+		Size = Vector3.new(8.0, 0.40, 4.6),
+		CFrame = boothCF * CFrame.new(0, 2.38, 0.95),
+	}, model)
+
+	-- Three red stripes across the canopy — classic market-stall look
+	for i = 1, 3 do
+		make("Part", {
+			Name = "CanopyStripe" .. i,
+			Anchored = true,
+			CanCollide = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = Color3.fromRGB(208, 30, 18),
+			Size = Vector3.new(8.0, 0.42, 0.62),
+			CFrame = boothCF * CFrame.new(0, 2.39, -1.0 + (i - 1) * 1.08),
+		}, model)
+	end
+
+	-- Large neon sign above the canopy — highly visible from a distance
+	local sign = make("Part", {
+		Name = "KioskSign",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 170, 40),
+		Transparency = 0.05,
+		Size = Vector3.new(6.0, 1.4, 0.22),
+		CFrame = boothCF * CFrame.new(0, 3.55, 1.24),
+	}, model)
+
+	local signGui = make("SurfaceGui", {
+		Face = Enum.NormalId.Front,
+		PixelsPerStud = 100,
+		LightInfluence = 0,
+	}, sign)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = signText,
+		TextColor3 = Color3.fromRGB(28, 10, 0),
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+	}, signGui)
+
+	-- Bright warm light spills onto nearby NPCs
+	make("PointLight", {
+		Color = Color3.fromRGB(255, 158, 42),
+		Range = 28,
+		Brightness = 2.4,
+		Shadows = false,
+	}, sign)
+
+	-- Gold neon strip along the canopy front lip
+	createGlowStrip(
+		model,
+		"CanopyTrim",
+		Vector3.new(8.2, 0.18, 0.22),
+		boothCF * CFrame.new(0, 2.19, 3.22),
+		Color3.fromRGB(255, 200, 40),
+		0.10
+	)
+
+	return model
+end
+
+local function createFanZone(mapWidth, mapLength)
 	local plaza = make("Model", {
-		Name = "FanPlaza",
+		Name = "FanZone",
 	}, basesFolder)
 
 	local waypointFolder = make("Folder", {
@@ -1047,9 +1379,9 @@ local function createFanPlaza(mapWidth, mapLength)
 		CFrame = CFrame.new(0, 0.24, 0),
 	}, plaza)
 
-	createGlowStrip(plaza, "MainGoldLineLeft", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(-29, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.38)
-	createGlowStrip(plaza, "MainGoldLineRight", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(29, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.38)
-	createGlowStrip(plaza, "MainCenterGlow", Vector3.new(8, 0.18, mapLength - 100), CFrame.new(0, 0.36, 0), Color3.fromRGB(255, 180, 46), 0.9)
+	createGlowStrip(plaza, "MainGoldLineLeft", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(-29, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.55)
+	createGlowStrip(plaza, "MainGoldLineRight", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(29, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.55)
+	createGlowStrip(plaza, "MainCenterGlow", Vector3.new(8, 0.18, mapLength - 100), CFrame.new(0, 0.36, 0), Color3.fromRGB(255, 180, 46), 0.94)
 
 	for laneIndex = 1, layout.PlotsPerSide do
 		local laneZ = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
@@ -1062,25 +1394,68 @@ local function createFanPlaza(mapWidth, mapLength)
 			Size = Vector3.new((layout.SideOffset * 2) - 22, 0.14, 14),
 			CFrame = CFrame.new(0, 0.28, laneZ),
 		}, plaza)
-		createGlowStrip(plaza, "StadiumPathGoldA" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 28, 0.18, 0.25), CFrame.new(0, 0.42, laneZ - 7), Color3.fromRGB(255, 215, 0), 0.48)
-		createGlowStrip(plaza, "StadiumPathGoldB" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 28, 0.18, 0.25), CFrame.new(0, 0.42, laneZ + 7), Color3.fromRGB(255, 215, 0), 0.48)
+		createGlowStrip(plaza, "StadiumPathGoldA" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 28, 0.18, 0.25), CFrame.new(0, 0.42, laneZ - 7), Color3.fromRGB(255, 215, 0), 0.64)
+		createGlowStrip(plaza, "StadiumPathGoldB" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 28, 0.18, 0.25), CFrame.new(0, 0.42, laneZ + 7), Color3.fromRGB(255, 215, 0), 0.64)
 	end
 
-	local statueBase = make("Part", {
-		Name = "FanPlazaPedestal",
+	-- ── Centre podium: three stepped tiers + elevated spinning football ──────────
+	-- Roblox cylinders have their length along X, so we rotate 90° on Z to stand
+	-- them upright (flat faces become top/bottom).
+
+	-- Tier 1 — wide base (bottom at Y=0, top at Y=3.2)
+	make("Part", {
+		Name = "PedestalTier1",
 		Anchored = true,
 		CanCollide = true,
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(18, 23, 34),
-		Size = Vector3.new(22, 1.1, 22),
-		CFrame = CFrame.new(0, 0.9, 0),
+		Color = Color3.fromRGB(10, 14, 24),
+		Size = Vector3.new(3.2, 24, 24),
+		CFrame = CFrame.new(0, 1.6, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
-	_ = statueBase
+	createGlowStrip(plaza, "Tier1Ring", Vector3.new(26, 0.18, 26), CFrame.new(0, 3.28, 0), Color3.fromRGB(255, 215, 0), 0.18)
 
-	createGlowStrip(plaza, "PedestalGlow", Vector3.new(24, 0.22, 24), CFrame.new(0, 1.52, 0), Color3.fromRGB(255, 215, 0), 0.22)
-	createGlowStrip(plaza, "OuterPedestalGlow", Vector3.new(34, 0.16, 34), CFrame.new(0, 0.5, 0), Color3.fromRGB(255, 180, 48), 0.64)
+	-- Tier 2 — mid (bottom ≈ Y=3.3, top ≈ Y=5.9)
+	make("Part", {
+		Name = "PedestalTier2",
+		Anchored = true,
+		CanCollide = true,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(14, 19, 32),
+		Size = Vector3.new(2.6, 16, 16),
+		CFrame = CFrame.new(0, 4.6, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, plaza)
+	createGlowStrip(plaza, "Tier2Ring", Vector3.new(18, 0.16, 18), CFrame.new(0, 6.0, 0), Color3.fromRGB(255, 215, 0), 0.22)
 
+	-- Tier 3 — top plinth (bottom ≈ Y=6.1, top ≈ Y=8.4)
+	make("Part", {
+		Name = "PedestalTier3",
+		Anchored = true,
+		CanCollide = true,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(18, 24, 40),
+		Size = Vector3.new(2.3, 10, 10),
+		CFrame = CFrame.new(0, 7.3, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, plaza)
+	createGlowStrip(plaza, "Tier3Ring", Vector3.new(12, 0.16, 12), CFrame.new(0, 8.52, 0), Color3.fromRGB(255, 215, 0), 0.25)
+
+	-- Ground-level glow halos
+	createGlowStrip(plaza, "OuterPedestalGlow", Vector3.new(40, 0.15, 40), CFrame.new(0, 0.46, 0), Color3.fromRGB(255, 175, 44), 0.65)
+	createGlowStrip(plaza, "InnerPedestalGlow", Vector3.new(28, 0.18, 28), CFrame.new(0, 0.50, 0), Color3.fromRGB(255, 215, 0), 0.35)
+
+	-- ── Planter ring around the podium ────────────────────────────────
+	-- Six smaller planters form a decorative circle at radius 17, just
+	-- outside the Tier1 ring (radius ≈ 12).
+	local RING_RADIUS = 17
+	local RING_COUNT = 6
+	for ringIndex = 1, RING_COUNT do
+		local angle = math.rad((ringIndex - 1) * (360 / RING_COUNT))
+		createPlanter(plaza, Vector3.new(math.cos(angle) * RING_RADIUS, 0, math.sin(angle) * RING_RADIUS), 0.52)
+	end
+
+	-- Gold football sitting on the top plinth (centre at Y=12.0, radius=3.5 → bottom Y=8.5)
 	local ball = make("Part", {
 		Name = "GoldFootball",
 		Anchored = true,
@@ -1088,19 +1463,32 @@ local function createFanPlaza(mapWidth, mapLength)
 		Shape = Enum.PartType.Ball,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(255, 202, 61),
-		Size = Vector3.new(8, 8, 8),
-		CFrame = CFrame.new(0, 6.0, 0),
+		Size = Vector3.new(7, 7, 7),
+		CFrame = CFrame.new(0, 12.0, 0),
 	}, plaza)
 
 	make("PointLight", {
 		Color = Color3.fromRGB(255, 215, 0),
-		Range = 28,
-		Brightness = 0.9,
+		Range = 42,
+		Brightness = 2.2,
 		Shadows = false,
 	}, ball)
 
+	-- Slow spin + tilt so the ball looks like it's rolling in the air
+	task.spawn(function()
+		local ballAngle = 0
+		local ballBaseY = 12.0
+		while ball.Parent do
+			ballAngle = ballAngle + math.rad(20) / 30 -- ≈ 20°/s
+			local floatOffset = math.sin(os.clock() * 0.85) * 0.38
+			ball.CFrame = CFrame.new(0, ballBaseY + floatOffset, 0)
+				* CFrame.Angles(math.rad(22), ballAngle, 0)
+			task.wait(1 / 30)
+		end
+	end)
+
 	local plazaSign = make("Part", {
-		Name = "FanPlazaSign",
+		Name = "FanZoneSign",
 		Anchored = true,
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
@@ -1108,10 +1496,40 @@ local function createFanPlaza(mapWidth, mapLength)
 		Size = Vector3.new(18, 3.2, 0.5),
 		CFrame = CFrame.lookAt(Vector3.new(0, 3.2, -13), Vector3.new(0, 3.2, -40)),
 	}, plaza)
-	createSurfaceText(plazaSign, "FAN PLAZA", "")
+	createSurfaceText(plazaSign, "FAN ZONE", "")
 
 	createFanGate(plaza, "NorthFanGate", northZ, -1)
 	createFanGate(plaza, "SouthFanGate", southZ, 1)
+
+	-- ── Food & drinks kiosks ──────────────────────────────────────────
+	-- Two stalls flank each gate entrance.  NPCs detour here, pause to
+	-- "buy something", then carry on through the Fan Zone.
+	local kioskInset = 22   -- studs inside from each gate (toward Z=0)
+	local kioskX    = 12   -- studs either side of the central walkway
+	local walkwayX  = 0    -- the central path that NPCs walk along
+
+	-- North pair (just inside the north gate, facing the walkway center)
+	-- Y=0.35 sits the booth base flush on the plaza surface (top ≈ Y=0.33)
+	createFoodKiosk(plaza, "KioskNorthWest",
+		Vector3.new(-kioskX, 0.35, northZ - kioskInset),
+		"HOT DOGS",
+		Vector3.new(walkwayX, 0.35, northZ - kioskInset))
+
+	createFoodKiosk(plaza, "KioskNorthEast",
+		Vector3.new(kioskX, 0.35, northZ - kioskInset),
+		"DRINKS",
+		Vector3.new(walkwayX, 0.35, northZ - kioskInset))
+
+	-- South pair (just inside the south gate, facing the walkway center)
+	createFoodKiosk(plaza, "KioskSouthWest",
+		Vector3.new(-kioskX, 0.35, southZ + kioskInset),
+		"SNACKS",
+		Vector3.new(walkwayX, 0.35, southZ + kioskInset))
+
+	createFoodKiosk(plaza, "KioskSouthEast",
+		Vector3.new(kioskX, 0.35, southZ + kioskInset),
+		"COLD DRINKS",
+		Vector3.new(walkwayX, 0.35, southZ + kioskInset))
 
 	local bannerConfigs = {
 		{ position = Vector3.new(-24, 0, -20), title = "FANS" },
@@ -1158,11 +1576,19 @@ local function createFanPlaza(mapWidth, mapLength)
 		createLightPost(plaza, "LaneEastLightB" .. laneIndex, Vector3.new(36, 0, laneZ + 12), Vector3.new(layout.SideOffset, 1, laneZ))
 	end
 
-	createWaypoint(waypointFolder, "NorthGate", Vector3.new(0, 2.2, northZ - 10))
-	createWaypoint(waypointFolder, "SouthGate", Vector3.new(0, 2.2, southZ + 10))
-	createWaypoint(waypointFolder, "Center", Vector3.new(0, 2.2, 0))
-	createWaypoint(waypointFolder, "WestLoop", Vector3.new(-16, 2.2, 0))
-	createWaypoint(waypointFolder, "EastLoop", Vector3.new(16, 2.2, 0))
+	createWaypoint(waypointFolder, "NorthGate", Vector3.new(0, 3.1, northZ - 10))
+	createWaypoint(waypointFolder, "SouthGate", Vector3.new(0, 3.1, southZ + 10))
+	createWaypoint(waypointFolder, "Center", Vector3.new(0, 3.1, 0))
+	createWaypoint(waypointFolder, "WestLoop", Vector3.new(-16, 3.1, 0))
+	createWaypoint(waypointFolder, "EastLoop", Vector3.new(16, 3.1, 0))
+	-- Food stand stops: close to the serving counters, not the walkway centre.
+	-- Keep the old center names too as safe fallbacks for older crowd routes.
+	createWaypoint(waypointFolder, "FoodNorth", Vector3.new(0, 3.1, northZ - 26))
+	createWaypoint(waypointFolder, "FoodSouth", Vector3.new(0, 3.1, southZ + 26))
+	createWaypoint(waypointFolder, "FoodNorthWest", Vector3.new(-6.2, 3.1, northZ - kioskInset))
+	createWaypoint(waypointFolder, "FoodNorthEast", Vector3.new(6.2, 3.1, northZ - kioskInset))
+	createWaypoint(waypointFolder, "FoodSouthWest", Vector3.new(-6.2, 3.1, southZ + kioskInset))
+	createWaypoint(waypointFolder, "FoodSouthEast", Vector3.new(6.2, 3.1, southZ + kioskInset))
 
 	startTurnstileAnimations()
 	return plaza
@@ -1352,7 +1778,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		Name = "Floor",
 		Anchored = true,
 		Material = Enum.Material.Grass,
-		Color = Color3.fromRGB(55, 127, 67),
+		Color = Color3.fromRGB(76, 158, 82),
 		Size = layout.PlotSize,
 		CFrame = baseCFrame,
 	}, model)
@@ -1563,6 +1989,80 @@ local function createPlot(plotId, side, laneIndex, position)
 		font = Enum.Font.GothamBlack,
 	}, ownerFrame)
 
+	local milestoneSignPosition = position
+		+ Vector3.new(backEdgeX - (facingDirection * 7.2), 5.2, 0)
+	local milestoneSign = make("Part", {
+		Name = "PackMilestoneBillboard",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(8, 12, 20),
+		Size = Vector3.new(14.5, 5.2, 0.5),
+		CFrame = CFrame.lookAt(milestoneSignPosition, milestoneSignPosition + centerDirection),
+	}, model)
+
+	local milestoneGui = make("SurfaceGui", {
+		Face = Enum.NormalId.Front,
+		PixelsPerStud = 95,
+		LightInfluence = 0,
+	}, milestoneSign)
+
+	local milestoneFrame = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(9, 13, 22),
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+	}, milestoneGui)
+
+	make("UIStroke", {
+		Color = Color3.fromRGB(255, 215, 0),
+		Thickness = 2,
+		Transparency = 0.15,
+	}, milestoneFrame)
+
+	local milestoneTitleLabel = createOwnerSignText("PACK MILESTONES", UDim2.fromScale(0.9, 0.18), UDim2.fromScale(0.05, 0.08), Color3.fromRGB(255, 215, 0), {
+		textScaled = true,
+		minTextSize = 18,
+		maxTextSize = 48,
+		textStrokeTransparency = 0.7,
+		font = Enum.Font.GothamBlack,
+	}, milestoneFrame)
+	_ = milestoneTitleLabel
+
+	local milestonePacksLabel = createOwnerSignText("0 PACKS OPENED", UDim2.fromScale(0.86, 0.22), UDim2.fromScale(0.07, 0.3), Color3.fromRGB(245, 238, 220), {
+		textScaled = true,
+		minTextSize = 20,
+		maxTextSize = 64,
+		textStrokeTransparency = 0.72,
+		font = Enum.Font.GothamBlack,
+	}, milestoneFrame)
+
+	local milestoneNextLabel = createOwnerSignText("NEXT: 50 - RARE PACK", UDim2.fromScale(0.84, 0.14), UDim2.fromScale(0.08, 0.58), Color3.fromRGB(190, 184, 164), {
+		textScaled = true,
+		minTextSize = 14,
+		maxTextSize = 34,
+		textStrokeTransparency = 0.84,
+		font = Enum.Font.GothamBold,
+	}, milestoneFrame)
+
+	local milestoneBarBack = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(35, 40, 54),
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(0.78, 0.075),
+		Position = UDim2.fromScale(0.11, 0.78),
+	}, milestoneFrame)
+	make("UICorner", {
+		CornerRadius = UDim.new(0, 8),
+	}, milestoneBarBack)
+
+	local milestoneBarFill = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(0, 1),
+	}, milestoneBarBack)
+	make("UICorner", {
+		CornerRadius = UDim.new(0, 8),
+	}, milestoneBarFill)
+
 	local padGui = make("BillboardGui", {
 		Name = "PadGui",
 		Size = UDim2.fromOffset(150, 52),
@@ -1657,7 +2157,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0, entranceWidth / 2 + 6), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightNorth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, -(layout.PlotSize.Z / 2 + 5)), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightSouth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, layout.PlotSize.Z / 2 + 5), packPad.Position + Vector3.new(0, 2, 0))
-	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 34, 0.18, Color3.fromRGB(255, 232, 184))
+	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 42, 0.38, Color3.fromRGB(255, 232, 184))
 
 	local plot = {
 		id = plotId,
@@ -1672,6 +2172,10 @@ local function createPlot(plotId, side, laneIndex, position)
 		ownerTopLabel = ownerTopLabel,
 		ownerNameLabel = ownerNameLabel,
 		ownerSubtitleLabel = ownerSubtitleLabel,
+		milestoneSign = milestoneSign,
+		milestonePacksLabel = milestonePacksLabel,
+		milestoneNextLabel = milestoneNextLabel,
+		milestoneBarFill = milestoneBarFill,
 		padTitleLabel = padTitleLabel,
 		padSubtitleLabel = padSubtitleLabel,
 		padAccent = padAccent,
@@ -1727,7 +2231,7 @@ function BaseService.BuildBaseMap()
 		CFrame = CFrame.new(0, 0.1, 0),
 	}, basesFolder)
 
-	createFanPlaza(mapWidth, mapLength)
+	createFanZone(mapWidth, mapLength)
 
 	for sideIndex = 1, 2 do
 		for laneIndex = 1, layout.PlotsPerSide do
@@ -1789,6 +2293,7 @@ function BaseService.ReleasePlot(player)
 	plot.model:SetAttribute("OwnerUserId", nil)
 	plot.model:SetAttribute("OwnerName", nil)
 	BaseService.ClearPlotDisplays(plot)
+	BaseService.UpdatePackMilestone(plot, 0)
 	updateOwnerSign(plot, nil, "")
 	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
 	assignedPlots[player] = nil
@@ -1800,6 +2305,18 @@ end
 
 function BaseService.GetDisplaySlots(plot)
 	return plot and plot.displaySlots or {}
+end
+
+function BaseService.UpdatePackMilestone(plot, totalPacks)
+	if not plot or not plot.milestonePacksLabel or not plot.milestoneNextLabel or not plot.milestoneBarFill then
+		return
+	end
+
+	totalPacks = math.max(0, totalPacks or 0)
+	local milestone = getNextPackMilestone(totalPacks)
+	plot.milestonePacksLabel.Text = Utils.FormatNumber(totalPacks) .. " PACKS OPENED"
+	plot.milestoneNextLabel.Text = string.format("NEXT: %d - %s", milestone.nextAt, string.upper(milestone.reward))
+	plot.milestoneBarFill.Size = UDim2.fromScale(milestone.progress, 1)
 end
 
 function BaseService.SetPlotPadStatus(plot, title, subtitle, color)
@@ -1889,16 +2406,24 @@ local DataService
 local fanFolder
 local running = false
 
-local plazaConfig = Constants.FanPlaza
+local plazaConfig = Constants.FanZone
 local layout = Constants.BaseLayout
 
+-- Football jersey palette — bright, varied, instantly readable as a crowd
 local shirtColors = {
-	Color3.fromRGB(18, 23, 34),
-	Color3.fromRGB(32, 96, 62),
-	Color3.fromRGB(120, 72, 38),
-	Color3.fromRGB(38, 72, 120),
-	Color3.fromRGB(118, 92, 28),
-	Color3.fromRGB(92, 46, 120),
+	Color3.fromRGB(192, 26, 26),    -- red (Arsenal / Man Utd)
+	Color3.fromRGB(24, 78, 170),    -- royal blue (Chelsea)
+	Color3.fromRGB(108, 174, 228),  -- sky blue (Man City)
+	Color3.fromRGB(20, 110, 48),    -- green (Celtic / Forest)
+	Color3.fromRGB(230, 186, 28),   -- yellow (Dortmund / Brazil)
+	Color3.fromRGB(148, 20, 148),   -- purple (Fiorentina)
+	Color3.fromRGB(224, 88, 24),    -- orange (Netherlands)
+	Color3.fromRGB(236, 236, 236),  -- white (Real Madrid)
+	Color3.fromRGB(16, 26, 86),     -- dark navy (Everton)
+	Color3.fromRGB(164, 12, 58),    -- claret (Aston Villa)
+	Color3.fromRGB(28, 28, 28),     -- black (Juventus)
+	Color3.fromRGB(32, 96, 62),     -- dark green
+	Color3.fromRGB(120, 72, 38),    -- brown / amber
 }
 
 local skinColors = {
@@ -1908,7 +2433,15 @@ local skinColors = {
 	Color3.fromRGB(246, 215, 176),
 }
 
-local STANDING_PIVOT_HEIGHT = 2.8
+local STANDING_PIVOT_HEIGHT = 3.1
+
+-- Colours for the small food/drink prop NPCs carry after a kiosk stop
+local FOOD_COLORS = {
+	Color3.fromRGB(255, 200, 70),   -- yellow (hot dog / chips)
+	Color3.fromRGB(200, 55, 30),    -- red (drink cup)
+	Color3.fromRGB(255, 140, 40),   -- orange (fanta)
+	Color3.fromRGB(235, 235, 235),  -- white (popcorn)
+}
 local STAND_TIERS = {
 	{ zOffset = 24.2, surfaceY = 1.9 },
 	{ zOffset = 27.1, surfaceY = 2.8 },
@@ -1926,7 +2459,7 @@ end
 
 local function getWaypoint(name)
 	local basesFolder = Workspace:FindFirstChild("PlayerBases")
-	local plaza = basesFolder and basesFolder:FindFirstChild("FanPlaza")
+	local plaza = basesFolder and basesFolder:FindFirstChild("FanZone")
 	local waypoints = plaza and plaza:FindFirstChild("Waypoints")
 	return waypoints and waypoints:FindFirstChild(name)
 end
@@ -2042,7 +2575,7 @@ local function createFanNpc(index)
 		Material = Enum.Material.SmoothPlastic,
 		Color = pantsColor,
 		Size = Vector3.new(0.95, 2.25, 0.95),
-		CFrame = CFrame.new(-0.5, 1.18, 0),
+		CFrame = CFrame.new(-0.5, 1.48, 0),
 	}, model)
 
 	make("Part", {
@@ -2052,7 +2585,7 @@ local function createFanNpc(index)
 		Material = Enum.Material.SmoothPlastic,
 		Color = pantsColor,
 		Size = Vector3.new(0.95, 2.25, 0.95),
-		CFrame = CFrame.new(0.5, 1.18, 0),
+		CFrame = CFrame.new(0.5, 1.48, 0),
 	}, model)
 
 	return model
@@ -2091,6 +2624,63 @@ local function setFanPose(model, pose)
 	setPartLocal(model, "Right Arm", CFrame.new(1.5, 0, 0), Vector3.new(1, 2, 1))
 	setPartLocal(model, "Left Leg", CFrame.new(-0.5, -1.62, 0), Vector3.new(0.95, 2.25, 0.95))
 	setPartLocal(model, "Right Leg", CFrame.new(0.5, -1.62, 0), Vector3.new(0.95, 2.25, 0.95))
+end
+
+-- Attaches or removes a small food/drink prop near the NPC's right hand.
+-- Because all parts are anchored and moved via PivotTo, the prop stays at a
+-- fixed offset from the model pivot — right arm area — automatically.
+local function setFoodProp(model, enabled)
+	local existing = model:FindFirstChild("FoodProp")
+	if existing then
+		existing:Destroy()
+	end
+	if not enabled or not model.Parent then
+		return
+	end
+	local pivot = model:GetPivot()
+	local propModel = make("Model", {
+		Name = "FoodProp",
+	}, model)
+	-- Front is local -Z for CFrame.lookAt. Keep the prop slightly in front of
+	-- the right hand so it doesn't get hidden inside the blocky arm.
+	local propCFrame = pivot * CFrame.new(1.65, -0.48, -0.62)
+	local propColor = FOOD_COLORS[math.random(1, #FOOD_COLORS)]
+
+	make("Part", {
+		Name = "Cup",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = propColor,
+		Size = Vector3.new(0.5, 0.7, 0.5),
+		CFrame = propCFrame,
+	}, propModel)
+
+	make("Part", {
+		Name = "Lid",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 235, 160),
+		Size = Vector3.new(0.56, 0.08, 0.56),
+		CFrame = propCFrame * CFrame.new(0, 0.39, 0),
+	}, propModel)
+
+	make("Part", {
+		Name = "Straw",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(245, 245, 245),
+		Size = Vector3.new(0.08, 0.62, 0.08),
+		CFrame = propCFrame * CFrame.new(0.16, 0.66, -0.04) * CFrame.Angles(0, 0, math.rad(12)),
+	}, propModel)
 end
 
 local function getPlotEntrancePoint(plot)
@@ -2155,45 +2745,88 @@ local function chooseVisitorPlot()
 	return weightedPlots[#weightedPlots].plot
 end
 
-local function makeRoute()
+-- laneOffset: X-axis nudge (studs) so each NPC walks a slightly different
+-- track through the plaza — prevents them all overlapping on the centre line.
+local function makeRoute(laneOffset)
+	laneOffset = laneOffset or 0
+
 	local northGate = getPoint("NorthGate")
 	local southGate = getPoint("SouthGate")
 	local center = getPoint("Center")
 	local westLoop = getPoint("WestLoop")
 	local eastLoop = getPoint("EastLoop")
+	local foodNorth = getPoint("FoodNorth")
+	local foodSouth = getPoint("FoodSouth")
+	local foodNorthWest = getPoint("FoodNorthWest")
+	local foodNorthEast = getPoint("FoodNorthEast")
+	local foodSouthWest = getPoint("FoodSouthWest")
+	local foodSouthEast = getPoint("FoodSouthEast")
 	if not northGate or not southGate or not center or not westLoop or not eastLoop then
 		return nil
 	end
 
-	local startPoint = math.random(1, 2) == 1 and northGate or southGate
-	local endPoint = startPoint == northGate and southGate or northGate
-	local loopPoint = math.random(1, 2) == 1 and westLoop or eastLoop
+	-- Apply lane offset to all main-walkway positions (not stadium sub-paths).
+	local function lane(pos)
+		return Vector3.new(pos.X + laneOffset, pos.Y, pos.Z)
+	end
+
+	local rawStart = math.random(1, 2) == 1 and northGate or southGate
+	local rawEnd   = rawStart == northGate and southGate or northGate
+	local rawLoop  = math.random(1, 2) == 1 and westLoop or eastLoop
+
 	local route = {
-		{ position = startPoint },
-		{ position = center },
-		{ position = loopPoint },
+		{ position = lane(rawStart) },
+		{ position = lane(center) },
+		{ position = lane(rawLoop) },
 	}
+
+	-- 30 % chance: detour to the food kiosk near the entry gate.
+	-- NPCs choose the kiosk on their lane side and stop close to the counter.
+	-- isFood = true tells runFan to hand a prop to the NPC before the pause.
+	if math.random() < 0.30 then
+		local westSide = laneOffset < 0
+		local rawFood
+		if rawStart == northGate then
+			rawFood = westSide and foodNorthWest or foodNorthEast
+			rawFood = rawFood or foodNorth
+		else
+			rawFood = westSide and foodSouthWest or foodSouthEast
+			rawFood = rawFood or foodSouth
+		end
+
+		if rawFood then
+			local kioskSideX = westSide and -12 or 12
+			local kioskZNudge = rawStart == northGate and 4 or -4
+			table.insert(route, 2, {
+				position = rawFood,
+				pause = math.random(8, 18),
+				isFood = true,
+				lookAt = Vector3.new(kioskSideX, rawFood.Y, rawFood.Z + kioskZNudge),
+			})
+		end
+	end
 
 	if math.random() < plazaConfig.VisitorRouteChance then
 		local plot = chooseVisitorPlot()
 		if plot then
-			local stadiumPathPoint = Vector3.new(0, STANDING_PIVOT_HEIGHT, plot.floor.Position.Z)
+			-- Stadium sub-path: use laneOffset on the central-Z approach only
+			local stadiumPathPoint = Vector3.new(laneOffset, STANDING_PIVOT_HEIGHT, plot.floor.Position.Z)
 			table.insert(route, { position = stadiumPathPoint })
 			table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.35 })
 			table.insert(route, {
 				position = getPlotSeatPoint(plot),
 				pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),
-				-- After arriving, pivot to face the pitch centre so fans watch the game.
 				lookAt = plot.floor.Position,
 				pose = "seated",
+				clearFood = true,   -- drop food prop before sitting
 			})
 			table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.2 })
 			table.insert(route, { position = stadiumPathPoint })
 		end
 	end
 
-	table.insert(route, { position = center })
-	table.insert(route, { position = endPoint })
+	table.insert(route, { position = lane(center) })
+	table.insert(route, { position = lane(rawEnd) })
 	return route
 end
 
@@ -2243,27 +2876,38 @@ local function moveModelTo(model, targetPosition)
 end
 
 local function runFan(model)
+	-- Each NPC gets a fixed lane offset for its lifetime so it always walks
+	-- a consistent track through the plaza rather than drifting to the centre.
+	-- Range: ±8 studs; avoid the very centre (±1) so there's a visible gap.
+	local laneSign = math.random(1, 2) == 1 and 1 or -1
+	local laneOffset = laneSign * (math.random(15, 80) / 10)   -- 1.5 – 8.0 studs
+
 	task.spawn(function()
 		task.wait(math.random() * 2)
 		while running and model.Parent do
-			local route = makeRoute()
+			local route = makeRoute(laneOffset)
 			if route and #route >= 2 then
 				setFanPose(model, "standing")
 				local startPoint = getStepPosition(route[1])
 				local nextPoint = getStepPosition(route[2])
 				model:PivotTo(CFrame.lookAt(startPoint, nextPoint))
 				setFanPose(model, "standing")
+
+				local hasFood = false
+
 				for index = 2, #route do
 					local step = route[index]
 					local targetPosition = getStepPosition(step)
+
 					if typeof(step) ~= "table" or step.pose ~= "seated" then
 						setFanPose(model, "standing")
 					end
+
 					if not moveModelTo(model, targetPosition) then
 						return
 					end
-					-- If this step has a look-at target (e.g. fans facing the pitch while seated),
-					-- snap the pivot to face that point before the pause begins.
+
+					-- Face look-at target before pause (e.g. seated fans face the pitch)
 					if typeof(step) == "table" and step.lookAt and model.Parent then
 						local pivot = model:GetPivot()
 						local flatLookAt = Vector3.new(step.lookAt.X, pivot.Position.Y, step.lookAt.Z)
@@ -2272,13 +2916,35 @@ local function runFan(model)
 							model:PivotTo(CFrame.lookAt(pivot.Position, flatLookAt))
 						end
 					end
+
+					-- Seated pose
 					if typeof(step) == "table" and step.pose == "seated" then
 						setFanPose(model, "seated")
 					end
+
+					-- Hand the NPC a prop BEFORE the pause so they hold it while
+					-- waiting at the kiosk (looks like they received their order)
+					if typeof(step) == "table" and step.isFood and not hasFood then
+						setFoodProp(model, true)
+						hasFood = true
+					end
+
+					-- Drop food prop before sitting so it doesn't float oddly
+					if typeof(step) == "table" and step.clearFood and hasFood then
+						setFoodProp(model, false)
+						hasFood = false
+					end
+
 					if typeof(step) == "table" and step.pause and step.pause > 0 then
 						task.wait(step.pause)
 					end
+
 					task.wait(math.random(8, 22) / 100)
+				end
+
+				-- Clear prop at end of route
+				if hasFood then
+					setFoodProp(model, false)
 				end
 			else
 				task.wait(1)
@@ -2326,6 +2992,7 @@ function CrowdService.Stop()
 end
 
 return CrowdService
+
 ]])
 
 makeModule('DataService', SSS, [[local DataStoreService = game:GetService("DataStoreService")
@@ -2360,6 +3027,7 @@ local DEFAULT_DATA = {
 		MoveSpeed = 0,
 	},
 	totalCardsOpened = 0,
+	totalPacksOpened = 0,
 	totalRebirths = 0,
 	collectionRewards = {},
 }
@@ -2637,6 +3305,32 @@ function DataService.ClearDisplayedCard(player, slotIndex)
 	return true
 end
 
+function DataService.GetTotalPacksOpened(player)
+	local data = cache[player]
+	return data and (data.totalPacksOpened or data.totalCardsOpened or 0) or 0
+end
+
+function DataService.ResetForRebirth(player, startingFans)
+	local data = cache[player]
+	if not data then
+		return false
+	end
+
+	data.coins = startingFans or Constants.StartingCoins
+	data.inventory = {}
+	data.baseLayoutData.displayedCards = {}
+	data.upgrades = {
+		PitchforkDamage = 0,
+		PackSpawnRate = 0,
+		PadLuck = 0,
+		MoveSpeed = 0,
+	}
+	data.totalCardsOpened = 0
+	data.totalPacksOpened = 0
+	DataService.MarkDirty(player)
+	return true
+end
+
 task.spawn(function()
 	while true do
 		task.wait(Constants.AutoSaveInterval)
@@ -2649,6 +3343,7 @@ task.spawn(function()
 end)
 
 return DataService
+
 ]])
 
 makeModule('EconomyService', SSS, [[local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -2909,6 +3604,7 @@ function PackService.OpenPack(player, packId, options)
 	end
 
 	data.totalCardsOpened = (data.totalCardsOpened or 0) + #cards
+	data.totalPacksOpened = (data.totalPacksOpened or 0) + 1
 	DataService.MarkDirty(player)
 
 	if Remotes and Remotes.UpdateCoins then
@@ -2927,6 +3623,7 @@ function PackService.OpenPack(player, packId, options)
 end
 
 return PackService
+
 ]])
 
 makeModule('RebirthService', SSS, [[local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -2938,35 +3635,137 @@ local RebirthService = {}
 
 local DataService
 
+local rebirthConfig = Constants.Rebirth
+
+local function getData(player)
+	return DataService and DataService.GetData(player)
+end
+
+local function getOwnedSpecialCount(data)
+	local count = 0
+	local inventory = data.inventory or {}
+	local displayedCards = data.baseLayoutData and data.baseLayoutData.displayedCards or {}
+
+	for _, card in ipairs(CardData.Pool) do
+		if card.rarity == rebirthConfig.SpecialRarity then
+			count += inventory[tostring(card.id)] or 0
+		end
+	end
+
+	for _, cardId in pairs(displayedCards) do
+		local card = CardData.ById[tonumber(cardId)]
+		if card and card.rarity == rebirthConfig.SpecialRarity then
+			count += 1
+		end
+	end
+
+	return count
+end
+
 function RebirthService.Init(dataService)
 	DataService = dataService
 end
 
-function RebirthService.GetRequiredCoins(rebirthTier)
-	return math.floor(Constants.BaseRebirthCoinCost * (Constants.RebirthCostMultiplier ^ rebirthTier))
+function RebirthService.GetRequiredFans(rebirthTier)
+	return math.floor(rebirthConfig.BaseFanRequirement * (rebirthConfig.FanRequirementMultiplier ^ (rebirthTier or 0)))
+end
+
+function RebirthService.GetFanMultiplier(rebirthTier)
+	rebirthTier = math.max(0, rebirthTier or 0)
+
+	local milestones = rebirthConfig.MultiplierMilestones or {}
+	if #milestones == 0 then
+		return 1
+	end
+
+	local previous = milestones[1]
+	for index = 2, #milestones do
+		local current = milestones[index]
+		if rebirthTier == current.tier then
+			return current.multiplier
+		end
+
+		if rebirthTier < current.tier then
+			local span = math.max(1, current.tier - previous.tier)
+			local alpha = (rebirthTier - previous.tier) / span
+			return previous.multiplier + ((current.multiplier - previous.multiplier) * alpha)
+		end
+
+		previous = current
+	end
+
+	return previous.multiplier + ((rebirthTier - previous.tier) * 0.5)
+end
+
+function RebirthService.GetStatus(player)
+	local data = getData(player)
+	if not data then
+		return {
+			canRebirth = false,
+			reason = "Your data is still loading.",
+		}
+	end
+
+	local tier = data.rebirthTier or 0
+	local requiredFans = RebirthService.GetRequiredFans(tier)
+	local currentFans = data.coins or 0
+	local specialCount = getOwnedSpecialCount(data)
+	local requiredSpecialCards = rebirthConfig.RequiredSpecialCards
+
+	local canRebirth = currentFans >= requiredFans and specialCount >= requiredSpecialCards
+	local reason
+	if currentFans < requiredFans then
+		reason = "You need more Fans."
+	elseif specialCount < requiredSpecialCards then
+		reason = string.format("You need %d %s players.", requiredSpecialCards, rebirthConfig.SpecialRarity)
+	end
+
+	return {
+		canRebirth = canRebirth,
+		reason = reason,
+		rebirthTier = tier,
+		currentFans = currentFans,
+		requiredFans = requiredFans,
+		specialCount = specialCount,
+		requiredSpecialCards = requiredSpecialCards,
+		specialRarity = rebirthConfig.SpecialRarity,
+		currentMultiplier = RebirthService.GetFanMultiplier(tier),
+		nextMultiplier = RebirthService.GetFanMultiplier(tier + 1),
+		rebirthTokens = data.rebirthTokens or 0,
+	}
 end
 
 function RebirthService.CanRebirth(player)
-	local data = DataService and DataService.GetData(player)
+	local status = RebirthService.GetStatus(player)
+	return status.canRebirth, status.reason, status
+end
+
+function RebirthService.PerformRebirth(player)
+	local canRebirth, reason, status = RebirthService.CanRebirth(player)
+	if not canRebirth then
+		return false, status or { reason = reason or "You cannot rebirth yet." }
+	end
+
+	local data = getData(player)
 	if not data then
-		return false, "Your data is still loading."
+		return false, { reason = "Your data is still loading." }
 	end
 
-	local requiredCoins = RebirthService.GetRequiredCoins(data.rebirthTier or 0)
-	if (data.coins or 0) < requiredCoins then
-		return false, "You need more Fans."
-	end
+	local nextTier = (data.rebirthTier or 0) + 1
+	local nextTokens = (data.rebirthTokens or 0) + 1
+	local nextTotal = (data.totalRebirths or 0) + 1
 
-	for _, card in ipairs(CardData.Pool) do
-		if (data.inventory[tostring(card.id)] or 0) <= 0 then
-			return false, "You need every launch card before rebirthing."
-		end
-	end
+	DataService.ResetForRebirth(player, rebirthConfig.StartingFansAfterRebirth)
+	data.rebirthTier = nextTier
+	data.rebirthTokens = nextTokens
+	data.totalRebirths = nextTotal
+	DataService.MarkDirty(player)
 
-	return true
+	return true, RebirthService.GetStatus(player)
 end
 
 return RebirthService
+
 ]])
 
 makeModule('TradeService', SSS, [[local TradeService = {}
@@ -3051,6 +3850,10 @@ local GetInventoryFn = makeFunction("GetInventory")
 local GetUpgradesFn = makeFunction("GetUpgrades")
 local PurchaseUpgradeFn = makeFunction("PurchaseUpgrade")
 local PlaceInventoryCardInSlotFn = makeFunction("PlaceInventoryCardInSlot")
+local ClaimFreePackFn = makeFunction("ClaimFreePack")
+local ClaimDailyRewardFn = makeFunction("ClaimDailyReward")
+local GetRebirthStatusFn = makeFunction("GetRebirthStatus")
+local RequestRebirthFn = makeFunction("RequestRebirth")
 
 PackService.Init(DataService, EconomyService, {
 	UpdateCoins = UpdateCoinsEvent,
@@ -3354,15 +4157,27 @@ end
 local function getDisplayedIncomePerSecond(player)
 	local displayedCards = DataService.GetDisplayedCards(player)
 	local total = 0
+	local data = DataService.GetData(player)
+	local multiplier = RebirthService.GetFanMultiplier(data and data.rebirthTier or 0)
 
 	for _, cardId in pairs(displayedCards) do
 		local card = getCardById(cardId)
 		if card then
-			total += Utils.GetPassiveIncome(card.rating)
+			total += math.floor(Utils.GetPassiveIncome(card.rating) * multiplier)
 		end
 	end
 
 	return total
+end
+
+local function getCardIncome(player, card)
+	if not card then
+		return 0
+	end
+
+	local data = DataService.GetData(player)
+	local multiplier = RebirthService.GetFanMultiplier(data and data.rebirthTier or 0)
+	return math.floor(Utils.GetPassiveIncome(card.rating) * multiplier)
 end
 
 local function refreshPlotDisplayState(player, plot)
@@ -3374,7 +4189,7 @@ local function refreshPlotDisplayState(player, plot)
 		local displayedCardId = DataService.GetDisplayedCard(player, slot.slotIndex)
 		local displayedCard = getCardById(displayedCardId)
 		if displayedCard then
-			BaseService.UpdateDisplaySlot(slot, displayedCard, Utils.GetPassiveIncome(displayedCard.rating))
+			BaseService.UpdateDisplaySlot(slot, displayedCard, getCardIncome(player, displayedCard))
 		else
 			local bestInventoryCard = getBestInventoryCard(player)
 			BaseService.SetDisplaySlotAddReady(slot, bestInventoryCard and "Choose Player" or "Inventory Empty", bestInventoryCard ~= nil)
@@ -3409,7 +4224,7 @@ local function placeCardOnDisplay(player, plot, slot, cardId)
 	end
 
 	DataService.SetDisplayedCard(player, slot.slotIndex, card.id)
-	BaseService.UpdateDisplaySlot(slot, card, Utils.GetPassiveIncome(card.rating))
+	BaseService.UpdateDisplaySlot(slot, card, getCardIncome(player, card))
 	return true
 end
 
@@ -3583,10 +4398,26 @@ local function spawnPackForPlot(plot)
 	createSurfaceLabel(Enum.NormalId.Front, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 	createSurfaceLabel(Enum.NormalId.Back, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 
-	local floatTween = TweenService:Create(cardBody, TweenInfo.new(1.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
-		CFrame = cardBody.CFrame * CFrame.new(0, 0.35, 0) * CFrame.Angles(0, math.rad(4), 0),
-	})
-	floatTween:Play()
+	-- Continuous idle: slow spin + gentle float.  All three parts updated together so
+	-- they never drift apart (the old tween only moved cardBody, leaving caps behind).
+	local packOriginX = basePosition.X
+	local packOriginY = basePosition.Y + 5.4
+	local packOriginZ = basePosition.Z
+	local packSpinAngle = 0
+	task.spawn(function()
+		while model.Parent do
+			packSpinAngle = packSpinAngle + math.rad(34) / 30 -- ≈ 34°/s slow spin
+			local floatY = packOriginY + math.sin(os.clock() * 1.3) * 0.30
+			local baseCF = CFrame.new(packOriginX, floatY, packOriginZ)
+				* CFrame.Angles(0, packSpinAngle, 0)
+			if model.Parent then
+				cardBody.CFrame = baseCF
+				topCap.CFrame = baseCF * CFrame.new(0, 4.65, 0) * CFrame.Angles(0, 0, math.rad(180))
+				bottomCap.CFrame = baseCF * CFrame.new(0, -4.8, 0)
+			end
+			task.wait(1 / 30)
+		end
+	end)
 
 	plot.activePackModel = model
 	plot.activePackDef = packDef
@@ -3691,6 +4522,31 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	plot.isOpeningPack = true
 	BaseService.SetPlotPadStatus(plot, "Pack Cracked", "Claiming your player", plot.activePackDef.color)
 
+	-- ── Pack crack burst animation ────────────────────────────────────
+	-- Fire before the card pull so players see the pack explode open.
+	if plot.activePackHitEmitter then
+		plot.activePackHitEmitter:Emit(44)
+	end
+	if plot.activePackLight then
+		plot.activePackLight.Brightness = 12
+		plot.activePackLight.Range = 52
+	end
+	if plot.activePackHighlight then
+		plot.activePackHighlight.FillTransparency = 0
+		plot.activePackHighlight.FillColor = Color3.fromRGB(255, 255, 255)
+	end
+	-- Expand + fade all three pack parts simultaneously
+	for _, part in ipairs(plot.activePackImpactParts or {}) do
+		if part and part.Parent then
+			TweenService:Create(
+				part,
+				TweenInfo.new(0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ Size = part.Size * 1.65, Transparency = 1 }
+			):Play()
+		end
+	end
+	task.wait(0.38) -- hold the drama before the card appears
+
 	local openedPackId = plot.activePackDef.id
 	local openedPackColor = plot.activePackDef.color
 
@@ -3702,7 +4558,8 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	if ok then
 		local pulledCard = result.card or (result.cards and result.cards[1]) or nil
 		local storageResult = autoStorePulledCard(player, plot, pulledCard)
-		local passiveIncome = pulledCard and Utils.GetPassiveIncome(pulledCard.rating) or 0
+		local passiveIncome = getCardIncome(player, pulledCard)
+		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
 
 		PackOpenedEvent:FireClient(player, {
 			success = true,
@@ -3775,6 +4632,7 @@ Players.PlayerAdded:Connect(function(player)
 
 	if plot then
 		refreshPlotDisplayState(player, plot)
+		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
 		spawnPackForPlot(plot)
 	end
 
@@ -3825,10 +4683,18 @@ GetPlayerDataFn.OnServerInvoke = function(player)
 		coins = data.coins,
 		gems = data.gems or 0,
 		rebirthTier = data.rebirthTier or 0,
+		rebirthTokens = data.rebirthTokens or 0,
+		fanMultiplier = RebirthService.GetFanMultiplier(data.rebirthTier or 0),
 		totalCardsOpened = data.totalCardsOpened or 0,
+		totalPacksOpened = DataService.GetTotalPacksOpened(player),
 		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
 		canClaimFreePack = EconomyService.CanClaimFreePack(player),
 		freePackRemaining = EconomyService.GetFreePackRemaining(player),
+		canClaimDailyReward = EconomyService.CanClaimDailyReward(player),
+		dailyRewardRemaining = math.max(
+			0,
+			Constants.DailyRewardCooldown - (os.time() - (data.lastDailyReward or 0))
+		),
 		inventoryCounts = data.inventory,
 	}
 end
@@ -3897,7 +4763,7 @@ PlaceInventoryCardInSlotFn.OnServerInvoke = function(player, slotIndex, cardId)
 		return { success = false, error = cardOrError }
 	end
 
-	sendHint(player, cardOrError.name .. " added to display slot " .. tostring(slotIndex) .. " for +" .. tostring(Utils.GetPassiveIncome(cardOrError.rating)) .. "/s.")
+	sendHint(player, cardOrError.name .. " added to display slot " .. tostring(slotIndex) .. " for +" .. tostring(getCardIncome(player, cardOrError)) .. "/s.")
 
 	return {
 		success = true,
@@ -4055,7 +4921,121 @@ PurchaseUpgradeFn.OnServerInvoke = function(player, upgradeKey)
 	return payload
 end
 
+-- ── Free Pack claim ───────────────────────────────────────────────────────────
+-- Player taps "CLAIM FREE PACK" in the Shop panel.  We stamp the cooldown here
+-- (EconomyService.ClaimFreePack), open a Gold Pack with ignoreCost so no Fans
+-- are charged, auto-store the card, then fire PackOpenedEvent so the card reveal
+-- screen appears exactly like a pitchfork crack.
+ClaimFreePackFn.OnServerInvoke = function(player)
+	local ok, err = EconomyService.ClaimFreePack(player)
+	if not ok then
+		return { success = false, error = err or "Free pack not ready." }
+	end
+
+	local packOk, result = PackService.OpenPack(player, "GoldPack", { ignoreCost = true })
+	if not packOk then
+		-- Rare: pack logic failed after cooldown was already stamped.  Let it
+		-- ride — player can retry on next cooldown.
+		return { success = false, error = result and result.error or "Pack failed. Try again." }
+	end
+
+	local pulledCard = result.card or (result.cards and result.cards[1]) or nil
+	local plot = BaseService.GetPlot(player)
+	local storageResult
+
+	if plot then
+		storageResult = autoStorePulledCard(player, plot, pulledCard)
+	else
+		if pulledCard then
+			DataService.AddCard(player, pulledCard.id)
+		end
+		storageResult = { storedInInventory = true, slotIndex = nil }
+	end
+
+	local passiveIncome = getCardIncome(player, pulledCard)
+	if plot then
+		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
+	end
+
+	PackOpenedEvent:FireClient(player, {
+		success = true,
+		packId = result.packId,
+		packName = result.packName,
+		newCoins = result.newCoins,
+		card = pulledCard,
+		storedInInventory = storageResult.storedInInventory,
+		slotIndex = storageResult.slotIndex,
+		coinsPerSecond = passiveIncome,
+		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
+	})
+
+	return {
+		success = true,
+		freePackRemaining = Constants.FreePackCooldown,
+	}
+end
+
+-- ── Daily Reward claim ────────────────────────────────────────────────────────
+-- Normally granted automatically on login, but players can also claim through
+-- the Shop if 24 h have elapsed while they're still in the session.
+ClaimDailyRewardFn.OnServerInvoke = function(player)
+	local granted = EconomyService.TryGrantDailyReward(player)
+	if not granted then
+		local data = DataService.GetData(player)
+		local remaining = data
+				and math.max(0, Constants.DailyRewardCooldown - (os.time() - (data.lastDailyReward or 0)))
+			or Constants.DailyRewardCooldown
+		return {
+			success = false,
+			error = "Daily reward not ready yet.",
+			dailyRewardRemaining = remaining,
+		}
+	end
+
+	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+
+	return {
+		success = true,
+		coinsAwarded = Constants.DailyRewardCoins,
+		newCoins = DataService.GetCoins(player),
+		dailyRewardRemaining = Constants.DailyRewardCooldown,
+	}
+end
+
+GetRebirthStatusFn.OnServerInvoke = function(player)
+	return RebirthService.GetStatus(player)
+end
+
+RequestRebirthFn.OnServerInvoke = function(player)
+	local ok, result = RebirthService.PerformRebirth(player)
+	if not ok then
+		return {
+			success = false,
+			status = result,
+			error = result and result.reason or "You cannot rebirth yet.",
+		}
+	end
+
+	local plot = BaseService.GetPlot(player)
+	if plot then
+		BaseService.ClearPlotDisplays(plot)
+		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
+		refreshPlotDisplayState(player, plot)
+	end
+
+	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+	sendHint(player, "Rebirth complete! Your stadium reset, but your permanent fan multiplier increased.")
+
+	return {
+		success = true,
+		status = result,
+		coins = DataService.GetCoins(player),
+		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
+	}
+end
+
 print("[UnboxAFootballer] Pack systems ready")
+
 ]])
 
 makeLocal('BaseUI', sps, [[return
@@ -4887,7 +5867,9 @@ questsButton.MouseButton1Click:Connect(function()
 end)
 
 shopButton.MouseButton1Click:Connect(function()
-	showToast("Shop is coming soon. Pack tiers and cosmetics will live here.", Color3.fromRGB(74, 185, 98))
+	if not fireGuiToggle("ShopUI") then
+		showToast("Shop is still loading. Try again in a second.", Color3.fromRGB(74, 185, 98))
+	end
 end)
 
 addFansButton.MouseButton1Click:Connect(function()
@@ -4902,6 +5884,207 @@ UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
 	setCoinsDisplay(coins)
 end)
 
+-- ── Compact card reveal ───────────────────────────────────────────────────────
+-- Appears near the pack, shows player info briefly, then flies toward the
+-- destination slot (or inventory corner).  No full-screen overlay — keeps the
+-- world visible while the card pops.  Auto-destroys in ~2 s.
+local function showCardReveal(payload)
+	local card = payload.card
+	if not card then
+		return
+	end
+
+	local rarityColor = Utils.GetRarityColor(card.rarity)
+	local isPremium = card.rarity == "Premium Gold"
+	local trimColor = isPremium and Color3.fromRGB(210, 228, 255) or Color3.fromRGB(218, 168, 48)
+	local income = payload.coinsPerSecond or 0
+	local toInventory = payload.storedInInventory == true
+
+	-- ── Card panel (compact: 180 × 256 px) ───────────────────────────
+	local CARD_W, CARD_H = 180, 256
+
+	local cardPanel = make("Frame", {
+		Name = "CardReveal",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		-- Slightly above screen centre — pack is usually in the upper half of view
+		Position = UDim2.new(0.5, 0, 0.42, 0),
+		Size = UDim2.fromOffset(CARD_W, CARD_H),
+		BackgroundColor3 = rarityColor:Lerp(Color3.fromRGB(10, 5, 2), 0.68),
+		ZIndex = 200,
+	}, screenGui)
+	addCorner(cardPanel, 16)
+	addStroke(cardPanel, trimColor, 3)
+
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.14)),
+			ColorSequenceKeypoint.new(0.44, rarityColor),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(6, 3, 1)),
+		}),
+		Rotation = 158,
+	}, cardPanel)
+
+	-- UIScale at 0.05 → 1 for the bounce pop-in
+	local cardScale = make("UIScale", { Scale = 0.05 }, cardPanel)
+
+	-- Rating (top-left)
+	local ratingLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(12, 10),
+		Size = UDim2.fromOffset(50, 42),
+		Text = tostring(card.rating),
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 202,
+	}, cardPanel)
+	addStroke(ratingLabel, Color3.fromRGB(6, 3, 1), 2, 0.22)
+
+	-- Position (below rating)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(13, 52),
+		Size = UDim2.fromOffset(44, 14),
+		Text = card.position,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextScaled = false,
+		TextSize = 11,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 202,
+	}, cardPanel)
+
+	-- Nation (top-right)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 13),
+		Size = UDim2.fromOffset(84, 14),
+		Text = card.nation,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextScaled = false,
+		TextSize = 11,
+		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		ZIndex = 202,
+	}, cardPanel)
+
+	-- Divider
+	make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 70),
+		Size = UDim2.new(0.84, 0, 0, 1.5),
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BackgroundTransparency = 0.55,
+		BorderSizePixel = 0,
+		ZIndex = 202,
+	}, cardPanel)
+
+	-- Monogram circle
+	local monogram = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 78),
+		Size = UDim2.fromOffset(84, 84),
+		BackgroundColor3 = rarityColor:Lerp(Color3.fromRGB(0, 0, 0), 0.55),
+		BackgroundTransparency = 0.42,
+		ZIndex = 201,
+	}, cardPanel)
+	addCorner(monogram, 42)
+	addStroke(monogram, Color3.fromRGB(255, 255, 255), 1.2, 0.62)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = string.upper(string.sub(card.name, 1, 1)),
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextTransparency = 0.30,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 202,
+	}, monogram)
+
+	-- Player name
+	local nameLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 170),
+		Size = UDim2.new(0.90, 0, 0, 46),
+		Text = string.upper(card.name),
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextScaled = true,
+		TextWrapped = true,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		ZIndex = 202,
+	}, cardPanel)
+	make("UITextSizeConstraint", { MinTextSize = 9, MaxTextSize = 22 }, nameLabel)
+	addStroke(nameLabel, Color3.fromRGB(6, 3, 1), 1.2, 0.20)
+
+	-- Destination + income pill (bottom of card)
+	local destStr = toInventory
+		and ("→ Inventory  ·  +" .. Utils.FormatNumber(income) .. "/s")
+		or ("→ Slot " .. tostring(payload.slotIndex) .. "  ·  +" .. Utils.FormatNumber(income) .. "/s")
+	local pillBg = toInventory and Color3.fromRGB(40, 50, 80) or Color3.fromRGB(22, 74, 38)
+	local pillAccent = toInventory and Color3.fromRGB(110, 130, 210) or Color3.fromRGB(74, 185, 98)
+
+	local pill = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -10),
+		Size = UDim2.fromOffset(158, 26),
+		BackgroundColor3 = pillBg,
+		ZIndex = 202,
+	}, cardPanel)
+	addCorner(pill, 13)
+	addStroke(pill, pillAccent, 1.2, 0.28)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = destStr,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextScaled = false,
+		TextSize = 11,
+		Font = Enum.Font.GothamBold,
+		ZIndex = 203,
+	}, pill)
+
+	-- ── Pop-in animation ─────────────────────────────────────────────
+	task.wait(0.04)
+	TweenService:Create(cardScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1,
+	}):Play()
+
+	-- ── Fly-off after 1.4 s ──────────────────────────────────────────
+	-- Card shrinks and slides toward the destination corner so it feels like
+	-- it "drops into" the slot or inventory rather than just disappearing.
+	task.delay(1.4, function()
+		if not cardPanel.Parent then
+			return
+		end
+
+		-- Inventory → bottom-left corner; display slot → bottom-right corner
+		local flyTarget = toInventory
+			and UDim2.new(0.06, 0, 0.92, 0)
+			or UDim2.new(0.92, 0, 0.92, 0)
+
+		TweenService:Create(
+			cardPanel,
+			TweenInfo.new(0.32, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ Position = flyTarget }
+		):Play()
+		TweenService:Create(
+			cardScale,
+			TweenInfo.new(0.32, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ Scale = 0 }
+		):Play()
+
+		task.delay(0.35, function()
+			if cardPanel.Parent then
+				cardPanel:Destroy()
+			end
+		end)
+	end)
+end
+
 PackOpenedEvent.OnClientEvent:Connect(function(payload)
 	if not payload or not payload.success then
 		return
@@ -4910,13 +6093,7 @@ PackOpenedEvent.OnClientEvent:Connect(function(payload)
 	setCoinsDisplay(payload.newCoins)
 
 	if payload.card then
-		local targetText
-		if payload.storedInInventory then
-			targetText = payload.card.name .. " went to inventory because your displays are full."
-		else
-			targetText = payload.card.name .. " is now on display slot " .. tostring(payload.slotIndex) .. " earning +" .. tostring(payload.coinsPerSecond or 0) .. " Fans/s."
-		end
-		showToast(targetText, Utils.GetRarityColor(payload.card.rarity))
+		showCardReveal(payload)
 	end
 end)
 
@@ -4956,12 +6133,539 @@ if player.Character then
 end
 
 player.CharacterAdded:Connect(onCharacterAdded)
+
 ]])
 
 makeLocal('RebirthUI', sps, [[return
 ]])
 
-makeLocal('ShopUI', sps, [[return
+makeLocal('ShopUI', sps, [[local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+local Constants = require(Shared:WaitForChild("Constants"))
+local Utils = require(Shared:WaitForChild("Utils"))
+
+local GetPlayerDataFn = Remotes:WaitForChild("GetPlayerData")
+local ClaimFreePackFn = Remotes:WaitForChild("ClaimFreePack")
+local ClaimDailyRewardFn = Remotes:WaitForChild("ClaimDailyReward")
+
+local UI = Constants.UI
+
+-- ── Helpers ────────────────────────────────────────────────────────────────────
+
+local function make(className, props, parent)
+	props = props or {}
+	local instance = Instance.new(className)
+	for key, value in pairs(props) do
+		instance[key] = value
+	end
+	instance.Parent = parent
+	return instance
+end
+
+local function addCorner(parent, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius)
+	c.Parent = parent
+end
+
+local function addStroke(parent, color, thickness, transparency)
+	local s = Instance.new("UIStroke")
+	s.Color = color
+	s.Thickness = thickness or 1
+	s.Transparency = transparency or 0
+	s.Parent = parent
+end
+
+-- ── ScreenGui ─────────────────────────────────────────────────────────────────
+
+local existingGui = playerGui:FindFirstChild("ShopUI")
+if existingGui then
+	existingGui:Destroy()
+end
+
+local screenGui = make("ScreenGui", {
+	Name = "ShopUI",
+	ResetOnSpawn = false,
+	Enabled = false,
+	DisplayOrder = 12,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, playerGui)
+
+-- BindableEvent so PackOpeningUI can toggle us via fireGuiToggle("ShopUI")
+local toggleEvent = Instance.new("BindableEvent")
+toggleEvent.Name = "ToggleEvent"
+toggleEvent.Parent = screenGui
+
+-- ── State ─────────────────────────────────────────────────────────────────────
+
+local isOpen = false
+local freePackRemaining = Constants.FreePackCooldown
+local dailyRemaining = Constants.DailyRewardCooldown
+local canClaimFree = false
+local canClaimDaily = false
+local claimingFree = false
+local claimingDaily = false
+
+-- ── Dark overlay ───────────────────────────────────────────────────────────────
+
+local overlay = make("Frame", {
+	Name = "Overlay",
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+	BackgroundTransparency = 0.42,
+	ZIndex = 1,
+}, screenGui)
+
+-- Clicking outside the panel closes the Shop
+local overlayBtn = make("TextButton", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundTransparency = 1,
+	Text = "",
+	ZIndex = 2,
+}, overlay)
+
+-- ── Main panel ────────────────────────────────────────────────────────────────
+
+local PANEL_W, PANEL_H = 430, 380
+
+local panel = make("Frame", {
+	Name = "ShopPanel",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromOffset(PANEL_W, PANEL_H),
+	BackgroundColor3 = UI.Background,
+	ZIndex = 10,
+}, screenGui)
+addCorner(panel, 18)
+addStroke(panel, UI.Gold, 1.5, 0.52)
+
+make("UIGradient", {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(14, 20, 38)),
+		ColorSequenceKeypoint.new(1, UI.Background),
+	}),
+	Rotation = 130,
+}, panel)
+
+-- ── Header ───────────────────────────────────────────────────────────────────
+
+local header = make("Frame", {
+	Name = "Header",
+	Size = UDim2.new(1, 0, 0, 54),
+	BackgroundColor3 = Color3.fromRGB(10, 14, 27),
+	ZIndex = 11,
+}, panel)
+addCorner(header, 18)
+
+-- Solid rectangle covers only the bottom two rounded corners so the top stays curved
+make("Frame", {
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 0, 1, 0),
+	Size = UDim2.new(1, 0, 0, 18),
+	BackgroundColor3 = Color3.fromRGB(10, 14, 27),
+	BorderSizePixel = 0,
+	ZIndex = 11,
+}, header)
+
+make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 18, 0, 0),
+	Size = UDim2.new(1, -60, 1, 0),
+	Text = "SHOP",
+	TextColor3 = UI.Gold,
+	TextScaled = false,
+	TextSize = 22,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 12,
+}, header)
+
+local closeBtn = make("TextButton", {
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -14, 0.5, 0),
+	Size = UDim2.fromOffset(34, 34),
+	BackgroundColor3 = UI.Danger,
+	Text = "✕",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	TextScaled = false,
+	TextSize = 16,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = true,
+	ZIndex = 12,
+}, header)
+addCorner(closeBtn, 10)
+
+-- ── Content area ─────────────────────────────────────────────────────────────
+
+local content = make("Frame", {
+	Name = "Content",
+	Position = UDim2.new(0, 0, 0, 54),
+	Size = UDim2.new(1, 0, 1, -54),
+	BackgroundTransparency = 1,
+	ZIndex = 10,
+}, panel)
+
+make("UIPadding", {
+	PaddingTop = UDim.new(0, 14),
+	PaddingBottom = UDim.new(0, 14),
+	PaddingLeft = UDim.new(0, 14),
+	PaddingRight = UDim.new(0, 14),
+}, content)
+
+make("UIListLayout", {
+	FillDirection = Enum.FillDirection.Vertical,
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	Padding = UDim.new(0, 10),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, content)
+
+-- Section label
+make("TextLabel", {
+	LayoutOrder = 1,
+	Size = UDim2.new(1, 0, 0, 18),
+	BackgroundTransparency = 1,
+	Text = "FREE REWARDS",
+	TextColor3 = UI.Muted,
+	TextScaled = false,
+	TextSize = 11,
+	Font = Enum.Font.GothamBold,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 11,
+}, content)
+
+-- ── Reward card helper ────────────────────────────────────────────────────────
+
+local function makeRewardCard(layoutOrder, iconText, iconColor, titleText, subtitleDefault)
+	local card = make("Frame", {
+		LayoutOrder = layoutOrder,
+		Size = UDim2.new(1, 0, 0, 82),
+		BackgroundColor3 = UI.Panel,
+		ZIndex = 11,
+	}, content)
+	addCorner(card, 14)
+	addStroke(card, iconColor, 1.5, 0.72)
+
+	-- Left accent bar
+	make("Frame", {
+		Size = UDim2.new(0, 4, 1, -16),
+		Position = UDim2.new(0, 0, 0, 8),
+		BackgroundColor3 = iconColor,
+		BorderSizePixel = 0,
+		ZIndex = 12,
+	}, card)
+	addCorner(card:FindFirstChildOfClass("Frame"), 4)
+
+	-- Icon circle
+	local iconCircle = make("Frame", {
+		Position = UDim2.new(0, 14, 0.5, -22),
+		Size = UDim2.fromOffset(44, 44),
+		BackgroundColor3 = iconColor:Lerp(Color3.fromRGB(0, 0, 0), 0.70),
+		ZIndex = 12,
+	}, card)
+	addCorner(iconCircle, 22)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = iconText,
+		TextColor3 = iconColor,
+		TextScaled = false,
+		TextSize = 22,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 13,
+	}, iconCircle)
+
+	-- Title
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 68, 0, 15),
+		Size = UDim2.new(1, -220, 0, 22),
+		Text = titleText,
+		TextColor3 = UI.Text,
+		TextScaled = false,
+		TextSize = 16,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 12,
+	}, card)
+
+	-- Subtitle (mutable)
+	local subLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 68, 0, 38),
+		Size = UDim2.new(1, -220, 0, 17),
+		Text = subtitleDefault,
+		TextColor3 = UI.Muted,
+		TextScaled = false,
+		TextSize = 12,
+		Font = Enum.Font.GothamMedium,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 12,
+	}, card)
+
+	-- Action button (right side)
+	local btn = make("TextButton", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		Size = UDim2.fromOffset(136, 38),
+		BackgroundColor3 = iconColor:Lerp(Color3.fromRGB(0, 0, 0), 0.32),
+		Text = "CLAIM",
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextScaled = false,
+		TextSize = 14,
+		Font = Enum.Font.GothamBlack,
+		AutoButtonColor = true,
+		ZIndex = 12,
+	}, card)
+	addCorner(btn, 10)
+
+	return card, subLabel, btn
+end
+
+local _, freeSubLabel, freeClaimBtn =
+	makeRewardCard(2, "F", Color3.fromRGB(74, 185, 98), "FREE PACK", "One Gold Pack pull  ·  4 h cooldown")
+
+local _, dailySubLabel, dailyClaimBtn =
+	makeRewardCard(3, "D", UI.Gold, "DAILY REWARD", "+1,000 Fans  ·  24 h cooldown")
+
+-- Coming-soon footer
+local comingSoon = make("TextLabel", {
+	LayoutOrder = 4,
+	Size = UDim2.new(1, 0, 0, 38),
+	BackgroundColor3 = UI.PanelAlt,
+	Text = "Premium packs · Cosmetics · More  —  coming soon",
+	TextColor3 = UI.Muted,
+	TextScaled = false,
+	TextSize = 12,
+	Font = Enum.Font.GothamMedium,
+	ZIndex = 11,
+}, content)
+addCorner(comingSoon, 10)
+addStroke(comingSoon, UI.Muted, 1, 0.90)
+_ = comingSoon
+
+-- ── Button state helper ────────────────────────────────────────────────────────
+
+local function updateFreePackBtn()
+	if canClaimFree then
+		freeClaimBtn.Text = "CLAIM FREE PACK"
+		freeClaimBtn.BackgroundColor3 = Color3.fromRGB(35, 140, 65)
+		freeClaimBtn.Active = true
+		freeClaimBtn.AutoButtonColor = true
+		freeSubLabel.Text = "One Gold Pack pull  ·  Ready now!"
+		freeSubLabel.TextColor3 = Color3.fromRGB(74, 185, 98)
+	else
+		freeClaimBtn.Text = Utils.FormatCountdown(freePackRemaining)
+		freeClaimBtn.BackgroundColor3 = Color3.fromRGB(28, 34, 52)
+		freeClaimBtn.Active = false
+		freeClaimBtn.AutoButtonColor = false
+		freeSubLabel.Text = "Next free pack in " .. Utils.FormatCountdown(freePackRemaining)
+		freeSubLabel.TextColor3 = UI.Muted
+	end
+end
+
+local function updateDailyBtn()
+	if canClaimDaily then
+		dailyClaimBtn.Text = "CLAIM  +1,000"
+		dailyClaimBtn.BackgroundColor3 = Color3.fromRGB(140, 100, 10)
+		dailyClaimBtn.Active = true
+		dailyClaimBtn.AutoButtonColor = true
+		dailySubLabel.Text = "+1,000 Fans  ·  Ready to collect!"
+		dailySubLabel.TextColor3 = UI.Gold
+	else
+		dailyClaimBtn.Text = Utils.FormatCountdown(dailyRemaining)
+		dailyClaimBtn.BackgroundColor3 = Color3.fromRGB(28, 34, 52)
+		dailyClaimBtn.Active = false
+		dailyClaimBtn.AutoButtonColor = false
+		dailySubLabel.Text = "Claimed on login · Next in " .. Utils.FormatCountdown(dailyRemaining)
+		dailySubLabel.TextColor3 = UI.Muted
+	end
+end
+
+-- ── Populate from server data ─────────────────────────────────────────────────
+
+local function applyData(data)
+	if not data then
+		return
+	end
+
+	freePackRemaining = data.freePackRemaining or Constants.FreePackCooldown
+	canClaimFree = data.canClaimFreePack == true
+
+	dailyRemaining = data.dailyRewardRemaining or Constants.DailyRewardCooldown
+	canClaimDaily = data.canClaimDailyReward == true
+
+	updateFreePackBtn()
+	updateDailyBtn()
+end
+
+-- ── Live countdown loop (runs while panel is open) ────────────────────────────
+
+local function runCountdown()
+	while isOpen and screenGui.Enabled do
+		task.wait(1)
+		if not isOpen then
+			break
+		end
+
+		-- Decrement locally between server refreshes
+		if not canClaimFree then
+			freePackRemaining = math.max(0, freePackRemaining - 1)
+			if freePackRemaining <= 0 then
+				canClaimFree = true
+			end
+		end
+
+		if not canClaimDaily then
+			dailyRemaining = math.max(0, dailyRemaining - 1)
+			if dailyRemaining <= 0 then
+				canClaimDaily = true
+			end
+		end
+
+		updateFreePackBtn()
+		updateDailyBtn()
+	end
+end
+
+-- ── Open / close ──────────────────────────────────────────────────────────────
+
+local panelScale = make("UIScale", { Scale = 0.88 }, panel)
+
+local function openShop()
+	if isOpen then
+		return
+	end
+	isOpen = true
+	screenGui.Enabled = true
+
+	-- Fetch fresh state from server
+	task.spawn(function()
+		local data = GetPlayerDataFn:InvokeServer()
+		if isOpen then
+			applyData(data)
+		end
+	end)
+
+	-- Pop-in animation
+	panelScale.Scale = 0.88
+	TweenService:Create(panelScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1,
+	}):Play()
+
+	task.spawn(runCountdown)
+end
+
+local function closeShop()
+	if not isOpen then
+		return
+	end
+	isOpen = false
+
+	TweenService:Create(panelScale, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Scale = 0.88,
+	}):Play()
+	task.delay(0.16, function()
+		screenGui.Enabled = false
+	end)
+end
+
+-- ── Wire buttons ──────────────────────────────────────────────────────────────
+
+closeBtn.MouseButton1Click:Connect(closeShop)
+overlayBtn.MouseButton1Click:Connect(closeShop)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if not gameProcessed and input.KeyCode == Enum.KeyCode.Escape and isOpen then
+		closeShop()
+	end
+end)
+
+toggleEvent.Event:Connect(function()
+	if isOpen then
+		closeShop()
+	else
+		openShop()
+	end
+end)
+
+-- ── Free Pack claim ───────────────────────────────────────────────────────────
+
+freeClaimBtn.MouseButton1Click:Connect(function()
+	if not canClaimFree or claimingFree then
+		return
+	end
+	claimingFree = true
+	freeClaimBtn.Text = "Opening..."
+	freeClaimBtn.Active = false
+
+	local result = ClaimFreePackFn:InvokeServer()
+	claimingFree = false
+
+	if result and result.success then
+		-- PackOpenedEvent fires server-side → card reveal appears automatically.
+		-- Reset our local timer so the button shows the new cooldown immediately.
+		canClaimFree = false
+		freePackRemaining = result.freePackRemaining or Constants.FreePackCooldown
+		updateFreePackBtn()
+		-- Close the shop so the card reveal is unobstructed
+		closeShop()
+	else
+		-- Show error briefly on the button then restore
+		freeClaimBtn.Text = result and result.error or "Error"
+		task.delay(2, function()
+			if not canClaimFree then
+				updateFreePackBtn()
+			end
+		end)
+	end
+end)
+
+-- ── Daily Reward claim ────────────────────────────────────────────────────────
+
+dailyClaimBtn.MouseButton1Click:Connect(function()
+	if not canClaimDaily or claimingDaily then
+		return
+	end
+	claimingDaily = true
+	dailyClaimBtn.Text = "Claiming..."
+	dailyClaimBtn.Active = false
+
+	local result = ClaimDailyRewardFn:InvokeServer()
+	claimingDaily = false
+
+	if result and result.success then
+		canClaimDaily = false
+		dailyRemaining = result.dailyRewardRemaining or Constants.DailyRewardCooldown
+		updateDailyBtn()
+
+		-- Brief green flash on the button to celebrate
+		dailyClaimBtn.Text = "+1,000 Fans!"
+		dailyClaimBtn.BackgroundColor3 = Color3.fromRGB(35, 140, 65)
+		task.delay(1.8, function()
+			if not canClaimDaily then
+				updateDailyBtn()
+			end
+		end)
+	else
+		dailyClaimBtn.Text = result and result.error or "Error"
+		task.delay(2, function()
+			if not canClaimDaily then
+				updateDailyBtn()
+			end
+		end)
+	end
+end)
+
 ]])
 
 makeLocal('ToolClient', sps, [[local Players = game:GetService("Players")
