@@ -399,15 +399,14 @@ local function makeRoute(laneOffset)
 		rawFood = rawFood or foodCenterWest or foodCenterEast  -- fallback
 
 		if rawFood then
-			local kioskSideX = westSide and -24 or 24
-			local kioskZ = westSide and -10 or 10
+			local kioskSideX = westSide and -36 or 36
 			-- Insert between "center" and "loop" steps so NPC passes the
 			-- kiosk area naturally in the middle of their plaza walk.
 			table.insert(route, 3, {
 				position = rawFood,
 				pause = math.random(8, 18),
 				isFood = true,
-				lookAt = Vector3.new(kioskSideX, rawFood.Y, kioskZ),
+				lookAt = Vector3.new(kioskSideX, rawFood.Y, 0),
 			})
 		end
 	end

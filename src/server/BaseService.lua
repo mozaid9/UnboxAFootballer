@@ -457,6 +457,40 @@ local function tryCreateImportedFloodlight(parent, name, position, targetPositio
 	return loaded
 end
 
+local function tryCreateImportedDecor(parent, name, assetId, position, facingPos, targetHeight)
+	if type(assetId) ~= "number" or assetId <= 0 then
+		return nil
+	end
+
+	local ok, loaded = pcall(function()
+		return InsertService:LoadAsset(assetId)
+	end)
+
+	if not ok or not loaded then
+		warn("[UnboxAFootballer] Could not load decor asset " .. tostring(assetId) .. ": " .. tostring(loaded))
+		return nil
+	end
+
+	loaded.Name = name
+	loaded.Parent = parent
+	prepareImportedModel(loaded)
+
+	local _, size = loaded:GetBoundingBox()
+	local scale = math.clamp((targetHeight or 8) / math.max(size.Y, 0.1), 0.08, 5)
+	pcall(function()
+		loaded:ScaleTo(scale)
+	end)
+
+	local lookAt = facingPos or (position + Vector3.new(0, 0, -1))
+	loaded:PivotTo(CFrame.lookAt(position, Vector3.new(lookAt.X, position.Y, lookAt.Z)))
+
+	local boundsCFrame, boundsSize = loaded:GetBoundingBox()
+	local bottomY = boundsCFrame.Position.Y - (boundsSize.Y / 2)
+	loaded:PivotTo(loaded:GetPivot() + Vector3.new(0, position.Y - bottomY, 0))
+
+	return loaded
+end
+
 local function createFloodlightBeam(parent, name, position, targetPosition, poleHeight, options)
 	options = options or {}
 	local anchorPosition = position + Vector3.new(0, poleHeight + 1.5, 0)
@@ -658,6 +692,71 @@ local function createVerticalBanner(parent, name, position, lookTarget, title)
 	createSurfaceText(banner, title, "FOOTBALLER")
 
 	return model
+end
+
+local function createFanZoneBench(parent, name, position, facingPos)
+	local model = make("Model", {
+		Name = name,
+	}, parent)
+
+	local cframe = CFrame.lookAt(position + Vector3.new(0, 1.15, 0), Vector3.new(facingPos.X, position.Y + 1.15, facingPos.Z))
+
+	make("Part", {
+		Name = "Seat",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.WoodPlanks,
+		Color = Color3.fromRGB(132, 86, 42),
+		Size = Vector3.new(7.2, 0.34, 1.25),
+		CFrame = cframe,
+	}, model)
+
+	make("Part", {
+		Name = "Back",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.WoodPlanks,
+		Color = Color3.fromRGB(116, 74, 36),
+		Size = Vector3.new(7.2, 1.1, 0.28),
+		CFrame = cframe * CFrame.new(0, 0.55, 0.76) * CFrame.Angles(math.rad(-10), 0, 0),
+	}, model)
+
+	for x = -2.7, 2.7, 5.4 do
+		make("Part", {
+			Name = "Leg",
+			Anchored = true,
+			CanCollide = true,
+			Material = Enum.Material.Metal,
+			Color = Color3.fromRGB(28, 32, 42),
+			Size = Vector3.new(0.26, 1.1, 0.26),
+			CFrame = cframe * CFrame.new(x, -0.68, -0.28),
+		}, model)
+		make("Part", {
+			Name = "Leg",
+			Anchored = true,
+			CanCollide = true,
+			Material = Enum.Material.Metal,
+			Color = Color3.fromRGB(28, 32, 42),
+			Size = Vector3.new(0.26, 1.1, 0.26),
+			CFrame = cframe * CFrame.new(x, -0.68, 0.42),
+		}, model)
+	end
+
+	return model
+end
+
+local function createFanZoneBoard(parent, name, position, facingPos, title, subtitle)
+	local board = make("Part", {
+		Name = name,
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(8, 12, 20),
+		Size = Vector3.new(16, 3.2, 0.45),
+		CFrame = CFrame.lookAt(position, Vector3.new(facingPos.X, position.Y, facingPos.Z)),
+	}, parent)
+	createSurfaceText(board, title, subtitle or "")
+	return board
 end
 
 local function createWaypoint(parent, name, position)
@@ -1087,6 +1186,7 @@ local function createFanZone(mapWidth, mapLength)
 		Name = "FanZone",
 	}, basesFolder)
 
+	local modelAssets = fanZoneConfig.ModelAssets or {}
 	local waypointFolder = make("Folder", {
 		Name = "Waypoints",
 	}, plaza)
@@ -1157,6 +1257,63 @@ local function createFanZone(mapWidth, mapLength)
 		}, plaza)
 	end
 
+	-- ── FAN ZONE deck: a clean centre area that separates the statue and
+	-- concessions from the travel lanes, so the plaza no longer feels like
+	-- random props dropped into the road.
+	make("Part", {
+		Name = "FanZoneDeck",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.Slate,
+		Color = Color3.fromRGB(36, 43, 57),
+		Size = Vector3.new(54, 0.12, 46),
+		CFrame = CFrame.new(0, 0.43, 0),
+	}, plaza)
+
+	make("Part", {
+		Name = "FanZoneDeckNorthTrim",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(214, 170, 52),
+		Transparency = 0.12,
+		Size = Vector3.new(54, 0.08, 0.28),
+		CFrame = CFrame.new(0, 0.52, -23),
+	}, plaza)
+
+	make("Part", {
+		Name = "FanZoneDeckSouthTrim",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(214, 170, 52),
+		Transparency = 0.12,
+		Size = Vector3.new(54, 0.08, 0.28),
+		CFrame = CFrame.new(0, 0.52, 23),
+	}, plaza)
+
+	make("Part", {
+		Name = "FanZoneDeckWestTrim",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(214, 170, 52),
+		Transparency = 0.12,
+		Size = Vector3.new(0.28, 0.08, 46),
+		CFrame = CFrame.new(-27, 0.52, 0),
+	}, plaza)
+
+	make("Part", {
+		Name = "FanZoneDeckEastTrim",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(214, 170, 52),
+		Transparency = 0.12,
+		Size = Vector3.new(0.28, 0.08, 46),
+		CFrame = CFrame.new(27, 0.52, 0),
+	}, plaza)
+
 	-- ── Centre podium: three stepped tiers + elevated spinning football ──────────
 	-- Roblox cylinders have their length along X, so we rotate 90° on Z to stand
 	-- them upright (flat faces become top/bottom).
@@ -1204,85 +1361,75 @@ local function createFanZone(mapWidth, mapLength)
 		createPlanter(plaza, Vector3.new(math.cos(angle) * RING_RADIUS, 0, math.sin(angle) * RING_RADIUS), 0.52)
 	end
 
-	-- Gold football sitting on the top plinth (centre at Y=12.0, radius=3.5 → bottom Y=8.5)
-	local ball = make("Part", {
-		Name = "GoldFootball",
-		Anchored = true,
-		CanCollide = false,
-		Shape = Enum.PartType.Ball,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(255, 202, 61),
-		Size = Vector3.new(7, 7, 7),
-		CFrame = CFrame.new(0, 12.0, 0),
-	}, plaza)
+	local statue = tryCreateImportedDecor(plaza, "FootballStatue", modelAssets.FootballStatue, Vector3.new(0, 8.45, 0), Vector3.new(0, 8.45, -12), 9.2)
+	if not statue then
+		-- Gold football fallback (centre at Y=12.0, radius=3.5 -> bottom Y=8.5)
+		local ball = make("Part", {
+			Name = "GoldFootball",
+			Anchored = true,
+			CanCollide = false,
+			Shape = Enum.PartType.Ball,
+			Material = Enum.Material.SmoothPlastic,
+			Color = Color3.fromRGB(255, 202, 61),
+			Size = Vector3.new(7, 7, 7),
+			CFrame = CFrame.new(0, 12.0, 0),
+		}, plaza)
 
-	make("PointLight", {
-		Color = Color3.fromRGB(255, 215, 0),
-		Range = 16,
-		Brightness = 0.38,
-		Shadows = false,
-	}, ball)
+		make("PointLight", {
+			Color = Color3.fromRGB(255, 215, 0),
+			Range = 16,
+			Brightness = 0.38,
+			Shadows = false,
+		}, ball)
 
-	-- Slow spin + tilt so the ball looks like it's rolling in the air
-	task.spawn(function()
-		local ballAngle = 0
-		local ballBaseY = 12.0
-		while ball.Parent do
-			ballAngle = ballAngle + math.rad(20) / 30 -- ≈ 20°/s
-			local floatOffset = math.sin(os.clock() * 0.85) * 0.38
-			ball.CFrame = CFrame.new(0, ballBaseY + floatOffset, 0)
-				* CFrame.Angles(math.rad(22), ballAngle, 0)
-			task.wait(1 / 30)
-		end
-	end)
+		-- Slow spin + tilt so the ball looks like it's rolling in the air.
+		task.spawn(function()
+			local ballAngle = 0
+			local ballBaseY = 12.0
+			while ball.Parent do
+				ballAngle = ballAngle + math.rad(20) / 30
+				local floatOffset = math.sin(os.clock() * 0.85) * 0.38
+				ball.CFrame = CFrame.new(0, ballBaseY + floatOffset, 0)
+					* CFrame.Angles(math.rad(22), ballAngle, 0)
+				task.wait(1 / 30)
+			end
+		end)
+	end
 
-	local plazaSign = make("Part", {
-		Name = "FanZoneSign",
-		Anchored = true,
-		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(8, 12, 20),
-		Size = Vector3.new(18, 3.2, 0.5),
-		CFrame = CFrame.lookAt(Vector3.new(0, 3.2, -13), Vector3.new(0, 3.2, -40)),
-	}, plaza)
-	createSurfaceText(plazaSign, "FAN ZONE", "")
+	createFanZoneBoard(plaza, "FanZoneSouthBoard", Vector3.new(0, 3.2, -16), Vector3.new(0, 3.2, -40), "FAN ZONE", "FOOD  •  FANS  •  FOOTBALL")
+	createFanZoneBoard(plaza, "FanZoneNorthBoard", Vector3.new(0, 3.2, 16), Vector3.new(0, 3.2, 40), "FAN ZONE", "FOOD  •  FANS  •  FOOTBALL")
 
 	createFanGate(plaza, "NorthFanGate", northZ, -1)
 	createFanGate(plaza, "SouthFanGate", southZ, 1)
 
 	-- ── Food & drinks kiosks ──────────────────────────────────────────
-	-- Four stalls form a square around the central podium.  NPCs detour
-	-- here as they pass through the plaza, then carry on to their exit.
+	-- Four stalls form a clean food-court shape outside the central deck.
+	-- NPCs detour here as they pass through the plaza, then carry on.
 	-- Y=0.35 sits the booth base flush on the plaza surface (top ≈ Y=0.33)
 	local center0 = Vector3.new(0, 0.35, 0)  -- all stalls face the podium
 
 	createFoodKiosk(plaza, "KioskNW",
-		Vector3.new(-24, 0.35, -10), 1, center0)  -- POPCORN
+		Vector3.new(-36, 0.35, -15), 1, center0)  -- POPCORN
 
 	createFoodKiosk(plaza, "KioskNE",
-		Vector3.new(24, 0.35, -10),  2, center0)  -- HOT DOGS
+		Vector3.new(36, 0.35, -15),  2, center0)  -- HOT DOGS
 
 	createFoodKiosk(plaza, "KioskSW",
-		Vector3.new(-24, 0.35, 10),  3, center0)  -- BURGERS
+		Vector3.new(-36, 0.35, 15),  3, center0)  -- BURGERS
 
 	createFoodKiosk(plaza, "KioskSE",
-		Vector3.new(24, 0.35, 10),   4, center0)  -- DRINKS
+		Vector3.new(36, 0.35, 15),   4, center0)  -- DRINKS
 
-	local bannerConfigs = {
-		{ position = Vector3.new(-24, 0, -20), title = "FANS" },
-		{ position = Vector3.new(24, 0, -20), title = "PACKS" },
-		{ position = Vector3.new(-24, 0, 20), title = "CLUB" },
-		{ position = Vector3.new(24, 0, 20), title = "STARS" },
-	}
-	for index, config in ipairs(bannerConfigs) do
-		createVerticalBanner(plaza, "PlazaBanner" .. index, config.position, Vector3.new(0, 6, 0), config.title)
-	end
+	createFanZoneBench(plaza, "BenchSouthWest", Vector3.new(-15, 0.35, -25), center0)
+	createFanZoneBench(plaza, "BenchSouthEast", Vector3.new(15, 0.35, -25), center0)
+	createFanZoneBench(plaza, "BenchNorthWest", Vector3.new(-15, 0.35, 25), center0)
+	createFanZoneBench(plaza, "BenchNorthEast", Vector3.new(15, 0.35, 25), center0)
 
 	local planterPositions = {
-		Vector3.new(-34, 0, -28),
-		Vector3.new(34, 0, -28),
-		Vector3.new(-34, 0, 28),
-		Vector3.new(34, 0, 28),
+		Vector3.new(-28, 0, -23),
+		Vector3.new(28, 0, -23),
+		Vector3.new(-28, 0, 23),
+		Vector3.new(28, 0, 23),
 		Vector3.new(-18, 0, northZ - 18),
 		Vector3.new(18, 0, northZ - 18),
 		Vector3.new(-18, 0, southZ + 18),
@@ -1343,8 +1490,8 @@ local function createFanZone(mapWidth, mapLength)
 	createWaypoint(waypointFolder, "EastLoop", Vector3.new(16, 3.1, 0))
 	-- Food stand stops: NPCs step off the central walkway toward the
 	-- kiosk on their lane side, look at it, pause, then return to route.
-	createWaypoint(waypointFolder, "FoodCenterWest", Vector3.new(-16, 3.1, -5))
-	createWaypoint(waypointFolder, "FoodCenterEast", Vector3.new(16, 3.1, 5))
+	createWaypoint(waypointFolder, "FoodCenterWest", Vector3.new(-30, 3.1, 0))
+	createWaypoint(waypointFolder, "FoodCenterEast", Vector3.new(30, 3.1, 0))
 
 	startTurnstileAnimations()
 	return plaza
