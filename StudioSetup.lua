@@ -727,6 +727,121 @@ local function createGlowStrip(parent, name, size, cframe, color, transparency)
 	}, parent)
 end
 
+local function createPitchLine(parent, name, size, cframe, transparency)
+	make("Part", {
+		Name = name,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(238, 240, 232),
+		Transparency = transparency or 0.02,
+		Size = size,
+		CFrame = cframe,
+	}, parent)
+end
+
+local function createPitchCircle(parent, baseCFrame, y, radius)
+	local segments = 28
+	local lineWidth = 0.18
+	local segmentLength = (2 * math.pi * radius) / segments * 0.74
+
+	for index = 1, segments do
+		local angle = ((index - 1) / segments) * 2 * math.pi
+		local x = math.cos(angle) * radius
+		local z = math.sin(angle) * radius
+		local yaw = -(angle + (math.pi / 2))
+
+		createPitchLine(
+			parent,
+			"CenterCircleSegment",
+			Vector3.new(segmentLength, 0.045, lineWidth),
+			baseCFrame * CFrame.new(x, y, z) * CFrame.Angles(0, yaw, 0),
+			0.03
+		)
+	end
+end
+
+local function createPenaltyBox(parent, baseCFrame, endX, y, depth, width, lineThickness, namePrefix)
+	local direction = endX >= 0 and -1 or 1
+	local innerX = endX + direction * depth
+	local centerX = endX + direction * (depth / 2)
+
+	createPitchLine(parent, namePrefix .. "InnerLine", Vector3.new(lineThickness, 0.05, width), baseCFrame * CFrame.new(innerX, y, 0), 0.03)
+	createPitchLine(parent, namePrefix .. "NorthSide", Vector3.new(depth, 0.05, lineThickness), baseCFrame * CFrame.new(centerX, y, -(width / 2)), 0.03)
+	createPitchLine(parent, namePrefix .. "SouthSide", Vector3.new(depth, 0.05, lineThickness), baseCFrame * CFrame.new(centerX, y, width / 2), 0.03)
+end
+
+local function createGoalPost(parent, name, baseCFrame, localX, y)
+	local model = make("Model", {
+		Name = name,
+	}, parent)
+
+	local goalWidth = 10.5
+	local goalHeight = 4.6
+	local goalDepth = 3.4
+	local thickness = 0.32
+	local outward = localX >= 0 and 1 or -1
+	local postColor = Color3.fromRGB(245, 247, 240)
+
+	local function goalPart(partName, size, localOffset)
+		make("Part", {
+			Name = partName,
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = postColor,
+			Size = size,
+			CFrame = baseCFrame * CFrame.new(localOffset),
+		}, model)
+	end
+
+	goalPart("LeftPost", Vector3.new(thickness, goalHeight, thickness), Vector3.new(localX, y + goalHeight / 2, -goalWidth / 2))
+	goalPart("RightPost", Vector3.new(thickness, goalHeight, thickness), Vector3.new(localX, y + goalHeight / 2, goalWidth / 2))
+	goalPart("Crossbar", Vector3.new(thickness, thickness, goalWidth + thickness), Vector3.new(localX, y + goalHeight, 0))
+	goalPart("BackLeftPost", Vector3.new(thickness, goalHeight * 0.82, thickness), Vector3.new(localX + outward * goalDepth, y + (goalHeight * 0.82) / 2, -goalWidth / 2))
+	goalPart("BackRightPost", Vector3.new(thickness, goalHeight * 0.82, thickness), Vector3.new(localX + outward * goalDepth, y + (goalHeight * 0.82) / 2, goalWidth / 2))
+	goalPart("BackCrossbar", Vector3.new(thickness, thickness, goalWidth + thickness), Vector3.new(localX + outward * goalDepth, y + goalHeight * 0.82, 0))
+	goalPart("NorthTopDepth", Vector3.new(goalDepth, thickness, thickness), Vector3.new(localX + outward * (goalDepth / 2), y + goalHeight, -goalWidth / 2))
+	goalPart("SouthTopDepth", Vector3.new(goalDepth, thickness, thickness), Vector3.new(localX + outward * (goalDepth / 2), y + goalHeight, goalWidth / 2))
+
+	return model
+end
+
+local function createFootballPitchDetails(parent, baseCFrame)
+	local pitchFolder = make("Folder", {
+		Name = "FootballPitchDetails",
+	}, parent)
+
+	local y = 0.63
+	local lineThickness = 0.26
+	local pitchLength = layout.PlotSize.X - 10
+	local pitchWidth = layout.PlotSize.Z - 8
+	local halfLength = pitchLength / 2
+	local halfWidth = pitchWidth / 2
+
+	createPitchLine(pitchFolder, "NorthTouchline", Vector3.new(pitchLength, 0.05, lineThickness), baseCFrame * CFrame.new(0, y, -halfWidth), 0.02)
+	createPitchLine(pitchFolder, "SouthTouchline", Vector3.new(pitchLength, 0.05, lineThickness), baseCFrame * CFrame.new(0, y, halfWidth), 0.02)
+	createPitchLine(pitchFolder, "FrontGoalLine", Vector3.new(lineThickness, 0.05, pitchWidth), baseCFrame * CFrame.new(halfLength, y, 0), 0.02)
+	createPitchLine(pitchFolder, "BackGoalLine", Vector3.new(lineThickness, 0.05, pitchWidth), baseCFrame * CFrame.new(-halfLength, y, 0), 0.02)
+	createPitchLine(pitchFolder, "HalfwayLine", Vector3.new(lineThickness, 0.05, pitchWidth), baseCFrame * CFrame.new(0, y, 0), 0.06)
+	createPitchCircle(pitchFolder, baseCFrame, y + 0.01, 5.7)
+	createPitchLine(pitchFolder, "CenterSpot", Vector3.new(0.72, 0.06, 0.72), baseCFrame * CFrame.new(0, y + 0.02, 0), 0.02)
+
+	createPenaltyBox(pitchFolder, baseCFrame, halfLength, y + 0.01, 8.4, 19, lineThickness, "FrontPenalty")
+	createPenaltyBox(pitchFolder, baseCFrame, -halfLength, y + 0.01, 8.4, 19, lineThickness, "BackPenalty")
+	createPenaltyBox(pitchFolder, baseCFrame, halfLength, y + 0.02, 4.4, 11, lineThickness, "FrontSixYard")
+	createPenaltyBox(pitchFolder, baseCFrame, -halfLength, y + 0.02, 4.4, 11, lineThickness, "BackSixYard")
+
+	createGoalPost(pitchFolder, "FrontGoalPost", baseCFrame, halfLength + 0.75, 0.82)
+	createGoalPost(pitchFolder, "BackGoalPost", baseCFrame, -halfLength - 0.75, 0.82)
+
+	return pitchFolder
+end
+
 local createSurfaceText
 
 local function createPlanter(parent, position, scale)
@@ -1949,6 +2064,9 @@ local function createPlot(plotId, side, laneIndex, position)
 		Size = Vector3.new(layout.PlotSize.X - 8, 0.12, 8),
 		CFrame = baseCFrame * CFrame.new(0, 0.56, 0),
 	}, model)
+	_ = centerStrip
+
+	createFootballPitchDetails(model, baseCFrame)
 
 	local packPad = make("Part", {
 		Name = "PackPad",
