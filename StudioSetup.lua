@@ -215,6 +215,7 @@ Constants.BaseLayout = {
 
 Constants.FanZone = {
 	CrowdNpcCount = 20,
+	FloodlightAssetId = 16893178499,
 	FansPerVisibleNpc = 75000,
 	BaseStadiumCapacity = 4,
 	MaxStadiumVisitors = 8,
@@ -530,11 +531,11 @@ end
 
 local function configureMapLighting()
 	Lighting.ClockTime = 19.25
-	Lighting.Brightness = 1.7
-	Lighting.Ambient = Color3.fromRGB(82, 94, 120)
-	Lighting.OutdoorAmbient = Color3.fromRGB(56, 66, 90)
-	Lighting.EnvironmentDiffuseScale = 0.52
-	Lighting.EnvironmentSpecularScale = 0.46
+	Lighting.Brightness = 1.9
+	Lighting.Ambient = Color3.fromRGB(96, 108, 136)
+	Lighting.OutdoorAmbient = Color3.fromRGB(68, 78, 104)
+	Lighting.EnvironmentDiffuseScale = 0.58
+	Lighting.EnvironmentSpecularScale = 0.5
 	Lighting.FogColor = Color3.fromRGB(42, 51, 68)
 	Lighting.FogStart = 320
 	Lighting.FogEnd = 760
@@ -549,9 +550,9 @@ local function configureMapLighting()
 	})
 
 	replaceLightingEffect("BloomEffect", "UnboxGoldBloom", {
-		Intensity = 0.025,
+		Intensity = 0.018,
 		Size = 8,
-		Threshold = 3.2,
+		Threshold = 3.4,
 	})
 
 	replaceLightingEffect("ColorCorrectionEffect", "UnboxColorGrade", {
@@ -751,12 +752,103 @@ local function createPlanter(parent, position, scale)
 	return model
 end
 
+local function prepareImportedModel(model)
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = true
+			descendant.CanCollide = false
+			descendant.CanTouch = false
+			descendant.CanQuery = false
+		elseif descendant:IsA("Script") or descendant:IsA("LocalScript") then
+			descendant:Destroy()
+		elseif descendant:IsA("PointLight") or descendant:IsA("SpotLight") or descendant:IsA("SurfaceLight") then
+			descendant.Enabled = false
+		end
+	end
+end
+
+local function tryCreateImportedFloodlight(parent, name, position, targetPosition)
+	local assetId = fanZoneConfig.FloodlightAssetId
+	if type(assetId) ~= "number" or assetId <= 0 then
+		return nil
+	end
+
+	local ok, loaded = pcall(function()
+		return InsertService:LoadAsset(assetId)
+	end)
+
+	if not ok or not loaded then
+		warn("[UnboxAFootballer] Could not load floodlight asset " .. tostring(assetId) .. ": " .. tostring(loaded))
+		return nil
+	end
+
+	loaded.Name = name
+	loaded.Parent = parent
+	prepareImportedModel(loaded)
+
+	local _, size = loaded:GetBoundingBox()
+	local scale = math.clamp(31 / math.max(size.Y, 0.1), 0.12, 4)
+	pcall(function()
+		loaded:ScaleTo(scale)
+	end)
+
+	local targetFlat = Vector3.new(targetPosition.X, position.Y, targetPosition.Z)
+	loaded:PivotTo(CFrame.lookAt(position, targetFlat))
+
+	local boundsCFrame, boundsSize = loaded:GetBoundingBox()
+	local bottomY = boundsCFrame.Position.Y - (boundsSize.Y / 2)
+	loaded:PivotTo(loaded:GetPivot() + Vector3.new(0, position.Y - bottomY, 0))
+
+	return loaded
+end
+
+local function createFloodlightBeam(parent, name, position, targetPosition, poleHeight)
+	local anchorPosition = position + Vector3.new(0, poleHeight + 1.5, 0)
+	local anchor = make("Part", {
+		Name = name,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(1, 1, 1),
+		CFrame = CFrame.lookAt(anchorPosition, targetPosition),
+	}, parent)
+
+	make("SpotLight", {
+		Name = "FloodBeam",
+		Face = Enum.NormalId.Front,
+		Color = Color3.fromRGB(255, 245, 218),
+		Range = 112,
+		Angle = 52,
+		Brightness = 1.85,
+		Shadows = false,
+	}, anchor)
+
+	make("PointLight", {
+		Name = "FloodFill",
+		Color = Color3.fromRGB(255, 235, 190),
+		Range = 28,
+		Brightness = 0.18,
+		Shadows = false,
+	}, anchor)
+
+	return anchor
+end
+
 local function createFloodlightRig(parent, name, position, targetPosition)
 	local model = make("Model", {
 		Name = name,
 	}, parent)
 
 	local poleHeight = 30
+	local imported = tryCreateImportedFloodlight(model, "ImportedFloodlight", position, targetPosition)
+	createFloodlightBeam(model, "LightAnchor", position, targetPosition, poleHeight)
+
+	if imported then
+		return model
+	end
+
 	make("Part", {
 		Name = "Pole",
 		Anchored = true,
@@ -794,24 +886,6 @@ local function createFloodlightRig(parent, name, position, targetPosition)
 			}, model)
 		end
 	end
-
-	make("SpotLight", {
-		Name = "FloodBeam",
-		Face = Enum.NormalId.Front,
-		Color = Color3.fromRGB(255, 245, 218),
-		Range = 104,
-		Angle = 50,
-		Brightness = 1.35,
-		Shadows = false,
-	}, panel)
-
-	make("PointLight", {
-		Name = "FloodFill",
-		Color = Color3.fromRGB(255, 235, 190),
-		Range = 24,
-		Brightness = 0.14,
-		Shadows = false,
-	}, panel)
 
 	return model
 end
@@ -860,17 +934,17 @@ local function createLightPost(parent, name, position, targetPosition)
 		Name = "PostBeam",
 		Face = Enum.NormalId.Front,
 		Color = Color3.fromRGB(255, 236, 188),
-		Range = 42,
-		Angle = 38,
-		Brightness = 0.62,
+		Range = 48,
+		Angle = 42,
+		Brightness = 0.86,
 		Shadows = false,
 	}, head)
 
 	make("PointLight", {
 		Name = "PostFill",
 		Color = Color3.fromRGB(255, 220, 150),
-		Range = 11,
-		Brightness = 0.12,
+		Range = 13,
+		Brightness = 0.18,
 		Shadows = false,
 	}, head)
 
@@ -1368,9 +1442,29 @@ local function createFanZone(mapWidth, mapLength)
 		Anchored = true,
 		CanCollide = false,
 		Material = Enum.Material.Slate,
-		Color = Color3.fromRGB(46, 54, 70),
+		Color = Color3.fromRGB(54, 63, 80),
 		Size = Vector3.new(54, 0.18, mapLength - 64),
 		CFrame = CFrame.new(0, 0.24, 0),
+	}, plaza)
+	make("Part", {
+		Name = "MainWalkwayLeftEdge",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(188, 154, 54),
+		Transparency = 0.18,
+		Size = Vector3.new(0.28, 0.08, mapLength - 78),
+		CFrame = CFrame.new(-27, 0.38, 0),
+	}, plaza)
+	make("Part", {
+		Name = "MainWalkwayRightEdge",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(188, 154, 54),
+		Transparency = 0.18,
+		Size = Vector3.new(0.28, 0.08, mapLength - 78),
+		CFrame = CFrame.new(27, 0.38, 0),
 	}, plaza)
 
 	for laneIndex = 1, layout.PlotsPerSide do
@@ -1380,9 +1474,29 @@ local function createFanZone(mapWidth, mapLength)
 			Anchored = true,
 			CanCollide = false,
 			Material = Enum.Material.Slate,
-			Color = Color3.fromRGB(48, 56, 72),
+			Color = Color3.fromRGB(58, 66, 82),
 			Size = Vector3.new((layout.SideOffset * 2) - 22, 0.14, 14),
 			CFrame = CFrame.new(0, 0.28, laneZ),
+		}, plaza)
+		make("Part", {
+			Name = "StadiumPathGuideA" .. laneIndex,
+			Anchored = true,
+			CanCollide = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = Color3.fromRGB(188, 154, 54),
+			Transparency = 0.22,
+			Size = Vector3.new((layout.SideOffset * 2) - 28, 0.07, 0.22),
+			CFrame = CFrame.new(0, 0.4, laneZ - 6.8),
+		}, plaza)
+		make("Part", {
+			Name = "StadiumPathGuideB" .. laneIndex,
+			Anchored = true,
+			CanCollide = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = Color3.fromRGB(188, 154, 54),
+			Transparency = 0.22,
+			Size = Vector3.new((layout.SideOffset * 2) - 28, 0.07, 0.22),
+			CFrame = CFrame.new(0, 0.4, laneZ + 6.8),
 		}, plaza)
 	end
 
@@ -1521,17 +1635,17 @@ local function createFanZone(mapWidth, mapLength)
 		createPlanter(plaza, planterPosition, 0.9)
 	end
 
-	createSoftFillLight(plaza, "CenterPlazaFill", Vector3.new(0, 13, 0), 72, 0.22, Color3.fromRGB(255, 225, 170))
-	createSoftFillLight(plaza, "NorthPlazaFill", Vector3.new(0, 13, northZ - 8), 62, 0.16, Color3.fromRGB(230, 238, 255))
-	createSoftFillLight(plaza, "SouthPlazaFill", Vector3.new(0, 13, southZ + 8), 62, 0.16, Color3.fromRGB(230, 238, 255))
+	createSoftFillLight(plaza, "CenterPlazaFill", Vector3.new(0, 13, 0), 78, 0.3, Color3.fromRGB(255, 225, 170))
+	createSoftFillLight(plaza, "NorthPlazaFill", Vector3.new(0, 13, northZ - 8), 68, 0.22, Color3.fromRGB(230, 238, 255))
+	createSoftFillLight(plaza, "SouthPlazaFill", Vector3.new(0, 13, southZ + 8), 68, 0.22, Color3.fromRGB(230, 238, 255))
 	-- Wide overhead fills directly above the west and east stadium blocks
-	createSoftFillLight(plaza, "WestStadiumFill", Vector3.new(-layout.SideOffset, 18, 0), 82, 0.16, Color3.fromRGB(240, 228, 200))
-	createSoftFillLight(plaza, "EastStadiumFill", Vector3.new(layout.SideOffset, 18, 0), 82, 0.16, Color3.fromRGB(240, 228, 200))
+	createSoftFillLight(plaza, "WestStadiumFill", Vector3.new(-layout.SideOffset, 18, 0), 88, 0.24, Color3.fromRGB(240, 228, 200))
+	createSoftFillLight(plaza, "EastStadiumFill", Vector3.new(layout.SideOffset, 18, 0), 88, 0.24, Color3.fromRGB(240, 228, 200))
 	-- Per-lane fills so each plot row is independently lit
 	for laneIndex = 1, layout.PlotsPerSide do
 		local laneZ = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
-		createSoftFillLight(plaza, "WestLaneFill" .. laneIndex, Vector3.new(-layout.SideOffset, 20, laneZ), 56, 0.12, Color3.fromRGB(235, 225, 195))
-		createSoftFillLight(plaza, "EastLaneFill" .. laneIndex, Vector3.new(layout.SideOffset, 20, laneZ), 56, 0.12, Color3.fromRGB(235, 225, 195))
+		createSoftFillLight(plaza, "WestLaneFill" .. laneIndex, Vector3.new(-layout.SideOffset, 20, laneZ), 64, 0.18, Color3.fromRGB(235, 225, 195))
+		createSoftFillLight(plaza, "EastLaneFill" .. laneIndex, Vector3.new(layout.SideOffset, 20, laneZ), 64, 0.18, Color3.fromRGB(235, 225, 195))
 	end
 
 	createFloodlightRig(plaza, "NorthWestFloodlight", Vector3.new(-54, 0, northZ - 22), Vector3.new(0, 2, 0))
@@ -2191,10 +2305,10 @@ local function createPlot(plotId, side, laneIndex, position)
 	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0, entranceWidth / 2 + 6), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightNorth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, -(layout.PlotSize.Z / 2 + 5)), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightSouth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, layout.PlotSize.Z / 2 + 5), packPad.Position + Vector3.new(0, 2, 0))
-	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 34, 0.16, Color3.fromRGB(255, 232, 184))
-	createSoftFillLight(model, "BackStandFill", position + Vector3.new(backEdgeX - (facingDirection * 6), 8, 0), 26, 0.12, Color3.fromRGB(225, 234, 255))
-	createSoftFillLight(model, "NorthStandFill", position + Vector3.new(0, 7, -(layout.PlotSize.Z / 2 + 7)), 22, 0.1, Color3.fromRGB(255, 226, 170))
-	createSoftFillLight(model, "SouthStandFill", position + Vector3.new(0, 7, layout.PlotSize.Z / 2 + 7), 22, 0.1, Color3.fromRGB(255, 226, 170))
+	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 38, 0.22, Color3.fromRGB(255, 232, 184))
+	createSoftFillLight(model, "BackStandFill", position + Vector3.new(backEdgeX - (facingDirection * 6), 8, 0), 30, 0.17, Color3.fromRGB(225, 234, 255))
+	createSoftFillLight(model, "NorthStandFill", position + Vector3.new(0, 7, -(layout.PlotSize.Z / 2 + 7)), 25, 0.14, Color3.fromRGB(255, 226, 170))
+	createSoftFillLight(model, "SouthStandFill", position + Vector3.new(0, 7, layout.PlotSize.Z / 2 + 7), 25, 0.14, Color3.fromRGB(255, 226, 170))
 
 	local plot = {
 		id = plotId,

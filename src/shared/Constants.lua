@@ -71,6 +71,7 @@ Constants.BaseLayout = {
 
 Constants.FanZone = {
 	CrowdNpcCount = 20,
+	FloodlightAssetId = 16893178499,
 	FansPerVisibleNpc = 75000,
 	BaseStadiumCapacity = 4,
 	MaxStadiumVisitors = 8,
