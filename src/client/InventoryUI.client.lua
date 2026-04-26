@@ -39,6 +39,15 @@ local function addCorner(parent, radius)
 	corner.Parent = parent
 end
 
+local function addStroke(parent, color, thickness, transparency)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color
+	stroke.Thickness = thickness or 1
+	stroke.Transparency = transparency or 0
+	stroke.Parent = parent
+	return stroke
+end
+
 local screenGui = make("ScreenGui", {
 	Name = "InventoryUI",
 	ResetOnSpawn = false,
@@ -216,7 +225,7 @@ function refreshInventory()
 		statusLabel.Text = "Pick a stored player for display slot " .. tostring(targetSlotIndex) .. "."
 	else
 		title.Text = "Club Inventory"
-		statusLabel.Text = #inventory > 0 and "Stored players earn money when placed on green display slots." or "Stored players will appear here when your displays are full."
+		statusLabel.Text = #inventory > 0 and "Stored players earn fans when placed on green display slots." or "Stored players will appear here when your displays are full."
 	end
 	if statusOverride then
 		statusLabel.Text = statusOverride
@@ -242,28 +251,95 @@ function refreshInventory()
 	end
 
 	for index, card in ipairs(inventory) do
+		local style = Utils.GetRarityStyle(card.rarity)
+		local rarityColor = style.primary
+		local secondaryColor = style.secondary or rarityColor
+		local darkColor = style.dark or Constants.UI.PanelAlt
+		local trimColor = style.trim or rarityColor
+		local textColor = style.text or Constants.UI.Text
+		local incomePerSecond = Utils.GetPassiveIncome(Utils.GetCardIncomeRating(card))
+
 		local tile = make("Frame", {
 			LayoutOrder = index,
-			BackgroundColor3 = Constants.UI.PanelAlt,
+			BackgroundColor3 = darkColor,
 		}, scrolling)
 		addCorner(tile, 14)
+		addStroke(tile, trimColor, 1.5, 0.35)
 
-		make("TextLabel", {
-			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 8, 0, 8),
-			Size = UDim2.new(0, 30, 0, 22),
-			Text = tostring(card.rating),
-			TextColor3 = Utils.GetRarityColor(card.rarity),
-			TextScaled = true,
-			Font = Enum.Font.GothamBlack,
+		make("UIGradient", {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.08)),
+				ColorSequenceKeypoint.new(0.52, secondaryColor),
+				ColorSequenceKeypoint.new(1, darkColor),
+			}),
+			Rotation = 145,
 		}, tile)
 
+		local rarityLabel = make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(9, 8),
+			Size = UDim2.new(1, -18, 0, 18),
+			Text = string.upper(style.label or card.rarity or "CARD"),
+			TextColor3 = textColor,
+			TextScaled = false,
+			TextSize = 10,
+			Font = Enum.Font.GothamBlack,
+		}, tile)
+		make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 10 }, rarityLabel)
+		addStroke(rarityLabel, Color3.fromRGB(0, 0, 0), 1, 0.38)
+
+		local topRow = make("Frame", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(10, 32),
+			Size = UDim2.new(1, -20, 0, 28),
+		}, tile)
+
+		local positionBadge = make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(6, 8, 13),
+			BackgroundTransparency = 0.08,
+			Size = UDim2.fromOffset(38, 24),
+			BorderSizePixel = 0,
+		}, topRow)
+		addCorner(positionBadge, 8)
+		addStroke(positionBadge, trimColor, 1, 0.35)
+
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0.08, 0, 0.44, 0),
-			Size = UDim2.new(0.84, 0, 0.18, 0),
+			Size = UDim2.fromScale(1, 1),
+			Text = card.position or "--",
+			TextColor3 = textColor,
+			TextScaled = false,
+			TextSize = 13,
+			Font = Enum.Font.GothamBlack,
+		}, positionBadge)
+
+		local quantityBadge = make("Frame", {
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, 0, 0, 0),
+			Size = UDim2.fromOffset(40, 24),
+			BackgroundColor3 = Color3.fromRGB(7, 9, 14),
+			BackgroundTransparency = 0.1,
+			BorderSizePixel = 0,
+		}, topRow)
+		addCorner(quantityBadge, 8)
+		addStroke(quantityBadge, trimColor, 1, 0.45)
+
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 1),
+			Text = "x" .. tostring(card.quantity),
+			TextColor3 = textColor,
+			TextScaled = false,
+			TextSize = 13,
+			Font = Enum.Font.GothamBlack,
+		}, quantityBadge)
+
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0.08, 0, 0.39, 0),
+			Size = UDim2.new(0.84, 0, 0.2, 0),
 			Text = card.name,
-			TextColor3 = Constants.UI.Text,
+			TextColor3 = textColor,
 			TextScaled = true,
 			TextWrapped = true,
 			Font = Enum.Font.GothamBlack,
@@ -271,9 +347,9 @@ function refreshInventory()
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0.08, 0, 0.68, 0),
-			Size = UDim2.new(0.84, 0, 0.12, 0),
-			Text = card.position .. " • " .. card.nation,
+			Position = UDim2.new(0.08, 0, 0.62, 0),
+			Size = UDim2.new(0.84, 0, 0.09, 0),
+			Text = card.nation or "Unknown",
 			TextColor3 = Constants.UI.Muted,
 			TextScaled = true,
 			Font = Enum.Font.GothamBold,
@@ -281,10 +357,10 @@ function refreshInventory()
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0.08, 0, 0.73, 0),
+			Position = UDim2.new(0.08, 0, 0.72, 0),
 			Size = UDim2.new(0.84, 0, 0.07, 0),
-			Text = "Stored x" .. tostring(card.quantity) .. " • +" .. tostring(Utils.GetPassiveIncome(card.rating)) .. "/s",
-			TextColor3 = Utils.GetRarityColor(card.rarity),
+			Text = "+" .. tostring(incomePerSecond) .. " fans/s",
+			TextColor3 = rarityColor,
 			TextScaled = true,
 			Font = Enum.Font.GothamBold,
 		}, tile)

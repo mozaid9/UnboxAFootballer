@@ -469,9 +469,12 @@ local function showCardReveal(payload)
 		return
 	end
 
-	local rarityColor = Utils.GetRarityColor(card.rarity)
-	local isPremium = card.rarity == "Premium Gold"
-	local trimColor = isPremium and Color3.fromRGB(210, 228, 255) or Color3.fromRGB(218, 168, 48)
+	local style = Utils.GetRarityStyle(card.rarity)
+	local rarityColor = style.primary
+	local secondaryColor = style.secondary or rarityColor
+	local darkColor = style.dark or Color3.fromRGB(10, 5, 2)
+	local trimColor = style.trim or rarityColor
+	local textColor = style.text or Color3.fromRGB(255, 255, 255)
 	local income = payload.coinsPerSecond or 0
 	local toInventory = payload.storedInInventory == true
 
@@ -486,7 +489,7 @@ local function showCardReveal(payload)
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = revealStart,
 		Size = UDim2.fromOffset(CARD_W, CARD_H),
-		BackgroundColor3 = rarityColor:Lerp(Color3.fromRGB(10, 5, 2), 0.68),
+		BackgroundColor3 = darkColor,
 		ZIndex = 200,
 	}, screenGui)
 	addCorner(cardPanel, 16)
@@ -494,9 +497,9 @@ local function showCardReveal(payload)
 
 	make("UIGradient", {
 		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.14)),
-			ColorSequenceKeypoint.new(0.44, rarityColor),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(6, 3, 1)),
+			ColorSequenceKeypoint.new(0, rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.12)),
+			ColorSequenceKeypoint.new(0.48, secondaryColor),
+			ColorSequenceKeypoint.new(1, darkColor),
 		}),
 		Rotation = 158,
 	}, cardPanel)
@@ -504,40 +507,60 @@ local function showCardReveal(payload)
 	-- UIScale at 0.05 → 1 for the bounce pop-in
 	local cardScale = make("UIScale", { Scale = 0.05 }, cardPanel)
 
-	-- Rating (top-left)
-	local ratingLabel = make("TextLabel", {
-		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(12, 10),
-		Size = UDim2.fromOffset(50, 42),
-		Text = tostring(card.rating),
-		TextColor3 = Color3.fromRGB(255, 255, 255),
-		TextScaled = true,
-		Font = Enum.Font.GothamBlack,
+	local rarityBand = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 12),
+		Size = UDim2.fromOffset(142, 24),
+		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
+		BackgroundTransparency = 0.1,
+		BorderSizePixel = 0,
 		ZIndex = 202,
 	}, cardPanel)
-	addStroke(ratingLabel, Color3.fromRGB(6, 3, 1), 2, 0.22)
+	addCorner(rarityBand, 12)
+	addStroke(rarityBand, trimColor, 1.2, 0.28)
 
-	-- Position (below rating)
+	local rarityLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = string.upper(style.label or card.rarity or "CARD"),
+		TextColor3 = textColor,
+		TextScaled = false,
+		TextSize = 12,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 203,
+	}, rarityBand)
+	addStroke(rarityLabel, Color3.fromRGB(6, 3, 1), 1, 0.35)
+
+	local positionBadge = make("Frame", {
+		Position = UDim2.fromOffset(14, 47),
+		Size = UDim2.fromOffset(46, 24),
+		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
+		BackgroundTransparency = 0.08,
+		BorderSizePixel = 0,
+		ZIndex = 202,
+	}, cardPanel)
+	addCorner(positionBadge, 8)
+	addStroke(positionBadge, trimColor, 1, 0.35)
+
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(13, 52),
-		Size = UDim2.fromOffset(44, 14),
-		Text = card.position,
-		TextColor3 = Color3.fromRGB(255, 255, 255),
+		Size = UDim2.fromScale(1, 1),
+		Text = card.position or "--",
+		TextColor3 = textColor,
 		TextScaled = false,
-		TextSize = 11,
+		TextSize = 12,
 		Font = Enum.Font.GothamBlack,
-		ZIndex = 202,
-	}, cardPanel)
+		ZIndex = 203,
+	}, positionBadge)
 
 	-- Nation (top-right)
 	make("TextLabel", {
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -10, 0, 13),
-		Size = UDim2.fromOffset(84, 14),
-		Text = card.nation,
-		TextColor3 = Color3.fromRGB(255, 255, 255),
+		Position = UDim2.new(1, -12, 0, 51),
+		Size = UDim2.fromOffset(92, 16),
+		Text = card.nation or "Unknown",
+		TextColor3 = textColor,
 		TextScaled = false,
 		TextSize = 11,
 		Font = Enum.Font.GothamBold,
@@ -548,7 +571,7 @@ local function showCardReveal(payload)
 	-- Divider
 	make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 70),
+		Position = UDim2.new(0.5, 0, 0, 78),
 		Size = UDim2.new(0.84, 0, 0, 1.5),
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 		BackgroundTransparency = 0.55,
@@ -559,7 +582,7 @@ local function showCardReveal(payload)
 	-- Monogram circle
 	local monogram = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 78),
+		Position = UDim2.new(0.5, 0, 0, 86),
 		Size = UDim2.fromOffset(84, 84),
 		BackgroundColor3 = rarityColor:Lerp(Color3.fromRGB(0, 0, 0), 0.55),
 		BackgroundTransparency = 0.42,

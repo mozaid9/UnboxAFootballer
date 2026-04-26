@@ -1544,21 +1544,45 @@ local function createFanZone(mapWidth, mapLength)
 	createWaypoint(waypointFolder, "Center", Vector3.new(0, 3.1, 0))
 	createWaypoint(waypointFolder, "WestLoop", Vector3.new(-16, 3.1, 0))
 	createWaypoint(waypointFolder, "EastLoop", Vector3.new(16, 3.1, 0))
-	-- Food stand stops: each one sits directly in front of a real stall so
-	-- fans queue at the counter instead of idling in the middle of the plaza.
-	createWaypoint(waypointFolder, "FoodPopcorn", Vector3.new(-29.5, 3.1, -12.3))
-	createWaypoint(waypointFolder, "FoodHotDogs", Vector3.new(29.5, 3.1, -12.3))
-	createWaypoint(waypointFolder, "FoodBurgers", Vector3.new(-29.5, 3.1, 12.3))
-	createWaypoint(waypointFolder, "FoodDrinks", Vector3.new(29.5, 3.1, 12.3))
+	-- Food stand queues: each stall has 4 queue slots running diagonally
+	-- back from the counter toward the centre walkway.  Slot 1 is the
+	-- front of the queue (talking to the worker), slot 4 is the back.
+	-- CrowdService claims slots 1→4 in order so NPCs naturally line up.
+	local stallQueueDefs = {
+		{ name = "Popcorn", baseX = -36, baseZ = -15 },
+		{ name = "HotDogs", baseX =  36, baseZ = -15 },
+		{ name = "Burgers", baseX = -36, baseZ =  15 },
+		{ name = "Drinks",  baseX =  36, baseZ =  15 },
+	}
+	for _, stall in ipairs(stallQueueDefs) do
+		-- Direction from stall toward plaza centre (0, 0)
+		local dx, dz = -stall.baseX, -stall.baseZ
+		local mag = math.sqrt((dx * dx) + (dz * dz))
+		local ux, uz = dx / mag, dz / mag
+		for slot = 1, 4 do
+			local d = 4 + (slot * 3)  -- 7, 10, 13, 16 studs from stall
+			local px = stall.baseX + (ux * d)
+			local pz = stall.baseZ + (uz * d)
+			createWaypoint(
+				waypointFolder,
+				"Food" .. stall.name .. slot,
+				Vector3.new(px, 3.1, pz)
+			)
+		end
+	end
 
 	startTurnstileAnimations()
 	return plaza
 end
 
 local function createDisplayCardFace(face, card, incomePerSecond, parent)
-	local rarityColor = Utils.GetRarityColor(card.rarity)
-	local isPremium = card.rarity == "Premium Gold"
-	local trimColor = isPremium and Color3.fromRGB(252, 240, 200) or Color3.fromRGB(218, 170, 52)
+	local style = Utils.GetRarityStyle(card.rarity)
+	local rarityColor = style.primary
+	local secondaryColor = style.secondary or rarityColor
+	local darkColor = style.dark or Color3.fromRGB(16, 12, 8)
+	local trimColor = style.trim or rarityColor
+	local textColor = style.text or Constants.UI.Text
+	local rarityLabel = string.upper(style.label or card.rarity or "CARD")
 
 	local gui = make("SurfaceGui", {
 		Face = face,
@@ -1567,30 +1591,26 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		LightInfluence = 0,
 	}, parent)
 
-	-- Outer card frame
 	local frame = make("Frame", {
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.fromRGB(38, 26, 10),
+		BackgroundColor3 = darkColor,
 		BorderSizePixel = 0,
 	}, gui)
 
-	-- Vertical rarity gradient — bright at top, deep brown at bottom
 	make("UIGradient", {
 		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, rarityColor),
-			ColorSequenceKeypoint.new(0.48, rarityColor:Lerp(Color3.fromRGB(86, 60, 18), 0.45)),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(34, 22, 8)),
+			ColorSequenceKeypoint.new(0, rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.12)),
+			ColorSequenceKeypoint.new(0.42, secondaryColor),
+			ColorSequenceKeypoint.new(1, darkColor),
 		}),
-		Rotation = 90,
+		Rotation = 138,
 	}, frame)
 
-	-- Outer gold trim
 	make("UIStroke", {
 		Color = trimColor,
 		Thickness = 4,
 	}, frame)
 
-	-- Inner inset border detail
 	local innerBorder = make("Frame", {
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1, -14, 1, -14),
@@ -1602,43 +1622,104 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		Transparency = 0.55,
 	}, innerBorder)
 
-	-- Rating (dominant, top-left)
-	local ratingLabel = createSignLabel(tostring(card.rating), UDim2.new(0.34, 0, 0.24, 0), UDim2.new(0.1, 0, 0.06, 0), Color3.fromRGB(22, 12, 2), frame)
-	ratingLabel.TextXAlignment = Enum.TextXAlignment.Left
+	local rarityBand = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(6, 7, 10),
+		BackgroundTransparency = 0.12,
+		BorderSizePixel = 0,
+		Size = UDim2.new(0.76, 0, 0.1, 0),
+		Position = UDim2.new(0.12, 0, 0.06, 0),
+	}, frame)
+	local rarityCorner = Instance.new("UICorner")
+	rarityCorner.CornerRadius = UDim.new(1, 0)
+	rarityCorner.Parent = rarityBand
 	make("UIStroke", {
 		Color = trimColor,
-		Thickness = 1.6,
-		Transparency = 0.15,
-	}, ratingLabel)
+		Thickness = 1.4,
+		Transparency = 0.2,
+	}, rarityBand)
+	local rarityText = createSignLabel(rarityLabel, UDim2.fromScale(0.92, 0.82), UDim2.fromScale(0.04, 0.09), textColor, rarityBand)
+	make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 18 }, rarityText)
 
-	-- Position (under rating)
-	local positionLabel = createSignLabel(card.position, UDim2.new(0.28, 0, 0.1, 0), UDim2.new(0.11, 0, 0.3, 0), Color3.fromRGB(34, 22, 6), frame)
-	positionLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-	-- Divider band between top cluster and name
-	make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(22, 14, 4),
+	local positionBadge = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(9, 11, 17),
+		BackgroundTransparency = 0.06,
 		BorderSizePixel = 0,
-		Size = UDim2.new(0.74, 0, 0, 2),
-		Position = UDim2.new(0.13, 0, 0.44, 0),
+		Size = UDim2.new(0.24, 0, 0.1, 0),
+		Position = UDim2.new(0.1, 0, 0.2, 0),
+	}, frame)
+	local positionCorner = Instance.new("UICorner")
+	positionCorner.CornerRadius = UDim.new(0.25, 0)
+	positionCorner.Parent = positionBadge
+	make("UIStroke", {
+		Color = trimColor,
+		Thickness = 1.2,
+		Transparency = 0.25,
+	}, positionBadge)
+	createSignLabel(card.position or "--", UDim2.fromScale(0.9, 0.82), UDim2.fromScale(0.05, 0.09), textColor, positionBadge)
+
+	local nationLabel = createSignLabel(card.nation or "Unknown", UDim2.new(0.48, 0, 0.08, 0), UDim2.new(0.41, 0, 0.21, 0), textColor, frame)
+	nationLabel.TextXAlignment = Enum.TextXAlignment.Right
+	make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 14 }, nationLabel)
+
+	local portrait = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(2, 3, 6),
+		BackgroundTransparency = 0.24,
+		BorderSizePixel = 0,
+		Size = UDim2.new(0.54, 0, 0.29, 0),
+		Position = UDim2.new(0.23, 0, 0.34, 0),
+	}, frame)
+	local portraitCorner = Instance.new("UICorner")
+	portraitCorner.CornerRadius = UDim.new(0.18, 0)
+	portraitCorner.Parent = portrait
+	make("UIStroke", {
+		Color = trimColor,
+		Thickness = 1,
+		Transparency = 0.55,
+	}, portrait)
+
+	local head = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		BackgroundColor3 = textColor,
+		BackgroundTransparency = 0.2,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0.5, 0, 0.12, 0),
+		Size = UDim2.fromScale(0.26, 0.25),
+	}, portrait)
+	local headCorner = Instance.new("UICorner")
+	headCorner.CornerRadius = UDim.new(1, 0)
+	headCorner.Parent = head
+
+	local shoulders = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		BackgroundColor3 = textColor,
+		BackgroundTransparency = 0.26,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0.5, 0, 0.43, 0),
+		Size = UDim2.fromScale(0.58, 0.34),
+	}, portrait)
+	local shouldersCorner = Instance.new("UICorner")
+	shouldersCorner.CornerRadius = UDim.new(0.35, 0)
+	shouldersCorner.Parent = shoulders
+
+	make("Frame", {
+		BackgroundColor3 = trimColor,
+		BorderSizePixel = 0,
+		Size = UDim2.new(0.72, 0, 0, 2),
+		Position = UDim2.new(0.14, 0, 0.67, 0),
 	}, frame)
 
-	-- Player name (big, centered)
-	local nameLabel = createSignLabel(card.name, UDim2.new(0.84, 0, 0.16, 0), UDim2.new(0.08, 0, 0.48, 0), Color3.fromRGB(22, 12, 4), frame)
+	local nameLabel = createSignLabel(string.upper(card.name or "Player"), UDim2.new(0.84, 0, 0.12, 0), UDim2.new(0.08, 0, 0.7, 0), textColor, frame)
+	make("UITextSizeConstraint", { MinTextSize = 8, MaxTextSize = 18 }, nameLabel)
 	make("UIStroke", {
-		Color = trimColor,
+		Color = Color3.fromRGB(0, 0, 0),
 		Thickness = 1.2,
 		Transparency = 0.3,
 	}, nameLabel)
 
-	-- Nation (below name)
-	createSignLabel(card.nation, UDim2.new(0.78, 0, 0.08, 0), UDim2.new(0.11, 0, 0.67, 0), Color3.fromRGB(46, 32, 10), frame)
-
-	-- Income pill at bottom
 	local incomePill = make("Frame", {
 		BackgroundColor3 = Color3.fromRGB(26, 58, 32),
 		Size = UDim2.new(0.72, 0, 0.11, 0),
-		Position = UDim2.new(0.14, 0, 0.82, 0),
+		Position = UDim2.new(0.14, 0, 0.84, 0),
 		BorderSizePixel = 0,
 	}, frame)
 	local pillCorner = Instance.new("UICorner")
@@ -1650,7 +1731,7 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		Transparency = 0.3,
 	}, incomePill)
 
-	createSignLabel("+" .. tostring(incomePerSecond) .. " /s", UDim2.fromScale(0.9, 0.72), UDim2.fromScale(0.05, 0.14), Color3.fromRGB(228, 255, 220), incomePill)
+	createSignLabel("+" .. tostring(incomePerSecond) .. " fans/s", UDim2.fromScale(0.9, 0.72), UDim2.fromScale(0.05, 0.14), Color3.fromRGB(228, 255, 220), incomePill)
 end
 
 local function clearDisplayCard(slot)

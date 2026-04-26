@@ -65,13 +65,29 @@ function Utils.GetPassiveIncome(rating)
 	return config.BasePerSecond + (ratingSteps * config.PerRatingStep)
 end
 
-function Utils.GetRarityColor(rarity)
-	if rarity == "Premium Gold" then
-		return Constants.UI.PremiumGold
-	elseif rarity == "Rare Gold" then
-		return Constants.UI.RareGold
+function Utils.GetCardIncomeRating(cardOrRating)
+	if type(cardOrRating) == "table" then
+		return cardOrRating.internalRating or cardOrRating.rating or Constants.PassiveIncome.BaseRating
 	end
-	return Constants.UI.Gold
+
+	return cardOrRating or Constants.PassiveIncome.BaseRating
+end
+
+function Utils.GetRarityStyle(rarity)
+	local styles = Constants.RarityStyles or {}
+	return styles[rarity] or styles.Gold or {
+		label = rarity or "GOLD",
+		primary = Constants.UI.Gold,
+		secondary = Constants.UI.RareGold,
+		dark = Constants.UI.PanelAlt,
+		trim = Constants.UI.Gold,
+		text = Constants.UI.Text,
+		glow = Constants.UI.Gold,
+	}
+end
+
+function Utils.GetRarityColor(rarity)
+	return Utils.GetRarityStyle(rarity).primary
 end
 
 return Utils

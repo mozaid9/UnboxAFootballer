@@ -52,6 +52,65 @@ local STAND_TIERS = {
 	{ zOffset = 30.0, surfaceY = 3.7 },
 }
 
+-- ── Stall queue system ─────────────────────────────────────────────
+-- Each food stall has 4 queue slots (waypoints "Food<Stall>1"…"Food<Stall>4"
+-- in BaseService).  When an NPC decides to visit a stall it claims the
+-- lowest free slot, walks there, holds it through its food pause, then
+-- releases it as it walks away.  This produces a real-looking line
+-- instead of every NPC piling onto the same spot.
+local QUEUE_SLOTS_PER_STALL = 4
+local STALL_NAMES = { "Popcorn", "HotDogs", "Burgers", "Drinks" }
+
+local STALL_FOOD_TYPE = {
+	Popcorn = "Popcorn",
+	HotDogs = "HotDog",
+	Burgers = "Burger",
+	Drinks  = "Drink",
+}
+
+-- World-space position of each stall's counter (matches BaseService).
+-- Used as the lookAt target so queued NPCs face the worker, not the plaza.
+local STALL_LOOK_AT = {
+	Popcorn = Vector3.new(-36, STANDING_PIVOT_HEIGHT, -15),
+	HotDogs = Vector3.new( 36, STANDING_PIVOT_HEIGHT, -15),
+	Burgers = Vector3.new(-36, STANDING_PIVOT_HEIGHT,  15),
+	Drinks  = Vector3.new( 36, STANDING_PIVOT_HEIGHT,  15),
+}
+
+-- Which stalls are reachable from each side of the main walkway.  A fan
+-- with a negative laneOffset is on the west track and visits west stalls.
+local WEST_STALLS = { "Popcorn", "Burgers" }
+local EAST_STALLS = { "HotDogs", "Drinks" }
+
+local stallQueueState = {}
+for _, stallName in ipairs(STALL_NAMES) do
+	local slots = table.create(QUEUE_SLOTS_PER_STALL, false)
+	stallQueueState[stallName] = slots
+end
+
+-- Returns the lowest free slot index (1 = front of line) and marks it
+-- taken, or nil if all slots are in use.
+local function claimStallSlot(stallName)
+	local state = stallQueueState[stallName]
+	if not state then
+		return nil
+	end
+	for i = 1, QUEUE_SLOTS_PER_STALL do
+		if not state[i] then
+			state[i] = true
+			return i
+		end
+	end
+	return nil
+end
+
+local function releaseStallSlot(stallName, slotIndex)
+	local state = stallQueueState[stallName]
+	if state and slotIndex and state[slotIndex] then
+		state[slotIndex] = false
+	end
+end
+
 local function make(className, props, parent)
 	local instance = Instance.new(className)
 	for key, value in pairs(props or {}) do
@@ -365,10 +424,6 @@ local function makeRoute(laneOffset)
 	local center = getPoint("Center")
 	local westLoop = getPoint("WestLoop")
 	local eastLoop = getPoint("EastLoop")
-	local foodPopcorn = getPoint("FoodPopcorn")
-	local foodHotDogs = getPoint("FoodHotDogs")
-	local foodBurgers = getPoint("FoodBurgers")
-	local foodDrinks = getPoint("FoodDrinks")
 	if not northGate or not southGate or not center or not westLoop or not eastLoop then
 		return nil
 	end
@@ -390,32 +445,41 @@ local function makeRoute(laneOffset)
 
 	-- Configured chance: detour to a real food stall counter.
 	-- isFood + foodType tells runFan which prop to put in the NPC's hand.
+	-- The fan claims a queue slot up-front (1 = front of line, 4 = back),
+	-- holds it through its pause, then releases it as it walks away.  If
+	-- both stalls on this side are full (4×2 = 8 fans queued), skip food.
 	if math.random() < (plazaConfig.FoodStopChance or 0.30) then
-		local westSide = laneOffset < 0
-		local options = westSide and {
-			{ position = foodPopcorn, foodType = "Popcorn", lookAt = Vector3.new(-36, STANDING_PIVOT_HEIGHT, -15) },
-			{ position = foodBurgers, foodType = "Burger", lookAt = Vector3.new(-36, STANDING_PIVOT_HEIGHT, 15) },
-		} or {
-			{ position = foodHotDogs, foodType = "HotDog", lookAt = Vector3.new(36, STANDING_PIVOT_HEIGHT, -15) },
-			{ position = foodDrinks, foodType = "Drink", lookAt = Vector3.new(36, STANDING_PIVOT_HEIGHT, 15) },
-		}
+		local sideStalls = (laneOffset < 0) and WEST_STALLS or EAST_STALLS
 
-		local validOptions = {}
-		for _, option in ipairs(options) do
-			if option.position then
-				table.insert(validOptions, option)
-			end
+		-- Try the two stalls on this side in random order so the same
+		-- one isn't always preferred when both have room.
+		local stallOrder = { sideStalls[1], sideStalls[2] }
+		if math.random(1, 2) == 1 then
+			stallOrder[1], stallOrder[2] = stallOrder[2], stallOrder[1]
 		end
 
-		if #validOptions > 0 then
-			local selected = validOptions[math.random(1, #validOptions)]
-			table.insert(route, 3, {
-				position = selected.position,
-				pause = math.random(8, 18),
-				isFood = true,
-				foodType = selected.foodType,
-				lookAt = selected.lookAt,
-			})
+		for _, stallName in ipairs(stallOrder) do
+			local slot = claimStallSlot(stallName)
+			if slot then
+				local waypointPos = getPoint("Food" .. stallName .. slot)
+				if waypointPos then
+					table.insert(route, 3, {
+						position = waypointPos,
+						-- Front of queue lingers longer (being served);
+						-- back of queue moves on sooner so the line shifts.
+						pause = (slot == 1) and math.random(10, 18) or math.random(4, 9),
+						isFood = (slot == 1),  -- only the front fan receives food
+						foodType = STALL_FOOD_TYPE[stallName],
+						lookAt = STALL_LOOK_AT[stallName],
+						stallName = stallName,
+						stallSlot = slot,
+					})
+					break
+				else
+					-- Waypoint missing for some reason; release slot and try other stall.
+					releaseStallSlot(stallName, slot)
+				end
+			end
 		end
 	end
 
@@ -507,6 +571,13 @@ local function runFan(model)
 				setFanPose(model, "standing")
 
 				local hasFood = false
+				local heldStallName, heldStallSlot = nil, nil
+				local function releaseHeldSlot()
+					if heldStallName and heldStallSlot then
+						releaseStallSlot(heldStallName, heldStallSlot)
+						heldStallName, heldStallSlot = nil, nil
+					end
+				end
 
 				for index = 2, #route do
 					local step = route[index]
@@ -517,6 +588,7 @@ local function runFan(model)
 					end
 
 					if not moveModelTo(model, targetPosition) then
+						releaseHeldSlot()
 						return
 					end
 
@@ -533,6 +605,14 @@ local function runFan(model)
 					-- Seated pose
 					if typeof(step) == "table" and step.pose == "seated" then
 						setFanPose(model, "seated")
+					end
+
+					-- Track this NPC's reserved queue slot (if any) so we can
+					-- release it after the pause — and via the safety net if
+					-- the model gets destroyed mid-pause.
+					if typeof(step) == "table" and step.stallName and step.stallSlot then
+						heldStallName = step.stallName
+						heldStallSlot = step.stallSlot
 					end
 
 					-- Hand the NPC a prop BEFORE the pause so they hold it while
@@ -552,8 +632,15 @@ local function runFan(model)
 						task.wait(step.pause)
 					end
 
+					-- NPC has finished their stall stop — free the queue slot
+					-- so the next fan can move up.
+					releaseHeldSlot()
+
 					task.wait(math.random(8, 22) / 100)
 				end
+
+				-- Safety: route loop exited normally — make sure no slot is left held.
+				releaseHeldSlot()
 
 				-- Clear prop at end of route
 				if hasFood then

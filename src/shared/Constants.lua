@@ -195,4 +195,71 @@ Constants.UI = {
 	Danger = Color3.fromRGB(180, 78, 58),
 }
 
+Constants.RarityStyles = {
+	["Gold"] = {
+		label = "GOLD",
+		primary = Color3.fromRGB(255, 215, 0),
+		secondary = Color3.fromRGB(190, 126, 26),
+		dark = Color3.fromRGB(44, 29, 8),
+		trim = Color3.fromRGB(255, 218, 82),
+		text = Color3.fromRGB(255, 246, 214),
+		glow = Color3.fromRGB(255, 210, 74),
+	},
+	["Rare Gold"] = {
+		label = "RARE GOLD",
+		primary = Color3.fromRGB(255, 174, 44),
+		secondary = Color3.fromRGB(116, 68, 15),
+		dark = Color3.fromRGB(35, 22, 7),
+		trim = Color3.fromRGB(255, 196, 70),
+		text = Color3.fromRGB(255, 246, 220),
+		glow = Color3.fromRGB(255, 162, 44),
+	},
+	["Premium Gold"] = {
+		label = "PREMIUM GOLD",
+		primary = Color3.fromRGB(255, 238, 172),
+		secondary = Color3.fromRGB(36, 31, 23),
+		dark = Color3.fromRGB(9, 9, 10),
+		trim = Color3.fromRGB(255, 226, 112),
+		text = Color3.fromRGB(255, 250, 230),
+		glow = Color3.fromRGB(255, 235, 158),
+	},
+	["Talisman"] = {
+		label = "TALISMAN",
+		primary = Color3.fromRGB(235, 56, 43),
+		secondary = Color3.fromRGB(92, 11, 14),
+		dark = Color3.fromRGB(24, 6, 8),
+		trim = Color3.fromRGB(255, 126, 76),
+		text = Color3.fromRGB(255, 235, 222),
+		glow = Color3.fromRGB(255, 76, 58),
+	},
+	["Maestro"] = {
+		label = "MAESTRO",
+		primary = Color3.fromRGB(157, 80, 255),
+		secondary = Color3.fromRGB(45, 18, 94),
+		dark = Color3.fromRGB(17, 10, 34),
+		trim = Color3.fromRGB(226, 174, 255),
+		text = Color3.fromRGB(247, 232, 255),
+		glow = Color3.fromRGB(176, 96, 255),
+	},
+	["Immortal"] = {
+		label = "IMMORTAL",
+		primary = Color3.fromRGB(226, 248, 255),
+		secondary = Color3.fromRGB(162, 119, 255),
+		dark = Color3.fromRGB(18, 24, 38),
+		trim = Color3.fromRGB(245, 255, 255),
+		text = Color3.fromRGB(245, 252, 255),
+		glow = Color3.fromRGB(202, 244, 255),
+	},
+	["Player of the Year"] = {
+		label = "PLAYER OF THE YEAR",
+		primary = Color3.fromRGB(255, 218, 76),
+		secondary = Color3.fromRGB(20, 15, 8),
+		dark = Color3.fromRGB(5, 5, 6),
+		trim = Color3.fromRGB(255, 230, 116),
+		text = Color3.fromRGB(255, 246, 214),
+		glow = Color3.fromRGB(255, 221, 86),
+	},
+}
+Constants.RarityStyles.POTY = Constants.RarityStyles["Player of the Year"]
+
 return Constants
