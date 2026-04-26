@@ -39,10 +39,10 @@ end
 local function configureMapLighting()
 	Lighting.ClockTime = 19.25
 	Lighting.Brightness = 2.05
-	Lighting.Ambient = Color3.fromRGB(44, 52, 70)
-	Lighting.OutdoorAmbient = Color3.fromRGB(34, 42, 60)
-	Lighting.EnvironmentDiffuseScale = 0.42
-	Lighting.EnvironmentSpecularScale = 0.58
+	Lighting.Ambient = Color3.fromRGB(148, 162, 188)
+	Lighting.OutdoorAmbient = Color3.fromRGB(118, 132, 158)
+	Lighting.EnvironmentDiffuseScale = 0.72
+	Lighting.EnvironmentSpecularScale = 0.68
 	Lighting.FogColor = Color3.fromRGB(42, 51, 68)
 	Lighting.FogStart = 320
 	Lighting.FogEnd = 760
@@ -57,9 +57,9 @@ local function configureMapLighting()
 	})
 
 	replaceLightingEffect("BloomEffect", "UnboxGoldBloom", {
-		Intensity = 0.16,
-		Size = 12,
-		Threshold = 2.05,
+		Intensity = 0.05,
+		Size = 6,
+		Threshold = 2.8,
 	})
 
 	replaceLightingEffect("ColorCorrectionEffect", "UnboxColorGrade", {
@@ -196,7 +196,7 @@ local function createStadiumTier(parent, size, cframe)
 		Anchored = true,
 		CanCollide = true,
 		Material = Enum.Material.Concrete,
-		Color = Color3.fromRGB(66, 76, 94),
+		Color = Color3.fromRGB(112, 124, 148),
 		Size = size,
 		CFrame = cframe,
 	}, parent)
@@ -308,17 +308,17 @@ local function createFloodlightRig(parent, name, position, targetPosition)
 		Name = "FloodBeam",
 		Face = Enum.NormalId.Front,
 		Color = Color3.fromRGB(255, 245, 218),
-		Range = 118,
-		Angle = 56,
-		Brightness = 1.15,
+		Range = 140,
+		Angle = 68,
+		Brightness = 5.5,
 		Shadows = false,
 	}, panel)
 
 	make("PointLight", {
 		Name = "FloodFill",
 		Color = Color3.fromRGB(255, 235, 190),
-		Range = 24,
-		Brightness = 0.08,
+		Range = 50,
+		Brightness = 1.0,
 		Shadows = false,
 	}, panel)
 
@@ -369,17 +369,17 @@ local function createLightPost(parent, name, position, targetPosition)
 		Name = "PostBeam",
 		Face = Enum.NormalId.Front,
 		Color = Color3.fromRGB(255, 236, 188),
-		Range = 56,
-		Angle = 46,
-		Brightness = 0.62,
+		Range = 80,
+		Angle = 58,
+		Brightness = 4.0,
 		Shadows = false,
 	}, head)
 
 	make("PointLight", {
 		Name = "PostFill",
 		Color = Color3.fromRGB(255, 220, 150),
-		Range = 12,
-		Brightness = 0.2,
+		Range = 32,
+		Brightness = 1.1,
 		Shadows = false,
 	}, head)
 
@@ -1073,11 +1073,18 @@ local function createFanZone(mapWidth, mapLength)
 		createPlanter(plaza, planterPosition, 0.9)
 	end
 
-	createSoftFillLight(plaza, "CenterPlazaFill", Vector3.new(0, 13, 0), 84, 0.34, Color3.fromRGB(255, 225, 170))
-	createSoftFillLight(plaza, "NorthPlazaFill", Vector3.new(0, 13, northZ - 8), 70, 0.24, Color3.fromRGB(230, 238, 255))
-	createSoftFillLight(plaza, "SouthPlazaFill", Vector3.new(0, 13, southZ + 8), 70, 0.24, Color3.fromRGB(230, 238, 255))
-	createSoftFillLight(plaza, "WestPlazaFill", Vector3.new(-layout.SideOffset + 20, 12, 0), 76, 0.22, Color3.fromRGB(255, 232, 185))
-	createSoftFillLight(plaza, "EastPlazaFill", Vector3.new(layout.SideOffset - 20, 12, 0), 76, 0.22, Color3.fromRGB(255, 232, 185))
+	createSoftFillLight(plaza, "CenterPlazaFill", Vector3.new(0, 13, 0), 90, 0.50, Color3.fromRGB(255, 225, 170))
+	createSoftFillLight(plaza, "NorthPlazaFill", Vector3.new(0, 13, northZ - 8), 80, 0.35, Color3.fromRGB(230, 238, 255))
+	createSoftFillLight(plaza, "SouthPlazaFill", Vector3.new(0, 13, southZ + 8), 80, 0.35, Color3.fromRGB(230, 238, 255))
+	-- Wide overhead fills directly above the west and east stadium blocks
+	createSoftFillLight(plaza, "WestStadiumFill", Vector3.new(-layout.SideOffset, 18, 0), 120, 0.45, Color3.fromRGB(240, 228, 200))
+	createSoftFillLight(plaza, "EastStadiumFill", Vector3.new(layout.SideOffset, 18, 0), 120, 0.45, Color3.fromRGB(240, 228, 200))
+	-- Per-lane fills so each plot row is independently lit
+	for laneIndex = 1, layout.PlotsPerSide do
+		local laneZ = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
+		createSoftFillLight(plaza, "WestLaneFill" .. laneIndex, Vector3.new(-layout.SideOffset, 20, laneZ), 90, 0.40, Color3.fromRGB(235, 225, 195))
+		createSoftFillLight(plaza, "EastLaneFill" .. laneIndex, Vector3.new(layout.SideOffset, 20, laneZ), 90, 0.40, Color3.fromRGB(235, 225, 195))
+	end
 
 	createFloodlightRig(plaza, "NorthWestFloodlight", Vector3.new(-54, 0, northZ - 22), Vector3.new(0, 2, 0))
 	createFloodlightRig(plaza, "NorthEastFloodlight", Vector3.new(54, 0, northZ - 22), Vector3.new(0, 2, 0))
@@ -1175,7 +1182,7 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	make("UIStroke", {
 		Color = Color3.fromRGB(24, 16, 4),
 		Thickness = 1.5,
-		Transparency = 0.35,
+		Transparency = 0.55,
 	}, innerBorder)
 
 	-- Rating (dominant, top-left)
@@ -1379,7 +1386,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		Anchored = true,
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(192, 196, 194),
+		Color = Color3.fromRGB(140, 144, 148),
 		Size = Vector3.new(layout.PlotSize.X - 8, 0.12, 8),
 		CFrame = baseCFrame * CFrame.new(0, 0.56, 0),
 	}, model)
