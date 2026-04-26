@@ -272,17 +272,17 @@ local function createPenaltyBox(parent, baseCFrame, endX, y, depth, width, lineT
 	createPitchLine(parent, namePrefix .. "SouthSide", Vector3.new(depth, 0.05, lineThickness), baseCFrame * CFrame.new(centerX, y, width / 2), 0.03)
 end
 
-local function createGoalPost(parent, name, baseCFrame, localX, y)
+local function createCornerGoal(parent, name, goalCFrame)
 	local model = make("Model", {
 		Name = name,
 	}, parent)
 
-	local goalWidth = 10.5
-	local goalHeight = 4.6
-	local goalDepth = 3.4
-	local thickness = 0.32
-	local outward = localX >= 0 and 1 or -1
+	local goalWidth = 5.4
+	local goalHeight = 2.65
+	local goalDepth = 1.9
+	local thickness = 0.18
 	local postColor = Color3.fromRGB(245, 247, 240)
+	local netColor = Color3.fromRGB(205, 222, 238)
 
 	local function goalPart(partName, size, localOffset)
 		make("Part", {
@@ -294,20 +294,49 @@ local function createGoalPost(parent, name, baseCFrame, localX, y)
 			Material = Enum.Material.SmoothPlastic,
 			Color = postColor,
 			Size = size,
-			CFrame = baseCFrame * CFrame.new(localOffset),
+			CFrame = goalCFrame * CFrame.new(localOffset),
 		}, model)
 	end
 
-	goalPart("LeftPost", Vector3.new(thickness, goalHeight, thickness), Vector3.new(localX, y + goalHeight / 2, -goalWidth / 2))
-	goalPart("RightPost", Vector3.new(thickness, goalHeight, thickness), Vector3.new(localX, y + goalHeight / 2, goalWidth / 2))
-	goalPart("Crossbar", Vector3.new(thickness, thickness, goalWidth + thickness), Vector3.new(localX, y + goalHeight, 0))
-	goalPart("BackLeftPost", Vector3.new(thickness, goalHeight * 0.82, thickness), Vector3.new(localX + outward * goalDepth, y + (goalHeight * 0.82) / 2, -goalWidth / 2))
-	goalPart("BackRightPost", Vector3.new(thickness, goalHeight * 0.82, thickness), Vector3.new(localX + outward * goalDepth, y + (goalHeight * 0.82) / 2, goalWidth / 2))
-	goalPart("BackCrossbar", Vector3.new(thickness, thickness, goalWidth + thickness), Vector3.new(localX + outward * goalDepth, y + goalHeight * 0.82, 0))
-	goalPart("NorthTopDepth", Vector3.new(goalDepth, thickness, thickness), Vector3.new(localX + outward * (goalDepth / 2), y + goalHeight, -goalWidth / 2))
-	goalPart("SouthTopDepth", Vector3.new(goalDepth, thickness, thickness), Vector3.new(localX + outward * (goalDepth / 2), y + goalHeight, goalWidth / 2))
+	local function netPart(partName, size, localOffset)
+		make("Part", {
+			Name = partName,
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = netColor,
+			Transparency = 0.24,
+			Size = size,
+			CFrame = goalCFrame * CFrame.new(localOffset),
+		}, model)
+	end
+
+	goalPart("LeftPost", Vector3.new(thickness, goalHeight, thickness), Vector3.new(-goalWidth / 2, goalHeight / 2, 0))
+	goalPart("RightPost", Vector3.new(thickness, goalHeight, thickness), Vector3.new(goalWidth / 2, goalHeight / 2, 0))
+	goalPart("Crossbar", Vector3.new(goalWidth + thickness, thickness, thickness), Vector3.new(0, goalHeight, 0))
+	goalPart("BackLeftPost", Vector3.new(thickness, goalHeight * 0.78, thickness), Vector3.new(-goalWidth / 2, (goalHeight * 0.78) / 2, goalDepth))
+	goalPart("BackRightPost", Vector3.new(thickness, goalHeight * 0.78, thickness), Vector3.new(goalWidth / 2, (goalHeight * 0.78) / 2, goalDepth))
+	goalPart("BackCrossbar", Vector3.new(goalWidth + thickness, thickness, thickness), Vector3.new(0, goalHeight * 0.78, goalDepth))
+	goalPart("LeftRoofRail", Vector3.new(thickness, thickness, goalDepth), Vector3.new(-goalWidth / 2, goalHeight * 0.89, goalDepth / 2))
+	goalPart("RightRoofRail", Vector3.new(thickness, thickness, goalDepth), Vector3.new(goalWidth / 2, goalHeight * 0.89, goalDepth / 2))
+
+	for index = -2, 2 do
+		netPart("BackNetVertical", Vector3.new(0.045, goalHeight * 0.66, 0.045), Vector3.new((goalWidth / 5) * index, goalHeight * 0.36, goalDepth + 0.03))
+	end
+
+	for index = 1, 4 do
+		netPart("BackNetHorizontal", Vector3.new(goalWidth, 0.045, 0.045), Vector3.new(0, goalHeight * (index / 5), goalDepth + 0.035))
+	end
 
 	return model
+end
+
+local function createAngledCornerGoal(parent, name, baseCFrame, localX, localZ)
+	local worldPosition = (baseCFrame * CFrame.new(localX, 0.6, localZ)).Position
+	local lookPosition = (baseCFrame * CFrame.new(0, 0.6, 0)).Position
+	createCornerGoal(parent, name, CFrame.lookAt(worldPosition, lookPosition))
 end
 
 local function createFootballPitchDetails(parent, baseCFrame)
@@ -335,8 +364,12 @@ local function createFootballPitchDetails(parent, baseCFrame)
 	createPenaltyBox(pitchFolder, baseCFrame, halfLength, y + 0.02, 4.4, 11, lineThickness, "FrontSixYard")
 	createPenaltyBox(pitchFolder, baseCFrame, -halfLength, y + 0.02, 4.4, 11, lineThickness, "BackSixYard")
 
-	createGoalPost(pitchFolder, "FrontGoalPost", baseCFrame, halfLength + 0.75, 0.82)
-	createGoalPost(pitchFolder, "BackGoalPost", baseCFrame, -halfLength - 0.75, 0.82)
+	local cornerGoalX = halfLength - 3
+	local cornerGoalZ = halfWidth - 2.6
+	createAngledCornerGoal(pitchFolder, "NorthEastCornerGoal", baseCFrame, cornerGoalX, -cornerGoalZ)
+	createAngledCornerGoal(pitchFolder, "SouthEastCornerGoal", baseCFrame, cornerGoalX, cornerGoalZ)
+	createAngledCornerGoal(pitchFolder, "NorthWestCornerGoal", baseCFrame, -cornerGoalX, -cornerGoalZ)
+	createAngledCornerGoal(pitchFolder, "SouthWestCornerGoal", baseCFrame, -cornerGoalX, cornerGoalZ)
 
 	return pitchFolder
 end
