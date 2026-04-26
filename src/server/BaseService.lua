@@ -38,11 +38,11 @@ end
 
 local function configureMapLighting()
 	Lighting.ClockTime = 19.25
-	Lighting.Brightness = 2.05
-	Lighting.Ambient = Color3.fromRGB(148, 162, 188)
-	Lighting.OutdoorAmbient = Color3.fromRGB(118, 132, 158)
-	Lighting.EnvironmentDiffuseScale = 0.72
-	Lighting.EnvironmentSpecularScale = 0.68
+	Lighting.Brightness = 1.7
+	Lighting.Ambient = Color3.fromRGB(82, 94, 120)
+	Lighting.OutdoorAmbient = Color3.fromRGB(56, 66, 90)
+	Lighting.EnvironmentDiffuseScale = 0.52
+	Lighting.EnvironmentSpecularScale = 0.46
 	Lighting.FogColor = Color3.fromRGB(42, 51, 68)
 	Lighting.FogStart = 320
 	Lighting.FogEnd = 760
@@ -57,9 +57,9 @@ local function configureMapLighting()
 	})
 
 	replaceLightingEffect("BloomEffect", "UnboxGoldBloom", {
-		Intensity = 0.05,
-		Size = 6,
-		Threshold = 2.8,
+		Intensity = 0.025,
+		Size = 8,
+		Threshold = 3.2,
 	})
 
 	replaceLightingEffect("ColorCorrectionEffect", "UnboxColorGrade", {
@@ -256,7 +256,6 @@ local function createPlanter(parent, position, scale)
 		CFrame = CFrame.new(position + Vector3.new(0, 2.4 * scale, 0)),
 	}, model)
 
-	createGlowStrip(model, "PlanterTrim", Vector3.new(4.5, 0.14, 4.5) * scale, CFrame.new(position + Vector3.new(0, 1.25 * scale, 0)), Color3.fromRGB(255, 183, 53), 0.35)
 	return model
 end
 
@@ -308,17 +307,17 @@ local function createFloodlightRig(parent, name, position, targetPosition)
 		Name = "FloodBeam",
 		Face = Enum.NormalId.Front,
 		Color = Color3.fromRGB(255, 245, 218),
-		Range = 140,
-		Angle = 68,
-		Brightness = 5.5,
+		Range = 104,
+		Angle = 50,
+		Brightness = 1.35,
 		Shadows = false,
 	}, panel)
 
 	make("PointLight", {
 		Name = "FloodFill",
 		Color = Color3.fromRGB(255, 235, 190),
-		Range = 50,
-		Brightness = 1.0,
+		Range = 24,
+		Brightness = 0.14,
 		Shadows = false,
 	}, panel)
 
@@ -369,17 +368,17 @@ local function createLightPost(parent, name, position, targetPosition)
 		Name = "PostBeam",
 		Face = Enum.NormalId.Front,
 		Color = Color3.fromRGB(255, 236, 188),
-		Range = 80,
-		Angle = 58,
-		Brightness = 4.0,
+		Range = 42,
+		Angle = 38,
+		Brightness = 0.62,
 		Shadows = false,
 	}, head)
 
 	make("PointLight", {
 		Name = "PostFill",
 		Color = Color3.fromRGB(255, 220, 150),
-		Range = 32,
-		Brightness = 1.1,
+		Range = 11,
+		Brightness = 0.12,
 		Shadows = false,
 	}, head)
 
@@ -434,7 +433,6 @@ local function createVerticalBanner(parent, name, position, lookTarget, title)
 		CFrame = CFrame.lookAt(position + Vector3.new(0, 6.2, 0), lookTarget),
 	}, model)
 	createSurfaceText(banner, title, "FOOTBALLER")
-	createGlowStrip(model, "BannerGlow", Vector3.new(5.2, 0.18, 0.5), banner.CFrame * CFrame.new(0, -4.45, -0.08), Color3.fromRGB(255, 215, 0), 0.1)
 
 	return model
 end
@@ -645,7 +643,6 @@ local function createFanGate(parent, name, z, facingDirection)
 	for index = 1, 3 do
 		local x = -8 + ((index - 1) * 8)
 		createTurnstile(gate, CFrame.new(center + Vector3.new(x, 2.1, -facingDirection * 2)))
-		createGlowStrip(gate, "GateLight" .. index, Vector3.new(4.2, 0.18, 1.4), CFrame.new(center + Vector3.new(x, 0.2, -facingDirection * 5.2)), Color3.fromRGB(65, 255, 112), 0.05)
 	end
 
 	return gate
@@ -722,9 +719,9 @@ local function tryCreateImportedKiosk(parent, name, position, signText, facingPo
 		Name = "KioskLoadedSign",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.Neon,
+		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(255, 183, 53),
-		Transparency = 0.18,
+		Transparency = 0.0,
 		Size = Vector3.new(5.2, 1.05, 0.2),
 		CFrame = targetCFrame * CFrame.new(0, 4.6, 2.15),
 	}, model)
@@ -741,13 +738,6 @@ local function tryCreateImportedKiosk(parent, name, position, signText, facingPo
 		TextScaled = true,
 		Font = Enum.Font.GothamBlack,
 	}, signGui)
-
-	make("PointLight", {
-		Color = Color3.fromRGB(255, 175, 68),
-		Range = 24,
-		Brightness = 1.4,
-		Shadows = false,
-	}, sign)
 
 	return model
 end
@@ -840,14 +830,14 @@ local function createFoodKiosk(parent, name, position, kioskIndex, facingPos)
 		}, model)
 	end
 
-	-- Large neon sign above the canopy — themed colour per stall
+	-- Sign above the canopy — themed colour per stall
 	local sign = make("Part", {
 		Name = "KioskSign",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.Neon,
+		Material = Enum.Material.SmoothPlastic,
 		Color = theme.sign,
-		Transparency = 0.18,
+		Transparency = 0.0,
 		Size = Vector3.new(6.0, 1.4, 0.22),
 		CFrame = boothCF * CFrame.new(0, 3.55, 1.24),
 	}, model)
@@ -865,24 +855,6 @@ local function createFoodKiosk(parent, name, position, kioskIndex, facingPos)
 		TextScaled = true,
 		Font = Enum.Font.GothamBlack,
 	}, signGui)
-
-	-- Coloured light spills onto nearby NPCs
-	make("PointLight", {
-		Color = theme.light,
-		Range = 14,
-		Brightness = 0.55,
-		Shadows = false,
-	}, sign)
-
-	-- Matching neon strip along the canopy front lip
-	createGlowStrip(
-		model,
-		"CanopyTrim",
-		Vector3.new(8.2, 0.18, 0.22),
-		boothCF * CFrame.new(0, 2.19, 3.22),
-		theme.stripe,
-		0.42
-	)
 
 	return model
 end
@@ -909,10 +881,6 @@ local function createFanZone(mapWidth, mapLength)
 		CFrame = CFrame.new(0, 0.24, 0),
 	}, plaza)
 
-	createGlowStrip(plaza, "MainGoldLineLeft", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(-29, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.55)
-	createGlowStrip(plaza, "MainGoldLineRight", Vector3.new(0.35, 0.22, mapLength - 78), CFrame.new(29, 0.38, 0), Color3.fromRGB(255, 215, 0), 0.55)
-	createGlowStrip(plaza, "MainCenterGlow", Vector3.new(8, 0.18, mapLength - 100), CFrame.new(0, 0.36, 0), Color3.fromRGB(255, 180, 46), 0.94)
-
 	for laneIndex = 1, layout.PlotsPerSide do
 		local laneZ = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
 		make("Part", {
@@ -924,8 +892,6 @@ local function createFanZone(mapWidth, mapLength)
 			Size = Vector3.new((layout.SideOffset * 2) - 22, 0.14, 14),
 			CFrame = CFrame.new(0, 0.28, laneZ),
 		}, plaza)
-		createGlowStrip(plaza, "StadiumPathGoldA" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 28, 0.18, 0.25), CFrame.new(0, 0.42, laneZ - 7), Color3.fromRGB(255, 215, 0), 0.64)
-		createGlowStrip(plaza, "StadiumPathGoldB" .. laneIndex, Vector3.new((layout.SideOffset * 2) - 28, 0.18, 0.25), CFrame.new(0, 0.42, laneZ + 7), Color3.fromRGB(255, 215, 0), 0.64)
 	end
 
 	-- ── Centre podium: three stepped tiers + elevated spinning football ──────────
@@ -943,8 +909,6 @@ local function createFanZone(mapWidth, mapLength)
 		Size = Vector3.new(3.2, 24, 24),
 		CFrame = CFrame.new(0, 1.6, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
-	createGlowStrip(plaza, "Tier1Ring", Vector3.new(26, 0.18, 26), CFrame.new(0, 3.28, 0), Color3.fromRGB(255, 215, 0), 0.18)
-
 	-- Tier 2 — mid (bottom ≈ Y=3.3, top ≈ Y=5.9)
 	make("Part", {
 		Name = "PedestalTier2",
@@ -956,8 +920,6 @@ local function createFanZone(mapWidth, mapLength)
 		Size = Vector3.new(2.6, 16, 16),
 		CFrame = CFrame.new(0, 4.6, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
-	createGlowStrip(plaza, "Tier2Ring", Vector3.new(18, 0.16, 18), CFrame.new(0, 6.0, 0), Color3.fromRGB(255, 215, 0), 0.22)
-
 	-- Tier 3 — top plinth (bottom ≈ Y=6.1, top ≈ Y=8.4)
 	make("Part", {
 		Name = "PedestalTier3",
@@ -969,12 +931,6 @@ local function createFanZone(mapWidth, mapLength)
 		Size = Vector3.new(2.3, 10, 10),
 		CFrame = CFrame.new(0, 7.3, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
-	createGlowStrip(plaza, "Tier3Ring", Vector3.new(12, 0.16, 12), CFrame.new(0, 8.52, 0), Color3.fromRGB(255, 215, 0), 0.25)
-
-	-- Ground-level glow halos (subtle — just enough to accent the podium)
-	createGlowStrip(plaza, "OuterPedestalGlow", Vector3.new(40, 0.15, 40), CFrame.new(0, 0.46, 0), Color3.fromRGB(255, 175, 44), 0.82)
-	createGlowStrip(plaza, "InnerPedestalGlow", Vector3.new(28, 0.18, 28), CFrame.new(0, 0.50, 0), Color3.fromRGB(255, 215, 0), 0.70)
-
 	-- ── Planter ring around the podium ────────────────────────────────
 	-- Six smaller planters form a decorative circle at radius 17, just
 	-- outside the Tier1 ring (radius ≈ 12).
@@ -1073,17 +1029,17 @@ local function createFanZone(mapWidth, mapLength)
 		createPlanter(plaza, planterPosition, 0.9)
 	end
 
-	createSoftFillLight(plaza, "CenterPlazaFill", Vector3.new(0, 13, 0), 90, 0.50, Color3.fromRGB(255, 225, 170))
-	createSoftFillLight(plaza, "NorthPlazaFill", Vector3.new(0, 13, northZ - 8), 80, 0.35, Color3.fromRGB(230, 238, 255))
-	createSoftFillLight(plaza, "SouthPlazaFill", Vector3.new(0, 13, southZ + 8), 80, 0.35, Color3.fromRGB(230, 238, 255))
+	createSoftFillLight(plaza, "CenterPlazaFill", Vector3.new(0, 13, 0), 72, 0.22, Color3.fromRGB(255, 225, 170))
+	createSoftFillLight(plaza, "NorthPlazaFill", Vector3.new(0, 13, northZ - 8), 62, 0.16, Color3.fromRGB(230, 238, 255))
+	createSoftFillLight(plaza, "SouthPlazaFill", Vector3.new(0, 13, southZ + 8), 62, 0.16, Color3.fromRGB(230, 238, 255))
 	-- Wide overhead fills directly above the west and east stadium blocks
-	createSoftFillLight(plaza, "WestStadiumFill", Vector3.new(-layout.SideOffset, 18, 0), 120, 0.45, Color3.fromRGB(240, 228, 200))
-	createSoftFillLight(plaza, "EastStadiumFill", Vector3.new(layout.SideOffset, 18, 0), 120, 0.45, Color3.fromRGB(240, 228, 200))
+	createSoftFillLight(plaza, "WestStadiumFill", Vector3.new(-layout.SideOffset, 18, 0), 82, 0.16, Color3.fromRGB(240, 228, 200))
+	createSoftFillLight(plaza, "EastStadiumFill", Vector3.new(layout.SideOffset, 18, 0), 82, 0.16, Color3.fromRGB(240, 228, 200))
 	-- Per-lane fills so each plot row is independently lit
 	for laneIndex = 1, layout.PlotsPerSide do
 		local laneZ = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
-		createSoftFillLight(plaza, "WestLaneFill" .. laneIndex, Vector3.new(-layout.SideOffset, 20, laneZ), 90, 0.40, Color3.fromRGB(235, 225, 195))
-		createSoftFillLight(plaza, "EastLaneFill" .. laneIndex, Vector3.new(layout.SideOffset, 20, laneZ), 90, 0.40, Color3.fromRGB(235, 225, 195))
+		createSoftFillLight(plaza, "WestLaneFill" .. laneIndex, Vector3.new(-layout.SideOffset, 20, laneZ), 56, 0.12, Color3.fromRGB(235, 225, 195))
+		createSoftFillLight(plaza, "EastLaneFill" .. laneIndex, Vector3.new(layout.SideOffset, 20, laneZ), 56, 0.12, Color3.fromRGB(235, 225, 195))
 	end
 
 	createFloodlightRig(plaza, "NorthWestFloodlight", Vector3.new(-54, 0, northZ - 22), Vector3.new(0, 2, 0))
@@ -1268,9 +1224,9 @@ local function createDisplaySlot(parent, index, cframe, lookDirection)
 		Name = "Top",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.Neon,
-		Color = Color3.fromRGB(34, 170, 94),
-		Transparency = 0.14,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(34, 128, 76),
+		Transparency = 0.08,
 		Size = Vector3.new(layout.DisplaySlotSize.X - 1.4, 0.18, layout.DisplaySlotSize.Z - 1.4),
 		CFrame = base.CFrame + Vector3.new(0, layout.DisplaySlotSize.Y / 2 + 0.1, 0),
 	}, model)
@@ -1326,12 +1282,6 @@ local function createPlot(plotId, side, laneIndex, position)
 		Size = layout.PlotSize,
 		CFrame = baseCFrame,
 	}, model)
-
-	local trimY = layout.PlotSize.Y / 2 + 0.62
-	createGlowStrip(model, "FrontGoldTrim", Vector3.new(0.32, 0.16, layout.PlotSize.Z - 3), baseCFrame * CFrame.new(frontEdgeX - (facingDirection * 0.8), trimY, 0), Color3.fromRGB(255, 200, 62), 0.4)
-	createGlowStrip(model, "BackGoldTrim", Vector3.new(0.28, 0.12, layout.PlotSize.Z - 4), baseCFrame * CFrame.new(backEdgeX + (facingDirection * 0.8), trimY, 0), Color3.fromRGB(255, 190, 52), 0.58)
-	createGlowStrip(model, "NorthGoldTrim", Vector3.new(layout.PlotSize.X - 4, 0.14, 0.28), baseCFrame * CFrame.new(0, trimY, -layout.PlotSize.Z / 2 + 0.9), Color3.fromRGB(255, 190, 52), 0.48)
-	createGlowStrip(model, "SouthGoldTrim", Vector3.new(layout.PlotSize.X - 4, 0.14, 0.28), baseCFrame * CFrame.new(0, trimY, layout.PlotSize.Z / 2 - 0.9), Color3.fromRGB(255, 190, 52), 0.48)
 
 	local borderTop = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, -layout.PlotSize.Z / 2))
 	local borderBottom = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, layout.PlotSize.Z / 2))
@@ -1394,7 +1344,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	local packPad = make("Part", {
 		Name = "PackPad",
 		Anchored = true,
-		Material = Enum.Material.Neon,
+		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(221, 49, 49),
 		Size = layout.PackPadSize,
 		CFrame = baseCFrame * CFrame.new(-facingDirection * padOffset, 0.45, 0),
@@ -1411,32 +1361,12 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, model)
 	_ = packPadBorder
 
-	local packStage = make("Part", {
-		Name = "PackStageGlow",
-		Anchored = true,
-		CanCollide = false,
-		Shape = Enum.PartType.Cylinder,
-		Material = Enum.Material.Neon,
-		Color = Color3.fromRGB(255, 215, 0),
-		Transparency = 0.7,
-		Size = Vector3.new(14, 0.25, 14),
-		CFrame = packPad.CFrame * CFrame.new(0, -0.36, 0),
-	}, model)
-	_ = packStage
-
-	make("PointLight", {
-		Name = "PackStageLight",
-		Color = Color3.fromRGB(255, 210, 80),
-		Range = 10,
-		Brightness = 0.22,
-		Shadows = false,
-	}, packPad)
 
 	local spawnPad = make("Part", {
 		Name = "SpawnPad",
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(192, 196, 194),
+		Color = Color3.fromRGB(110, 116, 122),
 		Size = Vector3.new(10, 0.45, 10),
 		CFrame = baseCFrame * CFrame.new(facingDirection * padOffset, 0.45, 0),
 	}, model)
@@ -1481,13 +1411,6 @@ local function createPlot(plotId, side, laneIndex, position)
 		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
 	}, model)
 
-	make("PointLight", {
-		Name = "OwnerSignGlow",
-		Color = Color3.fromRGB(255, 211, 86),
-		Range = 22,
-		Brightness = 1.15,
-		Shadows = false,
-	}, ownerSign)
 
 	local ownerGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
@@ -1776,10 +1699,10 @@ local function createPlot(plotId, side, laneIndex, position)
 	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0, entranceWidth / 2 + 6), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightNorth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, -(layout.PlotSize.Z / 2 + 5)), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightSouth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, layout.PlotSize.Z / 2 + 5), packPad.Position + Vector3.new(0, 2, 0))
-	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 42, 0.26, Color3.fromRGB(255, 232, 184))
-	createSoftFillLight(model, "BackStandFill", position + Vector3.new(backEdgeX - (facingDirection * 6), 8, 0), 34, 0.2, Color3.fromRGB(225, 234, 255))
-	createSoftFillLight(model, "NorthStandFill", position + Vector3.new(0, 7, -(layout.PlotSize.Z / 2 + 7)), 28, 0.16, Color3.fromRGB(255, 226, 170))
-	createSoftFillLight(model, "SouthStandFill", position + Vector3.new(0, 7, layout.PlotSize.Z / 2 + 7), 28, 0.16, Color3.fromRGB(255, 226, 170))
+	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 34, 0.16, Color3.fromRGB(255, 232, 184))
+	createSoftFillLight(model, "BackStandFill", position + Vector3.new(backEdgeX - (facingDirection * 6), 8, 0), 26, 0.12, Color3.fromRGB(225, 234, 255))
+	createSoftFillLight(model, "NorthStandFill", position + Vector3.new(0, 7, -(layout.PlotSize.Z / 2 + 7)), 22, 0.1, Color3.fromRGB(255, 226, 170))
+	createSoftFillLight(model, "SouthStandFill", position + Vector3.new(0, 7, layout.PlotSize.Z / 2 + 7), 22, 0.1, Color3.fromRGB(255, 226, 170))
 
 	local plot = {
 		id = plotId,
@@ -1990,8 +1913,8 @@ function BaseService.UpdateDisplaySlot(slot, card, incomePerSecond)
 
 	make("PointLight", {
 		Color = Utils.GetRarityColor(card.rarity),
-		Range = 7,
-		Brightness = 0.45,
+		Range = 5,
+		Brightness = 0.22,
 	}, cardPart)
 
 	createDisplayCardFace(Enum.NormalId.Front, card, incomePerSecond, cardPart)
