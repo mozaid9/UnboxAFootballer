@@ -2088,17 +2088,6 @@ local function createPlot(plotId, side, laneIndex, position)
 		baseCFrame * CFrame.new(0, 2.1, -(layout.PlotSize.Z / 2) - 10.4)
 	)
 
-	local centerStrip = make("Part", {
-		Name = "CenterStrip",
-		Anchored = true,
-		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(140, 144, 148),
-		Size = Vector3.new(layout.PlotSize.X - 8, 0.12, 8),
-		CFrame = baseCFrame * CFrame.new(0, 0.56, 0),
-	}, model)
-	_ = centerStrip
-
 	createFootballPitchDetails(model, baseCFrame)
 
 	local packPad = make("Part", {
@@ -2125,9 +2114,13 @@ local function createPlot(plotId, side, laneIndex, position)
 	local spawnPad = make("Part", {
 		Name = "SpawnPad",
 		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(110, 116, 122),
-		Size = Vector3.new(10, 0.45, 10),
+		Color = Color3.fromRGB(76, 158, 82),
+		Transparency = 1,
+		Size = Vector3.new(7, 0.3, 7),
 		CFrame = baseCFrame * CFrame.new(facingDirection * padOffset, 0.45, 0),
 	}, model)
 
