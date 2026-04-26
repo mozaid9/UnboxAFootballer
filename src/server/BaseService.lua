@@ -1181,6 +1181,55 @@ local function createFoodKiosk(parent, name, position, kioskIndex, facingPos)
 	return model
 end
 
+local function createStallWorker(parent, name, groundPosition, facingPos, shirtColor)
+	local model = make("Model", {
+		Name = name,
+	}, parent)
+
+	local skinColor = Color3.fromRGB(234, 184, 146)
+	local pantsColor = Color3.fromRGB(22, 26, 34)
+	local pivotPosition = Vector3.new(groundPosition.X, 3.1, groundPosition.Z)
+	local flatFacing = Vector3.new(facingPos.X, pivotPosition.Y, facingPos.Z)
+	local pivot = CFrame.lookAt(pivotPosition, flatFacing)
+
+	local function part(partName, size, localCFrame, color, material)
+		return make("Part", {
+			Name = partName,
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = material or Enum.Material.SmoothPlastic,
+			Color = color,
+			Size = size,
+			CFrame = pivot * localCFrame,
+		}, model)
+	end
+
+	part("Torso", Vector3.new(1.45, 1.55, 0.75), CFrame.new(0, 0, 0), shirtColor)
+
+	local head = part("Head", Vector3.new(1.05, 1.05, 1.05), CFrame.new(0, 1.33, 0), skinColor)
+	make("SpecialMesh", {
+		MeshType = Enum.MeshType.Head,
+		Scale = Vector3.new(1.05, 1.05, 1.05),
+	}, head)
+	make("Decal", {
+		Name = "Face",
+		Texture = "rbxasset://textures/face.png",
+		Face = Enum.NormalId.Front,
+	}, head)
+
+	part("Left Arm", Vector3.new(0.62, 1.5, 0.62), CFrame.new(-1.03, -0.02, 0), skinColor)
+	part("Right Arm", Vector3.new(0.62, 1.5, 0.62), CFrame.new(1.03, -0.02, 0), skinColor)
+	part("Left Leg", Vector3.new(0.62, 1.7, 0.62), CFrame.new(-0.36, -1.45, 0), pantsColor)
+	part("Right Leg", Vector3.new(0.62, 1.7, 0.62), CFrame.new(0.36, -1.45, 0), pantsColor)
+
+	local apron = part("Apron", Vector3.new(1.16, 0.72, 0.08), CFrame.new(0, -0.18, -0.41), Color3.fromRGB(245, 238, 215), Enum.Material.SmoothPlastic)
+	_ = apron
+
+	return model
+end
+
 local function createFanZone(mapWidth, mapLength)
 	local plaza = make("Model", {
 		Name = "FanZone",
@@ -1361,7 +1410,7 @@ local function createFanZone(mapWidth, mapLength)
 		createPlanter(plaza, Vector3.new(math.cos(angle) * RING_RADIUS, 0, math.sin(angle) * RING_RADIUS), 0.52)
 	end
 
-	local statue = tryCreateImportedDecor(plaza, "FootballStatue", modelAssets.FootballStatue, Vector3.new(0, 8.45, 0), Vector3.new(0, 8.45, -12), 9.2)
+	local statue = tryCreateImportedDecor(plaza, "FootballStatue", modelAssets.FootballStatue, Vector3.new(0, 8.45, 0), Vector3.new(0, 8.45, -12), 12.0)
 	if not statue then
 		-- Gold football fallback (centre at Y=12.0, radius=3.5 -> bottom Y=8.5)
 		local ball = make("Part", {
@@ -1420,6 +1469,13 @@ local function createFanZone(mapWidth, mapLength)
 	createFoodKiosk(plaza, "KioskSE",
 		Vector3.new(36, 0.35, 15),   4, center0)  -- DRINKS
 
+	-- Static stall workers make the food court feel staffed, while moving
+	-- crowd NPCs stop at the matching named waypoints below.
+	createStallWorker(plaza, "PopcornWorker", Vector3.new(-39.8, 0, -16.6), center0, Color3.fromRGB(248, 203, 42))
+	createStallWorker(plaza, "HotDogWorker", Vector3.new(39.8, 0, -16.6), center0, Color3.fromRGB(218, 46, 28))
+	createStallWorker(plaza, "BurgerWorker", Vector3.new(-39.8, 0, 16.6), center0, Color3.fromRGB(198, 106, 34))
+	createStallWorker(plaza, "DrinkWorker", Vector3.new(39.8, 0, 16.6), center0, Color3.fromRGB(44, 150, 218))
+
 	createFanZoneBench(plaza, "BenchSouthWest", Vector3.new(-15, 0.35, -25), center0)
 	createFanZoneBench(plaza, "BenchSouthEast", Vector3.new(15, 0.35, -25), center0)
 	createFanZoneBench(plaza, "BenchNorthWest", Vector3.new(-15, 0.35, 25), center0)
@@ -1454,10 +1510,10 @@ local function createFanZone(mapWidth, mapLength)
 
 	for laneIndex = 1, layout.PlotsPerSide do
 		local laneZ = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
-		createLightPost(plaza, "LaneWestLightA" .. laneIndex, Vector3.new(-36, 0, laneZ - 12), Vector3.new(-layout.SideOffset, 1, laneZ))
-		createLightPost(plaza, "LaneWestLightB" .. laneIndex, Vector3.new(-36, 0, laneZ + 12), Vector3.new(-layout.SideOffset, 1, laneZ))
-		createLightPost(plaza, "LaneEastLightA" .. laneIndex, Vector3.new(36, 0, laneZ - 12), Vector3.new(layout.SideOffset, 1, laneZ))
-		createLightPost(plaza, "LaneEastLightB" .. laneIndex, Vector3.new(36, 0, laneZ + 12), Vector3.new(layout.SideOffset, 1, laneZ))
+		createLightPost(plaza, "LaneWestLightA" .. laneIndex, Vector3.new(-47, 0, laneZ - 24), Vector3.new(-layout.SideOffset, 1, laneZ))
+		createLightPost(plaza, "LaneWestLightB" .. laneIndex, Vector3.new(-47, 0, laneZ + 24), Vector3.new(-layout.SideOffset, 1, laneZ))
+		createLightPost(plaza, "LaneEastLightA" .. laneIndex, Vector3.new(47, 0, laneZ - 24), Vector3.new(layout.SideOffset, 1, laneZ))
+		createLightPost(plaza, "LaneEastLightB" .. laneIndex, Vector3.new(47, 0, laneZ + 24), Vector3.new(layout.SideOffset, 1, laneZ))
 	end
 
 	-- ── Player spawn ─────────────────────────────────────────────────
@@ -1488,10 +1544,12 @@ local function createFanZone(mapWidth, mapLength)
 	createWaypoint(waypointFolder, "Center", Vector3.new(0, 3.1, 0))
 	createWaypoint(waypointFolder, "WestLoop", Vector3.new(-16, 3.1, 0))
 	createWaypoint(waypointFolder, "EastLoop", Vector3.new(16, 3.1, 0))
-	-- Food stand stops: NPCs step off the central walkway toward the
-	-- kiosk on their lane side, look at it, pause, then return to route.
-	createWaypoint(waypointFolder, "FoodCenterWest", Vector3.new(-30, 3.1, 0))
-	createWaypoint(waypointFolder, "FoodCenterEast", Vector3.new(30, 3.1, 0))
+	-- Food stand stops: each one sits directly in front of a real stall so
+	-- fans queue at the counter instead of idling in the middle of the plaza.
+	createWaypoint(waypointFolder, "FoodPopcorn", Vector3.new(-29.5, 3.1, -12.3))
+	createWaypoint(waypointFolder, "FoodHotDogs", Vector3.new(29.5, 3.1, -12.3))
+	createWaypoint(waypointFolder, "FoodBurgers", Vector3.new(-29.5, 3.1, 12.3))
+	createWaypoint(waypointFolder, "FoodDrinks", Vector3.new(29.5, 3.1, 12.3))
 
 	startTurnstileAnimations()
 	return plaza

@@ -84,6 +84,7 @@ Constants.FanZone = {
 		Planter = 5477129144,
 		DirectionSign = 102532409227953,
 		TicketBooth = 3999244765,
+		WalkingNpc = 127964771902906,
 	},
 	FansPerVisibleNpc = 75000,
 	BaseStadiumCapacity = 4,
