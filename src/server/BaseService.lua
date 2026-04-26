@@ -274,7 +274,7 @@ local function prepareImportedModel(model)
 	end
 end
 
-local function tryCreateImportedFloodlight(parent, name, position, targetPosition)
+local function tryCreateImportedFloodlight(parent, name, position, targetPosition, targetHeight)
 	local assetId = fanZoneConfig.FloodlightAssetId
 	if type(assetId) ~= "number" or assetId <= 0 then
 		return nil
@@ -294,7 +294,7 @@ local function tryCreateImportedFloodlight(parent, name, position, targetPositio
 	prepareImportedModel(loaded)
 
 	local _, size = loaded:GetBoundingBox()
-	local scale = math.clamp(31 / math.max(size.Y, 0.1), 0.12, 4)
+	local scale = math.clamp((targetHeight or 31) / math.max(size.Y, 0.1), 0.12, 4)
 	pcall(function()
 		loaded:ScaleTo(scale)
 	end)
@@ -309,7 +309,8 @@ local function tryCreateImportedFloodlight(parent, name, position, targetPositio
 	return loaded
 end
 
-local function createFloodlightBeam(parent, name, position, targetPosition, poleHeight)
+local function createFloodlightBeam(parent, name, position, targetPosition, poleHeight, options)
+	options = options or {}
 	local anchorPosition = position + Vector3.new(0, poleHeight + 1.5, 0)
 	local anchor = make("Part", {
 		Name = name,
@@ -326,31 +327,32 @@ local function createFloodlightBeam(parent, name, position, targetPosition, pole
 		Name = "FloodBeam",
 		Face = Enum.NormalId.Front,
 		Color = Color3.fromRGB(255, 245, 218),
-		Range = 112,
-		Angle = 52,
-		Brightness = 1.85,
+		Range = options.range or 112,
+		Angle = options.angle or 52,
+		Brightness = options.brightness or 1.85,
 		Shadows = false,
 	}, anchor)
 
 	make("PointLight", {
 		Name = "FloodFill",
 		Color = Color3.fromRGB(255, 235, 190),
-		Range = 28,
-		Brightness = 0.18,
+		Range = options.fillRange or 28,
+		Brightness = options.fillBrightness or 0.18,
 		Shadows = false,
 	}, anchor)
 
 	return anchor
 end
 
-local function createFloodlightRig(parent, name, position, targetPosition)
+local function createFloodlightRig(parent, name, position, targetPosition, options)
+	options = options or {}
 	local model = make("Model", {
 		Name = name,
 	}, parent)
 
-	local poleHeight = 30
-	local imported = tryCreateImportedFloodlight(model, "ImportedFloodlight", position, targetPosition)
-	createFloodlightBeam(model, "LightAnchor", position, targetPosition, poleHeight)
+	local poleHeight = options.poleHeight or 30
+	local imported = tryCreateImportedFloodlight(model, "ImportedFloodlight", position, targetPosition, options.modelHeight or 31)
+	createFloodlightBeam(model, "LightAnchor", position, targetPosition, poleHeight, options)
 
 	if imported then
 		return model
@@ -1155,13 +1157,6 @@ local function createFanZone(mapWidth, mapLength)
 		createSoftFillLight(plaza, "EastLaneFill" .. laneIndex, Vector3.new(layout.SideOffset, 20, laneZ), 64, 0.18, Color3.fromRGB(235, 225, 195))
 	end
 
-	createFloodlightRig(plaza, "NorthWestFloodlight", Vector3.new(-54, 0, northZ - 22), Vector3.new(0, 2, 0))
-	createFloodlightRig(plaza, "NorthEastFloodlight", Vector3.new(54, 0, northZ - 22), Vector3.new(0, 2, 0))
-	createFloodlightRig(plaza, "SouthWestFloodlight", Vector3.new(-54, 0, southZ + 22), Vector3.new(0, 2, 0))
-	createFloodlightRig(plaza, "SouthEastFloodlight", Vector3.new(54, 0, southZ + 22), Vector3.new(0, 2, 0))
-	createFloodlightRig(plaza, "CenterWestFloodlight", Vector3.new(-72, 0, 0), Vector3.new(0, 2, 0))
-	createFloodlightRig(plaza, "CenterEastFloodlight", Vector3.new(72, 0, 0), Vector3.new(0, 2, 0))
-
 	for laneIndex = 1, layout.PlotsPerSide do
 		local laneZ = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
 		createLightPost(plaza, "LaneWestLightA" .. laneIndex, Vector3.new(-36, 0, laneZ - 12), Vector3.new(-layout.SideOffset, 1, laneZ))
@@ -1812,6 +1807,20 @@ local function createPlot(plotId, side, laneIndex, position)
 	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0, entranceWidth / 2 + 6), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightNorth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, -(layout.PlotSize.Z / 2 + 5)), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightSouth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, layout.PlotSize.Z / 2 + 5), packPad.Position + Vector3.new(0, 2, 0))
+	local stadiumFloodlightOptions = {
+		poleHeight = 27,
+		modelHeight = 29,
+		range = 68,
+		angle = 46,
+		brightness = 1.38,
+		fillRange = 18,
+		fillBrightness = 0.1,
+	}
+	local floodlightBackX = backEdgeX - (facingDirection * 15)
+	local floodlightSideZ = (layout.PlotSize.Z / 2) + 10
+	local floodlightTarget = position + Vector3.new(-facingDirection * 4, 3, 0)
+	createFloodlightRig(model, "StadiumFloodlightNorth", position + Vector3.new(floodlightBackX, 0, -floodlightSideZ), floodlightTarget, stadiumFloodlightOptions)
+	createFloodlightRig(model, "StadiumFloodlightSouth", position + Vector3.new(floodlightBackX, 0, floodlightSideZ), floodlightTarget, stadiumFloodlightOptions)
 	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 38, 0.22, Color3.fromRGB(255, 232, 184))
 	createSoftFillLight(model, "BackStandFill", position + Vector3.new(backEdgeX - (facingDirection * 6), 8, 0), 30, 0.17, Color3.fromRGB(225, 234, 255))
 	createSoftFillLight(model, "NorthStandFill", position + Vector3.new(0, 7, -(layout.PlotSize.Z / 2 + 7)), 25, 0.14, Color3.fromRGB(255, 226, 170))

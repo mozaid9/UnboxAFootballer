@@ -72,6 +72,14 @@ Constants.BaseLayout = {
 Constants.FanZone = {
 	CrowdNpcCount = 20,
 	FloodlightAssetId = 16893178499,
+	ModelAssets = {
+		SoccerPitchLines = 76319198813958,
+		StadiumSeats = 76307049854808,
+		GoalPost = 71337096414715,
+		Scoreboard = 132186518014609,
+		EntranceGate = 130179320229653,
+		CrowdBarrier = 9103648774,
+	},
 	FansPerVisibleNpc = 75000,
 	BaseStadiumCapacity = 4,
 	MaxStadiumVisitors = 8,
