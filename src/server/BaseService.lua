@@ -1261,9 +1261,9 @@ local function createFanZone(mapWidth, mapLength)
 		Name = "MainWalkwayLeftEdge",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(188, 154, 54),
-		Transparency = 0.18,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(210, 168, 52),
+		Transparency = 0.42,
 		Size = Vector3.new(0.28, 0.08, mapLength - 78),
 		CFrame = CFrame.new(-27, 0.38, 0),
 	}, plaza)
@@ -1271,9 +1271,9 @@ local function createFanZone(mapWidth, mapLength)
 		Name = "MainWalkwayRightEdge",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(188, 154, 54),
-		Transparency = 0.18,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(210, 168, 52),
+		Transparency = 0.42,
 		Size = Vector3.new(0.28, 0.08, mapLength - 78),
 		CFrame = CFrame.new(27, 0.38, 0),
 	}, plaza)
@@ -1293,9 +1293,9 @@ local function createFanZone(mapWidth, mapLength)
 			Name = "StadiumPathGuideA" .. laneIndex,
 			Anchored = true,
 			CanCollide = false,
-			Material = Enum.Material.SmoothPlastic,
-			Color = Color3.fromRGB(188, 154, 54),
-			Transparency = 0.22,
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(210, 168, 52),
+			Transparency = 0.50,
 			Size = Vector3.new((layout.SideOffset * 2) - 28, 0.07, 0.22),
 			CFrame = CFrame.new(0, 0.4, laneZ - 6.8),
 		}, plaza)
@@ -1303,12 +1303,55 @@ local function createFanZone(mapWidth, mapLength)
 			Name = "StadiumPathGuideB" .. laneIndex,
 			Anchored = true,
 			CanCollide = false,
-			Material = Enum.Material.SmoothPlastic,
-			Color = Color3.fromRGB(188, 154, 54),
-			Transparency = 0.22,
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(210, 168, 52),
+			Transparency = 0.50,
 			Size = Vector3.new((layout.SideOffset * 2) - 28, 0.07, 0.22),
 			CFrame = CFrame.new(0, 0.4, laneZ + 6.8),
 		}, plaza)
+	end
+
+	-- ── Pathway lighting ─────────────────────────────────────────────────────
+	-- Warm overhead lights every 56 studs along the main walkway
+	do
+		local LAMP_SPACING = 56
+		local lampZ = southZ + 28
+		while lampZ < northZ - 20 do
+			local anchor = make("Part", {
+				Name = "WalkwayLampAnchor",
+				Anchored = true, CanCollide = false,
+				Transparency = 1,
+				Size = Vector3.new(1, 1, 1),
+				CFrame = CFrame.new(0, 7.5, lampZ),
+			}, plaza)
+			make("PointLight", {
+				Color = Color3.fromRGB(255, 224, 160),
+				Range = 38,
+				Brightness = 0.42,
+				Shadows = false,
+			}, anchor)
+			lampZ = lampZ + LAMP_SPACING
+		end
+	end
+
+	-- Gold accent lights at each stadium lane crossing
+	for laneIndex = 1, layout.PlotsPerSide do
+		local laneZ = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
+		for _, xSide in ipairs({ -22, 22 }) do
+			local crossAnchor = make("Part", {
+				Name = "LaneCrossLamp",
+				Anchored = true, CanCollide = false,
+				Transparency = 1,
+				Size = Vector3.new(1, 1, 1),
+				CFrame = CFrame.new(xSide, 5.5, laneZ),
+			}, plaza)
+			make("PointLight", {
+				Color = Color3.fromRGB(255, 210, 80),
+				Range = 26,
+				Brightness = 0.32,
+				Shadows = false,
+			}, crossAnchor)
+		end
 	end
 
 	-- ── FAN ZONE deck: a clean centre area that separates the statue and
