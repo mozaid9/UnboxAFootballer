@@ -2077,9 +2077,9 @@ local function createPlot(plotId, side, laneIndex, position)
 		CFrame = baseCFrame,
 	}, model)
 
-	local borderTop = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, -layout.PlotSize.Z / 2))
+	local borderTop    = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, -layout.PlotSize.Z / 2))
 	local borderBottom = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, layout.PlotSize.Z / 2))
-	local backWall = createFence(model, Vector3.new(wallThickness, wallHeight, layout.PlotSize.Z + wallThickness), baseCFrame * CFrame.new(backEdgeX, wallY, 0))
+	local backWall     = createFence(model, Vector3.new(wallThickness, wallHeight, layout.PlotSize.Z + wallThickness), baseCFrame * CFrame.new(backEdgeX, wallY, 0))
 	local frontWallSegmentLength = math.max(8, (layout.PlotSize.Z - entranceWidth) / 2)
 	local frontWallZOffset = (entranceWidth / 2) + (frontWallSegmentLength / 2)
 	local frontWallNorth = createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, -frontWallZOffset))
@@ -2087,14 +2087,47 @@ local function createPlot(plotId, side, laneIndex, position)
 	local entrancePillarHeight = wallHeight + 5.6
 	local entrancePillarX = frontEdgeX + (facingDirection * ((entrancePillarWidth - wallThickness) / 2))
 	local entrancePillarNorth = createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, -(entranceWidth / 2)))
-	local entrancePillarSouth = createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, entranceWidth / 2))
-	_ = borderTop
-	_ = borderBottom
-	_ = backWall
-	_ = frontWallNorth
-	_ = frontWallSouth
-	_ = entrancePillarNorth
-	_ = entrancePillarSouth
+	local entrancePillarSouth = createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2,  (entranceWidth / 2)))
+
+	-- ── Neon gold trim along wall tops ──────────────────────────────────────────
+	local trimH = 0.22
+	local trimNeon = Color3.fromRGB(255, 210, 50)
+	local trimTransp = 0.18
+	for _, wall in ipairs({ borderTop, borderBottom, backWall, frontWallNorth, frontWallSouth }) do
+		local topY = wall.Position.Y + wall.Size.Y / 2 + trimH / 2
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = trimNeon,
+			Transparency = trimTransp,
+			Size = Vector3.new(wall.Size.X + 0.1, trimH, wall.Size.Z + 0.1),
+			CFrame = CFrame.new(wall.Position.X, topY, wall.Position.Z),
+		}, model)
+	end
+
+	-- ── Gold PointLights on pillar tops (atmospheric glow) ─────────────────────
+	local pillarTopY = entrancePillarHeight + layout.PlotSize.Y / 2 + 0.5
+	for _, pillarPart in ipairs({ entrancePillarNorth, entrancePillarSouth }) do
+		local anchor = make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Transparency = 1, Size = Vector3.new(1, 1, 1),
+			CFrame = CFrame.new(pillarPart.Position.X, pillarTopY, pillarPart.Position.Z),
+		}, model)
+		make("PointLight", {
+			Brightness = 1.6,
+			Range = 20,
+			Color = trimNeon,
+		}, anchor)
+		-- Neon gold cap on pillar top
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = trimNeon,
+			Transparency = 0.12,
+			Size = Vector3.new(entrancePillarWidth + 0.3, 0.35, wallThickness + 1.1),
+			CFrame = CFrame.new(pillarPart.Position.X, pillarTopY - 0.25, pillarPart.Position.Z),
+		}, model)
+	end
 
 	local standRise = 0.9
 	local standDepth = 4.8
@@ -2187,9 +2220,24 @@ local function createPlot(plotId, side, laneIndex, position)
 	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 3.1, 0)
 	local entranceBeam = createFence(
 		model,
-		Vector3.new(entrancePillarWidth + 1, 1.4, entranceWidth + 1.2),
-		baseCFrame * CFrame.new(frontEdgeX + (facingDirection * 0.9), entranceBeamY, 0)
+		Vector3.new(entrancePillarWidth + 1.6, 2.6, entranceWidth + 1.4),
+		baseCFrame * CFrame.new(frontEdgeX + (facingDirection * 0.9), entranceBeamY + 0.6, 0)
 	)
+	-- Neon gold strip along top and bottom of beam
+	local beamTopY  = entranceBeam.Position.Y + 2.6 / 2 + 0.14
+	local beamBotY  = entranceBeam.Position.Y - 2.6 / 2 - 0.14
+	local beamW     = entrancePillarWidth + 1.6 + 0.2
+	local beamD     = entranceWidth + 1.4 + 0.1
+	for _, trimY in ipairs({ beamTopY, beamBotY }) do
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(255, 210, 50),
+			Transparency = 0.15,
+			Size = Vector3.new(beamW, 0.28, beamD),
+			CFrame = CFrame.new(entranceBeam.Position.X, trimY, entranceBeam.Position.Z),
+		}, model)
+	end
 	_ = entranceBeam
 	-- ── Owner sign: 3-layer redesign ─────────────────────────────────────────────
 	local signW   = 16
@@ -2295,51 +2343,60 @@ local function createPlot(plotId, side, laneIndex, position)
 		Position = UDim2.fromOffset(0, 0),
 	}, ownerFrame)
 
-	-- "HOME CLUB" — small label, faded gold
+	-- HOME CLUB — tiny, faint, top of sign
 	local ownerTopLabel = createOwnerSignText("AVAILABLE PLOT",
-		UDim2.fromScale(0.7, 0.13),
-		UDim2.fromScale(0.15, 0.09),
-		Color3.fromRGB(255, 205, 80),
+		UDim2.fromScale(0.62, 0.10),
+		UDim2.fromScale(0.19, 0.08),
+		Color3.fromRGB(210, 170, 55),
 		{
 			textScaled = true,
-			minTextSize = 18,
-			maxTextSize = 44,
-			textStrokeTransparency = 0.88,
+			minTextSize = 12,
+			maxTextSize = 32,
+			textStrokeTransparency = 0.96,
 			font = Enum.Font.GothamBold,
 		}, ownerFrame)
 
-	-- Player name — largest, white
+	-- Thin divider below HOME CLUB label
+	make("Frame", {
+		BackgroundColor3 = goldCol,
+		BackgroundTransparency = 0.72,
+		BorderSizePixel = 0,
+		Size = UDim2.new(0.68, 0, 0, 1),
+		Position = UDim2.fromScale(0.16, 0.195),
+	}, ownerFrame)
+
+	-- Player name — medium weight, white
 	local ownerNameLabel = createOwnerSignText("OPEN",
-		UDim2.fromScale(0.92, 0.40),
-		UDim2.fromScale(0.04, 0.24),
+		UDim2.fromScale(0.92, 0.30),
+		UDim2.fromScale(0.04, 0.21),
 		Color3.fromRGB(255, 255, 255),
 		{
 			textScaled = true,
-			minTextSize = 56,
-			maxTextSize = 220,
-			textStrokeTransparency = 0.6,
+			minTextSize = 36,
+			maxTextSize = 160,
+			textStrokeTransparency = 0.68,
 			font = Enum.Font.GothamBlack,
 		}, ownerFrame)
 
-	-- Gold separator line
+	-- Bold gold separator
 	make("Frame", {
 		BackgroundColor3 = goldCol,
-		BackgroundTransparency = 0.25,
+		BackgroundTransparency = 0.18,
 		BorderSizePixel = 0,
-		Size = UDim2.new(0.55, 0, 0, 3),
-		Position = UDim2.fromScale(0.225, 0.665),
+		Size = UDim2.new(0.72, 0, 0, 4),
+		Position = UDim2.fromScale(0.14, 0.525),
 	}, ownerFrame)
 
-	-- "STADIUM" — bold gold subtitle
+	-- STADIUM — BIGGEST, boldest, bright gold with glow stroke
 	local ownerSubtitleLabel = createOwnerSignText("STADIUM",
-		UDim2.fromScale(0.8, 0.22),
-		UDim2.fromScale(0.10, 0.70),
-		goldCol,
+		UDim2.fromScale(0.96, 0.40),
+		UDim2.fromScale(0.02, 0.55),
+		Color3.fromRGB(255, 218, 55),
 		{
 			textScaled = true,
-			minTextSize = 32,
-			maxTextSize = 140,
-			textStrokeTransparency = 0.80,
+			minTextSize = 50,
+			maxTextSize = 230,
+			textStrokeTransparency = 0.42,
 			font = Enum.Font.GothamBlack,
 		}, ownerFrame)
 
@@ -2569,7 +2626,18 @@ local function createPlot(plotId, side, laneIndex, position)
 
 	local entranceLightX = frontEdgeX + (facingDirection * 8)
 	createLightPost(model, "EntranceLightNorth", position + Vector3.new(entranceLightX, 0, -(entranceWidth / 2 + 6)), packPad.Position + Vector3.new(0, 2, 0))
-	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0, entranceWidth / 2 + 6), packPad.Position + Vector3.new(0, 2, 0))
+	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0,  (entranceWidth / 2 + 6)), packPad.Position + Vector3.new(0, 2, 0))
+
+	-- Decorative side banners flanking the entrance
+	local bannerX = frontEdgeX + (facingDirection * 3.5)
+	createVerticalBanner(model, "BannerNorth",
+		position + Vector3.new(bannerX, 0, -(entranceWidth / 2 + 4.5)),
+		packPad.Position,
+		"FC")
+	createVerticalBanner(model, "BannerSouth",
+		position + Vector3.new(bannerX, 0,  (entranceWidth / 2 + 4.5)),
+		packPad.Position,
+		"FC")
 	createLightPost(model, "BackStandLightNorth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, -(layout.PlotSize.Z / 2 + 5)), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightSouth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, layout.PlotSize.Z / 2 + 5), packPad.Position + Vector3.new(0, 2, 0))
 	local stadiumFloodlightOptions = {
