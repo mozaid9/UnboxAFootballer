@@ -2077,55 +2077,66 @@ local function createPlot(plotId, side, laneIndex, position)
 		CFrame = baseCFrame,
 	}, model)
 
-	local borderTop    = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, -layout.PlotSize.Z / 2))
-	local borderBottom = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, layout.PlotSize.Z / 2))
-	local backWall     = createFence(model, Vector3.new(wallThickness, wallHeight, layout.PlotSize.Z + wallThickness), baseCFrame * CFrame.new(backEdgeX, wallY, 0))
+	createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, -layout.PlotSize.Z / 2))
+	createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY,  layout.PlotSize.Z / 2))
+	createFence(model, Vector3.new(wallThickness, wallHeight, layout.PlotSize.Z + wallThickness), baseCFrame * CFrame.new(backEdgeX, wallY, 0))
 	local frontWallSegmentLength = math.max(8, (layout.PlotSize.Z - entranceWidth) / 2)
 	local frontWallZOffset = (entranceWidth / 2) + (frontWallSegmentLength / 2)
-	local frontWallNorth = createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, -frontWallZOffset))
-	local frontWallSouth = createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, frontWallZOffset))
+	createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, -frontWallZOffset))
+	createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY,  frontWallZOffset))
 	local entrancePillarHeight = wallHeight + 5.6
 	local entrancePillarX = frontEdgeX + (facingDirection * ((entrancePillarWidth - wallThickness) / 2))
-	local entrancePillarNorth = createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, -(entranceWidth / 2)))
-	local entrancePillarSouth = createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2,  (entranceWidth / 2)))
+	createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, -(entranceWidth / 2)))
+	createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2,  (entranceWidth / 2)))
 
-	-- ── Neon gold trim along wall tops ──────────────────────────────────────────
-	local trimH = 0.22
+	-- ── Neon gold trim along wall tops (positions computed, no Part refs needed) ─
+	local trimH    = 0.22
 	local trimNeon = Color3.fromRGB(255, 210, 50)
 	local trimTransp = 0.18
-	for _, wall in ipairs({ borderTop, borderBottom, backWall, frontWallNorth, frontWallSouth }) do
-		local topY = wall.Position.Y + wall.Size.Y / 2 + trimH / 2
+	local wallTopLocalY = wallY + wallHeight / 2 + trimH / 2
+	local plotX  = layout.PlotSize.X
+	local plotZ  = layout.PlotSize.Z
+
+	-- Side walls
+	for _, zSign in ipairs({-1, 1}) do
 		make("Part", {
 			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Material = Enum.Material.Neon,
-			Color = trimNeon,
-			Transparency = trimTransp,
-			Size = Vector3.new(wall.Size.X + 0.1, trimH, wall.Size.Z + 0.1),
-			CFrame = CFrame.new(wall.Position.X, topY, wall.Position.Z),
+			Material = Enum.Material.Neon, Color = trimNeon, Transparency = trimTransp,
+			Size = Vector3.new(plotX + wallThickness + 0.1, trimH, wallThickness + 0.1),
+			CFrame = baseCFrame * CFrame.new(0, wallTopLocalY, zSign * plotZ / 2),
+		}, model)
+	end
+	-- Back wall
+	make("Part", {
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon, Color = trimNeon, Transparency = trimTransp,
+		Size = Vector3.new(wallThickness + 0.1, trimH, plotZ + wallThickness + 0.1),
+		CFrame = baseCFrame * CFrame.new(backEdgeX, wallTopLocalY, 0),
+	}, model)
+	-- Front wall segments
+	for _, zSign in ipairs({-1, 1}) do
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon, Color = trimNeon, Transparency = trimTransp,
+			Size = Vector3.new(wallThickness + 0.1, trimH, frontWallSegmentLength + 0.1),
+			CFrame = baseCFrame * CFrame.new(frontEdgeX, wallTopLocalY, zSign * frontWallZOffset),
 		}, model)
 	end
 
-	-- ── Gold PointLights on pillar tops (atmospheric glow) ─────────────────────
-	local pillarTopY = entrancePillarHeight + layout.PlotSize.Y / 2 + 0.5
-	for _, pillarPart in ipairs({ entrancePillarNorth, entrancePillarSouth }) do
+	-- ── Gold PointLights + Neon caps on entrance pillar tops ─────────────────────
+	local pillarCapLocalY = entrancePillarHeight + layout.PlotSize.Y / 2
+	for _, zSign in ipairs({-1, 1}) do
+		local capCF = baseCFrame * CFrame.new(entrancePillarX, pillarCapLocalY, zSign * (entranceWidth / 2))
 		local anchor = make("Part", {
 			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Transparency = 1, Size = Vector3.new(1, 1, 1),
-			CFrame = CFrame.new(pillarPart.Position.X, pillarTopY, pillarPart.Position.Z),
+			Transparency = 1, Size = Vector3.new(1, 1, 1), CFrame = capCF,
 		}, model)
-		make("PointLight", {
-			Brightness = 1.6,
-			Range = 20,
-			Color = trimNeon,
-		}, anchor)
-		-- Neon gold cap on pillar top
+		make("PointLight", { Brightness = 1.6, Range = 20, Color = trimNeon }, anchor)
 		make("Part", {
 			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Material = Enum.Material.Neon,
-			Color = trimNeon,
-			Transparency = 0.12,
+			Material = Enum.Material.Neon, Color = trimNeon, Transparency = 0.12,
 			Size = Vector3.new(entrancePillarWidth + 0.3, 0.35, wallThickness + 1.1),
-			CFrame = CFrame.new(pillarPart.Position.X, pillarTopY - 0.25, pillarPart.Position.Z),
+			CFrame = baseCFrame * CFrame.new(entrancePillarX, pillarCapLocalY - 0.18, zSign * (entranceWidth / 2)),
 		}, model)
 	end
 
@@ -2218,27 +2229,26 @@ local function createPlot(plotId, side, laneIndex, position)
 
 	local entranceBeamY = entrancePillarHeight + layout.PlotSize.Y / 2 - 0.6
 	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 3.1, 0)
-	local entranceBeam = createFence(
+	createFence(
 		model,
 		Vector3.new(entrancePillarWidth + 1.6, 2.6, entranceWidth + 1.4),
 		baseCFrame * CFrame.new(frontEdgeX + (facingDirection * 0.9), entranceBeamY + 0.6, 0)
 	)
-	-- Neon gold strip along top and bottom of beam
-	local beamTopY  = entranceBeam.Position.Y + 2.6 / 2 + 0.14
-	local beamBotY  = entranceBeam.Position.Y - 2.6 / 2 - 0.14
-	local beamW     = entrancePillarWidth + 1.6 + 0.2
-	local beamD     = entranceWidth + 1.4 + 0.1
-	for _, trimY in ipairs({ beamTopY, beamBotY }) do
+	-- Neon gold strips top and bottom of beam (positions computed from known values)
+	local beamLocalX   = frontEdgeX + (facingDirection * 0.9)
+	local beamCenterY  = entranceBeamY + 0.6
+	local beamW        = entrancePillarWidth + 1.6 + 0.2
+	local beamD        = entranceWidth + 1.4 + 0.1
+	for _, ySign in ipairs({1, -1}) do
 		make("Part", {
 			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
 			Material = Enum.Material.Neon,
 			Color = Color3.fromRGB(255, 210, 50),
 			Transparency = 0.15,
 			Size = Vector3.new(beamW, 0.28, beamD),
-			CFrame = CFrame.new(entranceBeam.Position.X, trimY, entranceBeam.Position.Z),
+			CFrame = baseCFrame * CFrame.new(beamLocalX, beamCenterY + ySign * (2.6 / 2 + 0.14), 0),
 		}, model)
 	end
-	_ = entranceBeam
 	-- ── Owner sign: 3-layer redesign ─────────────────────────────────────────────
 	local signW   = 16
 	local signH   = 4.6
