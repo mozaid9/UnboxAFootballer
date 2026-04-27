@@ -57,6 +57,9 @@
         "BaseUI": {
           "$path": "src/client/BaseUI.client.lua"
         },
+        "CardDisplayAnimator": {
+          "$path": "src/client/CardDisplayAnimator.client.lua"
+        },
         "CollectionUI": {
           "$path": "src/client/CollectionUI.client.lua"
         },
