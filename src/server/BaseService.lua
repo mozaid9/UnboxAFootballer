@@ -1811,22 +1811,28 @@ local function createDisplaySlot(parent, index, cframe, lookDirection)
 		CFrame = base.CFrame + Vector3.new(0, topY + 0.08, 0),
 	}, model)
 
-	-- Subtle slot number label on the front face
-	local numGui = make("SurfaceGui", {
+	-- Slot number — BillboardGui on the player-facing side so it's
+	-- always readable regardless of which row the slot is in.
+	local numGui = make("BillboardGui", {
 		Name = "SlotNum",
-		Face = Enum.NormalId.Front,
 		AlwaysOnTop = false,
-		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
-		PixelsPerStud = 30,
+		Size = UDim2.fromOffset(54, 38),
+		StudsOffset = Vector3.new(
+			lookDirection.X * (slotW / 2 + 0.2),
+			-slotH / 2 + 1.6,
+			lookDirection.Z * (slotD / 2 + 0.2)
+		),
 	}, base)
 	make("TextLabel", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = tostring(index),
 		TextColor3 = Color3.fromRGB(255, 210, 60),
-		TextTransparency = 0.36,
+		TextTransparency = 0.22,
 		TextScaled = true,
 		Font = Enum.Font.GothamBlack,
+		TextStrokeTransparency = 0.5,
+		TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
 	}, numGui)
 
 	local prompt = make("ProximityPrompt", {
@@ -2527,6 +2533,29 @@ function BaseService.UpdateDisplaySlot(slot, card, incomePerSecond)
 
 	createDisplayCardFace(Enum.NormalId.Front, card, incomePerSecond, cardPart)
 	createDisplayCardFace(Enum.NormalId.Back, card, incomePerSecond, cardPart)
+
+	-- Floating income label above the card
+	local income = incomePerSecond or 0
+	if income > 0 then
+		local incomeGui = make("BillboardGui", {
+			Name = "IncomeLabel",
+			AlwaysOnTop = false,
+			Size = UDim2.fromOffset(170, 36),
+			StudsOffset = Vector3.new(0, 5.8, 0),
+		}, cardPart)
+		local incomeLabel = make("TextLabel", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Text = "+" .. Utils.FormatNumber(income) .. " fans/s",
+			TextColor3 = Color3.fromRGB(255, 218, 60),
+			TextScaled = false,
+			TextSize = 20,
+			Font = Enum.Font.GothamBlack,
+			TextStrokeTransparency = 0.32,
+			TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
+		}, incomeGui)
+		_ = incomeLabel
+	end
 
 	slot.cardModel = cardModel
 	slot.model:SetAttribute("Occupied", true)

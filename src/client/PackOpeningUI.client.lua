@@ -201,7 +201,7 @@ make("UIListLayout", {
 local walletDock = make("Frame", {
 	Name = "WalletDock",
 	AnchorPoint = Vector2.new(1, 1),
-	Size = UDim2.fromOffset(232, 136),
+	Size = UDim2.fromOffset(232, 98),
 	Position = UDim2.new(1, -20, 1, -20),
 	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
 	BackgroundTransparency = 0.08,
@@ -287,57 +287,7 @@ local function createWalletRow(parent, order, labelText, iconText, iconColor)
 end
 
 local fansLabel, addFansButton = createWalletRow(walletDock, 1, "Fans", "F", UI.Gold)
-
--- ── Rebirth progress bar ─────────────────────────────────────────────────────
-local rebirthProgressFrame = make("Frame", {
-	LayoutOrder = 2,
-	Size = UDim2.new(1, 0, 0, 26),
-	BackgroundColor3 = UI.Panel,
-}, walletDock)
-addCorner(rebirthProgressFrame, 8)
-addStroke(rebirthProgressFrame, UI.Gold, 1, 0.82)
-
--- Track bar background
-local rebirthBarBack = make("Frame", {
-	AnchorPoint = Vector2.new(0, 0.5),
-	Position = UDim2.new(0, 8, 0.5, 0),
-	Size = UDim2.new(1, -16, 0, 6),
-	BackgroundColor3 = Color3.fromRGB(24, 30, 46),
-	BorderSizePixel = 0,
-}, rebirthProgressFrame)
-addCorner(rebirthBarBack, 3)
-
-local rebirthBarFill = make("Frame", {
-	Size = UDim2.new(0, 0, 1, 0),
-	BackgroundColor3 = UI.Gold,
-	BorderSizePixel = 0,
-}, rebirthBarBack)
-addCorner(rebirthBarFill, 3)
-
-make("UIGradient", {
-	Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, UI.Gold),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 140, 30)),
-	}),
-	Rotation = 0,
-}, rebirthBarFill)
-
-local rebirthHintLabel = make("TextLabel", {
-	BackgroundTransparency = 1,
-	Size = UDim2.fromScale(1, 1),
-	Text = "... to Rebirth",
-	TextColor3 = UI.Muted,
-	TextScaled = false,
-	TextSize = 9,
-	Font = Enum.Font.GothamMedium,
-	TextXAlignment = Enum.TextXAlignment.Right,
-}, rebirthProgressFrame)
-
-make("UIPadding", {
-	PaddingRight = UDim.new(0, 8),
-}, rebirthHintLabel)
-
-local gemsLabel, addGemsButton = createWalletRow(walletDock, 3, "Gems", "D", Color3.fromRGB(69, 207, 255))
+local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "D", Color3.fromRGB(69, 207, 255))
 
 local function createMenuButton(order, text, iconText, accentColor)
 	local frame = make("Frame", {
@@ -417,39 +367,8 @@ make("UIListLayout", {
 	Padding = UDim.new(0, 10),
 }, toastHolder)
 
-local cachedRebirthTier = 0
-
-local function getRebirthThreshold(tier)
-	local base = Constants.Rebirth and Constants.Rebirth.BaseFanRequirement or 1000000
-	local mult = Constants.Rebirth and Constants.Rebirth.FanRequirementMultiplier or 2
-	return math.floor(base * (mult ^ tier))
-end
-
-local function updateRebirthProgress(coins, tier)
-	coins = coins or 0
-	tier  = tier  or cachedRebirthTier
-	cachedRebirthTier = tier
-
-	local threshold = getRebirthThreshold(tier)
-	local ratio     = math.clamp(coins / threshold, 0, 1)
-	local remaining = math.max(0, threshold - coins)
-
-	TweenService:Create(rebirthBarFill, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
-		Size = UDim2.new(ratio, 0, 1, 0),
-	}):Play()
-
-	if ratio >= 1 then
-		rebirthHintLabel.Text = "Ready to Rebirth!"
-		rebirthHintLabel.TextColor3 = UI.Gold
-	else
-		rebirthHintLabel.Text = Utils.FormatNumber(remaining) .. " to Rebirth " .. (tier + 1)
-		rebirthHintLabel.TextColor3 = UI.Muted
-	end
-end
-
 local function setCoinsDisplay(coins)
 	fansLabel.Text = Utils.FormatNumber(coins or 0)
-	updateRebirthProgress(coins, cachedRebirthTier)
 end
 
 local function setGemsDisplay(gems)
@@ -523,10 +442,8 @@ local function refreshStatus()
 		return
 	end
 
-	cachedRebirthTier = data.rebirthTier or 0
 	setCoinsDisplay(data.coins)
 	setGemsDisplay(data.gems)
-	updateRebirthProgress(data.coins, cachedRebirthTier)
 end
 
 inventoryButton.MouseButton1Click:Connect(function()
