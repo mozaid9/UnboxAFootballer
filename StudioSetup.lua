@@ -6651,6 +6651,39 @@ make("UIListLayout", {
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, walletDock)
 
+local function drawWalletGemIcon(parent, accentColor)
+	local gem = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = accentColor,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(13, 13),
+		Rotation = 45,
+		Size = UDim2.fromOffset(16, 16),
+		ZIndex = 2,
+	}, parent)
+	addCorner(gem, 3)
+	addStroke(gem, Color3.fromRGB(169, 239, 255), 1, 0.05)
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(176, 246, 255)),
+			ColorSequenceKeypoint.new(0.5, accentColor),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 132, 219)),
+		}),
+		Rotation = 35,
+	}, gem)
+
+	make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = Color3.fromRGB(221, 255, 255),
+		BackgroundTransparency = 0.22,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(10, 8),
+		Rotation = 45,
+		Size = UDim2.fromOffset(7, 3),
+		ZIndex = 3,
+	}, parent)
+end
+
 local function createWalletRow(parent, order, labelText, iconText, iconColor)
 	local row = make("Frame", {
 		LayoutOrder = order,
@@ -6660,17 +6693,25 @@ local function createWalletRow(parent, order, labelText, iconText, iconColor)
 	addCorner(row, 10)
 	addStroke(row, iconColor, 1.5, 0.7)
 
-	local icon = make("TextLabel", {
+	local icon = make("Frame", {
 		Size = UDim2.fromOffset(26, 26),
 		Position = UDim2.new(0, 8, 0.5, -13),
 		BackgroundColor3 = iconColor:Lerp(Color3.fromRGB(0, 0, 0), 0.72),
-		Text = iconText,
-		TextColor3 = iconColor,
-		TextScaled = false,
-		TextSize = 17,
-		Font = Enum.Font.GothamBlack,
 	}, row)
 	addCorner(icon, 9)
+	if iconText == "Gem" then
+		drawWalletGemIcon(icon, iconColor)
+	else
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 1),
+			Text = iconText,
+			TextColor3 = iconColor,
+			TextScaled = false,
+			TextSize = 17,
+			Font = Enum.Font.GothamBlack,
+		}, icon)
+	end
 
 	make("TextLabel", {
 		BackgroundTransparency = 1,
@@ -6713,7 +6754,7 @@ local function createWalletRow(parent, order, labelText, iconText, iconColor)
 end
 
 local fansLabel, addFansButton = createWalletRow(walletDock, 1, "Fans", "F", UI.Gold)
-local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "D", Color3.fromRGB(69, 207, 255))
+local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "Gem", Color3.fromRGB(69, 207, 255))
 
 local function makeIconLine(parent, position, size, color, rotation)
 	return make("Frame", {
@@ -6759,16 +6800,15 @@ end
 local function drawUpgradeIcon(parent, accentColor)
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(5, 1),
-		Size = UDim2.fromOffset(32, 30),
-		Text = "▲",
+		Position = UDim2.fromOffset(4, -2),
+		Size = UDim2.fromOffset(34, 42),
+		Text = "↑",
 		TextColor3 = accentColor,
 		TextScaled = false,
-		TextSize = 26,
+		TextSize = 34,
 		Font = Enum.Font.GothamBlack,
 		ZIndex = 3,
 	}, parent)
-	makeIconLine(parent, UDim2.fromOffset(21, 29), UDim2.fromOffset(10, 15), accentColor)
 end
 
 local function drawQuestIcon(parent, accentColor)
@@ -6799,15 +6839,20 @@ local function drawQuestIcon(parent, accentColor)
 end
 
 local function drawShopIcon(parent, accentColor)
-	local basket = make("Frame", {
-		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(9, 14),
-		Size = UDim2.fromOffset(23, 15),
+	makeIconLine(parent, UDim2.fromOffset(10, 11), UDim2.fromOffset(14, 4), accentColor, 26)
+	makeIconLine(parent, UDim2.fromOffset(21, 18), UDim2.fromOffset(24, 5), accentColor)
+	makeIconLine(parent, UDim2.fromOffset(20, 28), UDim2.fromOffset(23, 5), accentColor)
+	makeIconLine(parent, UDim2.fromOffset(9, 23), UDim2.fromOffset(5, 15), accentColor)
+	makeIconLine(parent, UDim2.fromOffset(32, 23), UDim2.fromOffset(5, 15), accentColor)
+
+	make("Frame", {
+		BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0, 0, 0), 0.6),
+		BackgroundTransparency = 0.15,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(11, 19),
+		Size = UDim2.fromOffset(20, 8),
 		ZIndex = 2,
 	}, parent)
-	addStroke(basket, accentColor, 3, 0)
-	makeIconLine(parent, UDim2.fromOffset(12, 12), UDim2.fromOffset(15, 4), accentColor, 28)
-	makeIconLine(parent, UDim2.fromOffset(18, 31), UDim2.fromOffset(17, 3), accentColor)
 
 	for _, x in ipairs({ 14, 28 }) do
 		local wheel = make("Frame", {
