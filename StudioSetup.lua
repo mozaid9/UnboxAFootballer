@@ -6592,13 +6592,13 @@ end)
 local sidebar = make("Frame", {
 	Name = "Sidebar",
 	AnchorPoint = Vector2.new(0, 1),
-	Size = UDim2.fromOffset(178, 232),
+	Size = UDim2.fromOffset(190, 276),
 	Position = UDim2.new(0, 20, 1, -20),
-	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
-	BackgroundTransparency = 0.08,
+	BackgroundColor3 = Color3.fromRGB(5, 8, 15),
+	BackgroundTransparency = 0.18,
 }, screenGui)
 addCorner(sidebar, 16)
-addStroke(sidebar, UI.Gold, 1.5, 0.68)
+addStroke(sidebar, UI.Gold, 1.5, 0.48)
 
 make("UIGradient", {
 	Color = ColorSequence.new({
@@ -6609,27 +6609,18 @@ make("UIGradient", {
 }, sidebar)
 
 local sidebarPadding = make("UIPadding", {
-	PaddingTop = UDim.new(0, 10),
-	PaddingBottom = UDim.new(0, 10),
-	PaddingLeft = UDim.new(0, 9),
-	PaddingRight = UDim.new(0, 9),
+	PaddingTop = UDim.new(0, 12),
+	PaddingBottom = UDim.new(0, 12),
+	PaddingLeft = UDim.new(0, 10),
+	PaddingRight = UDim.new(0, 10),
 }, sidebar)
 _ = sidebarPadding
-
--- Thin separator above the menu buttons.
-make("Frame", {
-	LayoutOrder = 0,
-	Size = UDim2.new(1, 0, 0, 1),
-	BackgroundColor3 = UI.Gold,
-	BackgroundTransparency = 0.82,
-	BorderSizePixel = 0,
-}, sidebar)
 
 make("UIListLayout", {
 	FillDirection = Enum.FillDirection.Vertical,
 	HorizontalAlignment = Enum.HorizontalAlignment.Center,
 	VerticalAlignment = Enum.VerticalAlignment.Top,
-	Padding = UDim.new(0, 7),
+	Padding = UDim.new(0, 8),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, sidebar)
 
@@ -6725,41 +6716,52 @@ local fansLabel, addFansButton = createWalletRow(walletDock, 1, "Fans", "F", UI.
 local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "D", Color3.fromRGB(69, 207, 255))
 
 local function createMenuButton(order, text, iconText, accentColor)
+	local baseColor = accentColor:Lerp(Color3.fromRGB(5, 8, 16), 0.82)
+	local hoverColor = accentColor:Lerp(Color3.fromRGB(8, 12, 22), 0.68)
+	local labelColor = text == "Inventory" and UI.Text or accentColor
+
 	local frame = make("Frame", {
 		LayoutOrder = order,
-		Size = UDim2.new(1, 0, 0, 44),
-		BackgroundColor3 = UI.PanelAlt,
+		Size = UDim2.new(1, 0, 0, 54),
+		BackgroundColor3 = baseColor,
+		BackgroundTransparency = 0.02,
 	}, sidebar)
-	addCorner(frame, 11)
-	addStroke(frame, accentColor, 1.5, 0.72)
+	addCorner(frame, 12)
+	local frameStroke = addStroke(frame, accentColor, 1.5, 0.38)
 
-	-- Coloured icon badge (mirrors the wallet row pattern)
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 24, 42)),
+			ColorSequenceKeypoint.new(1, baseColor),
+		}),
+		Rotation = 0,
+	}, frame)
+
 	local iconBg = make("TextLabel", {
-		Size = UDim2.fromOffset(30, 30),
-		Position = UDim2.new(0, 8, 0.5, -15),
-		BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0, 0, 0), 0.68),
+		Size = UDim2.fromOffset(42, 42),
+		Position = UDim2.new(0, 7, 0.5, -21),
+		BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0, 0, 0), 0.52),
 		Text = iconText,
 		TextColor3 = accentColor,
 		TextScaled = false,
-		TextSize = 15,
+		TextSize = 23,
 		Font = Enum.Font.GothamBlack,
 	}, frame)
-	addCorner(iconBg, 9)
+	addCorner(iconBg, 11)
+	addStroke(iconBg, accentColor, 1, 0.72)
 
-	-- Button label
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 46, 0, 0),
-		Size = UDim2.new(1, -52, 1, 0),
-		Text = text,
-		TextColor3 = UI.Text,
+		Position = UDim2.new(0, 62, 0, 0),
+		Size = UDim2.new(1, -70, 1, 0),
+		Text = string.upper(text),
+		TextColor3 = labelColor,
 		TextScaled = false,
 		TextSize = 14,
 		Font = Enum.Font.GothamBlack,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	}, frame)
 
-	-- Invisible click layer on top
 	local button = make("TextButton", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
@@ -6767,33 +6769,38 @@ local function createMenuButton(order, text, iconText, accentColor)
 		ZIndex = 5,
 		AutoButtonColor = false,
 	}, frame)
-	addCorner(button, 11)
+	addCorner(button, 12)
 
-	-- Subtle hover highlight
 	button.MouseEnter:Connect(function()
 		TweenService:Create(frame, TweenInfo.new(0.1), {
-			BackgroundColor3 = accentColor:Lerp(UI.PanelAlt, 0.88),
+			BackgroundColor3 = hoverColor,
+		}):Play()
+		TweenService:Create(frameStroke, TweenInfo.new(0.1), {
+			Transparency = 0.16,
 		}):Play()
 	end)
 	button.MouseLeave:Connect(function()
 		TweenService:Create(frame, TweenInfo.new(0.1), {
-			BackgroundColor3 = UI.PanelAlt,
+			BackgroundColor3 = baseColor,
+		}):Play()
+		TweenService:Create(frameStroke, TweenInfo.new(0.1), {
+			Transparency = 0.38,
 		}):Play()
 	end)
 
 	return button
 end
 
-local inventoryButton = createMenuButton(1, "Inventory", "=",  Color3.fromRGB(100, 155, 255))
-local upgradesButton  = createMenuButton(2, "Upgrades",  "^",  UI.Gold)
-local questsButton    = createMenuButton(3, "Quests",    "*",  Color3.fromRGB(120, 140, 255))
-local shopButton      = createMenuButton(4, "Shop",      "$",  Color3.fromRGB(74, 185, 98))
+local inventoryButton = createMenuButton(1, "Inventory", "▣",  Color3.fromRGB(78, 170, 255))
+local upgradesButton  = createMenuButton(2, "Upgrades",  "▲",  UI.Gold)
+local questsButton    = createMenuButton(3, "Quests",    "◎",  Color3.fromRGB(205, 88, 255))
+local shopButton      = createMenuButton(4, "Shop",      "$",  Color3.fromRGB(85, 226, 112))
 
 -- ── Sidebar collapse tab ──────────────────────────────────────────────────────
 local SIDEBAR_OPEN_POS = UDim2.new(0, 20, 1, -20)
-local SIDEBAR_CLOSED_POS = UDim2.new(0, -196, 1, -20)
-local TAB_OPEN_POS = UDim2.new(0, 206, 1, -136)
-local TAB_CLOSED_POS = UDim2.new(0, 10, 1, -136)
+local SIDEBAR_CLOSED_POS = UDim2.new(0, -208, 1, -20)
+local TAB_OPEN_POS = UDim2.new(0, 218, 1, -158)
+local TAB_CLOSED_POS = UDim2.new(0, 10, 1, -158)
 local SLIDE_INFO = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 local sidebarIsOpen = true
 
