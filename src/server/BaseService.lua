@@ -2084,21 +2084,21 @@ local function createPlot(plotId, side, laneIndex, position)
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(6, 9, 16),
-		Size = Vector3.new(15.5, 7.0, 0.5),
+		Size = Vector3.new(17, 8.5, 0.5),
 		CFrame = CFrame.lookAt(milestoneSignPosition, milestoneSignPosition + centerDirection),
 	}, model)
 
 	-- Neon glow light so the board is visible across the plaza
 	make("PointLight", {
 		Color = Color3.fromRGB(255, 215, 0),
-		Range = 18,
+		Range = 20,
 		Brightness = 0.55,
 		Shadows = false,
 	}, milestoneSign)
 
 	local milestoneGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
-		PixelsPerStud = 80,
+		PixelsPerStud = 90,
 		LightInfluence = 0,
 	}, milestoneSign)
 
@@ -2127,64 +2127,72 @@ local function createPlot(plotId, side, laneIndex, position)
 	make("UICorner", { CornerRadius = UDim.new(0, 10) }, topStrip)
 	_ = topStrip
 
-	-- "PACK MILESTONES" header
-	local milestoneTitleLabel = createOwnerSignText("\u{2605} PACK MILESTONES", UDim2.fromScale(0.9, 0.14), UDim2.fromScale(0.05, 0.06), Color3.fromRGB(255, 215, 0), {
+	-- Layout (fractions of board height = 1.0):
+	--   0.03 – 0.14  header title
+	--   0.14 – 0.50  large packs counter
+	--   0.52         divider
+	--   0.54 – 0.63  "NEXT REWARD:" label
+	--   0.63 – 0.78  reward text
+	--   0.80 – 0.93  progress bar
+
+	-- "★ PACK MILESTONES" header
+	local milestoneTitleLabel = createOwnerSignText("\u{2605} PACK MILESTONES", UDim2.fromScale(0.90, 0.11), UDim2.fromScale(0.05, 0.03), Color3.fromRGB(255, 215, 0), {
 		textScaled = true,
 		minTextSize = 14,
-		maxTextSize = 38,
+		maxTextSize = 36,
 		textStrokeTransparency = 0.65,
 		font = Enum.Font.GothamBlack,
 	}, milestoneFrame)
 	_ = milestoneTitleLabel
 
-	-- Large packs-opened counter — most prominent element
-	local milestonePacksLabel = createOwnerSignText("0 PACKS OPENED", UDim2.fromScale(0.92, 0.28), UDim2.fromScale(0.04, 0.22), Color3.fromRGB(255, 245, 220), {
+	-- Large packs-opened counter
+	local milestonePacksLabel = createOwnerSignText("0 PACKS OPENED", UDim2.fromScale(0.92, 0.34), UDim2.fromScale(0.04, 0.14), Color3.fromRGB(255, 245, 220), {
 		textScaled = true,
 		minTextSize = 22,
-		maxTextSize = 72,
-		textStrokeTransparency = 0.60,
+		maxTextSize = 80,
+		textStrokeTransparency = 0.58,
 		font = Enum.Font.GothamBlack,
 	}, milestoneFrame)
 
-	-- Thin divider line between counter and next-milestone row
+	-- Divider
 	make("Frame", {
 		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
-		BackgroundTransparency = 0.55,
+		BackgroundTransparency = 0.50,
 		BorderSizePixel = 0,
-		Size = UDim2.new(0.82, 0, 0, 2),
-		Position = UDim2.fromScale(0.09, 0.535),
+		Size = UDim2.new(0.84, 0, 0, 2),
+		Position = UDim2.fromScale(0.08, 0.52),
 	}, milestoneFrame)
 
-	-- "NEXT:" label — smaller, muted
-	createOwnerSignText("NEXT REWARD", UDim2.fromScale(0.88, 0.10), UDim2.fromScale(0.06, 0.56), Color3.fromRGB(170, 165, 148), {
+	-- "NEXT REWARD:" — small muted label
+	createOwnerSignText("NEXT REWARD:", UDim2.fromScale(0.88, 0.09), UDim2.fromScale(0.06, 0.54), Color3.fromRGB(170, 165, 148), {
 		textScaled = true,
 		minTextSize = 10,
-		maxTextSize = 24,
+		maxTextSize = 22,
 		textStrokeTransparency = 0.88,
 		font = Enum.Font.GothamBold,
 	}, milestoneFrame)
 
-	-- Reward name — prominent gold text
-	local milestoneNextLabel = createOwnerSignText("50 PACKS \u{2192} RARE PACK", UDim2.fromScale(0.88, 0.14), UDim2.fromScale(0.06, 0.64), Color3.fromRGB(255, 210, 80), {
+	-- Reward name — prominent gold, starts clearly below the label above
+	local milestoneNextLabel = createOwnerSignText("50 PACKS \u{2192} RARE PACK", UDim2.fromScale(0.88, 0.15), UDim2.fromScale(0.06, 0.63), Color3.fromRGB(255, 210, 80), {
 		textScaled = true,
 		minTextSize = 12,
-		maxTextSize = 36,
-		textStrokeTransparency = 0.68,
+		maxTextSize = 38,
+		textStrokeTransparency = 0.65,
 		font = Enum.Font.GothamBlack,
 	}, milestoneFrame)
 
-	-- Progress bar — taller, more visible
+	-- Progress bar track
 	local milestoneBarBack = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(28, 34, 50),
+		BackgroundColor3 = Color3.fromRGB(22, 28, 44),
 		BorderSizePixel = 0,
-		Size = UDim2.fromScale(0.84, 0.095),
-		Position = UDim2.fromScale(0.08, 0.83),
+		Size = UDim2.fromScale(0.84, 0.082),
+		Position = UDim2.fromScale(0.08, 0.81),
 	}, milestoneFrame)
 	make("UICorner", { CornerRadius = UDim.new(1, 0) }, milestoneBarBack)
 	make("UIStroke", {
 		Color = Color3.fromRGB(255, 215, 0),
 		Thickness = 2,
-		Transparency = 0.55,
+		Transparency = 0.50,
 	}, milestoneBarBack)
 
 	local milestoneBarFill = make("Frame", {
@@ -2194,12 +2202,12 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, milestoneBarBack)
 	make("UICorner", { CornerRadius = UDim.new(1, 0) }, milestoneBarFill)
 
-	-- Inner shimmer layer on the fill to give it depth
+	-- Shimmer highlight on bar fill
 	make("Frame", {
 		BackgroundColor3 = Color3.fromRGB(255, 255, 200),
-		BackgroundTransparency = 0.55,
+		BackgroundTransparency = 0.52,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0.4, 0),
+		Size = UDim2.new(1, 0, 0.38, 0),
 		Position = UDim2.fromScale(0, 0),
 	}, milestoneBarFill)
 
@@ -2484,8 +2492,14 @@ function BaseService.UpdatePackMilestone(plot, totalPacks)
 
 	totalPacks = math.max(0, totalPacks or 0)
 	local milestone = getNextPackMilestone(totalPacks)
+	local prevAt    = milestone.nextAt - milestone.interval
 	plot.milestonePacksLabel.Text = Utils.FormatNumber(totalPacks) .. " PACKS OPENED"
-	plot.milestoneNextLabel.Text = string.format("%d PACKS \u{2192} %s", milestone.nextAt, string.upper(milestone.reward))
+	plot.milestoneNextLabel.Text = string.format(
+		"%d / %d PACKS \u{2192} %s",
+		totalPacks - prevAt,
+		milestone.interval,
+		string.upper(milestone.reward)
+	)
 	plot.milestoneBarFill.Size = UDim2.fromScale(milestone.progress, 1)
 end
 
