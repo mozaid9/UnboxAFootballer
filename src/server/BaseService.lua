@@ -824,25 +824,68 @@ local function createVerticalBanner(parent, name, position, lookTarget, title)
 		Name = name,
 	}, parent)
 
+	local bannerGold = Color3.fromRGB(255, 210, 50)
+	local bannerW    = 4.8
+	local bannerH    = 8.5
+	local stripW     = 0.28
+
+	-- Metal pole with gold cap
 	make("Part", {
 		Name = "Post",
-		Anchored = true,
-		CanCollide = true,
+		Anchored = true, CanCollide = true,
 		Material = Enum.Material.Metal,
 		Color = Color3.fromRGB(24, 30, 42),
 		Size = Vector3.new(0.55, 10, 0.55),
 		CFrame = CFrame.new(position + Vector3.new(0, 5, 0)),
 	}, model)
+	make("Part", {
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon, Color = bannerGold, Transparency = 0.12,
+		Size = Vector3.new(0.72, 0.4, 0.72),
+		CFrame = CFrame.new(position + Vector3.new(0, 10.2, 0)),
+	}, model)
 
+	local bannerCF = CFrame.lookAt(position + Vector3.new(0, 6.2, 0), lookTarget)
+
+	-- Main banner panel
 	local banner = make("Part", {
 		Name = "Banner",
-		Anchored = true,
-		CanCollide = false,
+		Anchored = true, CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(8, 12, 20),
-		Size = Vector3.new(4.8, 8.5, 0.35),
-		CFrame = CFrame.lookAt(position + Vector3.new(0, 6.2, 0), lookTarget),
+		Color = Color3.fromRGB(8, 11, 20),
+		Size = Vector3.new(bannerW, bannerH, 0.35),
+		CFrame = bannerCF,
 	}, model)
+
+	-- Neon gold left + right edge strips
+	for _, xSign in ipairs({ -1, 1 }) do
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon, Color = bannerGold, Transparency = 0.10,
+			Size = Vector3.new(stripW, bannerH + stripW * 2, 0.38),
+			CFrame = bannerCF * CFrame.new(xSign * (bannerW / 2 + stripW / 2), 0, 0),
+		}, model)
+	end
+	-- Neon gold top strip
+	make("Part", {
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon, Color = bannerGold, Transparency = 0.10,
+		Size = Vector3.new(bannerW + stripW * 2, stripW, 0.38),
+		CFrame = bannerCF * CFrame.new(0, bannerH / 2 + stripW / 2, 0),
+	}, model)
+	-- Neon gold bottom strip
+	make("Part", {
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon, Color = bannerGold, Transparency = 0.10,
+		Size = Vector3.new(bannerW + stripW * 2, stripW, 0.38),
+		CFrame = bannerCF * CFrame.new(0, -(bannerH / 2 + stripW / 2), 0),
+	}, model)
+
+	-- Warm glow from banner face
+	make("PointLight", {
+		Brightness = 0.7, Range = 10, Color = bannerGold,
+	}, banner)
+
 	createSurfaceText(banner, title, "FOOTBALLER")
 
 	return model
@@ -2092,7 +2135,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	-- ── Neon gold trim along wall tops (positions computed, no Part refs needed) ─
 	local trimH    = 0.22
 	local trimNeon = Color3.fromRGB(255, 210, 50)
-	local trimTransp = 0.18
+	local trimTransp = 0.38
 	local wallTopLocalY = wallY + wallHeight / 2 + trimH / 2
 	local plotX  = layout.PlotSize.X
 	local plotZ  = layout.PlotSize.Z
@@ -2228,7 +2271,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, model)
 
 	local entranceBeamY = entrancePillarHeight + layout.PlotSize.Y / 2 - 0.6
-	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 3.1, 0)
+	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 5.0, 0)
 	createFence(
 		model,
 		Vector3.new(entrancePillarWidth + 1.6, 2.6, entranceWidth + 1.4),
