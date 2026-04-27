@@ -181,7 +181,7 @@ local sidebarPadding = make("UIPadding", {
 }, sidebar)
 _ = sidebarPadding
 
--- Thin separator below header spacing
+-- Thin separator above the menu buttons.
 make("Frame", {
 	LayoutOrder = 0,
 	Size = UDim2.new(1, 0, 0, 1),
@@ -353,6 +353,58 @@ local inventoryButton = createMenuButton(1, "Inventory", "=",  Color3.fromRGB(10
 local upgradesButton  = createMenuButton(2, "Upgrades",  "^",  UI.Gold)
 local questsButton    = createMenuButton(3, "Quests",    "*",  Color3.fromRGB(120, 140, 255))
 local shopButton      = createMenuButton(4, "Shop",      "$",  Color3.fromRGB(74, 185, 98))
+
+-- ── Sidebar collapse tab ──────────────────────────────────────────────────────
+local SIDEBAR_OPEN_POS = UDim2.new(0, 20, 1, -20)
+local SIDEBAR_CLOSED_POS = UDim2.new(0, -196, 1, -20)
+local TAB_OPEN_POS = UDim2.new(0, 206, 1, -136)
+local TAB_CLOSED_POS = UDim2.new(0, 10, 1, -136)
+local SLIDE_INFO = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local sidebarIsOpen = true
+
+local collapseTab = make("TextButton", {
+	Name = "SidebarToggle",
+	AnchorPoint = Vector2.new(0, 0.5),
+	Position = TAB_OPEN_POS,
+	Size = UDim2.fromOffset(34, 48),
+	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+	BackgroundTransparency = 0.08,
+	Text = "<",
+	TextColor3 = UI.Gold,
+	TextScaled = false,
+	TextSize = 18,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = false,
+	ZIndex = 10,
+}, screenGui)
+addCorner(collapseTab, 12)
+addStroke(collapseTab, UI.Gold, 1.5, 0.68)
+
+collapseTab.MouseEnter:Connect(function()
+	TweenService:Create(collapseTab, TweenInfo.new(0.1), {
+		BackgroundColor3 = UI.Gold:Lerp(Color3.fromRGB(8, 12, 22), 0.85),
+	}):Play()
+end)
+collapseTab.MouseLeave:Connect(function()
+	TweenService:Create(collapseTab, TweenInfo.new(0.1), {
+		BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+	}):Play()
+end)
+
+local function setSidebarOpen(open)
+	sidebarIsOpen = open
+	collapseTab.Text = open and "<" or ">"
+	TweenService:Create(sidebar, SLIDE_INFO, {
+		Position = open and SIDEBAR_OPEN_POS or SIDEBAR_CLOSED_POS,
+	}):Play()
+	TweenService:Create(collapseTab, SLIDE_INFO, {
+		Position = open and TAB_OPEN_POS or TAB_CLOSED_POS,
+	}):Play()
+end
+
+collapseTab.MouseButton1Click:Connect(function()
+	setSidebarOpen(not sidebarIsOpen)
+end)
 
 local toastHolder = make("Frame", {
 	BackgroundTransparency = 1,

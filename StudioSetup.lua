@@ -6592,29 +6592,38 @@ end)
 local sidebar = make("Frame", {
 	Name = "Sidebar",
 	AnchorPoint = Vector2.new(0, 1),
-	Size = UDim2.fromOffset(168, 188),
+	Size = UDim2.fromOffset(178, 232),
 	Position = UDim2.new(0, 20, 1, -20),
 	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
-	BackgroundTransparency = 0.12,
+	BackgroundTransparency = 0.08,
 }, screenGui)
 addCorner(sidebar, 16)
-addStroke(sidebar, UI.Gold, 1.25, 0.72)
+addStroke(sidebar, UI.Gold, 1.5, 0.68)
 
 make("UIGradient", {
 	Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(16, 22, 38)),
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(16, 22, 40)),
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(7, 10, 18)),
 	}),
-	Rotation = 90,
+	Rotation = 110,
 }, sidebar)
 
 local sidebarPadding = make("UIPadding", {
-	PaddingTop = UDim.new(0, 8),
-	PaddingBottom = UDim.new(0, 8),
-	PaddingLeft = UDim.new(0, 8),
-	PaddingRight = UDim.new(0, 8),
+	PaddingTop = UDim.new(0, 10),
+	PaddingBottom = UDim.new(0, 10),
+	PaddingLeft = UDim.new(0, 9),
+	PaddingRight = UDim.new(0, 9),
 }, sidebar)
 _ = sidebarPadding
+
+-- Thin separator above the menu buttons.
+make("Frame", {
+	LayoutOrder = 0,
+	Size = UDim2.new(1, 0, 0, 1),
+	BackgroundColor3 = UI.Gold,
+	BackgroundTransparency = 0.82,
+	BorderSizePixel = 0,
+}, sidebar)
 
 make("UIListLayout", {
 	FillDirection = Enum.FillDirection.Vertical,
@@ -6627,13 +6636,13 @@ make("UIListLayout", {
 local walletDock = make("Frame", {
 	Name = "WalletDock",
 	AnchorPoint = Vector2.new(1, 1),
-	Size = UDim2.fromOffset(218, 98),
+	Size = UDim2.fromOffset(232, 98),
 	Position = UDim2.new(1, -20, 1, -20),
 	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
-	BackgroundTransparency = 0.1,
+	BackgroundTransparency = 0.08,
 }, screenGui)
 addCorner(walletDock, 16)
-addStroke(walletDock, UI.Gold, 1.25, 0.72)
+addStroke(walletDock, UI.Gold, 1.5, 0.68)
 
 local walletPadding = make("UIPadding", {
 	PaddingTop = UDim.new(0, 8),
@@ -6715,26 +6724,122 @@ end
 local fansLabel, addFansButton = createWalletRow(walletDock, 1, "Fans", "F", UI.Gold)
 local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "D", Color3.fromRGB(69, 207, 255))
 
-local function createMenuButton(order, text, accentColor)
-	local button = make("TextButton", {
+local function createMenuButton(order, text, iconText, accentColor)
+	local frame = make("Frame", {
 		LayoutOrder = order,
-		Size = UDim2.new(1, 0, 0, 36),
-		BackgroundColor3 = accentColor,
-		Text = text,
-		TextColor3 = accentColor == UI.Gold and Color3.fromRGB(20, 14, 8) or UI.Text,
+		Size = UDim2.new(1, 0, 0, 44),
+		BackgroundColor3 = UI.PanelAlt,
+	}, sidebar)
+	addCorner(frame, 11)
+	addStroke(frame, accentColor, 1.5, 0.72)
+
+	-- Coloured icon badge (mirrors the wallet row pattern)
+	local iconBg = make("TextLabel", {
+		Size = UDim2.fromOffset(30, 30),
+		Position = UDim2.new(0, 8, 0.5, -15),
+		BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0, 0, 0), 0.68),
+		Text = iconText,
+		TextColor3 = accentColor,
 		TextScaled = false,
 		TextSize = 15,
 		Font = Enum.Font.GothamBlack,
-		AutoButtonColor = true,
-	}, sidebar)
-	addCorner(button, 9)
+	}, frame)
+	addCorner(iconBg, 9)
+
+	-- Button label
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 46, 0, 0),
+		Size = UDim2.new(1, -52, 1, 0),
+		Text = text,
+		TextColor3 = UI.Text,
+		TextScaled = false,
+		TextSize = 14,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, frame)
+
+	-- Invisible click layer on top
+	local button = make("TextButton", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = "",
+		ZIndex = 5,
+		AutoButtonColor = false,
+	}, frame)
+	addCorner(button, 11)
+
+	-- Subtle hover highlight
+	button.MouseEnter:Connect(function()
+		TweenService:Create(frame, TweenInfo.new(0.1), {
+			BackgroundColor3 = accentColor:Lerp(UI.PanelAlt, 0.88),
+		}):Play()
+	end)
+	button.MouseLeave:Connect(function()
+		TweenService:Create(frame, TweenInfo.new(0.1), {
+			BackgroundColor3 = UI.PanelAlt,
+		}):Play()
+	end)
+
 	return button
 end
 
-local inventoryButton = createMenuButton(1, "Inventory", UI.PanelAlt)
-local upgradesButton = createMenuButton(2, "Upgrades", UI.Gold)
-local questsButton = createMenuButton(3, "Quests", Color3.fromRGB(42, 54, 126))
-local shopButton = createMenuButton(4, "Shop", Color3.fromRGB(25, 118, 55))
+local inventoryButton = createMenuButton(1, "Inventory", "=",  Color3.fromRGB(100, 155, 255))
+local upgradesButton  = createMenuButton(2, "Upgrades",  "^",  UI.Gold)
+local questsButton    = createMenuButton(3, "Quests",    "*",  Color3.fromRGB(120, 140, 255))
+local shopButton      = createMenuButton(4, "Shop",      "$",  Color3.fromRGB(74, 185, 98))
+
+-- ── Sidebar collapse tab ──────────────────────────────────────────────────────
+local SIDEBAR_OPEN_POS = UDim2.new(0, 20, 1, -20)
+local SIDEBAR_CLOSED_POS = UDim2.new(0, -196, 1, -20)
+local TAB_OPEN_POS = UDim2.new(0, 206, 1, -136)
+local TAB_CLOSED_POS = UDim2.new(0, 10, 1, -136)
+local SLIDE_INFO = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local sidebarIsOpen = true
+
+local collapseTab = make("TextButton", {
+	Name = "SidebarToggle",
+	AnchorPoint = Vector2.new(0, 0.5),
+	Position = TAB_OPEN_POS,
+	Size = UDim2.fromOffset(34, 48),
+	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+	BackgroundTransparency = 0.08,
+	Text = "<",
+	TextColor3 = UI.Gold,
+	TextScaled = false,
+	TextSize = 18,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = false,
+	ZIndex = 10,
+}, screenGui)
+addCorner(collapseTab, 12)
+addStroke(collapseTab, UI.Gold, 1.5, 0.68)
+
+collapseTab.MouseEnter:Connect(function()
+	TweenService:Create(collapseTab, TweenInfo.new(0.1), {
+		BackgroundColor3 = UI.Gold:Lerp(Color3.fromRGB(8, 12, 22), 0.85),
+	}):Play()
+end)
+collapseTab.MouseLeave:Connect(function()
+	TweenService:Create(collapseTab, TweenInfo.new(0.1), {
+		BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+	}):Play()
+end)
+
+local function setSidebarOpen(open)
+	sidebarIsOpen = open
+	collapseTab.Text = open and "<" or ">"
+	TweenService:Create(sidebar, SLIDE_INFO, {
+		Position = open and SIDEBAR_OPEN_POS or SIDEBAR_CLOSED_POS,
+	}):Play()
+	TweenService:Create(collapseTab, SLIDE_INFO, {
+		Position = open and TAB_OPEN_POS or TAB_CLOSED_POS,
+	}):Play()
+end
+
+collapseTab.MouseButton1Click:Connect(function()
+	setSidebarOpen(not sidebarIsOpen)
+end)
 
 local toastHolder = make("Frame", {
 	BackgroundTransparency = 1,
@@ -6894,6 +6999,153 @@ local function getWorldScreenTarget(worldPosition, fallback)
 	return UDim2.fromOffset(screenPoint.X, screenPoint.Y)
 end
 
+-- ── Rare pull screen effect ───────────────────────────────────────────────────
+-- Talisman  = tier 1 : coloured flash only
+-- Maestro   = tier 2 : flash + rarity burst label + cinematic black bars
+-- Immortal / POTY = tier 3 : flash + burst + bars + brief camera shake
+-- Returns the number of seconds the caller should wait before showing the card.
+local REVEAL_TIERS = {
+	["Talisman"]           = 1,
+	["Maestro"]            = 2,
+	["Immortal"]           = 3,
+	["Player of the Year"] = 3,
+}
+
+local function playRevealEffect(rarity)
+	local tier = REVEAL_TIERS[rarity] or 0
+	if tier == 0 then
+		return 0
+	end
+
+	local style = Utils.GetRarityStyle(rarity)
+	local flashColor = style.glow or style.primary
+
+	-- Flash overlay ────────────────────────────────────────────────────────────
+	local startTransp = tier == 1 and 0.52 or (tier == 2 and 0.32 or 0.16)
+	local flash = make("Frame", {
+		AnchorPoint    = Vector2.new(0.5, 0.5),
+		Position       = UDim2.fromScale(0.5, 0.5),
+		Size           = UDim2.fromScale(1, 1),
+		BackgroundColor3 = flashColor,
+		BackgroundTransparency = startTransp,
+		BorderSizePixel = 0,
+		ZIndex         = 188,
+	}, screenGui)
+
+	local holdTime = tier == 1 and 0.12 or (tier == 2 and 0.22 or 0.32)
+	local fadeTime = tier == 1 and 0.32 or (tier == 2 and 0.52 or 0.68)
+	task.delay(holdTime, function()
+		if flash.Parent then
+			TweenService:Create(flash, TweenInfo.new(fadeTime), {
+				BackgroundTransparency = 1,
+			}):Play()
+			task.delay(fadeTime + 0.05, function()
+				if flash.Parent then flash:Destroy() end
+			end)
+		end
+	end)
+
+	-- Rarity name burst (tier 2+) ──────────────────────────────────────────────
+	if tier >= 2 then
+		local burstLabel = make("TextLabel", {
+			AnchorPoint    = Vector2.new(0.5, 0.5),
+			Position       = UDim2.fromScale(0.5, 0.43),
+			Size           = UDim2.fromOffset(480, 72),
+			BackgroundTransparency = 1,
+			Text           = string.upper(style.label or rarity),
+			TextColor3     = style.primary,
+			TextTransparency = 0,
+			TextScaled     = true,
+			Font           = Enum.Font.GothamBlack,
+			ZIndex         = 193,
+		}, screenGui)
+		addStroke(burstLabel, Color3.fromRGB(0, 0, 0), 2, 0.05)
+
+		local burstScale = make("UIScale", { Scale = 0.25 }, burstLabel)
+		TweenService:Create(
+			burstScale,
+			TweenInfo.new(0.40, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{ Scale = 1 }
+		):Play()
+		-- Fade out after the pop-in settles
+		TweenService:Create(
+			burstLabel,
+			TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut, 0, false, 0.55),
+			{ TextTransparency = 1 }
+		):Play()
+		task.delay(1.05, function()
+			if burstLabel.Parent then burstLabel:Destroy() end
+		end)
+	end
+
+	-- Cinematic black bars (tier 2+) ───────────────────────────────────────────
+	local topBar, bottomBar
+	if tier >= 2 then
+		local BAR_H = 76
+		topBar = make("Frame", {
+			AnchorPoint    = Vector2.new(0, 0),
+			Position       = UDim2.new(0, 0, 0, -BAR_H),   -- starts off-screen top
+			Size           = UDim2.new(1, 0, 0, BAR_H),
+			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+			BorderSizePixel = 0,
+			ZIndex         = 186,
+		}, screenGui)
+		bottomBar = make("Frame", {
+			AnchorPoint    = Vector2.new(0, 1),
+			Position       = UDim2.new(0, 0, 1, BAR_H),    -- starts off-screen bottom
+			Size           = UDim2.new(1, 0, 0, BAR_H),
+			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+			BorderSizePixel = 0,
+			ZIndex         = 186,
+		}, screenGui)
+
+		local slideIn = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		TweenService:Create(topBar,    slideIn, { Position = UDim2.new(0, 0, 0, 0)       }):Play()
+		TweenService:Create(bottomBar, slideIn, { Position = UDim2.new(0, 0, 1, -BAR_H)  }):Play()
+
+		-- Slide bars back out once the card reveal is done (~2.4–2.8 s from now)
+		local barLifetime = tier == 2 and 2.4 or 2.8
+		task.delay(barLifetime, function()
+			local slideOut = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			if topBar.Parent    then TweenService:Create(topBar,    slideOut, { Position = UDim2.new(0, 0, 0, -BAR_H) }):Play() end
+			if bottomBar.Parent then TweenService:Create(bottomBar, slideOut, { Position = UDim2.new(0, 0, 1,  BAR_H) }):Play() end
+			task.delay(0.40, function()
+				if topBar.Parent    then topBar:Destroy()    end
+				if bottomBar.Parent then bottomBar:Destroy() end
+			end)
+		end)
+	end
+
+	-- Camera shake (tier 3 only) ───────────────────────────────────────────────
+	if tier >= 3 then
+		task.spawn(function()
+			local camera = Workspace.CurrentCamera
+			if not camera then return end
+			local prevType = camera.CameraType
+			local prevCF   = camera.CFrame
+			camera.CameraType = Enum.CameraType.Scriptable
+			local frames = 10
+			for i = 1, frames do
+				task.wait(0.032)
+				if not camera or not camera.Parent then break end
+				local intensity = 0.28 * (1 - (i - 1) / frames)
+				camera.CFrame = prevCF * CFrame.new(
+					(math.random() - 0.5) * 2 * intensity,
+					(math.random() - 0.5) * 2 * intensity,
+					0
+				)
+			end
+			if camera and camera.Parent then
+				camera.CFrame   = prevCF
+				camera.CameraType = prevType
+			end
+		end)
+	end
+
+	-- Pre-delay before the card panel pops in
+	return tier == 1 and 0.12 or (tier == 2 and 0.30 or 0.38)
+end
+
 -- ── Compact card reveal ───────────────────────────────────────────────────────
 -- Appears near the pack, shows player info briefly, then flies toward the
 -- destination slot (or inventory corner).  No full-screen overlay — keeps the
@@ -6902,6 +7154,13 @@ local function showCardReveal(payload)
 	local card = payload.card
 	if not card then
 		return
+	end
+
+	-- Play dramatic screen effect for Talisman+ cards; yields briefly so the
+	-- flash and bars land before the card panel pops in on top of them.
+	local revealPreDelay = playRevealEffect(card.rarity)
+	if revealPreDelay > 0 then
+		task.wait(revealPreDelay)
 	end
 
 	local style = Utils.GetRarityStyle(card.rarity)
