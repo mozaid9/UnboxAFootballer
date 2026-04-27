@@ -2034,12 +2034,6 @@ local function createPlot(plotId, side, laneIndex, position)
 		baseCFrame * CFrame.new(0, 2.1, -(layout.PlotSize.Z / 2) - 10.4)
 	)
 
-	-- Load stadium seat models onto the three stand sides
-	task.spawn(function()
-		tryAddStadiumSeats(model, baseCFrame, facingDirection,
-			fanZoneConfig.ModelAssets and fanZoneConfig.ModelAssets.StadiumSeats)
-	end)
-
 	createFootballPitchDetails(model, baseCFrame)
 
 	local packPad = make("Part", {
@@ -2431,12 +2425,17 @@ local function createPlot(plotId, side, laneIndex, position)
 	createSoftFillLight(model, "NorthStandFill", position + Vector3.new(0, 7, -(layout.PlotSize.Z / 2 + 7)), 25, 0.14, Color3.fromRGB(255, 226, 170))
 	createSoftFillLight(model, "SouthStandFill", position + Vector3.new(0, 7, layout.PlotSize.Z / 2 + 7), 25, 0.14, Color3.fromRGB(255, 226, 170))
 
+	-- Folder for visuals that change per rebirth tier (seats, lighting, etc.)
+	local stadiumExtrasFolder = make("Folder", { Name = "StadiumExtras" }, model)
+
 	local plot = {
 		id = plotId,
 		side = side,
 		laneIndex = laneIndex,
 		model = model,
+		baseCFrame = baseCFrame,
 		facingDirection = facingDirection,
+		stadiumExtrasFolder = stadiumExtrasFolder,
 		floor = floor,
 		packPad = packPad,
 		spawnPad = spawnPad,
@@ -2463,6 +2462,34 @@ local function createPlot(plotId, side, laneIndex, position)
 	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
 
 	return plot
+end
+
+-- Called when a player is assigned a plot or completes a rebirth.
+-- Rebuilds the stadium extras folder to match the given rebirth tier.
+--   Tier 0: plain concrete stands (nothing extra)
+--   Tier 1+: stadium seat model loaded on all three stand sides
+function BaseService.UpdateStadiumTier(plot, tier)
+	if not plot or not plot.stadiumExtrasFolder then return end
+	tier = tier or 0
+
+	-- Clear whatever was there before
+	for _, child in ipairs(plot.stadiumExtrasFolder:GetChildren()) do
+		child:Destroy()
+	end
+
+	if tier >= 1 then
+		task.spawn(function()
+			tryAddStadiumSeats(
+				plot.stadiumExtrasFolder,
+				plot.baseCFrame,
+				plot.facingDirection,
+				fanZoneConfig.ModelAssets and fanZoneConfig.ModelAssets.StadiumSeats
+			)
+		end)
+	end
+
+	-- Tier 2+ visual upgrades can be added here later
+	-- (e.g. coloured glow strips, scoreboard animations, extra lighting)
 end
 
 function BaseService.BuildBaseMap()
@@ -2532,7 +2559,7 @@ function BaseService.GetPlots()
 	return plots
 end
 
-function BaseService.AssignPlot(player)
+function BaseService.AssignPlot(player, rebirthTier)
 	if assignedPlots[player] then
 		return assignedPlots[player]
 	end
@@ -2552,6 +2579,7 @@ function BaseService.AssignPlot(player)
 			if plot.spawnLocation then
 				player.RespawnLocation = plot.spawnLocation
 			end
+			BaseService.UpdateStadiumTier(plot, rebirthTier or 0)
 			return plot
 		end
 	end

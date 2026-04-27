@@ -963,7 +963,7 @@ local function handlePlayerAdded(player)
 	initializedPlayers[player] = true
 
 	local data = DataService.LoadPlayer(player)
-	local plot = BaseService.AssignPlot(player)
+	local plot = BaseService.AssignPlot(player, data.rebirthTier or 0)
 	EconomyService.EnsureStarterCoins(player)
 	EconomyService.TryGrantDailyReward(player)
 	ensurePitchfork(player)
@@ -1423,6 +1423,8 @@ RequestRebirthFn.OnServerInvoke = function(player)
 		BaseService.ClearPlotDisplays(plot)
 		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
 		refreshPlotDisplayState(player, plot)
+		local newTier = DataService.GetData(player) and DataService.GetData(player).rebirthTier or 0
+		BaseService.UpdateStadiumTier(plot, newTier)
 	end
 
 	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
