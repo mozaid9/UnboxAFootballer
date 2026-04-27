@@ -231,6 +231,97 @@ local function createGlowStrip(parent, name, size, cframe, color, transparency)
 	}, parent)
 end
 
+local function createGroundDisk(parent, name, position, diameter, height, color, material, transparency)
+	make("Part", {
+		Name = name,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Shape = Enum.PartType.Cylinder,
+		Material = material or Enum.Material.SmoothPlastic,
+		Color = color,
+		Transparency = transparency or 0,
+		Size = Vector3.new(height, diameter, diameter),
+		CFrame = CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90)),
+	}, parent)
+end
+
+local function createFloatingHubLabel(parent, position, title, subtitle)
+	local anchor = make("Part", {
+		Name = "FloatingHubLabelAnchor",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(1, 1, 1),
+		CFrame = CFrame.new(position),
+	}, parent)
+
+	local gui = make("BillboardGui", {
+		Name = "FloatingHubLabel",
+		AlwaysOnTop = false,
+		Size = UDim2.fromOffset(320, 96),
+		StudsOffset = Vector3.zero,
+		MaxDistance = 230,
+	}, anchor)
+
+	local frame = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(7, 10, 18),
+		BackgroundTransparency = 0.18,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+	}, gui)
+	make("UICorner", { CornerRadius = UDim.new(0, 18) }, frame)
+	make("UIStroke", {
+		Color = Color3.fromRGB(255, 215, 0),
+		Thickness = 2,
+		Transparency = 0.16,
+	}, frame)
+
+	local titleLabel = createSignLabel(title, UDim2.fromScale(0.92, 0.54), UDim2.fromScale(0.04, 0.08), Color3.fromRGB(255, 215, 0), frame)
+	titleLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	titleLabel.TextStrokeTransparency = 0.45
+	local subtitleLabel = createSignLabel(subtitle, UDim2.fromScale(0.88, 0.24), UDim2.fromScale(0.06, 0.64), Color3.fromRGB(235, 229, 210), frame)
+	subtitleLabel.Font = Enum.Font.GothamBold
+
+	return anchor
+end
+
+local function createParticleAnchor(parent, name, position, rate, colorSequence, texture, sizeSequence)
+	local anchor = make("Part", {
+		Name = name,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(1, 1, 1),
+		CFrame = CFrame.new(position),
+	}, parent)
+
+	make("ParticleEmitter", {
+		Name = "Particles",
+		Texture = texture,
+		Color = colorSequence,
+		LightEmission = 0.65,
+		Rate = rate,
+		Lifetime = NumberRange.new(1.4, 2.6),
+		Speed = NumberRange.new(1.4, 3.0),
+		SpreadAngle = Vector2.new(180, 180),
+		Size = sizeSequence,
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.2),
+			NumberSequenceKeypoint.new(0.72, 0.42),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+		Acceleration = Vector3.new(0, 1.2, 0),
+	}, anchor)
+
+	return anchor
+end
+
 local function createPitchLine(parent, name, size, cframe, transparency)
 	make("Part", {
 		Name = name,
