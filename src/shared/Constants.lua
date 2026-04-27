@@ -148,8 +148,8 @@ Constants.Rebirth = {
 Constants.Pitchfork = {
 	BaseDamage = 1,
 	SwingCooldown = 0.42,
-	HitRange = 12,
-	HitFacingDot = 0.5,
+	HitRange = 18,       -- studs; close but not painfully strict
+	HitFacingDot = 0.35, -- ~70° cone; needs to face pack but not perfectly
 }
 
 -- ── Upgrade specs ─────────────────────────────────────────────

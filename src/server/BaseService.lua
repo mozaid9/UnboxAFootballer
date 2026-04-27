@@ -2063,7 +2063,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	local wallThickness = layout.WallThickness or 1.2
 	local entranceWidth = layout.EntranceWidth or 16
 	local entrancePillarWidth = layout.EntrancePillarWidth or 2.2
-	local padInfoMaxDistance = layout.PadInfoMaxDistance or 38
+	local padInfoMaxDistance = layout.PadInfoMaxDistance or 22
 	local wallY = wallHeight / 2 + layout.PlotSize.Y / 2
 	local frontEdgeX = facingDirection * (layout.PlotSize.X / 2)
 	local backEdgeX = -frontEdgeX
@@ -2780,6 +2780,7 @@ function BaseService.UpdateDisplaySlot(slot, card, incomePerSecond)
 			AlwaysOnTop = false,
 			Size = UDim2.fromOffset(170, 36),
 			StudsOffset = Vector3.new(0, 5.8, 0),
+			MaxDistance = 28,
 		}, cardPart)
 		local incomeLabel = make("TextLabel", {
 			Size = UDim2.fromScale(1, 1),
