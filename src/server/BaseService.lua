@@ -2191,82 +2191,157 @@ local function createPlot(plotId, side, laneIndex, position)
 		baseCFrame * CFrame.new(frontEdgeX + (facingDirection * 0.9), entranceBeamY, 0)
 	)
 	_ = entranceBeam
+	-- ── Owner sign: 3-layer redesign ─────────────────────────────────────────────
+	local signW   = 16
+	local signH   = 4.6
+	local signCF  = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection)
+	local goldCol = Color3.fromRGB(255, 210, 50)
+
+	-- Layer 1 — back plate (dark, larger, 0.35 studs behind)
+	make("Part", {
+		Name = "SignBackPlate",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(5, 8, 16),
+		Size = Vector3.new(signW + 1.6, signH + 1.0, 0.5),
+		CFrame = signCF * CFrame.new(0, 0, 0.38),
+	}, model)
+
+	-- Layer 2 — main sign panel
 	local ownerSign = make("Part", {
 		Name = "OwnerSign",
 		Anchored = true,
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(24, 30, 42),
-		Size = Vector3.new(16, 4.4, 0.6),
-		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
+		Color = Color3.fromRGB(9, 13, 24),
+		Size = Vector3.new(signW, signH, 0.32),
+		CFrame = signCF,
 	}, model)
 
+	-- Layer 3 — Neon gold border strips (always visible even when SurfaceGui is off)
+	local stripT = 0.32
+	local stripD = 0.36
+	for _, cfg in ipairs({
+		-- top
+		{ Vector3.new(signW + stripT * 2, stripT, stripD), signCF * CFrame.new(0,  signH / 2 + stripT / 2, 0) },
+		-- bottom
+		{ Vector3.new(signW + stripT * 2, stripT, stripD), signCF * CFrame.new(0, -(signH / 2 + stripT / 2), 0) },
+		-- left
+		{ Vector3.new(stripT, signH, stripD), signCF * CFrame.new(-(signW / 2 + stripT / 2), 0, 0) },
+		-- right
+		{ Vector3.new(stripT, signH, stripD), signCF * CFrame.new( signW / 2 + stripT / 2, 0, 0) },
+	}) do
+		make("Part", {
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = goldCol,
+			Transparency = 0.08,
+			Size = cfg[1],
+			CFrame = cfg[2],
+		}, model)
+	end
 
+	-- SurfaceLight: illuminates the entrance area below the sign
+	make("SurfaceLight", {
+		Face = Enum.NormalId.Front,
+		Brightness = 2.2,
+		Range = 16,
+		Color = Color3.fromRGB(255, 238, 195),
+		Angle = 65,
+	}, ownerSign)
+
+	-- PointLight above sign for atmosphere
+	make("PointLight", {
+		Brightness = 0.9,
+		Range = 18,
+		Color = goldCol,
+	}, ownerSign)
+
+	-- ── SurfaceGui content ────────────────────────────────────────────────────
 	local ownerGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
 		PixelsPerStud = 160,
 		LightInfluence = 0,
+		ClipsDescendants = true,
 	}, ownerSign)
 
 	local ownerFrame = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(10, 14, 24),
-		BackgroundTransparency = 0.06,
+		BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+		BackgroundTransparency = 0,
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(1, 1),
 	}, ownerGui)
 
 	make("UIGradient", {
 		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(9, 14, 24)),
-			ColorSequenceKeypoint.new(0.55, Color3.fromRGB(13, 20, 34)),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 12, 20)),
+			ColorSequenceKeypoint.new(0,    Color3.fromRGB(14, 20, 38)),
+			ColorSequenceKeypoint.new(0.45, Color3.fromRGB(9,  13, 24)),
+			ColorSequenceKeypoint.new(1,    Color3.fromRGB(6,  9,  18)),
 		}),
-		Rotation = 90,
+		Rotation = 100,
 	}, ownerFrame)
 
-	make("UIStroke", {
-		Color = Color3.fromRGB(255, 215, 0),
-		Thickness = 3,
-	}, ownerFrame)
-
+	-- Thin gold accent bar across the top
 	make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
+		BackgroundColor3 = goldCol,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 16),
+		Size = UDim2.new(1, 0, 0, 10),
 		Position = UDim2.fromOffset(0, 0),
 	}, ownerFrame)
 
-	local ownerTopLabel = createOwnerSignText("AVAILABLE PLOT", UDim2.fromScale(0.7, 0.12), UDim2.fromScale(0.15, 0.08), Color3.fromRGB(255, 223, 120), {
-		textScaled = true,
-		minTextSize = 24,
-		maxTextSize = 58,
-		textStrokeTransparency = 0.9,
-		font = Enum.Font.GothamBlack,
-	}, ownerFrame)
+	-- "HOME CLUB" — small label, faded gold
+	local ownerTopLabel = createOwnerSignText("AVAILABLE PLOT",
+		UDim2.fromScale(0.7, 0.13),
+		UDim2.fromScale(0.15, 0.09),
+		Color3.fromRGB(255, 205, 80),
+		{
+			textScaled = true,
+			minTextSize = 18,
+			maxTextSize = 44,
+			textStrokeTransparency = 0.88,
+			font = Enum.Font.GothamBold,
+		}, ownerFrame)
 
-	local ownerNameLabel = createOwnerSignText("OPEN", UDim2.fromScale(0.86, 0.3), UDim2.fromScale(0.07, 0.25), Color3.fromRGB(245, 238, 220), {
-		textScaled = true,
-		minTextSize = 64,
-		maxTextSize = 240,
-		textStrokeTransparency = 0.72,
-		font = Enum.Font.GothamBlack,
-	}, ownerFrame)
+	-- Player name — largest, white
+	local ownerNameLabel = createOwnerSignText("OPEN",
+		UDim2.fromScale(0.92, 0.40),
+		UDim2.fromScale(0.04, 0.24),
+		Color3.fromRGB(255, 255, 255),
+		{
+			textScaled = true,
+			minTextSize = 56,
+			maxTextSize = 220,
+			textStrokeTransparency = 0.6,
+			font = Enum.Font.GothamBlack,
+		}, ownerFrame)
 
+	-- Gold separator line
 	make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
-		BackgroundTransparency = 0.12,
+		BackgroundColor3 = goldCol,
+		BackgroundTransparency = 0.25,
 		BorderSizePixel = 0,
-		Size = UDim2.fromScale(0.58, 0.014),
-		Position = UDim2.fromScale(0.21, 0.58),
+		Size = UDim2.new(0.55, 0, 0, 3),
+		Position = UDim2.fromScale(0.225, 0.665),
 	}, ownerFrame)
 
-	local ownerSubtitleLabel = createOwnerSignText("STADIUM", UDim2.fromScale(0.76, 0.2), UDim2.fromScale(0.12, 0.64), Color3.fromRGB(214, 206, 184), {
-		textScaled = true,
-		minTextSize = 44,
-		maxTextSize = 160,
-		textStrokeTransparency = 0.84,
-		font = Enum.Font.GothamBlack,
-	}, ownerFrame)
+	-- "STADIUM" — bold gold subtitle
+	local ownerSubtitleLabel = createOwnerSignText("STADIUM",
+		UDim2.fromScale(0.8, 0.22),
+		UDim2.fromScale(0.10, 0.70),
+		goldCol,
+		{
+			textScaled = true,
+			minTextSize = 32,
+			maxTextSize = 140,
+			textStrokeTransparency = 0.80,
+			font = Enum.Font.GothamBlack,
+		}, ownerFrame)
 
 	local milestoneSignPosition = position
 		+ Vector3.new(backEdgeX - (facingDirection * 5), 11, 0)
