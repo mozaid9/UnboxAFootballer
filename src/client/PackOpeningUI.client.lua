@@ -280,7 +280,126 @@ end
 local fansLabel, addFansButton = createWalletRow(walletDock, 1, "Fans", "F", UI.Gold)
 local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "D", Color3.fromRGB(69, 207, 255))
 
-local function createMenuButton(order, text, iconText, accentColor)
+local function makeIconLine(parent, position, size, color, rotation)
+	return make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = color,
+		BorderSizePixel = 0,
+		Position = position,
+		Rotation = rotation or 0,
+		Size = size,
+	}, parent)
+end
+
+local function drawInventoryIcon(parent, accentColor)
+	for index, props in ipairs({
+		{ x = 17, y = 22, rot = -12, alpha = 0.25 },
+		{ x = 22, y = 20, rot = 5, alpha = 0.08 },
+		{ x = 26, y = 21, rot = 12, alpha = 0 },
+	}) do
+		local card = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(255, 255, 255), props.alpha),
+			BorderSizePixel = 0,
+			Position = UDim2.fromOffset(props.x, props.y),
+			Rotation = props.rot,
+			Size = UDim2.fromOffset(15, 22),
+			ZIndex = 2 + index,
+		}, parent)
+		addCorner(card, 3)
+		addStroke(card, accentColor:Lerp(Color3.fromRGB(255, 255, 255), 0.15), 1, 0.18)
+
+		make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundColor3 = Color3.fromRGB(5, 14, 28),
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.58, 0.52),
+			Rotation = 45,
+			Size = UDim2.fromOffset(5, 5),
+			ZIndex = 4 + index,
+		}, card)
+	end
+end
+
+local function drawUpgradeIcon(parent, accentColor)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(5, 1),
+		Size = UDim2.fromOffset(32, 30),
+		Text = "▲",
+		TextColor3 = accentColor,
+		TextScaled = false,
+		TextSize = 26,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 3,
+	}, parent)
+	makeIconLine(parent, UDim2.fromOffset(21, 29), UDim2.fromOffset(10, 15), accentColor)
+end
+
+local function drawQuestIcon(parent, accentColor)
+	for _, diameter in ipairs({ 28, 18, 8 }) do
+		local ring = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(19, 23),
+			Size = UDim2.fromOffset(diameter, diameter),
+			ZIndex = 2,
+		}, parent)
+		addCorner(ring, diameter / 2)
+		addStroke(ring, accentColor, 2, diameter == 8 and 0 or 0.15)
+	end
+
+	makeIconLine(parent, UDim2.fromOffset(29, 13), UDim2.fromOffset(4, 20), accentColor, 42)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(24, 2),
+		Size = UDim2.fromOffset(18, 18),
+		Text = "✦",
+		TextColor3 = accentColor,
+		TextScaled = false,
+		TextSize = 14,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 4,
+	}, parent)
+end
+
+local function drawShopIcon(parent, accentColor)
+	local basket = make("Frame", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(9, 14),
+		Size = UDim2.fromOffset(23, 15),
+		ZIndex = 2,
+	}, parent)
+	addStroke(basket, accentColor, 3, 0)
+	makeIconLine(parent, UDim2.fromOffset(12, 12), UDim2.fromOffset(15, 4), accentColor, 28)
+	makeIconLine(parent, UDim2.fromOffset(18, 31), UDim2.fromOffset(17, 3), accentColor)
+
+	for _, x in ipairs({ 14, 28 }) do
+		local wheel = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundColor3 = accentColor,
+			BorderSizePixel = 0,
+			Position = UDim2.fromOffset(x, 35),
+			Size = UDim2.fromOffset(7, 7),
+			ZIndex = 3,
+		}, parent)
+		addCorner(wheel, 4)
+	end
+end
+
+local function drawMenuIcon(parent, iconKind, accentColor)
+	if iconKind == "inventory" then
+		drawInventoryIcon(parent, accentColor)
+	elseif iconKind == "upgrades" then
+		drawUpgradeIcon(parent, accentColor)
+	elseif iconKind == "quests" then
+		drawQuestIcon(parent, accentColor)
+	elseif iconKind == "shop" then
+		drawShopIcon(parent, accentColor)
+	end
+end
+
+local function createMenuButton(order, text, iconKind, accentColor)
 	local baseColor = accentColor:Lerp(Color3.fromRGB(5, 8, 16), 0.82)
 	local hoverColor = accentColor:Lerp(Color3.fromRGB(8, 12, 22), 0.68)
 	local labelColor = text == "Inventory" and UI.Text or accentColor
@@ -302,18 +421,15 @@ local function createMenuButton(order, text, iconText, accentColor)
 		Rotation = 0,
 	}, frame)
 
-	local iconBg = make("TextLabel", {
+	local iconBg = make("Frame", {
 		Size = UDim2.fromOffset(42, 42),
 		Position = UDim2.new(0, 7, 0.5, -21),
 		BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0, 0, 0), 0.52),
-		Text = iconText,
-		TextColor3 = accentColor,
-		TextScaled = false,
-		TextSize = 23,
-		Font = Enum.Font.GothamBlack,
+		ClipsDescendants = false,
 	}, frame)
 	addCorner(iconBg, 11)
 	addStroke(iconBg, accentColor, 1, 0.72)
+	drawMenuIcon(iconBg, iconKind, accentColor)
 
 	make("TextLabel", {
 		BackgroundTransparency = 1,
@@ -356,10 +472,10 @@ local function createMenuButton(order, text, iconText, accentColor)
 	return button
 end
 
-local inventoryButton = createMenuButton(1, "Inventory", "▣",  Color3.fromRGB(78, 170, 255))
-local upgradesButton  = createMenuButton(2, "Upgrades",  "▲",  UI.Gold)
-local questsButton    = createMenuButton(3, "Quests",    "◎",  Color3.fromRGB(205, 88, 255))
-local shopButton      = createMenuButton(4, "Shop",      "$",  Color3.fromRGB(85, 226, 112))
+local inventoryButton = createMenuButton(1, "Inventory", "inventory", Color3.fromRGB(78, 170, 255))
+local upgradesButton  = createMenuButton(2, "Upgrades",  "upgrades",  UI.Gold)
+local questsButton    = createMenuButton(3, "Quests",    "quests",    Color3.fromRGB(205, 88, 255))
+local shopButton      = createMenuButton(4, "Shop",      "shop",      Color3.fromRGB(85, 226, 112))
 
 -- ── Sidebar collapse tab ──────────────────────────────────────────────────────
 local SIDEBAR_OPEN_POS = UDim2.new(0, 20, 1, -20)
