@@ -459,6 +459,153 @@ local function getWorldScreenTarget(worldPosition, fallback)
 	return UDim2.fromOffset(screenPoint.X, screenPoint.Y)
 end
 
+-- ── Rare pull screen effect ───────────────────────────────────────────────────
+-- Talisman  = tier 1 : coloured flash only
+-- Maestro   = tier 2 : flash + rarity burst label + cinematic black bars
+-- Immortal / POTY = tier 3 : flash + burst + bars + brief camera shake
+-- Returns the number of seconds the caller should wait before showing the card.
+local REVEAL_TIERS = {
+	["Talisman"]           = 1,
+	["Maestro"]            = 2,
+	["Immortal"]           = 3,
+	["Player of the Year"] = 3,
+}
+
+local function playRevealEffect(rarity)
+	local tier = REVEAL_TIERS[rarity] or 0
+	if tier == 0 then
+		return 0
+	end
+
+	local style = Utils.GetRarityStyle(rarity)
+	local flashColor = style.glow or style.primary
+
+	-- Flash overlay ────────────────────────────────────────────────────────────
+	local startTransp = tier == 1 and 0.52 or (tier == 2 and 0.32 or 0.16)
+	local flash = make("Frame", {
+		AnchorPoint    = Vector2.new(0.5, 0.5),
+		Position       = UDim2.fromScale(0.5, 0.5),
+		Size           = UDim2.fromScale(1, 1),
+		BackgroundColor3 = flashColor,
+		BackgroundTransparency = startTransp,
+		BorderSizePixel = 0,
+		ZIndex         = 188,
+	}, screenGui)
+
+	local holdTime = tier == 1 and 0.12 or (tier == 2 and 0.22 or 0.32)
+	local fadeTime = tier == 1 and 0.32 or (tier == 2 and 0.52 or 0.68)
+	task.delay(holdTime, function()
+		if flash.Parent then
+			TweenService:Create(flash, TweenInfo.new(fadeTime), {
+				BackgroundTransparency = 1,
+			}):Play()
+			task.delay(fadeTime + 0.05, function()
+				if flash.Parent then flash:Destroy() end
+			end)
+		end
+	end)
+
+	-- Rarity name burst (tier 2+) ──────────────────────────────────────────────
+	if tier >= 2 then
+		local burstLabel = make("TextLabel", {
+			AnchorPoint    = Vector2.new(0.5, 0.5),
+			Position       = UDim2.fromScale(0.5, 0.43),
+			Size           = UDim2.fromOffset(480, 72),
+			BackgroundTransparency = 1,
+			Text           = string.upper(style.label or rarity),
+			TextColor3     = style.primary,
+			TextTransparency = 0,
+			TextScaled     = true,
+			Font           = Enum.Font.GothamBlack,
+			ZIndex         = 193,
+		}, screenGui)
+		addStroke(burstLabel, Color3.fromRGB(0, 0, 0), 2, 0.05)
+
+		local burstScale = make("UIScale", { Scale = 0.25 }, burstLabel)
+		TweenService:Create(
+			burstScale,
+			TweenInfo.new(0.40, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{ Scale = 1 }
+		):Play()
+		-- Fade out after the pop-in settles
+		TweenService:Create(
+			burstLabel,
+			TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut, 0, false, 0.55),
+			{ TextTransparency = 1 }
+		):Play()
+		task.delay(1.05, function()
+			if burstLabel.Parent then burstLabel:Destroy() end
+		end)
+	end
+
+	-- Cinematic black bars (tier 2+) ───────────────────────────────────────────
+	local topBar, bottomBar
+	if tier >= 2 then
+		local BAR_H = 76
+		topBar = make("Frame", {
+			AnchorPoint    = Vector2.new(0, 0),
+			Position       = UDim2.new(0, 0, 0, -BAR_H),   -- starts off-screen top
+			Size           = UDim2.new(1, 0, 0, BAR_H),
+			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+			BorderSizePixel = 0,
+			ZIndex         = 186,
+		}, screenGui)
+		bottomBar = make("Frame", {
+			AnchorPoint    = Vector2.new(0, 1),
+			Position       = UDim2.new(0, 0, 1, BAR_H),    -- starts off-screen bottom
+			Size           = UDim2.new(1, 0, 0, BAR_H),
+			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+			BorderSizePixel = 0,
+			ZIndex         = 186,
+		}, screenGui)
+
+		local slideIn = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		TweenService:Create(topBar,    slideIn, { Position = UDim2.new(0, 0, 0, 0)       }):Play()
+		TweenService:Create(bottomBar, slideIn, { Position = UDim2.new(0, 0, 1, -BAR_H)  }):Play()
+
+		-- Slide bars back out once the card reveal is done (~2.4–2.8 s from now)
+		local barLifetime = tier == 2 and 2.4 or 2.8
+		task.delay(barLifetime, function()
+			local slideOut = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			if topBar.Parent    then TweenService:Create(topBar,    slideOut, { Position = UDim2.new(0, 0, 0, -BAR_H) }):Play() end
+			if bottomBar.Parent then TweenService:Create(bottomBar, slideOut, { Position = UDim2.new(0, 0, 1,  BAR_H) }):Play() end
+			task.delay(0.40, function()
+				if topBar.Parent    then topBar:Destroy()    end
+				if bottomBar.Parent then bottomBar:Destroy() end
+			end)
+		end)
+	end
+
+	-- Camera shake (tier 3 only) ───────────────────────────────────────────────
+	if tier >= 3 then
+		task.spawn(function()
+			local camera = Workspace.CurrentCamera
+			if not camera then return end
+			local prevType = camera.CameraType
+			local prevCF   = camera.CFrame
+			camera.CameraType = Enum.CameraType.Scriptable
+			local frames = 10
+			for i = 1, frames do
+				task.wait(0.032)
+				if not camera or not camera.Parent then break end
+				local intensity = 0.28 * (1 - (i - 1) / frames)
+				camera.CFrame = prevCF * CFrame.new(
+					(math.random() - 0.5) * 2 * intensity,
+					(math.random() - 0.5) * 2 * intensity,
+					0
+				)
+			end
+			if camera and camera.Parent then
+				camera.CFrame   = prevCF
+				camera.CameraType = prevType
+			end
+		end)
+	end
+
+	-- Pre-delay before the card panel pops in
+	return tier == 1 and 0.12 or (tier == 2 and 0.30 or 0.38)
+end
+
 -- ── Compact card reveal ───────────────────────────────────────────────────────
 -- Appears near the pack, shows player info briefly, then flies toward the
 -- destination slot (or inventory corner).  No full-screen overlay — keeps the
@@ -467,6 +614,13 @@ local function showCardReveal(payload)
 	local card = payload.card
 	if not card then
 		return
+	end
+
+	-- Play dramatic screen effect for Talisman+ cards; yields briefly so the
+	-- flash and bars land before the card panel pops in on top of them.
+	local revealPreDelay = playRevealEffect(card.rarity)
+	if revealPreDelay > 0 then
+		task.wait(revealPreDelay)
 	end
 
 	local style = Utils.GetRarityStyle(card.rarity)

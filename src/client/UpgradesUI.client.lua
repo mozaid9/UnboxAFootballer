@@ -124,10 +124,12 @@ local layout = make("UIListLayout", {
 }, scrolling)
 
 local function formatValue(entry)
-	if entry.key == "PackSpawnRate" then
-		return string.format("%.1f%s", entry.currentValue, entry.valueSuffix)
+	if entry.key == "PitchforkDamage" then
+		return string.format("%.2g× per swing", entry.currentValue)
+	elseif entry.key == "PackSpawnRate" then
+		return string.format("%.1fs respawn", entry.currentValue)
 	elseif entry.key == "PadLuck" then
-		return string.format("+%d%%%s", entry.currentValue, "")
+		return string.format("%d%% Rare+ pads", entry.currentValue)
 	elseif entry.key == "MoveSpeed" then
 		return string.format("%d studs/s", entry.currentValue)
 	end
@@ -135,10 +137,12 @@ local function formatValue(entry)
 end
 
 local function formatNextValue(entry)
-	if entry.key == "PackSpawnRate" then
+	if entry.key == "PitchforkDamage" then
+		return string.format("%.2g×", entry.nextValue)
+	elseif entry.key == "PackSpawnRate" then
 		return string.format("%.1fs", entry.nextValue)
 	elseif entry.key == "PadLuck" then
-		return string.format("+%d%%", entry.nextValue)
+		return string.format("%d%%", entry.nextValue)
 	elseif entry.key == "MoveSpeed" then
 		return string.format("%d studs/s", entry.nextValue)
 	end

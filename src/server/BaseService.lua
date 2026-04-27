@@ -173,10 +173,15 @@ end
 local function updatePadHealth(plot, title, currentValue, maxValue, color)
 	local ratio = maxValue > 0 and math.clamp(currentValue / maxValue, 0, 1) or 0
 	plot.padTitleLabel.Text = title
-	plot.padSubtitleLabel.Text = string.format("%d / %d HP", currentValue, maxValue)
+	-- Show percentage remaining instead of raw hit numbers
+	local pct = math.ceil(ratio * 100)
+	plot.padSubtitleLabel.Text = pct .. "% remaining — keep swinging!"
 	plot.padAccent.BackgroundColor3 = color
 	plot.padBarBack.Visible = true
-	plot.padBarFill.BackgroundColor3 = color
+	-- Bar colour shifts green → yellow → red as health drops
+	local r = math.clamp(2 * (1 - ratio), 0, 1)
+	local g = math.clamp(2 * ratio, 0, 1)
+	plot.padBarFill.BackgroundColor3 = Color3.new(r, g, 0)
 	plot.padBarFill.Size = UDim2.new(ratio, 0, 1, 0)
 end
 

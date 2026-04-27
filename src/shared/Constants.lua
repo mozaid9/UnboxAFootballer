@@ -18,36 +18,58 @@ Constants.DataStoreRetryBackoff = {
 	8,
 }
 
+-- Sell values and market floors cover every rating used in CardData (78-97).
+-- Ratings are internal only — players never see them directly.
 Constants.SellValues = {
-	[92] = 5000,
-	[89] = 2500,
-	[88] = 2500,
-	[87] = 1500,
-	[86] = 1500,
-	[85] = 1500,
-	[84] = 750,
-	[83] = 750,
-	[82] = 750,
-	[81] = 750,
-	[80] = 750,
-	[79] = 300,
+	-- Gold tier (78-91)
 	[78] = 300,
+	[79] = 300,
+	[80] = 500,
+	[81] = 500,
+	[82] = 750,
+	[83] = 750,
+	[84] = 1000,
+	[85] = 1000,
+	[86] = 1200,
+	[87] = 1500,
+	[88] = 2000,
+	[89] = 2500,
+	[90] = 3000,
+	[91] = 3500,
+	-- Premium / Talisman / Maestro tier (92-94)
+	[92] = 5000,
+	[93] = 7000,
+	[94] = 10000,
+	-- Immortal / POTY tier (95-97)
+	[95] = 15000,
+	[96] = 20000,
+	[97] = 25000,
 }
 
 Constants.MarketFloors = {
-	[92] = 20000,
-	[89] = 10000,
-	[88] = 10000,
-	[87] = 6000,
-	[86] = 6000,
-	[85] = 6000,
-	[84] = 2500,
-	[83] = 2500,
-	[82] = 2500,
-	[81] = 2500,
-	[80] = 2500,
-	[79] = 800,
+	-- Gold tier
 	[78] = 800,
+	[79] = 800,
+	[80] = 1500,
+	[81] = 1500,
+	[82] = 2500,
+	[83] = 2500,
+	[84] = 3500,
+	[85] = 3500,
+	[86] = 5000,
+	[87] = 6000,
+	[88] = 8000,
+	[89] = 10000,
+	[90] = 12000,
+	[91] = 15000,
+	-- Premium / Talisman / Maestro tier
+	[92] = 20000,
+	[93] = 30000,
+	[94] = 45000,
+	-- Immortal / POTY tier
+	[95] = 65000,
+	[96] = 85000,
+	[97] = 110000,
 }
 
 Constants.MarketCeilingMultiplier = 5
@@ -138,12 +160,12 @@ Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnRate", "PadLuck", "MoveSp
 Constants.Upgrades = {
 	PitchforkDamage = {
 		displayName = "Pitchfork Power",
-		description = "Deal more damage per swing, crack packs faster.",
-		maxLevel = 9,
-		baseCost = 400,
-		costMultiplier = 1.7,
-		baseDamage = 1,
-		damagePerLevel = 1,
+		description = "Each swing hits harder — multiply your damage per crack.",
+		maxLevel = 12,
+		-- Cost to go from level N → N+1 (index 1 = level 0→1, index 12 = level 11→12)
+		levelCosts = { 600, 1800, 5000, 14000, 38000, 100000, 260000, 650000, 1600000, 4000000, 10000000, 25000000 },
+		-- Damage multiplier at each level (index 1 = level 0, index 13 = level 12)
+		multipliers = { 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.3, 2.6, 3.0, 3.5, 4.0, 4.5, 5.0 },
 	},
 	PackSpawnRate = {
 		displayName = "Pack Spawn Speed",
@@ -157,12 +179,30 @@ Constants.Upgrades = {
 	},
 	PadLuck = {
 		displayName = "Pad Luck",
-		description = "Shifts your pad odds toward Rare and Premium packs.",
-		maxLevel = 10,
-		baseCost = 700,
-		costMultiplier = 1.85,
-		shiftPerLevel = 3,
-		maxShift = 30,
+		description = "Better packs spawn on your red pad. Lower luck = mostly Gold rubbish.",
+		maxLevel = 15,
+		-- Cost to go from level N → N+1
+		levelCosts = { 1500, 5000, 14000, 40000, 110000, 300000, 800000, 2200000, 6000000, 16000000, 45000000, 120000000, 320000000, 850000000, 2200000000 },
+		-- Pack pad spawn weights [Gold, Rare, Premium, Jumbo, Deluxe] at each luck level.
+		-- These are used directly in rollPadPackForPlayer.
+		padWeightsPerLevel = {
+			[0]  = { 55, 28, 12, 4, 1 },
+			[1]  = { 52, 29, 13, 5, 1 },
+			[2]  = { 49, 29, 14, 6, 2 },
+			[3]  = { 46, 29, 16, 7, 2 },
+			[4]  = { 43, 29, 17, 8, 3 },
+			[5]  = { 40, 28, 19, 10, 3 },
+			[6]  = { 37, 27, 21, 11, 4 },
+			[7]  = { 33, 26, 23, 13, 5 },
+			[8]  = { 29, 25, 25, 15, 6 },
+			[9]  = { 25, 23, 27, 18, 7 },
+			[10] = { 20, 21, 29, 21, 9 },
+			[11] = { 15, 19, 31, 24, 11 },
+			[12] = { 10, 16, 32, 28, 14 },
+			[13] = { 5,  13, 33, 32, 17 },
+			[14] = { 2,  10, 33, 35, 20 },
+			[15] = { 0,   8, 30, 38, 24 },
+		},
 	},
 	MoveSpeed = {
 		displayName = "Sprint Speed",
@@ -177,9 +217,18 @@ Constants.Upgrades = {
 }
 
 Constants.PassiveIncome = {
-	BaseRating = 78,
-	BasePerSecond = 20,
-	PerRatingStep = 8,
+	BaseRating    = 78,
+	BasePerSecond = 20,    -- fans/sec at rating 78
+	GrowthRate    = 1.23,  -- exponential multiplier per rating point above BaseRating
+	-- Resulting fan income by key rating:
+	--   78 →   20  (base Gold)
+	--   84 →   69  (mid Gold)
+	--   88 →  157  (top Gold)
+	--   91 →  294  (Talisman)
+	--   93 →  444  (Maestro tier)
+	--   95 →  672  (Immortal)
+	--   96 →  826  (Messi Immortal)
+	--   97 → 1016  (Maradona / Mbappe POTY)
 }
 
 Constants.UI = {

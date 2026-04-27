@@ -193,12 +193,18 @@ local function getUpgradeCost(key, level)
 	if not spec or level >= spec.maxLevel then
 		return nil
 	end
+	-- Prefer explicit per-level cost table when present
+	if spec.levelCosts then
+		return spec.levelCosts[level + 1]  -- level 0 → index 1
+	end
 	return math.floor(spec.baseCost * (spec.costMultiplier ^ level))
 end
 
 local function computePitchforkDamage(level)
 	local spec = Constants.Upgrades.PitchforkDamage
-	return spec.baseDamage + level * spec.damagePerLevel
+	local mults = spec.multipliers
+	local idx = math.clamp(level + 1, 1, #mults)
+	return mults[idx]
 end
 
 local function computeSpawnDelay(level)
@@ -207,8 +213,15 @@ local function computeSpawnDelay(level)
 end
 
 local function computeLuckShift(level)
+	-- Returns the % chance of landing Rare or better pack at this luck level.
+	-- Used only for upgrade UI display.
 	local spec = Constants.Upgrades.PadLuck
-	return math.min(level * spec.shiftPerLevel, spec.maxShift)
+	local clampedLevel = math.clamp(level, 0, spec.maxLevel)
+	local weights = spec.padWeightsPerLevel and spec.padWeightsPerLevel[clampedLevel]
+	if weights then
+		return 100 - (weights[1] or 55)  -- 100 − Gold% = Rare+ chance
+	end
+	return 0
 end
 
 local function computeWalkSpeed(level)
@@ -354,24 +367,27 @@ local function playPackHitEffect(plot, settleBrightness)
 end
 
 local function rollPadPackForPlayer(player)
-	local weights = {}
-	for _, packDef in ipairs(PackConfig.PadSpawnOrder) do
-		table.insert(weights, packDef.padWeight or 1)
+	local luckLevel = player and getUpgradeLevel(player, "PadLuck") or 0
+	local luckSpec  = Constants.Upgrades.PadLuck
+	local levelWeights = luckSpec.padWeightsPerLevel and luckSpec.padWeightsPerLevel[luckLevel]
+
+	-- Build weight list aligned to PadSpawnOrder
+	local weights    = {}
+	local validPacks = {}
+	for i, packDef in ipairs(PackConfig.PadSpawnOrder) do
+		local w = levelWeights and (levelWeights[i] or 0) or (packDef.padWeight or 1)
+		if w > 0 then
+			table.insert(validPacks, packDef)
+			table.insert(weights, w)
+		end
 	end
 
-	if player and #weights >= 3 then
-		local shift = computeLuckShift(getUpgradeLevel(player, "PadLuck"))
-		local takeable = math.max(0, weights[1] - 5)
-		local taken = math.min(shift, takeable)
-		weights[1] = weights[1] - taken
-		local toRare = math.floor(taken * 0.6)
-		local toPremium = taken - toRare
-		weights[2] = weights[2] + toRare
-		weights[3] = weights[3] + toPremium
+	if #validPacks == 0 then
+		return PackConfig.PadSpawnOrder[1]
 	end
 
 	local chosenIndex = Utils.WeightedRandom(weights)
-	return PackConfig.PadSpawnOrder[chosenIndex]
+	return validPacks[chosenIndex]
 end
 
 local function getCardById(cardId)
@@ -647,6 +663,37 @@ local function spawnPackForPlot(plot)
 	createSurfaceLabel(Enum.NormalId.Front, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 	createSurfaceLabel(Enum.NormalId.Back, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 
+	-- ── Mini health bar (BillboardGui floating above the pack) ────────────
+	local healthBillboard = Instance.new("BillboardGui")
+	healthBillboard.Name = "PackHealthBar"
+	healthBillboard.AlwaysOnTop = false
+	healthBillboard.Size = UDim2.fromOffset(100, 12)
+	healthBillboard.StudsOffset = Vector3.new(0, 7.2, 0)
+	healthBillboard.Parent = cardBody
+
+	local hpBG = Instance.new("Frame")
+	hpBG.Name = "BG"
+	hpBG.Size = UDim2.fromScale(1, 1)
+	hpBG.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+	hpBG.BorderSizePixel = 0
+	hpBG.Parent = healthBillboard
+	local hpBGCorner = Instance.new("UICorner")
+	hpBGCorner.CornerRadius = UDim.new(1, 0)
+	hpBGCorner.Parent = hpBG
+
+	local hpFill = Instance.new("Frame")
+	hpFill.Name = "Fill"
+	hpFill.Size = UDim2.fromScale(1, 1)
+	hpFill.BackgroundColor3 = packDef.color
+	hpFill.BorderSizePixel = 0
+	hpFill.Parent = hpBG
+	local hpFillCorner = Instance.new("UICorner")
+	hpFillCorner.CornerRadius = UDim.new(1, 0)
+	hpFillCorner.Parent = hpFill
+
+	plot.activePackHealthFill = hpFill
+	plot.activePackHealthBillboard = healthBillboard
+
 	-- Continuous idle: slow spin + gentle float.  All three parts updated together so
 	-- they never drift apart (the old tween only moved cardBody, leaving caps behind).
 	local packOriginX = basePosition.X
@@ -776,6 +823,16 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	if plot.activePackLight then
 		newBrightness = 1.15 + ((plot.activePackMaxHits - plot.activePackHitsRemaining) * 0.28)
 		plot.activePackLight.Brightness = newBrightness
+	end
+
+	-- Update the floating mini health bar
+	if plot.activePackHealthFill and plot.activePackMaxHits and plot.activePackMaxHits > 0 then
+		local ratio = math.clamp(plot.activePackHitsRemaining / plot.activePackMaxHits, 0, 1)
+		plot.activePackHealthFill.Size = UDim2.fromScale(ratio, 1)
+		-- Colour shifts green → yellow → red as health drops
+		local r = math.clamp(2 * (1 - ratio), 0, 1)
+		local g = math.clamp(2 * ratio, 0, 1)
+		plot.activePackHealthFill.BackgroundColor3 = Color3.new(r, g, 0)
 	end
 
 	playPackHitEffect(plot, newBrightness)
@@ -968,6 +1025,22 @@ Players.PlayerAdded:Connect(handlePlayerAdded)
 
 for _, player in ipairs(Players:GetPlayers()) do
 	task.spawn(handlePlayerAdded, player)
+end
+
+-- ── Dev reset command ("/resetdata" in chat) ─────────────────
+-- Wipes ALL progress and kicks the player so they rejoin fresh.
+-- Remove this block before going to production.
+local function wireDevReset(player)
+	player.Chatted:Connect(function(msg)
+		if msg:lower() == "/resetdata" then
+			DataService.DevReset(player)
+			player:Kick("✅ Data wiped! Rejoin to start fresh.")
+		end
+	end)
+end
+Players.PlayerAdded:Connect(wireDevReset)
+for _, player in ipairs(Players:GetPlayers()) do
+	wireDevReset(player)
 end
 
 Players.PlayerRemoving:Connect(function(player)
@@ -1184,7 +1257,7 @@ local function buildUpgradePayload(player)
 		if key == "PitchforkDamage" then
 			entry.currentValue = computePitchforkDamage(level)
 			entry.nextValue = computePitchforkDamage(level + 1)
-			entry.valueSuffix = " dmg/swing"
+			entry.valueSuffix = "× per swing"
 		elseif key == "PackSpawnRate" then
 			entry.currentValue = computeSpawnDelay(level)
 			entry.nextValue = computeSpawnDelay(level + 1)
@@ -1192,7 +1265,7 @@ local function buildUpgradePayload(player)
 		elseif key == "PadLuck" then
 			entry.currentValue = computeLuckShift(level)
 			entry.nextValue = computeLuckShift(level + 1)
-			entry.valueSuffix = " luck shift"
+			entry.valueSuffix = "% Rare+ pads"
 		elseif key == "MoveSpeed" then
 			entry.currentValue = computeWalkSpeed(level)
 			entry.nextValue = computeWalkSpeed(level + 1)

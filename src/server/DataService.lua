@@ -334,6 +334,16 @@ function DataService.ResetForRebirth(player, startingFans)
 	return true
 end
 
+-- ── Dev-only full reset ───────────────────────────────────────
+-- Wipes all progress back to DEFAULT_DATA and saves immediately.
+-- Trigger via chat command "/resetdata" (remove before production).
+function DataService.DevReset(player)
+	local fresh = deepMergeDefaults({}, DEFAULT_DATA)
+	cache[player] = fresh
+	dirtyPlayers[player] = true
+	DataService.SavePlayer(player)
+end
+
 task.spawn(function()
 	while true do
 		task.wait(Constants.AutoSaveInterval)

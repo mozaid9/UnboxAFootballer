@@ -62,7 +62,9 @@ end
 function Utils.GetPassiveIncome(rating)
 	local config = Constants.PassiveIncome
 	local ratingSteps = math.max(0, (rating or config.BaseRating) - config.BaseRating)
-	return config.BasePerSecond + (ratingSteps * config.PerRatingStep)
+	-- Exponential curve: base * growthRate^steps
+	-- This makes high-rarity cards dramatically more valuable (Immortals = 1000+/s)
+	return math.floor(config.BasePerSecond * (config.GrowthRate ^ ratingSteps))
 end
 
 function Utils.GetCardIncomeRating(cardOrRating)

@@ -414,10 +414,11 @@ local function chooseVisitorPlot()
 	return weightedPlots[#weightedPlots].plot
 end
 
--- laneOffset: X-axis nudge (studs) so each NPC walks a slightly different
--- track through the plaza — prevents them all overlapping on the centre line.
-local function makeRoute(laneOffset)
-	laneOffset = laneOffset or 0
+-- laneXOffset / laneZOffset: 2-D nudge (studs) so each NPC walks a unique
+-- diagonal track through the plaza rather than converging on the centre line.
+local function makeRoute(laneXOffset, laneZOffset)
+	laneXOffset = laneXOffset or 0
+	laneZOffset = laneZOffset or 0
 
 	local northGate = getPoint("NorthGate")
 	local southGate = getPoint("SouthGate")
@@ -428,18 +429,26 @@ local function makeRoute(laneOffset)
 		return nil
 	end
 
-	-- Apply lane offset to all main-walkway positions (not stadium sub-paths).
+	-- Apply both offsets to all main-walkway positions (not stadium sub-paths).
 	local function lane(pos)
-		return Vector3.new(pos.X + laneOffset, pos.Y, pos.Z)
+		return Vector3.new(pos.X + laneXOffset, pos.Y, pos.Z + laneZOffset)
 	end
 
 	local rawStart = math.random(1, 2) == 1 and northGate or southGate
 	local rawEnd   = rawStart == northGate and southGate or northGate
 	local rawLoop  = math.random(1, 2) == 1 and westLoop or eastLoop
 
+	-- Route: gate → trophy-bypass → loop → gate
+	-- The bypass point is always ≥18 studs from the centre trophy on the NPC's
+	-- own side, so even a very large base can't be clipped by a straight line.
+	local TROPHY_CLEAR = 18
+	local side = laneXOffset >= 0 and 1 or -1   -- derive sign locally; laneSign is in runFan scope
+	local bypassX = center.X + side * math.max(TROPHY_CLEAR, math.abs(laneXOffset))
+	local trophyBypass = Vector3.new(bypassX, center.Y, center.Z + laneZOffset)
+
 	local route = {
 		{ position = lane(rawStart) },
-		{ position = lane(center) },
+		{ position = trophyBypass },
 		{ position = lane(rawLoop) },
 	}
 
@@ -449,7 +458,7 @@ local function makeRoute(laneOffset)
 	-- holds it through its pause, then releases it as it walks away.  If
 	-- both stalls on this side are full (4×2 = 8 fans queued), skip food.
 	if math.random() < (plazaConfig.FoodStopChance or 0.30) then
-		local sideStalls = (laneOffset < 0) and WEST_STALLS or EAST_STALLS
+		local sideStalls = (laneXOffset < 0) and WEST_STALLS or EAST_STALLS
 
 		-- Try the two stalls on this side in random order so the same
 		-- one isn't always preferred when both have room.
@@ -486,8 +495,8 @@ local function makeRoute(laneOffset)
 	if math.random() < plazaConfig.VisitorRouteChance then
 		local plot = chooseVisitorPlot()
 		if plot then
-			-- Stadium sub-path: use laneOffset on the central-Z approach only
-			local stadiumPathPoint = Vector3.new(laneOffset, STANDING_PIVOT_HEIGHT, plot.floor.Position.Z)
+			-- Stadium sub-path: carry the NPC's 2-D lane offset into the approach point
+			local stadiumPathPoint = Vector3.new(laneXOffset, STANDING_PIVOT_HEIGHT, plot.floor.Position.Z + laneZOffset)
 			table.insert(route, { position = stadiumPathPoint })
 			table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.35 })
 			table.insert(route, {
@@ -502,7 +511,6 @@ local function makeRoute(laneOffset)
 		end
 	end
 
-	table.insert(route, { position = lane(center) })
 	table.insert(route, { position = lane(rawEnd) })
 	return route
 end
@@ -511,13 +519,13 @@ local function getStepPosition(step)
 	return typeof(step) == "Vector3" and step or step.position
 end
 
-local function moveModelTo(model, targetPosition)
+local function moveModelTo(model, targetPosition, npcSpeed)
 	if not model.Parent or not model.PrimaryPart then
 		return false
 	end
 
-	local current = model:GetPivot()
-	local currentPosition = current.Position
+	local currentCFrame = model:GetPivot()
+	local currentPosition = currentCFrame.Position
 	local distance = (targetPosition - currentPosition).Magnitude
 	if distance < 0.05 then
 		return true
@@ -525,16 +533,39 @@ local function moveModelTo(model, targetPosition)
 
 	local direction = targetPosition - currentPosition
 	local horizontalDirection = Vector3.new(direction.X, 0, direction.Z)
-	local targetCFrame
+	local startCFrame, targetCFrame
 	if horizontalDirection.Magnitude > 0.05 then
-		targetCFrame = CFrame.lookAt(targetPosition, targetPosition + horizontalDirection.Unit)
+		-- Snap facing direction immediately so the NPC never slides sideways
+		startCFrame  = CFrame.lookAt(currentPosition, currentPosition + horizontalDirection.Unit)
+		targetCFrame = CFrame.lookAt(targetPosition,  targetPosition  + horizontalDirection.Unit)
+		model:PivotTo(startCFrame)
 	else
-		targetCFrame = CFrame.new(targetPosition) * (current - currentPosition)
+		startCFrame  = currentCFrame
+		targetCFrame = CFrame.new(targetPosition) * (currentCFrame - currentPosition)
 	end
-	local duration = math.max(0.35, distance / plazaConfig.NpcWalkSpeed)
+
+	local duration = math.max(0.35, distance / (npcSpeed or plazaConfig.NpcWalkSpeed))
+
+	-- Walk animation: swing arms and legs for the full duration of movement
+	local walkActive = true
+	task.spawn(function()
+		local t = 0
+		while walkActive and model.Parent do
+			t += task.wait(0.04)
+			if not walkActive or not model.Parent then
+				break
+			end
+			-- Natural gait: left arm forward ↔ right leg forward, right arm forward ↔ left leg forward
+			local swing = math.sin(t * math.pi * 4.5) * math.rad(28)
+			setPartLocal(model, "Left Arm",  CFrame.new(-1.5,  0,     0) * CFrame.Angles( swing,       0, 0))
+			setPartLocal(model, "Right Arm", CFrame.new( 1.5,  0,     0) * CFrame.Angles(-swing,       0, 0))
+			setPartLocal(model, "Left Leg",  CFrame.new(-0.5, -1.62,  0) * CFrame.Angles(-swing * 0.75, 0, 0))
+			setPartLocal(model, "Right Leg", CFrame.new( 0.5, -1.62,  0) * CFrame.Angles( swing * 0.75, 0, 0))
+		end
+	end)
 
 	local cframeValue = Instance.new("CFrameValue")
-	cframeValue.Value = current
+	cframeValue.Value = startCFrame
 	local connection = cframeValue:GetPropertyChangedSignal("Value"):Connect(function()
 		if model.Parent then
 			model:PivotTo(cframeValue.Value)
@@ -548,21 +579,28 @@ local function moveModelTo(model, targetPosition)
 	tween.Completed:Wait()
 	connection:Disconnect()
 	cframeValue:Destroy()
+	walkActive = false
 
 	return model.Parent ~= nil
 end
 
 local function runFan(model)
-	-- Each NPC gets a fixed lane offset for its lifetime so it always walks
-	-- a consistent track through the plaza rather than drifting to the centre.
-	-- Range: ±8 studs; avoid the very centre (±1) so there's a visible gap.
-	local laneSign = math.random(1, 2) == 1 and 1 or -1
-	local laneOffset = laneSign * (math.random(15, 80) / 10)   -- 1.5 – 8.0 studs
+	-- Each NPC gets fixed 2-D lane offsets for its lifetime so it walks a
+	-- unique diagonal through the plaza.
+	-- X: ±8–13 studs left/right so NPCs clear the centre trophy.
+	-- Z: ±0–5 studs front/back so NPCs spread across the full plaza width
+	--    and don't all queue up on the same Z line.
+	-- Speed: ±18 % variation so fast NPCs naturally overtake slow ones and
+	--        the crowd looks alive rather than a synchronised march.
+	local laneSign   = math.random(1, 2) == 1 and 1 or -1
+	local laneXOffset = laneSign * (math.random(80, 130) / 10)          -- 8.0 – 13.0 studs
+	local laneZOffset = (math.random(-50, 50) / 10)                      -- ±5.0 studs
+	local mySpeed     = plazaConfig.NpcWalkSpeed * (0.82 + math.random() * 0.36)  -- ×0.82 – ×1.18
 
 	task.spawn(function()
-		task.wait(math.random() * 2)
+		task.wait(math.random() * 7)    -- longer stagger so NPCs don't all depart at once
 		while running and model.Parent do
-			local route = makeRoute(laneOffset)
+			local route = makeRoute(laneXOffset, laneZOffset)
 			if route and #route >= 2 then
 				setFanPose(model, "standing")
 				local startPoint = getStepPosition(route[1])
@@ -587,7 +625,7 @@ local function runFan(model)
 						setFanPose(model, "standing")
 					end
 
-					if not moveModelTo(model, targetPosition) then
+					if not moveModelTo(model, targetPosition, mySpeed) then
 						releaseHeldSlot()
 						return
 					end
