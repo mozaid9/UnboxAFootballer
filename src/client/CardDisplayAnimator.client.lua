@@ -112,15 +112,38 @@ local function registerCardPart(instance)
 	end)
 end
 
--- ── Watch a base model for CardPart descendants ───────────────────────────────
-local function watchModel(model)
-	-- Catch any already-present descendants
-	for _, desc in ipairs(model:GetDescendants()) do
-		registerCardPart(desc)
+-- ── Owner sign distance culling ───────────────────────────────────────────────
+-- SurfaceGui has no MaxDistance, so we toggle Enabled based on camera distance.
+local SIGN_SHOW_DIST = 55  -- studs; sign visible when camera is closer than this
+local ownerSigns = {}      -- list of OwnerSign Parts found across all bases
+
+local function collectOwnerSign(instance)
+	if instance.Name == "OwnerSign" and instance:IsA("BasePart") then
+		table.insert(ownerSigns, instance)
 	end
-	-- Catch future additions (card placed while playing)
-	model.DescendantAdded:Connect(registerCardPart)
 end
+
+task.spawn(function()
+	while true do
+		task.wait(0.3)
+		local camera = Workspace.CurrentCamera
+		if not camera then continue end
+		local camPos = camera.CFrame.Position
+
+		for i = #ownerSigns, 1, -1 do
+			local sign = ownerSigns[i]
+			if not sign.Parent then
+				table.remove(ownerSigns, i)
+			else
+				local dist = (sign.Position - camPos).Magnitude
+				local gui  = sign:FindFirstChildOfClass("SurfaceGui")
+				if gui then
+					gui.Enabled = dist < SIGN_SHOW_DIST
+				end
+			end
+		end
+	end
+end)
 
 -- ── Bootstrap: wait for PlayerBases folder ────────────────────────────────────
 task.spawn(function()
@@ -128,6 +151,17 @@ task.spawn(function()
 	if not basesFolder then
 		warn("[CardDisplayAnimator] PlayerBases not found within timeout.")
 		return
+	end
+
+	local function watchModel(m)
+		for _, desc in ipairs(m:GetDescendants()) do
+			registerCardPart(desc)
+			collectOwnerSign(desc)
+		end
+		m.DescendantAdded:Connect(function(desc)
+			registerCardPart(desc)
+			collectOwnerSign(desc)
+		end)
 	end
 
 	for _, child in ipairs(basesFolder:GetChildren()) do
