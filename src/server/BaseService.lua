@@ -2077,7 +2077,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, ownerFrame)
 
 	local milestoneSignPosition = position
-		+ Vector3.new(backEdgeX - (facingDirection * 7.2), 5.5, 0)
+		+ Vector3.new(backEdgeX * 0.48, 10.5, 0)
 	local milestoneSign = make("Part", {
 		Name = "PackMilestoneBillboard",
 		Anchored = true,
