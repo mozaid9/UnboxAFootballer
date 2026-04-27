@@ -496,6 +496,64 @@ local function tryCreateImportedDecor(parent, name, assetId, position, facingPos
 	return loaded
 end
 
+-- Loads the shared stadium seats/bleacher model and places one copy on each
+-- of the three stand sides (north, south, back).  Scales by the widest
+-- horizontal axis so the seats span the full stand width.  Fails silently.
+local function tryAddStadiumSeats(parent, baseCFrame, facingDirection, assetId)
+	if type(assetId) ~= "number" or assetId <= 0 then return end
+
+	local ok, loaded = pcall(function()
+		return InsertService:LoadAsset(assetId)
+	end)
+	if not ok or not loaded then
+		warn("[BaseService] Stadium seats load failed:", assetId, loaded)
+		return
+	end
+	prepareImportedModel(loaded)
+
+	local _, rawSize = loaded:GetBoundingBox()
+	local rawSpan = math.max(rawSize.X, rawSize.Z, 0.1)
+	if rawSpan <= 0.1 then loaded:Destroy() return end
+
+	local pitchPos   = baseCFrame.Position
+	local floorY     = pitchPos.Y + layout.PlotSize.Y / 2
+	local sideWidth  = layout.PlotSize.X - 10           -- 46 studs
+	local backWidth  = layout.PlotSize.Z + 8            -- 52 studs
+	local sideStandZ = layout.PlotSize.Z / 2 + 9        -- centre of side stand
+	local backStandX = layout.PlotSize.X / 2 + 7        -- centre of back stand
+
+	local function placeSide(name, worldPos, lookTarget, widthTarget)
+		local scaleF = math.clamp(widthTarget / rawSpan, 0.04, 10)
+		local clone = loaded:Clone()
+		clone.Name = name
+		clone.Parent = parent
+		pcall(function() clone:ScaleTo(scaleF) end)
+		clone:PivotTo(CFrame.lookAt(worldPos, Vector3.new(lookTarget.X, worldPos.Y, lookTarget.Z)))
+		local bc, bs = clone:GetBoundingBox()
+		clone:PivotTo(clone:GetPivot() + Vector3.new(0, floorY - (bc.Position.Y - bs.Y * 0.5), 0))
+	end
+
+	-- North stand (Z negative): fans face south toward the pitch
+	placeSide("StadiumSeatsNorth",
+		pitchPos + Vector3.new(0, 0, -sideStandZ),
+		pitchPos,
+		sideWidth)
+
+	-- South stand (Z positive): fans face north toward the pitch
+	placeSide("StadiumSeatsSouth",
+		pitchPos + Vector3.new(0, 0, sideStandZ),
+		pitchPos,
+		sideWidth)
+
+	-- Back stand: fans face toward the entrance / pitch front
+	placeSide("StadiumSeatsBack",
+		pitchPos + Vector3.new(-facingDirection * backStandX, 0, 0),
+		pitchPos + Vector3.new(facingDirection * 20, 0, 0),
+		backWidth)
+
+	loaded:Destroy()
+end
+
 local function createFloodlightBeam(parent, name, position, targetPosition, poleHeight, options)
 	options = options or {}
 	local anchorPosition = position + Vector3.new(0, poleHeight + 1.5, 0)
@@ -1975,6 +2033,12 @@ local function createPlot(plotId, side, laneIndex, position)
 		Vector3.new(layout.PlotSize.X - 10, 3.2, 4.6),
 		baseCFrame * CFrame.new(0, 2.1, -(layout.PlotSize.Z / 2) - 10.4)
 	)
+
+	-- Load stadium seat models onto the three stand sides
+	task.spawn(function()
+		tryAddStadiumSeats(model, baseCFrame, facingDirection,
+			fanZoneConfig.ModelAssets and fanZoneConfig.ModelAssets.StadiumSeats)
+	end)
 
 	createFootballPitchDetails(model, baseCFrame)
 
