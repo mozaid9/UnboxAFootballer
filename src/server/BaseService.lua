@@ -1758,25 +1758,76 @@ local function createDisplaySlot(parent, index, cframe, lookDirection)
 		Name = "DisplaySlot" .. index,
 	}, parent)
 
+	local slotW = layout.DisplaySlotSize.X
+	local slotH = layout.DisplaySlotSize.Y
+	local slotD = layout.DisplaySlotSize.Z
+	local topY  = slotH / 2
+
+	-- Pedestal body — dark polished concrete
 	local base = make("Part", {
 		Name = "Base",
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(20, 26, 38),
+		Color = Color3.fromRGB(14, 19, 30),
 		Size = layout.DisplaySlotSize,
 		CFrame = cframe,
 	}, model)
 
+	-- Slim gold neon rim around the top edge (4 strips)
+	local rimThickness = 0.22
+	local rimHeight    = 0.28
+	local rimY         = topY + rimHeight / 2
+	local rimColor     = Color3.fromRGB(255, 210, 60)
+	local rimTransp    = 0.28
+	for _, axis in ipairs({
+		{ Vector3.new(slotW, rimHeight, rimThickness), Vector3.new(0,  rimY, -(slotD / 2)) },
+		{ Vector3.new(slotW, rimHeight, rimThickness), Vector3.new(0,  rimY,  (slotD / 2)) },
+		{ Vector3.new(rimThickness, rimHeight, slotD), Vector3.new(-(slotW / 2), rimY, 0)  },
+		{ Vector3.new(rimThickness, rimHeight, slotD), Vector3.new( (slotW / 2), rimY, 0)  },
+	}) do
+		make("Part", {
+			Name = "RimStrip",
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = rimColor,
+			Transparency = rimTransp,
+			Size = axis[1],
+			CFrame = cframe + axis[2],
+		}, model)
+	end
+
+	-- Gold glow display pad on top
 	local top = make("Part", {
 		Name = "Top",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(34, 128, 76),
-		Transparency = 0.08,
-		Size = Vector3.new(layout.DisplaySlotSize.X - 1.4, 0.18, layout.DisplaySlotSize.Z - 1.4),
-		CFrame = base.CFrame + Vector3.new(0, layout.DisplaySlotSize.Y / 2 + 0.1, 0),
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 205, 50),
+		Transparency = 0.52,
+		Size = Vector3.new(slotW - 1.6, 0.14, slotD - 1.6),
+		CFrame = base.CFrame + Vector3.new(0, topY + 0.08, 0),
 	}, model)
+
+	-- Subtle slot number label on the front face
+	local numGui = make("SurfaceGui", {
+		Name = "SlotNum",
+		Face = Enum.NormalId.Front,
+		AlwaysOnTop = false,
+		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+		PixelsPerStud = 30,
+	}, base)
+	make("TextLabel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = tostring(index),
+		TextColor3 = Color3.fromRGB(255, 210, 60),
+		TextTransparency = 0.36,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+	}, numGui)
 
 	local prompt = make("ProximityPrompt", {
 		Name = "SlotPrompt",

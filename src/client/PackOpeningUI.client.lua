@@ -157,29 +157,38 @@ end)
 local sidebar = make("Frame", {
 	Name = "Sidebar",
 	AnchorPoint = Vector2.new(0, 1),
-	Size = UDim2.fromOffset(168, 188),
+	Size = UDim2.fromOffset(178, 232),
 	Position = UDim2.new(0, 20, 1, -20),
 	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
-	BackgroundTransparency = 0.12,
+	BackgroundTransparency = 0.08,
 }, screenGui)
 addCorner(sidebar, 16)
-addStroke(sidebar, UI.Gold, 1.25, 0.72)
+addStroke(sidebar, UI.Gold, 1.5, 0.68)
 
 make("UIGradient", {
 	Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(16, 22, 38)),
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(16, 22, 40)),
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(7, 10, 18)),
 	}),
-	Rotation = 90,
+	Rotation = 110,
 }, sidebar)
 
 local sidebarPadding = make("UIPadding", {
-	PaddingTop = UDim.new(0, 8),
-	PaddingBottom = UDim.new(0, 8),
-	PaddingLeft = UDim.new(0, 8),
-	PaddingRight = UDim.new(0, 8),
+	PaddingTop = UDim.new(0, 10),
+	PaddingBottom = UDim.new(0, 10),
+	PaddingLeft = UDim.new(0, 9),
+	PaddingRight = UDim.new(0, 9),
 }, sidebar)
 _ = sidebarPadding
+
+-- Thin separator below header spacing
+make("Frame", {
+	LayoutOrder = 0,
+	Size = UDim2.new(1, 0, 0, 1),
+	BackgroundColor3 = UI.Gold,
+	BackgroundTransparency = 0.82,
+	BorderSizePixel = 0,
+}, sidebar)
 
 make("UIListLayout", {
 	FillDirection = Enum.FillDirection.Vertical,
@@ -192,13 +201,13 @@ make("UIListLayout", {
 local walletDock = make("Frame", {
 	Name = "WalletDock",
 	AnchorPoint = Vector2.new(1, 1),
-	Size = UDim2.fromOffset(218, 98),
+	Size = UDim2.fromOffset(232, 136),
 	Position = UDim2.new(1, -20, 1, -20),
 	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
-	BackgroundTransparency = 0.1,
+	BackgroundTransparency = 0.08,
 }, screenGui)
 addCorner(walletDock, 16)
-addStroke(walletDock, UI.Gold, 1.25, 0.72)
+addStroke(walletDock, UI.Gold, 1.5, 0.68)
 
 local walletPadding = make("UIPadding", {
 	PaddingTop = UDim.new(0, 8),
@@ -278,28 +287,122 @@ local function createWalletRow(parent, order, labelText, iconText, iconColor)
 end
 
 local fansLabel, addFansButton = createWalletRow(walletDock, 1, "Fans", "F", UI.Gold)
-local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "D", Color3.fromRGB(69, 207, 255))
 
-local function createMenuButton(order, text, accentColor)
-	local button = make("TextButton", {
+-- ── Rebirth progress bar ─────────────────────────────────────────────────────
+local rebirthProgressFrame = make("Frame", {
+	LayoutOrder = 2,
+	Size = UDim2.new(1, 0, 0, 26),
+	BackgroundColor3 = UI.Panel,
+}, walletDock)
+addCorner(rebirthProgressFrame, 8)
+addStroke(rebirthProgressFrame, UI.Gold, 1, 0.82)
+
+-- Track bar background
+local rebirthBarBack = make("Frame", {
+	AnchorPoint = Vector2.new(0, 0.5),
+	Position = UDim2.new(0, 8, 0.5, 0),
+	Size = UDim2.new(1, -16, 0, 6),
+	BackgroundColor3 = Color3.fromRGB(24, 30, 46),
+	BorderSizePixel = 0,
+}, rebirthProgressFrame)
+addCorner(rebirthBarBack, 3)
+
+local rebirthBarFill = make("Frame", {
+	Size = UDim2.new(0, 0, 1, 0),
+	BackgroundColor3 = UI.Gold,
+	BorderSizePixel = 0,
+}, rebirthBarBack)
+addCorner(rebirthBarFill, 3)
+
+make("UIGradient", {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, UI.Gold),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 140, 30)),
+	}),
+	Rotation = 0,
+}, rebirthBarFill)
+
+local rebirthHintLabel = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Size = UDim2.fromScale(1, 1),
+	Text = "... to Rebirth",
+	TextColor3 = UI.Muted,
+	TextScaled = false,
+	TextSize = 9,
+	Font = Enum.Font.GothamMedium,
+	TextXAlignment = Enum.TextXAlignment.Right,
+}, rebirthProgressFrame)
+
+make("UIPadding", {
+	PaddingRight = UDim.new(0, 8),
+}, rebirthHintLabel)
+
+local gemsLabel, addGemsButton = createWalletRow(walletDock, 3, "Gems", "D", Color3.fromRGB(69, 207, 255))
+
+local function createMenuButton(order, text, iconText, accentColor)
+	local frame = make("Frame", {
 		LayoutOrder = order,
-		Size = UDim2.new(1, 0, 0, 36),
-		BackgroundColor3 = accentColor,
-		Text = text,
-		TextColor3 = accentColor == UI.Gold and Color3.fromRGB(20, 14, 8) or UI.Text,
+		Size = UDim2.new(1, 0, 0, 44),
+		BackgroundColor3 = UI.PanelAlt,
+	}, sidebar)
+	addCorner(frame, 11)
+	addStroke(frame, accentColor, 1.5, 0.72)
+
+	-- Coloured icon badge (mirrors the wallet row pattern)
+	local iconBg = make("TextLabel", {
+		Size = UDim2.fromOffset(30, 30),
+		Position = UDim2.new(0, 8, 0.5, -15),
+		BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0, 0, 0), 0.68),
+		Text = iconText,
+		TextColor3 = accentColor,
 		TextScaled = false,
 		TextSize = 15,
 		Font = Enum.Font.GothamBlack,
-		AutoButtonColor = true,
-	}, sidebar)
-	addCorner(button, 9)
+	}, frame)
+	addCorner(iconBg, 9)
+
+	-- Button label
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 46, 0, 0),
+		Size = UDim2.new(1, -52, 1, 0),
+		Text = text,
+		TextColor3 = UI.Text,
+		TextScaled = false,
+		TextSize = 14,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, frame)
+
+	-- Invisible click layer on top
+	local button = make("TextButton", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = "",
+		ZIndex = 5,
+		AutoButtonColor = false,
+	}, frame)
+	addCorner(button, 11)
+
+	-- Subtle hover highlight
+	button.MouseEnter:Connect(function()
+		TweenService:Create(frame, TweenInfo.new(0.1), {
+			BackgroundColor3 = accentColor:Lerp(UI.PanelAlt, 0.88),
+		}):Play()
+	end)
+	button.MouseLeave:Connect(function()
+		TweenService:Create(frame, TweenInfo.new(0.1), {
+			BackgroundColor3 = UI.PanelAlt,
+		}):Play()
+	end)
+
 	return button
 end
 
-local inventoryButton = createMenuButton(1, "Inventory", UI.PanelAlt)
-local upgradesButton = createMenuButton(2, "Upgrades", UI.Gold)
-local questsButton = createMenuButton(3, "Quests", Color3.fromRGB(42, 54, 126))
-local shopButton = createMenuButton(4, "Shop", Color3.fromRGB(25, 118, 55))
+local inventoryButton = createMenuButton(1, "Inventory", "=",  Color3.fromRGB(100, 155, 255))
+local upgradesButton  = createMenuButton(2, "Upgrades",  "^",  UI.Gold)
+local questsButton    = createMenuButton(3, "Quests",    "*",  Color3.fromRGB(120, 140, 255))
+local shopButton      = createMenuButton(4, "Shop",      "$",  Color3.fromRGB(74, 185, 98))
 
 local toastHolder = make("Frame", {
 	BackgroundTransparency = 1,
@@ -314,8 +417,39 @@ make("UIListLayout", {
 	Padding = UDim.new(0, 10),
 }, toastHolder)
 
+local cachedRebirthTier = 0
+
+local function getRebirthThreshold(tier)
+	local base = Constants.Rebirth and Constants.Rebirth.BaseFanRequirement or 1000000
+	local mult = Constants.Rebirth and Constants.Rebirth.FanRequirementMultiplier or 2
+	return math.floor(base * (mult ^ tier))
+end
+
+local function updateRebirthProgress(coins, tier)
+	coins = coins or 0
+	tier  = tier  or cachedRebirthTier
+	cachedRebirthTier = tier
+
+	local threshold = getRebirthThreshold(tier)
+	local ratio     = math.clamp(coins / threshold, 0, 1)
+	local remaining = math.max(0, threshold - coins)
+
+	TweenService:Create(rebirthBarFill, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
+		Size = UDim2.new(ratio, 0, 1, 0),
+	}):Play()
+
+	if ratio >= 1 then
+		rebirthHintLabel.Text = "Ready to Rebirth!"
+		rebirthHintLabel.TextColor3 = UI.Gold
+	else
+		rebirthHintLabel.Text = Utils.FormatNumber(remaining) .. " to Rebirth " .. (tier + 1)
+		rebirthHintLabel.TextColor3 = UI.Muted
+	end
+end
+
 local function setCoinsDisplay(coins)
 	fansLabel.Text = Utils.FormatNumber(coins or 0)
+	updateRebirthProgress(coins, cachedRebirthTier)
 end
 
 local function setGemsDisplay(gems)
@@ -389,8 +523,10 @@ local function refreshStatus()
 		return
 	end
 
+	cachedRebirthTier = data.rebirthTier or 0
 	setCoinsDisplay(data.coins)
 	setGemsDisplay(data.gems)
+	updateRebirthProgress(data.coins, cachedRebirthTier)
 end
 
 inventoryButton.MouseButton1Click:Connect(function()
