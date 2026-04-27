@@ -1811,28 +1811,26 @@ local function createDisplaySlot(parent, index, cframe, lookDirection)
 		CFrame = base.CFrame + Vector3.new(0, topY + 0.08, 0),
 	}, model)
 
-	-- Slot number — BillboardGui on the player-facing side so it's
-	-- always readable regardless of which row the slot is in.
-	local numGui = make("BillboardGui", {
+	-- Slot number on the player-facing face.
+	-- lookDirection points toward the player, so map it to the correct NormalId:
+	--   lookDirection.Z > 0  (+Z toward player) → Back face  (+Z = NormalId.Back)
+	--   lookDirection.Z < 0  (-Z toward player) → Front face (-Z = NormalId.Front)
+	local numFace = lookDirection.Z > 0 and Enum.NormalId.Back or Enum.NormalId.Front
+	local numGui = make("SurfaceGui", {
 		Name = "SlotNum",
+		Face = numFace,
 		AlwaysOnTop = false,
-		Size = UDim2.fromOffset(54, 38),
-		StudsOffset = Vector3.new(
-			lookDirection.X * (slotW / 2 + 0.2),
-			-slotH / 2 + 1.6,
-			lookDirection.Z * (slotD / 2 + 0.2)
-		),
+		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+		PixelsPerStud = 30,
 	}, base)
 	make("TextLabel", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = tostring(index),
 		TextColor3 = Color3.fromRGB(255, 210, 60),
-		TextTransparency = 0.22,
+		TextTransparency = 0.36,
 		TextScaled = true,
 		Font = Enum.Font.GothamBlack,
-		TextStrokeTransparency = 0.5,
-		TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
 	}, numGui)
 
 	local prompt = make("ProximityPrompt", {
