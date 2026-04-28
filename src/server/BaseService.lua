@@ -2132,19 +2132,20 @@ local ALL_SLOT_OFFSETS = {
 	Vector3.new(  0, 1.75,  14),  -- 5
 	Vector3.new( 12, 1.75,  14),  -- 6
 	-- Rebirth Terrace row 1 — closest to pitch, six slots across the back.
-	Vector3.new(-27, 17.75, -17.5), -- 7
-	Vector3.new(-27, 17.75, -10.5), -- 8
-	Vector3.new(-27, 17.75,  -3.5), -- 9
-	Vector3.new(-27, 17.75,   3.5), -- 10
-	Vector3.new(-27, 17.75,  10.5), -- 11
-	Vector3.new(-27, 17.75,  17.5), -- 12
+	-- The outer slots are pulled inward so the side stairs have a clean walkway.
+	Vector3.new(-27, 17.75, -15), -- 7
+	Vector3.new(-27, 17.75,  -9), -- 8
+	Vector3.new(-27, 17.75,  -3), -- 9
+	Vector3.new(-27, 17.75,   3), -- 10
+	Vector3.new(-27, 17.75,   9), -- 11
+	Vector3.new(-27, 17.75,  15), -- 12
 	-- Rebirth Terrace row 2 — future expansion capacity.
-	Vector3.new(-35, 17.75, -17.5), -- 13
-	Vector3.new(-35, 17.75, -10.5), -- 14
-	Vector3.new(-35, 17.75,  -3.5), -- 15
-	Vector3.new(-35, 17.75,   3.5), -- 16
-	Vector3.new(-35, 17.75,  10.5), -- 17
-	Vector3.new(-35, 17.75,  17.5), -- 18
+	Vector3.new(-35, 17.75, -15), -- 13
+	Vector3.new(-35, 17.75,  -9), -- 14
+	Vector3.new(-35, 17.75,  -3), -- 15
+	Vector3.new(-35, 17.75,   3), -- 16
+	Vector3.new(-35, 17.75,   9), -- 17
+	Vector3.new(-35, 17.75,  15), -- 18
 }
 
 local function slotLookDir(localOffset, facingDirection)
@@ -2239,27 +2240,27 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	end
 
 	-- ── Staircases ──────────────────────────────────────────────────────────────
-	-- These climb perpendicular to the terrace face: from the pitch side backwards
-	-- onto the deck. The previous Z-running stairs reached the wall face instead
-	-- of the floor, which forced players to sidestep/jump at the top.
+	-- These climb up the side corridors. Ground/terrace display slots stop before
+	-- the wall, so the stairs no longer cut through player cards.
 	local stairCount  = 18
-	local stairW      = 4.8
+	local stairW      = 2.7
 	local groundY     = 0.9
 	local stairTopY   = deckTopLocalY
 	local totalRise   = stairTopY - groundY
 	local stairBottomX = deckFrontLocalX + facingDirection * 17
-	local stairTopX    = deckFrontLocalX - facingDirection * 5
+	local stairTopX    = deckFrontLocalX - facingDirection * 5.6
 	local totalRun     = math.abs(stairTopX - stairBottomX)
 	local riserH       = totalRise / stairCount
 	local treadD       = totalRun / stairCount
-	local landingSize  = Vector3.new(8.4, 0.16, 5.8)
+	local landingSize  = Vector3.new(8.8, 0.12, 2.8)
+	local bridgeSize   = Vector3.new(9.2, 0.12, 2.9)
 
 	for _, zSign in ipairs({ -1, 1 }) do
-		local stairZ = zSign * 17.2
+		local stairZ = zSign * 20.0
 		local rampBottom = (baseCFrame * CFrame.new(stairBottomX, groundY, stairZ)).Position
-		local rampTop = (baseCFrame * CFrame.new(stairTopX, stairTopY + 0.12, stairZ)).Position
+		local rampTop = (baseCFrame * CFrame.new(stairTopX, stairTopY + 0.04, stairZ)).Position
 		local rampMid = (rampBottom + rampTop) / 2
-		local rampLength = (rampTop - rampBottom).Magnitude + 1.2
+		local rampLength = (rampTop - rampBottom).Magnitude + 1.4
 
 		make("Part", {
 			Name = "RebirthTerraceRamp",
@@ -2268,20 +2269,33 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 			CanQuery = false,
 			CanTouch = false,
 			Transparency = 1,
-			Size = Vector3.new(stairW + 0.8, 0.3, rampLength),
+			Size = Vector3.new(stairW + 0.25, 0.28, rampLength),
 			CFrame = CFrame.lookAt(rampMid, rampTop),
+		}, parent)
+
+		-- Flush invisible bridge: overlaps both the ramp top and the deck surface,
+		-- removing the tiny ledge that made avatars "climb" onto the terrace.
+		make("Part", {
+			Name = "RebirthTerraceTopBridge",
+			Anchored = true,
+			CanCollide = true,
+			CanQuery = false,
+			CanTouch = false,
+			Transparency = 1,
+			Size = bridgeSize,
+			CFrame = baseCFrame * CFrame.new(stairTopX, deckTopLocalY + 0.02, stairZ),
 		}, parent)
 
 		make("Part", {
 			Name = "RebirthTerraceStairLanding",
 			Anchored = true,
-			CanCollide = true,
+			CanCollide = false,
 			CanQuery = false,
 			CanTouch = false,
 			Material = Enum.Material.SmoothPlastic,
 			Color = deckColor,
 			Size = landingSize,
-			CFrame = baseCFrame * CFrame.new(stairTopX, deckTopLocalY + landingSize.Y / 2, stairZ),
+			CFrame = baseCFrame * CFrame.new(stairTopX, deckTopLocalY + 0.08, stairZ),
 		}, parent)
 
 		make("Part", {
