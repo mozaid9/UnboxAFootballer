@@ -2788,19 +2788,19 @@ local ALL_SLOT_OFFSETS = {
 	Vector3.new(  0, 1.75,  14),  -- 5
 	Vector3.new( 12, 1.75,  14),  -- 6
 	-- Rebirth Terrace row 1 — closest to pitch, six slots across the back.
-	Vector3.new(-22, 10.25, -17.5), -- 7
-	Vector3.new(-22, 10.25, -10.5), -- 8
-	Vector3.new(-22, 10.25,  -3.5), -- 9
-	Vector3.new(-22, 10.25,   3.5), -- 10
-	Vector3.new(-22, 10.25,  10.5), -- 11
-	Vector3.new(-22, 10.25,  17.5), -- 12
+	Vector3.new(-22, 17.75, -17.5), -- 7
+	Vector3.new(-22, 17.75, -10.5), -- 8
+	Vector3.new(-22, 17.75,  -3.5), -- 9
+	Vector3.new(-22, 17.75,   3.5), -- 10
+	Vector3.new(-22, 17.75,  10.5), -- 11
+	Vector3.new(-22, 17.75,  17.5), -- 12
 	-- Rebirth Terrace row 2 — future expansion capacity.
-	Vector3.new(-30, 10.25, -17.5), -- 13
-	Vector3.new(-30, 10.25, -10.5), -- 14
-	Vector3.new(-30, 10.25,  -3.5), -- 15
-	Vector3.new(-30, 10.25,   3.5), -- 16
-	Vector3.new(-30, 10.25,  10.5), -- 17
-	Vector3.new(-30, 10.25,  17.5), -- 18
+	Vector3.new(-30, 17.75, -17.5), -- 13
+	Vector3.new(-30, 17.75, -10.5), -- 14
+	Vector3.new(-30, 17.75,  -3.5), -- 15
+	Vector3.new(-30, 17.75,   3.5), -- 16
+	Vector3.new(-30, 17.75,  10.5), -- 17
+	Vector3.new(-30, 17.75,  17.5), -- 18
 }
 
 local function slotLookDir(localOffset, facingDirection)
@@ -2821,7 +2821,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	local gold = Color3.fromRGB(255, 210, 55)
 	local stepColor = Color3.fromRGB(18, 24, 35)
 
-	local deckLocalY = 8.22 -- top lands at local Y 8.5, matching upper slot bottoms.
+	local deckLocalY = 15.72 -- top lands at local Y 16.0, matching upper slot bottoms.
 	local deckCenterX = -26 * facingDirection
 	local deckSize = Vector3.new(18, 0.56, 43)
 	local deckTopLocalY = deckLocalY + (deckSize.Y / 2)
@@ -2899,7 +2899,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	-- Two staircases make the new floor read as reachable/intentional rather
 	-- than a floating shelf. They are visual only, so they won't snag players.
 	for _, zSign in ipairs({ -1, 1 }) do
-		local stairSteps = 11
+		local stairSteps = 18
 		for step = 1, stairSteps do
 			local alpha = (step - 1) / (stairSteps - 1)
 			local x = (-10.5 - (alpha * 12)) * facingDirection
