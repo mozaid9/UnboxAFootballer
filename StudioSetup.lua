@@ -710,30 +710,52 @@ end
 
 local function getNextPackMilestone(totalPacks)
 	totalPacks = math.max(0, totalPacks or 0)
+	-- Milestones repeat every CYCLE packs (= the last milestone's threshold)
+	local CYCLE = packMilestones and packMilestones[#packMilestones].threshold or 150
+	local cycleNum    = math.floor(totalPacks / CYCLE)
+	local posInCycle  = totalPacks % CYCLE
+	local prevAt      = cycleNum * CYCLE  -- absolute start of current cycle
 
-	local bestMilestone
 	for _, milestone in ipairs(packMilestones or {}) do
-		local interval = milestone.interval
-		if type(interval) == "number" and interval > 0 then
-			local nextAt = (math.floor(totalPacks / interval) + 1) * interval
-			local previousAt = nextAt - interval
-			local progress = math.clamp((totalPacks - previousAt) / interval, 0, 1)
-			if not bestMilestone or nextAt < bestMilestone.nextAt or (nextAt == bestMilestone.nextAt and interval > bestMilestone.interval) then
-				bestMilestone = {
-					interval = interval,
-					nextAt = nextAt,
-					progress = progress,
-					reward = milestone.reward or "Reward",
-				}
-			end
+		local T = milestone.threshold
+		if type(T) == "number" and posInCycle < T then
+			local absoluteNext = cycleNum * CYCLE + T
+			local span = absoluteNext - prevAt
+			local progress = span > 0 and math.clamp((totalPacks - prevAt) / span, 0, 1) or 1
+			return {
+				nextAt    = absoluteNext,
+				prevAt    = prevAt,
+				progress  = progress,
+				reward    = milestone.reward or "Pack",
+				packId    = milestone.packId,
+				label     = milestone.label  or "REWARD",
+				color     = milestone.color  or Color3.fromRGB(255, 215, 0),
+				threshold = T,
+				cycleNum  = cycleNum,
+			}
+		end
+		if type(T) == "number" then
+			prevAt = cycleNum * CYCLE + T
 		end
 	end
 
-	return bestMilestone or {
-		interval = 50,
-		nextAt = 50,
-		progress = 0,
-		reward = "Rare Pack",
+	-- All milestones done in this cycle — show teaser for first in next cycle
+	local nextCycle = cycleNum + 1
+	local firstMs   = packMilestones and packMilestones[1]
+	local firstT    = firstMs and firstMs.threshold or 25
+	local absNext   = nextCycle * CYCLE + firstT
+	local span      = absNext - prevAt
+	local progress  = span > 0 and math.clamp((totalPacks - prevAt) / span, 0, 1) or 1
+	return {
+		nextAt    = absNext,
+		prevAt    = prevAt,
+		progress  = progress,
+		reward    = firstMs and firstMs.reward or "Gold Pack",
+		packId    = firstMs and firstMs.packId,
+		label     = firstMs and firstMs.label  or "COMMON",
+		color     = firstMs and firstMs.color  or Color3.fromRGB(90, 200, 90),
+		threshold = firstT,
+		cycleNum  = nextCycle,
 	}
 end
 
@@ -762,10 +784,15 @@ end
 local function updatePadHealth(plot, title, currentValue, maxValue, color)
 	local ratio = maxValue > 0 and math.clamp(currentValue / maxValue, 0, 1) or 0
 	plot.padTitleLabel.Text = title
-	plot.padSubtitleLabel.Text = string.format("%d / %d HP", currentValue, maxValue)
+	-- Show percentage remaining instead of raw hit numbers
+	local pct = math.ceil(ratio * 100)
+	plot.padSubtitleLabel.Text = pct .. "% remaining"
 	plot.padAccent.BackgroundColor3 = color
 	plot.padBarBack.Visible = true
-	plot.padBarFill.BackgroundColor3 = color
+	-- Bar colour shifts green → yellow → red as health drops
+	local r = math.clamp(2 * (1 - ratio), 0, 1)
+	local g = math.clamp(2 * ratio, 0, 1)
+	plot.padBarFill.BackgroundColor3 = Color3.new(r, g, 0)
 	plot.padBarFill.Size = UDim2.new(ratio, 0, 1, 0)
 end
 
@@ -813,6 +840,97 @@ local function createGlowStrip(parent, name, size, cframe, color, transparency)
 		Size = size,
 		CFrame = cframe,
 	}, parent)
+end
+
+local function createGroundDisk(parent, name, position, diameter, height, color, material, transparency)
+	make("Part", {
+		Name = name,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Shape = Enum.PartType.Cylinder,
+		Material = material or Enum.Material.SmoothPlastic,
+		Color = color,
+		Transparency = transparency or 0,
+		Size = Vector3.new(height, diameter, diameter),
+		CFrame = CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90)),
+	}, parent)
+end
+
+local function createFloatingHubLabel(parent, position, title, subtitle)
+	local anchor = make("Part", {
+		Name = "FloatingHubLabelAnchor",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(1, 1, 1),
+		CFrame = CFrame.new(position),
+	}, parent)
+
+	local gui = make("BillboardGui", {
+		Name = "FloatingHubLabel",
+		AlwaysOnTop = false,
+		Size = UDim2.fromOffset(320, 96),
+		StudsOffset = Vector3.zero,
+		MaxDistance = 230,
+	}, anchor)
+
+	local frame = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(7, 10, 18),
+		BackgroundTransparency = 0.18,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+	}, gui)
+	make("UICorner", { CornerRadius = UDim.new(0, 18) }, frame)
+	make("UIStroke", {
+		Color = Color3.fromRGB(255, 215, 0),
+		Thickness = 2,
+		Transparency = 0.16,
+	}, frame)
+
+	local titleLabel = createSignLabel(title, UDim2.fromScale(0.92, 0.54), UDim2.fromScale(0.04, 0.08), Color3.fromRGB(255, 215, 0), frame)
+	titleLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	titleLabel.TextStrokeTransparency = 0.45
+	local subtitleLabel = createSignLabel(subtitle, UDim2.fromScale(0.88, 0.24), UDim2.fromScale(0.06, 0.64), Color3.fromRGB(235, 229, 210), frame)
+	subtitleLabel.Font = Enum.Font.GothamBold
+
+	return anchor
+end
+
+local function createParticleAnchor(parent, name, position, rate, colorSequence, texture, sizeSequence)
+	local anchor = make("Part", {
+		Name = name,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(1, 1, 1),
+		CFrame = CFrame.new(position),
+	}, parent)
+
+	make("ParticleEmitter", {
+		Name = "Particles",
+		Texture = texture,
+		Color = colorSequence,
+		LightEmission = 0.65,
+		Rate = rate,
+		Lifetime = NumberRange.new(1.4, 2.6),
+		Speed = NumberRange.new(1.4, 3.0),
+		SpreadAngle = Vector2.new(180, 180),
+		Size = sizeSequence,
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.2),
+			NumberSequenceKeypoint.new(0.72, 0.42),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+		Acceleration = Vector3.new(0, 1.2, 0),
+	}, anchor)
+
+	return anchor
 end
 
 local function createPitchLine(parent, name, size, cframe, transparency)
@@ -1080,6 +1198,64 @@ local function tryCreateImportedDecor(parent, name, assetId, position, facingPos
 	return loaded
 end
 
+-- Loads the shared stadium seats/bleacher model and places one copy on each
+-- of the three stand sides (north, south, back).  Scales by the widest
+-- horizontal axis so the seats span the full stand width.  Fails silently.
+local function tryAddStadiumSeats(parent, baseCFrame, facingDirection, assetId)
+	if type(assetId) ~= "number" or assetId <= 0 then return end
+
+	local ok, loaded = pcall(function()
+		return InsertService:LoadAsset(assetId)
+	end)
+	if not ok or not loaded then
+		warn("[BaseService] Stadium seats load failed:", assetId, loaded)
+		return
+	end
+	prepareImportedModel(loaded)
+
+	local _, rawSize = loaded:GetBoundingBox()
+	local rawSpan = math.max(rawSize.X, rawSize.Z, 0.1)
+	if rawSpan <= 0.1 then loaded:Destroy() return end
+
+	local pitchPos   = baseCFrame.Position
+	local floorY     = pitchPos.Y + layout.PlotSize.Y / 2
+	local sideWidth  = layout.PlotSize.X - 10           -- 46 studs
+	local backWidth  = layout.PlotSize.Z + 8            -- 52 studs
+	local sideStandZ = layout.PlotSize.Z / 2 + 9        -- centre of side stand
+	local backStandX = layout.PlotSize.X / 2 + 7        -- centre of back stand
+
+	local function placeSide(name, worldPos, lookTarget, widthTarget)
+		local scaleF = math.clamp(widthTarget / rawSpan, 0.04, 10)
+		local clone = loaded:Clone()
+		clone.Name = name
+		clone.Parent = parent
+		pcall(function() clone:ScaleTo(scaleF) end)
+		clone:PivotTo(CFrame.lookAt(worldPos, Vector3.new(lookTarget.X, worldPos.Y, lookTarget.Z)))
+		local bc, bs = clone:GetBoundingBox()
+		clone:PivotTo(clone:GetPivot() + Vector3.new(0, floorY - (bc.Position.Y - bs.Y * 0.5), 0))
+	end
+
+	-- North stand (Z negative): fans face south toward the pitch
+	placeSide("StadiumSeatsNorth",
+		pitchPos + Vector3.new(0, 0, -sideStandZ),
+		pitchPos,
+		sideWidth)
+
+	-- South stand (Z positive): fans face north toward the pitch
+	placeSide("StadiumSeatsSouth",
+		pitchPos + Vector3.new(0, 0, sideStandZ),
+		pitchPos,
+		sideWidth)
+
+	-- Back stand: fans face toward the entrance / pitch front
+	placeSide("StadiumSeatsBack",
+		pitchPos + Vector3.new(-facingDirection * backStandX, 0, 0),
+		pitchPos + Vector3.new(facingDirection * 20, 0, 0),
+		backWidth)
+
+	loaded:Destroy()
+end
+
 local function createFloodlightBeam(parent, name, position, targetPosition, poleHeight, options)
 	options = options or {}
 	local anchorPosition = position + Vector3.new(0, poleHeight + 1.5, 0)
@@ -1259,26 +1435,69 @@ local function createVerticalBanner(parent, name, position, lookTarget, title)
 		Name = name,
 	}, parent)
 
+	local bannerGold = Color3.fromRGB(255, 210, 50)
+	local bannerW    = 4.8
+	local bannerH    = 8.5
+	local stripW     = 0.14
+
+	-- Metal pole with gold cap
 	make("Part", {
 		Name = "Post",
-		Anchored = true,
-		CanCollide = true,
+		Anchored = true, CanCollide = true,
 		Material = Enum.Material.Metal,
 		Color = Color3.fromRGB(24, 30, 42),
 		Size = Vector3.new(0.55, 10, 0.55),
 		CFrame = CFrame.new(position + Vector3.new(0, 5, 0)),
 	}, model)
+	make("Part", {
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon, Color = bannerGold, Transparency = 0.40,
+		Size = Vector3.new(0.55, 0.3, 0.55),
+		CFrame = CFrame.new(position + Vector3.new(0, 10.2, 0)),
+	}, model)
 
+	local bannerCF = CFrame.lookAt(position + Vector3.new(0, 6.2, 0), lookTarget)
+
+	-- Main banner panel
 	local banner = make("Part", {
 		Name = "Banner",
-		Anchored = true,
-		CanCollide = false,
+		Anchored = true, CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(8, 12, 20),
-		Size = Vector3.new(4.8, 8.5, 0.35),
-		CFrame = CFrame.lookAt(position + Vector3.new(0, 6.2, 0), lookTarget),
+		Color = Color3.fromRGB(8, 11, 20),
+		Size = Vector3.new(bannerW, bannerH, 0.35),
+		CFrame = bannerCF,
 	}, model)
-	createSurfaceText(banner, title, "FOOTBALLER")
+
+	-- Neon gold left + right edge strips
+	for _, xSign in ipairs({ -1, 1 }) do
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon, Color = bannerGold, Transparency = 0.35,
+			Size = Vector3.new(stripW, bannerH + stripW * 2, 0.38),
+			CFrame = bannerCF * CFrame.new(xSign * (bannerW / 2 + stripW / 2), 0, 0),
+		}, model)
+	end
+	-- Neon gold top strip
+	make("Part", {
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon, Color = bannerGold, Transparency = 0.35,
+		Size = Vector3.new(bannerW + stripW * 2, stripW, 0.38),
+		CFrame = bannerCF * CFrame.new(0, bannerH / 2 + stripW / 2, 0),
+	}, model)
+	-- Neon gold bottom strip
+	make("Part", {
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon, Color = bannerGold, Transparency = 0.35,
+		Size = Vector3.new(bannerW + stripW * 2, stripW, 0.38),
+		CFrame = bannerCF * CFrame.new(0, -(bannerH / 2 + stripW / 2), 0),
+	}, model)
+
+	-- Subtle warm glow from banner face (dimmed — no bloom blast)
+	make("PointLight", {
+		Brightness = 0.35, Range = 8, Color = bannerGold,
+	}, banner)
+
+	createSurfaceText(banner, title, "")
 
 	return model
 end
@@ -1845,9 +2064,9 @@ local function createFanZone(mapWidth, mapLength)
 		Name = "MainWalkwayLeftEdge",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(188, 154, 54),
-		Transparency = 0.18,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(210, 168, 52),
+		Transparency = 0.42,
 		Size = Vector3.new(0.28, 0.08, mapLength - 78),
 		CFrame = CFrame.new(-27, 0.38, 0),
 	}, plaza)
@@ -1855,9 +2074,9 @@ local function createFanZone(mapWidth, mapLength)
 		Name = "MainWalkwayRightEdge",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(188, 154, 54),
-		Transparency = 0.18,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(210, 168, 52),
+		Transparency = 0.42,
 		Size = Vector3.new(0.28, 0.08, mapLength - 78),
 		CFrame = CFrame.new(27, 0.38, 0),
 	}, plaza)
@@ -1877,22 +2096,65 @@ local function createFanZone(mapWidth, mapLength)
 			Name = "StadiumPathGuideA" .. laneIndex,
 			Anchored = true,
 			CanCollide = false,
-			Material = Enum.Material.SmoothPlastic,
-			Color = Color3.fromRGB(188, 154, 54),
-			Transparency = 0.22,
-			Size = Vector3.new((layout.SideOffset * 2) - 28, 0.07, 0.22),
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(210, 168, 52),
+			Transparency = 0.78,
+			Size = Vector3.new((layout.SideOffset * 2) - 28, 0.07, 0.08),
 			CFrame = CFrame.new(0, 0.4, laneZ - 6.8),
 		}, plaza)
 		make("Part", {
 			Name = "StadiumPathGuideB" .. laneIndex,
 			Anchored = true,
 			CanCollide = false,
-			Material = Enum.Material.SmoothPlastic,
-			Color = Color3.fromRGB(188, 154, 54),
-			Transparency = 0.22,
-			Size = Vector3.new((layout.SideOffset * 2) - 28, 0.07, 0.22),
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(210, 168, 52),
+			Transparency = 0.78,
+			Size = Vector3.new((layout.SideOffset * 2) - 28, 0.07, 0.08),
 			CFrame = CFrame.new(0, 0.4, laneZ + 6.8),
 		}, plaza)
+	end
+
+	-- ── Pathway lighting ─────────────────────────────────────────────────────
+	-- Warm overhead lights every 56 studs along the main walkway
+	do
+		local LAMP_SPACING = 56
+		local lampZ = southZ + 28
+		while lampZ < northZ - 20 do
+			local anchor = make("Part", {
+				Name = "WalkwayLampAnchor",
+				Anchored = true, CanCollide = false,
+				Transparency = 1,
+				Size = Vector3.new(1, 1, 1),
+				CFrame = CFrame.new(0, 7.5, lampZ),
+			}, plaza)
+			make("PointLight", {
+				Color = Color3.fromRGB(255, 224, 160),
+				Range = 38,
+				Brightness = 0.42,
+				Shadows = false,
+			}, anchor)
+			lampZ = lampZ + LAMP_SPACING
+		end
+	end
+
+	-- Gold accent lights at each stadium lane crossing
+	for laneIndex = 1, layout.PlotsPerSide do
+		local laneZ = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
+		for _, xSide in ipairs({ -22, 22 }) do
+			local crossAnchor = make("Part", {
+				Name = "LaneCrossLamp",
+				Anchored = true, CanCollide = false,
+				Transparency = 1,
+				Size = Vector3.new(1, 1, 1),
+				CFrame = CFrame.new(xSide, 5.5, laneZ),
+			}, plaza)
+			make("PointLight", {
+				Color = Color3.fromRGB(255, 210, 80),
+				Range = 26,
+				Brightness = 0.32,
+				Shadows = false,
+			}, crossAnchor)
+		end
 	end
 
 	-- ── FAN ZONE deck: a clean centre area that separates the statue and
@@ -2342,25 +2604,80 @@ local function createDisplaySlot(parent, index, cframe, lookDirection)
 		Name = "DisplaySlot" .. index,
 	}, parent)
 
+	local slotW = layout.DisplaySlotSize.X
+	local slotH = layout.DisplaySlotSize.Y
+	local slotD = layout.DisplaySlotSize.Z
+	local topY  = slotH / 2
+
+	-- Pedestal body — dark polished concrete
 	local base = make("Part", {
 		Name = "Base",
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(20, 26, 38),
+		Color = Color3.fromRGB(14, 19, 30),
 		Size = layout.DisplaySlotSize,
 		CFrame = cframe,
 	}, model)
 
+	-- Slim gold neon rim around the top edge (4 strips)
+	local rimThickness = 0.22
+	local rimHeight    = 0.28
+	local rimY         = topY + rimHeight / 2
+	local rimColor     = Color3.fromRGB(255, 210, 60)
+	local rimTransp    = 0.28
+	for _, axis in ipairs({
+		{ Vector3.new(slotW, rimHeight, rimThickness), Vector3.new(0,  rimY, -(slotD / 2)) },
+		{ Vector3.new(slotW, rimHeight, rimThickness), Vector3.new(0,  rimY,  (slotD / 2)) },
+		{ Vector3.new(rimThickness, rimHeight, slotD), Vector3.new(-(slotW / 2), rimY, 0)  },
+		{ Vector3.new(rimThickness, rimHeight, slotD), Vector3.new( (slotW / 2), rimY, 0)  },
+	}) do
+		make("Part", {
+			Name = "RimStrip",
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = rimColor,
+			Transparency = rimTransp,
+			Size = axis[1],
+			CFrame = cframe + axis[2],
+		}, model)
+	end
+
+	-- Gold glow display pad on top
 	local top = make("Part", {
 		Name = "Top",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(34, 128, 76),
-		Transparency = 0.08,
-		Size = Vector3.new(layout.DisplaySlotSize.X - 1.4, 0.18, layout.DisplaySlotSize.Z - 1.4),
-		CFrame = base.CFrame + Vector3.new(0, layout.DisplaySlotSize.Y / 2 + 0.1, 0),
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 205, 50),
+		Transparency = 0.52,
+		Size = Vector3.new(slotW - 1.6, 0.14, slotD - 1.6),
+		CFrame = base.CFrame + Vector3.new(0, topY + 0.08, 0),
 	}, model)
+
+	-- Slot number on the player-facing face.
+	-- lookDirection points toward the player, so map it to the correct NormalId:
+	--   lookDirection.Z > 0  (+Z toward player) → Back face  (+Z = NormalId.Back)
+	--   lookDirection.Z < 0  (-Z toward player) → Front face (-Z = NormalId.Front)
+	local numFace = lookDirection.Z > 0 and Enum.NormalId.Back or Enum.NormalId.Front
+	local numGui = make("SurfaceGui", {
+		Name = "SlotNum",
+		Face = numFace,
+		AlwaysOnTop = false,
+		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+		PixelsPerStud = 30,
+	}, base)
+	make("TextLabel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = tostring(index),
+		TextColor3 = Color3.fromRGB(255, 210, 60),
+		TextTransparency = 0.36,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+	}, numGui)
 
 	local prompt = make("ProximityPrompt", {
 		Name = "SlotPrompt",
@@ -2387,6 +2704,102 @@ local function createDisplaySlot(parent, index, cframe, lookDirection)
 	}
 end
 
+-- ── Display-slot world offsets (local space, X scaled by facingDirection) ─────
+-- Slots 1-6  : base layout (every player starts with these)
+-- Slots 7-12 : unlocked one-per-rebirth
+-- Side slots (|X| > 12) face inward; front/back slots face the plot centre in Z.
+local ALL_SLOT_OFFSETS = {
+	-- Ground floor (always present) — 2 rows of 3 across the pitch
+	Vector3.new(-12, 1.75, -14),  -- 1
+	Vector3.new(  0, 1.75, -14),  -- 2
+	Vector3.new( 12, 1.75, -14),  -- 3
+	Vector3.new(-12, 1.75,  14),  -- 4
+	Vector3.new(  0, 1.75,  14),  -- 5
+	Vector3.new( 12, 1.75,  14),  -- 6
+	-- Upper gallery (rebirth unlocks) — raised side balconies instead of
+	-- cluttering the pitch. The gallery platform top is local Y +5.0, and
+	-- slot centres are 1.75 studs above that surface.
+	Vector3.new(-12, 6.75, -18.25), -- 7
+	Vector3.new(  0, 6.75, -18.25), -- 8
+	Vector3.new( 12, 6.75, -18.25), -- 9
+	Vector3.new(-12, 6.75,  18.25), -- 10
+	Vector3.new(  0, 6.75,  18.25), -- 11
+	Vector3.new( 12, 6.75,  18.25), -- 12
+}
+
+local function slotLookDir(localOffset, _facingDirection)
+	-- All slots (ground and second floor) use Z-based facing:
+	-- back row (Z < 0) faces south (+Z); front row (Z > 0) faces north (−Z).
+	return localOffset.Z < 0 and Vector3.new(0, 0, 1) or Vector3.new(0, 0, -1)
+end
+
+local function createSecondFloorDisplayGallery(parent, baseCFrame)
+	local deckColor = Color3.fromRGB(14, 19, 31)
+	local railColor = Color3.fromRGB(26, 36, 54)
+	local supportColor = Color3.fromRGB(18, 26, 40)
+	local gold = Color3.fromRGB(255, 210, 55)
+
+	local deckLocalY = 4.72 -- top lands at local Y 5.0, matching upper slot bottoms.
+	local deckSize = Vector3.new(43, 0.56, 7.2)
+	local galleryRows = {
+		{ name = "North", z = -18.25, outerSign = -1 },
+		{ name = "South", z =  18.25, outerSign =  1 },
+	}
+
+	for _, row in ipairs(galleryRows) do
+		local deck = make("Part", {
+			Name = "SecondFloor" .. row.name .. "Gallery",
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = deckColor,
+			Size = deckSize,
+			CFrame = baseCFrame * CFrame.new(0, deckLocalY, row.z),
+		}, parent)
+
+		make("Part", {
+			Name = deck.Name .. "Glow",
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = gold,
+			Transparency = 0.62,
+			Size = Vector3.new(deckSize.X - 1.4, 0.08, 0.18),
+			CFrame = baseCFrame * CFrame.new(0, deckLocalY + 0.34, row.z - (row.outerSign * 3.15)),
+		}, parent)
+
+		make("Part", {
+			Name = deck.Name .. "OuterRail",
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = railColor,
+			Size = Vector3.new(deckSize.X, 1.05, 0.35),
+			CFrame = baseCFrame * CFrame.new(0, deckLocalY + 0.9, row.z + row.outerSign * 3.75),
+		}, parent)
+
+		for _, x in ipairs({ -19, 0, 19 }) do
+			make("Part", {
+				Name = deck.Name .. "Support",
+				Anchored = true,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				Material = Enum.Material.SmoothPlastic,
+				Color = supportColor,
+				Size = Vector3.new(0.55, 4.45, 0.55),
+				CFrame = baseCFrame * CFrame.new(x, 2.73, row.z + row.outerSign * 2.65),
+			}, parent)
+		end
+	end
+end
+
 local function createPlot(plotId, side, laneIndex, position)
 	local model = make("Model", {
 		Name = "Base" .. plotId,
@@ -2400,7 +2813,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	local wallThickness = layout.WallThickness or 1.2
 	local entranceWidth = layout.EntranceWidth or 16
 	local entrancePillarWidth = layout.EntrancePillarWidth or 2.2
-	local padInfoMaxDistance = layout.PadInfoMaxDistance or 38
+	local padInfoMaxDistance = layout.PadInfoMaxDistance or 22
 	local wallY = wallHeight / 2 + layout.PlotSize.Y / 2
 	local frontEdgeX = facingDirection * (layout.PlotSize.X / 2)
 	local backEdgeX = -frontEdgeX
@@ -2414,24 +2827,68 @@ local function createPlot(plotId, side, laneIndex, position)
 		CFrame = baseCFrame,
 	}, model)
 
-	local borderTop = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, -layout.PlotSize.Z / 2))
-	local borderBottom = createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, layout.PlotSize.Z / 2))
-	local backWall = createFence(model, Vector3.new(wallThickness, wallHeight, layout.PlotSize.Z + wallThickness), baseCFrame * CFrame.new(backEdgeX, wallY, 0))
+	createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, -layout.PlotSize.Z / 2))
+	createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY,  layout.PlotSize.Z / 2))
+	createFence(model, Vector3.new(wallThickness, wallHeight, layout.PlotSize.Z + wallThickness), baseCFrame * CFrame.new(backEdgeX, wallY, 0))
 	local frontWallSegmentLength = math.max(8, (layout.PlotSize.Z - entranceWidth) / 2)
 	local frontWallZOffset = (entranceWidth / 2) + (frontWallSegmentLength / 2)
-	local frontWallNorth = createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, -frontWallZOffset))
-	local frontWallSouth = createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, frontWallZOffset))
+	createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, -frontWallZOffset))
+	createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY,  frontWallZOffset))
 	local entrancePillarHeight = wallHeight + 5.6
 	local entrancePillarX = frontEdgeX + (facingDirection * ((entrancePillarWidth - wallThickness) / 2))
-	local entrancePillarNorth = createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, -(entranceWidth / 2)))
-	local entrancePillarSouth = createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, entranceWidth / 2))
-	_ = borderTop
-	_ = borderBottom
-	_ = backWall
-	_ = frontWallNorth
-	_ = frontWallSouth
-	_ = entrancePillarNorth
-	_ = entrancePillarSouth
+	createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, -(entranceWidth / 2)))
+	createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2,  (entranceWidth / 2)))
+
+	-- ── Neon gold trim along wall tops (positions computed, no Part refs needed) ─
+	local trimH    = 0.12
+	local trimNeon = Color3.fromRGB(255, 210, 50)
+	local trimTransp = 0.58
+	local wallTopLocalY = wallY + wallHeight / 2 + trimH / 2
+	local plotX  = layout.PlotSize.X
+	local plotZ  = layout.PlotSize.Z
+
+	-- Side walls
+	for _, zSign in ipairs({-1, 1}) do
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon, Color = trimNeon, Transparency = trimTransp,
+			Size = Vector3.new(plotX + wallThickness + 0.1, trimH, wallThickness + 0.1),
+			CFrame = baseCFrame * CFrame.new(0, wallTopLocalY, zSign * plotZ / 2),
+		}, model)
+	end
+	-- Back wall
+	make("Part", {
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon, Color = trimNeon, Transparency = trimTransp,
+		Size = Vector3.new(wallThickness + 0.1, trimH, plotZ + wallThickness + 0.1),
+		CFrame = baseCFrame * CFrame.new(backEdgeX, wallTopLocalY, 0),
+	}, model)
+	-- Front wall segments
+	for _, zSign in ipairs({-1, 1}) do
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon, Color = trimNeon, Transparency = trimTransp,
+			Size = Vector3.new(wallThickness + 0.1, trimH, frontWallSegmentLength + 0.1),
+			CFrame = baseCFrame * CFrame.new(frontEdgeX, wallTopLocalY, zSign * frontWallZOffset),
+		}, model)
+	end
+
+	-- ── Gold PointLights + Neon caps on entrance pillar tops ─────────────────────
+	local pillarCapLocalY = entrancePillarHeight + layout.PlotSize.Y / 2
+	for _, zSign in ipairs({-1, 1}) do
+		local capCF = baseCFrame * CFrame.new(entrancePillarX, pillarCapLocalY, zSign * (entranceWidth / 2))
+		local anchor = make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Transparency = 1, Size = Vector3.new(1, 1, 1), CFrame = capCF,
+		}, model)
+		make("PointLight", { Brightness = 0.8, Range = 16, Color = trimNeon }, anchor)
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon, Color = trimNeon, Transparency = 0.35,
+			Size = Vector3.new(entrancePillarWidth + 0.3, 0.30, wallThickness + 1.1),
+			CFrame = baseCFrame * CFrame.new(entrancePillarX, pillarCapLocalY - 0.18, zSign * (entranceWidth / 2)),
+		}, model)
+	end
 
 	local standRise = 0.9
 	local standDepth = 4.8
@@ -2521,216 +2978,430 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, model)
 
 	local entranceBeamY = entrancePillarHeight + layout.PlotSize.Y / 2 - 0.6
-	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 3.1, 0)
-	local entranceBeam = createFence(
+	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 5.0, 0)
+	createFence(
 		model,
-		Vector3.new(entrancePillarWidth + 1, 1.4, entranceWidth + 1.2),
-		baseCFrame * CFrame.new(frontEdgeX + (facingDirection * 0.9), entranceBeamY, 0)
+		Vector3.new(entrancePillarWidth + 1.6, 2.6, entranceWidth + 1.4),
+		baseCFrame * CFrame.new(frontEdgeX + (facingDirection * 0.9), entranceBeamY + 0.6, 0)
 	)
-	_ = entranceBeam
+	-- Neon gold strips top and bottom of beam (positions computed from known values)
+	local beamLocalX   = frontEdgeX + (facingDirection * 0.9)
+	local beamCenterY  = entranceBeamY + 0.6
+	local beamW        = entrancePillarWidth + 1.6 + 0.2
+	local beamD        = entranceWidth + 1.4 + 0.1
+	for _, ySign in ipairs({1, -1}) do
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(255, 210, 50),
+			Transparency = 0.45,
+			Size = Vector3.new(beamW, 0.16, beamD),
+			CFrame = baseCFrame * CFrame.new(beamLocalX, beamCenterY + ySign * (2.6 / 2 + 0.14), 0),
+		}, model)
+	end
+	-- ── Owner sign: 3-layer redesign ─────────────────────────────────────────────
+	local signW   = 16
+	local signH   = 4.6
+	local signCF  = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection)
+	local goldCol = Color3.fromRGB(255, 210, 50)
+
+	-- Layer 1 — back plate (dark, larger, 0.35 studs behind)
+	make("Part", {
+		Name = "SignBackPlate",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(5, 8, 16),
+		Size = Vector3.new(signW + 1.6, signH + 1.0, 0.5),
+		CFrame = signCF * CFrame.new(0, 0, 0.38),
+	}, model)
+
+	-- Layer 2 — main sign panel
 	local ownerSign = make("Part", {
 		Name = "OwnerSign",
 		Anchored = true,
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(24, 30, 42),
-		Size = Vector3.new(16, 4.4, 0.6),
-		CFrame = CFrame.lookAt(ownerSignPosition, ownerSignPosition + centerDirection),
+		Color = Color3.fromRGB(9, 13, 24),
+		Size = Vector3.new(signW, signH, 0.32),
+		CFrame = signCF,
 	}, model)
 
+	-- Layer 3 — Neon gold border strips (always visible even when SurfaceGui is off)
+	local stripT = 0.32
+	local stripD = 0.36
+	for _, cfg in ipairs({
+		-- top
+		{ Vector3.new(signW + stripT * 2, stripT, stripD), signCF * CFrame.new(0,  signH / 2 + stripT / 2, 0) },
+		-- bottom
+		{ Vector3.new(signW + stripT * 2, stripT, stripD), signCF * CFrame.new(0, -(signH / 2 + stripT / 2), 0) },
+		-- left
+		{ Vector3.new(stripT, signH, stripD), signCF * CFrame.new(-(signW / 2 + stripT / 2), 0, 0) },
+		-- right
+		{ Vector3.new(stripT, signH, stripD), signCF * CFrame.new( signW / 2 + stripT / 2, 0, 0) },
+	}) do
+		make("Part", {
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = goldCol,
+			Transparency = 0.32,
+			Size = cfg[1],
+			CFrame = cfg[2],
+		}, model)
+	end
 
+	-- SurfaceLight: illuminates the entrance area below the sign
+	make("SurfaceLight", {
+		Face = Enum.NormalId.Front,
+		Brightness = 1.4,
+		Range = 14,
+		Color = Color3.fromRGB(255, 238, 195),
+		Angle = 60,
+	}, ownerSign)
+
+	-- Backlight: warms the area behind the sign so it reads as a 3D object, not a flat panel
+	make("SurfaceLight", {
+		Face = Enum.NormalId.Back,
+		Brightness = 0.7,
+		Range = 10,
+		Color = Color3.fromRGB(255, 225, 140),
+		Angle = 80,
+	}, ownerSign)
+
+	-- PointLight above sign for atmosphere
+	make("PointLight", {
+		Brightness = 0.5,
+		Range = 16,
+		Color = goldCol,
+	}, ownerSign)
+
+	-- ── SurfaceGui content ────────────────────────────────────────────────────
 	local ownerGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
 		PixelsPerStud = 160,
 		LightInfluence = 0,
+		ClipsDescendants = true,
 	}, ownerSign)
 
 	local ownerFrame = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(10, 14, 24),
-		BackgroundTransparency = 0.06,
+		BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+		BackgroundTransparency = 0,
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(1, 1),
 	}, ownerGui)
 
 	make("UIGradient", {
 		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(9, 14, 24)),
-			ColorSequenceKeypoint.new(0.55, Color3.fromRGB(13, 20, 34)),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 12, 20)),
+			ColorSequenceKeypoint.new(0,    Color3.fromRGB(14, 20, 38)),
+			ColorSequenceKeypoint.new(0.45, Color3.fromRGB(9,  13, 24)),
+			ColorSequenceKeypoint.new(1,    Color3.fromRGB(6,  9,  18)),
 		}),
-		Rotation = 90,
+		Rotation = 100,
 	}, ownerFrame)
 
-	make("UIStroke", {
-		Color = Color3.fromRGB(255, 215, 0),
-		Thickness = 3,
-	}, ownerFrame)
-
+	-- Thin gold accent bar across the top
 	make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
+		BackgroundColor3 = goldCol,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 16),
+		Size = UDim2.new(1, 0, 0, 10),
 		Position = UDim2.fromOffset(0, 0),
 	}, ownerFrame)
 
-	local ownerTopLabel = createOwnerSignText("AVAILABLE PLOT", UDim2.fromScale(0.7, 0.12), UDim2.fromScale(0.15, 0.08), Color3.fromRGB(255, 223, 120), {
-		textScaled = true,
-		minTextSize = 24,
-		maxTextSize = 58,
-		textStrokeTransparency = 0.9,
-		font = Enum.Font.GothamBlack,
-	}, ownerFrame)
+	-- HOME CLUB — tiny, faint, top of sign
+	local ownerTopLabel = createOwnerSignText("AVAILABLE PLOT",
+		UDim2.fromScale(0.62, 0.10),
+		UDim2.fromScale(0.19, 0.08),
+		Color3.fromRGB(210, 170, 55),
+		{
+			textScaled = true,
+			minTextSize = 12,
+			maxTextSize = 32,
+			textStrokeTransparency = 0.96,
+			font = Enum.Font.GothamBold,
+		}, ownerFrame)
 
-	local ownerNameLabel = createOwnerSignText("OPEN", UDim2.fromScale(0.86, 0.3), UDim2.fromScale(0.07, 0.25), Color3.fromRGB(245, 238, 220), {
-		textScaled = true,
-		minTextSize = 64,
-		maxTextSize = 240,
-		textStrokeTransparency = 0.72,
-		font = Enum.Font.GothamBlack,
-	}, ownerFrame)
-
+	-- Thin divider below HOME CLUB label
 	make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
-		BackgroundTransparency = 0.12,
+		BackgroundColor3 = goldCol,
+		BackgroundTransparency = 0.72,
 		BorderSizePixel = 0,
-		Size = UDim2.fromScale(0.58, 0.014),
-		Position = UDim2.fromScale(0.21, 0.58),
+		Size = UDim2.new(0.68, 0, 0, 1),
+		Position = UDim2.fromScale(0.16, 0.195),
 	}, ownerFrame)
 
-	local ownerSubtitleLabel = createOwnerSignText("STADIUM", UDim2.fromScale(0.76, 0.2), UDim2.fromScale(0.12, 0.64), Color3.fromRGB(214, 206, 184), {
-		textScaled = true,
-		minTextSize = 44,
-		maxTextSize = 160,
-		textStrokeTransparency = 0.84,
-		font = Enum.Font.GothamBlack,
+	-- Player name — medium weight, white
+	local ownerNameLabel = createOwnerSignText("OPEN",
+		UDim2.fromScale(0.92, 0.30),
+		UDim2.fromScale(0.04, 0.21),
+		Color3.fromRGB(255, 255, 255),
+		{
+			textScaled = true,
+			minTextSize = 36,
+			maxTextSize = 160,
+			textStrokeTransparency = 0.68,
+			font = Enum.Font.GothamBlack,
+		}, ownerFrame)
+
+	-- Bold gold separator
+	make("Frame", {
+		BackgroundColor3 = goldCol,
+		BackgroundTransparency = 0.18,
+		BorderSizePixel = 0,
+		Size = UDim2.new(0.72, 0, 0, 4),
+		Position = UDim2.fromScale(0.14, 0.525),
 	}, ownerFrame)
 
+	-- STADIUM — BIGGEST, boldest, bright gold with glow stroke
+	local ownerSubtitleLabel = createOwnerSignText("STADIUM",
+		UDim2.fromScale(0.96, 0.40),
+		UDim2.fromScale(0.02, 0.55),
+		Color3.fromRGB(255, 218, 55),
+		{
+			textScaled = true,
+			minTextSize = 50,
+			maxTextSize = 230,
+			textStrokeTransparency = 0.42,
+			font = Enum.Font.GothamBlack,
+		}, ownerFrame)
+
+	-- ── Pack Milestone Board ─────────────────────────────────────────────────────
+	-- Raised to Y=12 so the board floats clearly above head height and is easy to read.
+	local msW, msH = 28, 14
 	local milestoneSignPosition = position
-		+ Vector3.new(backEdgeX - (facingDirection * 7.2), 5.5, 0)
+		+ Vector3.new(backEdgeX - (facingDirection * 5), 12, 0)
 	local milestoneSign = make("Part", {
 		Name = "PackMilestoneBillboard",
 		Anchored = true,
 		CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(6, 9, 16),
-		Size = Vector3.new(15.5, 7.0, 0.5),
+		Size = Vector3.new(msW, msH, 0.6),
 		CFrame = CFrame.lookAt(milestoneSignPosition, milestoneSignPosition + centerDirection),
 	}, model)
 
-	-- Neon glow light so the board is visible across the plaza
+	local boardGold = Color3.fromRGB(255, 210, 50)
+	for _, cfg in ipairs({
+		{ Vector3.new(msW + 0.3, 0.18, 0.65), Vector3.new(0,  msH / 2 + 0.09, 0) },
+		{ Vector3.new(msW + 0.3, 0.18, 0.65), Vector3.new(0, -msH / 2 - 0.09, 0) },
+		{ Vector3.new(0.18, msH + 0.3, 0.65), Vector3.new(-msW / 2 - 0.09, 0,  0) },
+		{ Vector3.new(0.18, msH + 0.3, 0.65), Vector3.new( msW / 2 + 0.09, 0,  0) },
+	}) do
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = boardGold,
+			Transparency = 0.28,
+			Size = cfg[1],
+			CFrame = CFrame.lookAt(milestoneSignPosition, milestoneSignPosition + centerDirection)
+				* CFrame.new(cfg[2]),
+		}, model)
+	end
+
 	make("PointLight", {
-		Color = Color3.fromRGB(255, 215, 0),
-		Range = 18,
-		Brightness = 0.55,
-		Shadows = false,
+		Color = boardGold, Range = 22, Brightness = 0.5, Shadows = false,
 	}, milestoneSign)
 
 	local milestoneGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
-		PixelsPerStud = 80,
+		PixelsPerStud = 90,
 		LightInfluence = 0,
 	}, milestoneSign)
 
-	local milestoneFrame = make("Frame", {
+	-- ── Root frame ───────────────────────────────────────────────
+	local mf = make("Frame", {
 		BackgroundColor3 = Color3.fromRGB(7, 10, 18),
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(1, 1),
 	}, milestoneGui)
-	make("UICorner", { CornerRadius = UDim.new(0, 10) }, milestoneFrame)
+	make("UICorner", { CornerRadius = UDim.new(0, 12) }, mf)
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0,   Color3.fromRGB(14, 20, 36)),
+			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(7,  10, 18)),
+			ColorSequenceKeypoint.new(1,   Color3.fromRGB(4,  6,  12)),
+		}),
+		Rotation = 90,
+	}, mf)
 
-	-- Gold border
-	make("UIStroke", {
-		Color = Color3.fromRGB(255, 215, 0),
-		Thickness = 3,
-		Transparency = 0.0,
-	}, milestoneFrame)
+	-- ── Header: "★ PACK MILESTONES" (0 – 0.10) ───────────────────
+	createOwnerSignText("\u{2605} PACK MILESTONES", UDim2.fromScale(0.80, 0.07),
+		UDim2.fromScale(0.10, 0.015), Color3.fromRGB(255, 215, 0), {
+		textScaled = true, minTextSize = 12, maxTextSize = 28,
+		textStrokeTransparency = 0.60, font = Enum.Font.GothamBlack,
+	}, mf)
 
-	-- Bright gold accent strip across the top
-	local topStrip = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
-		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 6),
-		Position = UDim2.fromScale(0, 0),
-		ZIndex = 2,
-	}, milestoneFrame)
-	make("UICorner", { CornerRadius = UDim.new(0, 10) }, topStrip)
-	_ = topStrip
-
-	-- "PACK MILESTONES" header
-	local milestoneTitleLabel = createOwnerSignText("\u{2605} PACK MILESTONES", UDim2.fromScale(0.9, 0.14), UDim2.fromScale(0.05, 0.06), Color3.fromRGB(255, 215, 0), {
-		textScaled = true,
-		minTextSize = 14,
-		maxTextSize = 38,
-		textStrokeTransparency = 0.65,
-		font = Enum.Font.GothamBlack,
-	}, milestoneFrame)
-	_ = milestoneTitleLabel
-
-	-- Large packs-opened counter — most prominent element
-	local milestonePacksLabel = createOwnerSignText("0 PACKS OPENED", UDim2.fromScale(0.92, 0.28), UDim2.fromScale(0.04, 0.22), Color3.fromRGB(255, 245, 220), {
-		textScaled = true,
-		minTextSize = 22,
-		maxTextSize = 72,
-		textStrokeTransparency = 0.60,
-		font = Enum.Font.GothamBlack,
-	}, milestoneFrame)
-
-	-- Thin divider line between counter and next-milestone row
+	-- Thin gold divider below header
 	make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
-		BackgroundTransparency = 0.55,
+		BackgroundColor3 = boardGold, BackgroundTransparency = 0.40,
 		BorderSizePixel = 0,
-		Size = UDim2.new(0.82, 0, 0, 2),
-		Position = UDim2.fromScale(0.09, 0.535),
-	}, milestoneFrame)
+		Size = UDim2.new(0.80, 0, 0, 2),
+		Position = UDim2.fromScale(0.10, 0.095),
+	}, mf)
 
-	-- "NEXT:" label — smaller, muted
-	createOwnerSignText("NEXT REWARD", UDim2.fromScale(0.88, 0.10), UDim2.fromScale(0.06, 0.56), Color3.fromRGB(170, 165, 148), {
-		textScaled = true,
-		minTextSize = 10,
-		maxTextSize = 24,
-		textStrokeTransparency = 0.88,
-		font = Enum.Font.GothamBold,
-	}, milestoneFrame)
+	-- ── Hero counter: "X PACKS OPENED" (0.10 – 0.40) ─────────────
+	local milestonePacksLabel = createOwnerSignText("0 PACKS OPENED",
+		UDim2.fromScale(0.90, 0.27), UDim2.fromScale(0.05, 0.105),
+		Color3.fromRGB(255, 250, 230), {
+		textScaled = true, minTextSize = 28, maxTextSize = 90,
+		textStrokeTransparency = 0.50, font = Enum.Font.GothamBlack,
+	}, mf)
 
-	-- Reward name — prominent gold text
-	local milestoneNextLabel = createOwnerSignText("50 PACKS \u{2192} RARE PACK", UDim2.fromScale(0.88, 0.14), UDim2.fromScale(0.06, 0.64), Color3.fromRGB(255, 210, 80), {
-		textScaled = true,
-		minTextSize = 12,
-		maxTextSize = 36,
-		textStrokeTransparency = 0.68,
-		font = Enum.Font.GothamBlack,
-	}, milestoneFrame)
+	-- ── Divider (0.39) ─────────────────────────────────────────────
+	make("Frame", {
+		BackgroundColor3 = boardGold, BackgroundTransparency = 0.55,
+		BorderSizePixel = 0,
+		Size = UDim2.new(0.84, 0, 0, 2),
+		Position = UDim2.fromScale(0.08, 0.39),
+	}, mf)
 
-	-- Progress bar — taller, more visible
+	-- ── "NEXT REWARD:" label (0.40 – 0.46) ────────────────────────
+	createOwnerSignText("NEXT REWARD:", UDim2.fromScale(0.60, 0.055),
+		UDim2.fromScale(0.20, 0.40), Color3.fromRGB(170, 160, 140), {
+		textScaled = true, minTextSize = 10, maxTextSize = 22,
+		textStrokeTransparency = 0.90, font = Enum.Font.GothamBold,
+	}, mf)
+
+	-- ── Next reward text: "X / Y PACKS → PACK NAME" (0.46 – 0.58) ─
+	local milestoneNextLabel = createOwnerSignText("25 / 25 PACKS \u{2192} GOLD PACK",
+		UDim2.fromScale(0.82, 0.10), UDim2.fromScale(0.09, 0.46),
+		Color3.fromRGB(255, 215, 0), {
+		textScaled = true, minTextSize = 12, maxTextSize = 36,
+		textStrokeTransparency = 0.55, font = Enum.Font.GothamBlack,
+	}, mf)
+
+	-- ── Progress bar track (0.60 – 0.72) ──────────────────────────
 	local milestoneBarBack = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(28, 34, 50),
+		BackgroundColor3 = Color3.fromRGB(18, 24, 40),
 		BorderSizePixel = 0,
-		Size = UDim2.fromScale(0.84, 0.095),
-		Position = UDim2.fromScale(0.08, 0.83),
-	}, milestoneFrame)
+		Size = UDim2.fromScale(0.84, 0.085),
+		Position = UDim2.fromScale(0.08, 0.60),
+	}, mf)
 	make("UICorner", { CornerRadius = UDim.new(1, 0) }, milestoneBarBack)
 	make("UIStroke", {
-		Color = Color3.fromRGB(255, 215, 0),
-		Thickness = 2,
-		Transparency = 0.55,
+		Color = boardGold, Thickness = 2, Transparency = 0.45,
 	}, milestoneBarBack)
 
 	local milestoneBarFill = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(255, 215, 0),
+		BackgroundColor3 = boardGold,
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(0, 1),
 	}, milestoneBarBack)
 	make("UICorner", { CornerRadius = UDim.new(1, 0) }, milestoneBarFill)
-
-	-- Inner shimmer layer on the fill to give it depth
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0,   Color3.fromRGB(255, 230, 80)),
+			ColorSequenceKeypoint.new(1,   Color3.fromRGB(255, 170, 0)),
+		}),
+		Rotation = 0,
+	}, milestoneBarFill)
+	-- Shimmer stripe
 	make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(255, 255, 200),
+		BackgroundColor3 = Color3.fromRGB(255, 255, 210),
 		BackgroundTransparency = 0.55,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0.4, 0),
-		Position = UDim2.fromScale(0, 0),
+		Size = UDim2.new(1, 0, 0.40, 0),
 	}, milestoneBarFill)
+
+	-- % label centred on bar
+	local milestoneBarPct = createOwnerSignText("0%",
+		UDim2.fromScale(1, 1), UDim2.fromScale(0, 0),
+		Color3.fromRGB(255, 255, 255), {
+		textScaled = true, minTextSize = 8, maxTextSize = 20,
+		textStrokeTransparency = 0.50, font = Enum.Font.GothamBlack,
+	}, milestoneBarBack)
+	milestoneBarPct.TextXAlignment = Enum.TextXAlignment.Center
+
+	-- ── Divider before rewards row ─────────────────────────────────
+	make("Frame", {
+		BackgroundColor3 = boardGold, BackgroundTransparency = 0.55,
+		BorderSizePixel = 0,
+		Size = UDim2.new(0.84, 0, 0, 2),
+		Position = UDim2.fromScale(0.08, 0.725),
+	}, mf)
+
+	-- ── "MILESTONE REWARDS" label ──────────────────────────────────
+	createOwnerSignText("MILESTONE REWARDS", UDim2.fromScale(0.70, 0.05),
+		UDim2.fromScale(0.15, 0.735), Color3.fromRGB(255, 215, 0), {
+		textScaled = true, minTextSize = 8, maxTextSize = 18,
+		textStrokeTransparency = 0.65, font = Enum.Font.GothamBlack,
+	}, mf)
+
+	-- ── Milestone icons row (0.78 – 1.00) ─────────────────────────
+	-- Five evenly-spaced pack cards showing each milestone
+	local iconY    = 0.785
+	local iconH    = 0.195
+	local iconW    = 0.13
+	local iconGap  = (1 - 0.10 * 2 - iconW * #packMilestones) / (#packMilestones - 1)
+	local milestoneIconFrames = {}
+
+	for i, ms in ipairs(packMilestones) do
+		local iconX = 0.10 + (i - 1) * (iconW + iconGap)
+		local col   = ms.color or boardGold
+
+		-- Card backing
+		local card = make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(12, 16, 28),
+			BorderSizePixel = 0,
+			Size = UDim2.fromScale(iconW, iconH),
+			Position = UDim2.fromScale(iconX, iconY),
+		}, mf)
+		make("UICorner", { CornerRadius = UDim.new(0, 8) }, card)
+		make("UIStroke", { Color = col, Thickness = 2, Transparency = 0.30 }, card)
+
+		-- Coloured top band
+		local band = make("Frame", {
+			BackgroundColor3 = col,
+			BorderSizePixel = 0,
+			Size = UDim2.new(1, 0, 0.38, 0),
+		}, card)
+		make("UICorner", { CornerRadius = UDim.new(0, 8) }, band)
+
+		-- Star icon on band
+		createOwnerSignText("\u{2605}", UDim2.fromScale(0.70, 0.38),
+			UDim2.fromScale(0.15, 0), Color3.fromRGB(255, 255, 255), {
+			textScaled = true, minTextSize = 8, maxTextSize = 22,
+			textStrokeTransparency = 0.70, font = Enum.Font.GothamBlack,
+		}, card)
+
+		-- Threshold number
+		createOwnerSignText(tostring(ms.threshold),
+			UDim2.fromScale(0.80, 0.28), UDim2.fromScale(0.10, 0.38),
+			Color3.fromRGB(255, 248, 220), {
+			textScaled = true, minTextSize = 7, maxTextSize = 18,
+			textStrokeTransparency = 0.60, font = Enum.Font.GothamBlack,
+		}, card)
+
+		-- Label at bottom
+		createOwnerSignText(ms.label or "",
+			UDim2.fromScale(0.90, 0.22), UDim2.fromScale(0.05, 0.72),
+			col, {
+			textScaled = true, minTextSize = 5, maxTextSize = 12,
+			textStrokeTransparency = 0.80, font = Enum.Font.GothamBold,
+		}, card)
+
+		-- Tick overlay — hidden until claimed
+		local tick = make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(30, 220, 80),
+			BackgroundTransparency = 0,
+			BorderSizePixel = 0,
+			Size = UDim2.fromScale(1, 1),
+			Visible = false,
+		}, card)
+		make("UICorner", { CornerRadius = UDim.new(0, 8) }, tick)
+		tick.BackgroundTransparency = 0.35
+		createOwnerSignText("\u{2713}", UDim2.fromScale(0.80, 0.60),
+			UDim2.fromScale(0.10, 0.15), Color3.fromRGB(255, 255, 255), {
+			textScaled = true, minTextSize = 10, maxTextSize = 32,
+			textStrokeTransparency = 0.50, font = Enum.Font.GothamBlack,
+		}, tick)
+
+		milestoneIconFrames[i] = { tick = tick, threshold = ms.threshold }
+	end
 
 	local padGui = make("BillboardGui", {
 		Name = "PadGui",
@@ -2804,26 +3475,31 @@ local function createPlot(plotId, side, laneIndex, position)
 		Name = "DisplaySlots",
 	}, model)
 
-	local slotOffsets = {
-		Vector3.new(-12, 1.75, -14),
-		Vector3.new(0, 1.75, -14),
-		Vector3.new(12, 1.75, -14),
-		Vector3.new(-12, 1.75, 14),
-		Vector3.new(0, 1.75, 14),
-		Vector3.new(12, 1.75, 14),
-	}
-
 	local displaySlots = {}
 	for slotIndex = 1, layout.DisplaySlotCount do
-		local localOffset = slotOffsets[slotIndex]
+		local localOffset = ALL_SLOT_OFFSETS[slotIndex]
 		local worldOffset = Vector3.new(localOffset.X * facingDirection, localOffset.Y, localOffset.Z)
-		local slotLookDirection = localOffset.Z < 0 and Vector3.new(0, 0, 1) or Vector3.new(0, 0, -1)
-		displaySlots[slotIndex] = createDisplaySlot(displayFolder, slotIndex, baseCFrame * CFrame.new(worldOffset), slotLookDirection)
+		displaySlots[slotIndex] = createDisplaySlot(
+			displayFolder, slotIndex,
+			baseCFrame * CFrame.new(worldOffset),
+			slotLookDir(localOffset, facingDirection)
+		)
 	end
 
 	local entranceLightX = frontEdgeX + (facingDirection * 8)
 	createLightPost(model, "EntranceLightNorth", position + Vector3.new(entranceLightX, 0, -(entranceWidth / 2 + 6)), packPad.Position + Vector3.new(0, 2, 0))
-	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0, entranceWidth / 2 + 6), packPad.Position + Vector3.new(0, 2, 0))
+	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0,  (entranceWidth / 2 + 6)), packPad.Position + Vector3.new(0, 2, 0))
+
+	-- Decorative side banners flanking the entrance
+	local bannerX = frontEdgeX + (facingDirection * 3.5)
+	createVerticalBanner(model, "BannerNorth",
+		position + Vector3.new(bannerX, 0, -(entranceWidth / 2 + 4.5)),
+		packPad.Position,
+		"FC")
+	createVerticalBanner(model, "BannerSouth",
+		position + Vector3.new(bannerX, 0,  (entranceWidth / 2 + 4.5)),
+		packPad.Position,
+		"FC")
 	createLightPost(model, "BackStandLightNorth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, -(layout.PlotSize.Z / 2 + 5)), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightSouth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, layout.PlotSize.Z / 2 + 5), packPad.Position + Vector3.new(0, 2, 0))
 	local stadiumFloodlightOptions = {
@@ -2845,12 +3521,128 @@ local function createPlot(plotId, side, laneIndex, position)
 	createSoftFillLight(model, "NorthStandFill", position + Vector3.new(0, 7, -(layout.PlotSize.Z / 2 + 7)), 25, 0.14, Color3.fromRGB(255, 226, 170))
 	createSoftFillLight(model, "SouthStandFill", position + Vector3.new(0, 7, layout.PlotSize.Z / 2 + 7), 25, 0.14, Color3.fromRGB(255, 226, 170))
 
+	-- ── Rebirth Machine ─────────────────────────────────────────────────────────
+	-- Placed outside the entrance so it reads like a stadium add-on instead of
+	-- fighting for space with the pack pad and display slots.
+	-- Y offsets are from baseCFrame (floor centre = local Y 0; floor top = local Y 0.5).
+	local machineLocalX = frontEdgeX + (facingDirection * 8.5)
+	local machineLocalZ = -(entranceWidth / 2 + 12.5)
+	local machineCF     = baseCFrame * CFrame.new(machineLocalX, 0, machineLocalZ)
+
+	make("Part", {
+		Name = "RebirthMachinePad",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(34, 24, 54),
+		Size = Vector3.new(8.5, 0.22, 8.5),
+		CFrame = machineCF * CFrame.new(0, 0.61, 0),
+	}, model)
+
+	-- Pedestal base (sits on floor top → local Y 0.5 + halfHeight 0.7 = 1.2)
+	make("Part", {
+		Name = "RebirthBase", Anchored = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(20, 15, 32),
+		Size = Vector3.new(5, 1.4, 5),
+		CFrame = machineCF * CFrame.new(0, 1.2, 0),
+	}, model)
+
+	-- Body column (base top = 1.9 → body centre = 1.9 + 3.0 = 4.9)
+	make("Part", {
+		Name = "RebirthBody", Anchored = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(22, 16, 36),
+		Size = Vector3.new(3.0, 6.0, 3.0),
+		CFrame = machineCF * CFrame.new(0, 4.9, 0),
+	}, model)
+
+	-- Neon purple vertical accent strips at each corner of the body
+	for i = 0, 3 do
+		local angle = (i / 4) * math.pi * 2 + math.pi / 4   -- 45°, 135°, 225°, 315°
+		local r = 1.58
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(130, 52, 255),
+			Transparency = 0.28,
+			Size = Vector3.new(0.26, 5.8, 0.26),
+			CFrame = machineCF * CFrame.new(math.cos(angle) * r, 4.9, math.sin(angle) * r),
+		}, model)
+	end
+
+	-- Gold neon trim cap at top of body (body top = 7.9)
+	make("Part", {
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 208, 50),
+		Transparency = 0.36,
+		Size = Vector3.new(3.4, 0.28, 3.4),
+		CFrame = machineCF * CFrame.new(0, 8.1, 0),
+	}, model)
+
+	-- Portal ring: flat horizontal disc floating above the column.
+	-- Cylinder axis = X by default; rotate 90° around Z to make axis = Y (flat disc).
+	make("Part", {
+		Name = "RebirthPortalRing", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(148, 68, 255),
+		Transparency = 0.16,
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.42, 8.2, 8.2),
+		CFrame = machineCF * CFrame.new(0, 9.2, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, model)
+
+	-- Smaller inner ring for depth
+	make("Part", {
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(200, 140, 255),
+		Transparency = 0.52,
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.28, 5.6, 5.6),
+		CFrame = machineCF * CFrame.new(0, 9.2, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, model)
+
+	-- Glowing orb at the centre of the portal ring
+	local rebirthOrb = make("Part", {
+		Name = "RebirthOrb", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(188, 118, 255),
+		Transparency = 0.08,
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(2.4, 2.4, 2.4),
+		CFrame = machineCF * CFrame.new(0, 9.2, 0),
+	}, model)
+
+	make("PointLight", {
+		Brightness = 2.6, Range = 26,
+		Color = Color3.fromRGB(148, 68, 255),
+	}, rebirthOrb)
+
+	local rebirthPrompt = make("ProximityPrompt", {
+		ActionText            = "Rebirth",
+		ObjectText            = "Rebirth Machine",
+		KeyboardKeyCode       = Enum.KeyCode.E,
+		HoldDuration          = 0.6,
+		MaxActivationDistance = 12,
+		RequiresLineOfSight   = false,
+		Style                 = Enum.ProximityPromptStyle.Default,
+	}, rebirthOrb)
+
+	-- Folder for visuals that change per rebirth tier (seats, lighting, etc.)
+	local stadiumExtrasFolder = make("Folder", { Name = "StadiumExtras" }, model)
+
 	local plot = {
 		id = plotId,
 		side = side,
 		laneIndex = laneIndex,
 		model = model,
+		baseCFrame = baseCFrame,
 		facingDirection = facingDirection,
+		stadiumExtrasFolder = stadiumExtrasFolder,
 		floor = floor,
 		packPad = packPad,
 		spawnPad = spawnPad,
@@ -2863,6 +3655,8 @@ local function createPlot(plotId, side, laneIndex, position)
 		milestonePacksLabel = milestonePacksLabel,
 		milestoneNextLabel = milestoneNextLabel,
 		milestoneBarFill = milestoneBarFill,
+		milestoneBarPct = milestoneBarPct,
+		milestoneIconFrames = milestoneIconFrames,
 		padTitleLabel = padTitleLabel,
 		padSubtitleLabel = padSubtitleLabel,
 		padAccent = padAccent,
@@ -2871,12 +3665,101 @@ local function createPlot(plotId, side, laneIndex, position)
 		padBarFill = padBarFill,
 		displaySlots = displaySlots,
 		spawnCFrame = spawnCFrame,
+		rebirthPrompt = rebirthPrompt,
 	}
 
 	updateOwnerSign(plot, nil, "")
 	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
 
 	return plot
+end
+
+-- Called when a player is assigned a plot or completes a rebirth.
+-- Rebuilds the stadium extras folder to match the given rebirth tier.
+--   Tier 0: no stands
+--   Tier 1+: tiered bleacher stands built from Parts (reliable, no asset loading)
+--            More rows unlock as the player progresses through tiers.
+function BaseService.UpdateStadiumTier(plot, tier)
+	if not plot or not plot.stadiumExtrasFolder then return end
+	tier = tier or 0
+
+	-- Clear whatever was there before
+	for _, child in ipairs(plot.stadiumExtrasFolder:GetChildren()) do
+		child:Destroy()
+	end
+
+	if tier < 1 then return end
+
+	local parent   = plot.stadiumExtrasFolder
+	local pitchPos = plot.baseCFrame.Position
+	local fd       = plot.facingDirection               -- 1=left plot, -1=right plot
+	local floorY   = pitchPos.Y + layout.PlotSize.Y / 2 -- top of floor (world Y ≈ 1)
+	local PlotX    = layout.PlotSize.X                  -- 56
+	local PlotZ    = layout.PlotSize.Z                  -- 44
+
+	-- Row count scales with rebirth tier so the stadium visually grows
+	local rowCount = math.min(1 + tier, 5)  -- tier1→2, tier2→3, tier3→4, tier4+→5
+
+	local tierH  = 3.0   -- vertical rise per row
+	local tierD  = 4.2   -- depth per row (away from pitch)
+	local gap    = 1.5   -- clearance from fence centre so stands don't overlap fence
+
+	-- Width of each stand face (slightly wider than plot for corner coverage)
+	local sideW = PlotX + 2   -- 58 studs east-west
+	local backW = PlotZ + 2   -- 46 studs north-south
+
+	-- Alternating seat colours per row
+	local colA = Color3.fromRGB(198, 44, 44)
+	local colB = Color3.fromRGB(158, 30, 30)
+
+	-- Build one bleacher face.
+	-- fencePos  : world XZ of the fence line (floor height; this becomes the stand's front face)
+	-- awayX/awayZ: unit step direction going away from the pitch per row
+	-- partSizeX/Z: horizontal dimensions of each tier Part
+	local function buildStand(fencePos, awayX, awayZ, partSizeX, partSizeZ)
+		for row = 1, rowCount do
+			local setback = (row - 0.5) * tierD         -- depth of row centre from fence
+			local rise    = (row - 1)   * tierH         -- height of row bottom above floor
+			make("Part", {
+				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+				Material = Enum.Material.SmoothPlastic,
+				Color    = (row % 2 == 1) and colA or colB,
+				Size     = Vector3.new(partSizeX, tierH, partSizeZ),
+				CFrame   = CFrame.new(
+					fencePos.X + awayX * setback,
+					floorY + rise + tierH / 2,
+					fencePos.Z + awayZ * setback
+				),
+			}, parent)
+		end
+	end
+
+	-- North stand: outside north fence (−Z side), facing south toward pitch
+	buildStand(
+		Vector3.new(pitchPos.X, 0, pitchPos.Z - (PlotZ / 2 + gap)),
+		0, -1,
+		sideW, tierD
+	)
+
+	-- South stand: outside south fence (+Z side), facing north toward pitch
+	buildStand(
+		Vector3.new(pitchPos.X, 0, pitchPos.Z + (PlotZ / 2 + gap)),
+		0, 1,
+		sideW, tierD
+	)
+
+	-- Back stand: outside back fence (opposite the entrance), facing inward
+	-- fd=1  → back fence is at X = pitchPos.X − PlotX/2; stand steps in −X
+	-- fd=−1 → back fence is at X = pitchPos.X + PlotX/2; stand steps in +X
+	buildStand(
+		Vector3.new(pitchPos.X - fd * (PlotX / 2 + gap), 0, pitchPos.Z),
+		-fd, 0,
+		tierD, backW
+	)
+
+	-- Rebirth display slots 7-12 live on these raised side galleries. Keeping the
+	-- gallery in StadiumExtras lets it rebuild cleanly whenever the tier changes.
+	createSecondFloorDisplayGallery(parent, plot.baseCFrame)
 end
 
 function BaseService.BuildBaseMap()
@@ -2946,7 +3829,29 @@ function BaseService.GetPlots()
 	return plots
 end
 
-function BaseService.AssignPlot(player)
+-- Creates a single extra display slot on an already-assigned plot.
+-- Called when a player rebirths and earns an additional slot.
+function BaseService.AddDisplaySlot(plot, slotIndex)
+	if not plot then return end
+	local localOffset = ALL_SLOT_OFFSETS[slotIndex]
+	if not localOffset then return end
+	if plot.displaySlots[slotIndex] then return end  -- already exists
+
+	local displayFolder = plot.model:FindFirstChild("DisplaySlots")
+	if not displayFolder then return end
+
+	local fd  = plot.facingDirection
+	local worldOffset = Vector3.new(localOffset.X * fd, localOffset.Y, localOffset.Z)
+	local slot = createDisplaySlot(
+		displayFolder, slotIndex,
+		plot.baseCFrame * CFrame.new(worldOffset),
+		slotLookDir(localOffset, fd)
+	)
+	plot.displaySlots[slotIndex] = slot
+	return slot
+end
+
+function BaseService.AssignPlot(player, rebirthTier, baseSlots)
 	if assignedPlots[player] then
 		return assignedPlots[player]
 	end
@@ -2966,6 +3871,14 @@ function BaseService.AssignPlot(player)
 			if plot.spawnLocation then
 				player.RespawnLocation = plot.spawnLocation
 			end
+			BaseService.UpdateStadiumTier(plot, rebirthTier or 0)
+
+			-- Build any extra slots the player has earned through rebirths
+			local slotCount = math.min(baseSlots or 6, Constants.Rebirth.MaxSlots)
+			for i = layout.DisplaySlotCount + 1, slotCount do
+				BaseService.AddDisplaySlot(plot, i)
+			end
+
 			return plot
 		end
 	end
@@ -3006,16 +3919,54 @@ function BaseService.GetDisplaySlots(plot)
 	return plot and plot.displaySlots or {}
 end
 
-function BaseService.UpdatePackMilestone(plot, totalPacks)
+function BaseService.UpdatePackMilestone(plot, totalPacks, claimedMilestones)
 	if not plot or not plot.milestonePacksLabel or not plot.milestoneNextLabel or not plot.milestoneBarFill then
 		return
 	end
 
 	totalPacks = math.max(0, totalPacks or 0)
-	local milestone = getNextPackMilestone(totalPacks)
+	claimedMilestones = claimedMilestones or {}
+
+	local ms = getNextPackMilestone(totalPacks)
+
+	-- Hero counter
 	plot.milestonePacksLabel.Text = Utils.FormatNumber(totalPacks) .. " PACKS OPENED"
-	plot.milestoneNextLabel.Text = string.format("%d PACKS \u{2192} %s", milestone.nextAt, string.upper(milestone.reward))
-	plot.milestoneBarFill.Size = UDim2.fromScale(milestone.progress, 1)
+
+	-- Next reward line
+	if ms.progress >= 1 then
+		plot.milestoneNextLabel.Text = "\u{2605} ALL MILESTONES COMPLETE!"
+	else
+		plot.milestoneNextLabel.Text = string.format(
+			"%s / %s PACKS  \u{2192}  %s",
+			Utils.FormatNumber(totalPacks - ms.prevAt),
+			Utils.FormatNumber(ms.nextAt   - ms.prevAt),
+			string.upper(ms.reward)
+		)
+	end
+
+	-- Progress bar + % label
+	local pct = math.floor(ms.progress * 100)
+	plot.milestoneBarFill.Size = UDim2.fromScale(ms.progress, 1)
+	if plot.milestoneBarPct then
+		plot.milestoneBarPct.Text = tostring(pct) .. "%"
+	end
+
+	-- Tick marks: show if this milestone has been claimed in the current cycle
+	if plot.milestoneIconFrames then
+		local CYCLE     = packMilestones and packMilestones[#packMilestones].threshold or 150
+		local cycleNum  = math.floor(totalPacks / CYCLE)
+		local posInCycle = totalPacks % CYCLE
+		for _, entry in ipairs(plot.milestoneIconFrames) do
+			if entry.tick then
+				local T       = entry.threshold
+				local claimed = claimedMilestones[tostring(T)]
+				if claimed == true then claimed = 1 end
+				claimed = tonumber(claimed) or 0
+				-- Tick = reached this threshold in current cycle AND reward was granted
+				entry.tick.Visible = (posInCycle >= T) and (claimed >= cycleNum + 1)
+			end
+		end
+	end
 end
 
 function BaseService.SetPlotPadStatus(plot, title, subtitle, color)
@@ -3061,6 +4012,30 @@ function BaseService.UpdateDisplaySlot(slot, card, incomePerSecond)
 	createDisplayCardFace(Enum.NormalId.Front, card, incomePerSecond, cardPart)
 	createDisplayCardFace(Enum.NormalId.Back, card, incomePerSecond, cardPart)
 
+	-- Floating income label above the card
+	local income = incomePerSecond or 0
+	if income > 0 then
+		local incomeGui = make("BillboardGui", {
+			Name = "IncomeLabel",
+			AlwaysOnTop = false,
+			Size = UDim2.fromOffset(170, 36),
+			StudsOffset = Vector3.new(0, 5.8, 0),
+			MaxDistance = 28,
+		}, cardPart)
+		local incomeLabel = make("TextLabel", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Text = "+" .. Utils.FormatNumber(income) .. " fans/s",
+			TextColor3 = Color3.fromRGB(255, 218, 60),
+			TextScaled = false,
+			TextSize = 20,
+			Font = Enum.Font.GothamBlack,
+			TextStrokeTransparency = 0.32,
+			TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
+		}, incomeGui)
+		_ = incomeLabel
+	end
+
 	slot.cardModel = cardModel
 	slot.model:SetAttribute("Occupied", true)
 	setSlotPrompt(slot, "Remove Player", card.name, true)
@@ -3098,6 +4073,7 @@ function BaseService.PlaceCharacterAtPlot(player, character)
 end
 
 return BaseService
+
 ]])
 
 makeModule('CrowdService', SSS, [[local ReplicatedStorage = game:GetService("ReplicatedStorage")

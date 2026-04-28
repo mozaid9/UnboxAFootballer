@@ -10,12 +10,11 @@ Constants.RebirthCostMultiplier = 1.5
 Constants.RebirthLuckBonus = 0.05
 
 Constants.AutoSaveInterval = 60
-Constants.DataStoreRetries = 4
+Constants.DataStoreRetries = 3
 Constants.DataStoreRetryBackoff = {
 	1,
 	2,
-	4,
-	8,
+	3,
 }
 
 -- Sell values and market floors cover every rating used in CardData (78-97).
@@ -84,9 +83,9 @@ Constants.BaseLayout = {
 	FenceHeight = 4.5,
 	WallThickness = 1.2,
 	EntranceWidth = 16,
-	EntrancePillarWidth = 3.4,
+	EntrancePillarWidth = 4.8,
 	PackPadSize = Vector3.new(10, 0.6, 10),
-	PadInfoMaxDistance = 15,
+	PadInfoMaxDistance = 55,
 	DisplaySlotCount = 6,
 	DisplaySlotSize = Vector3.new(7, 3.5, 7),
 }
@@ -124,24 +123,42 @@ Constants.FanZone = {
 	},
 }
 
+-- Each milestone fires once when totalPacksOpened crosses `threshold`.
+-- packId must match a PackConfig entry. label/color are used on the board.
 Constants.PackMilestones = {
-	{ interval = 50, reward = "Rare Pack" },
-	{ interval = 100, reward = "Special Pack" },
-	{ interval = 500, reward = "Player Pick" },
+	{ threshold = 25,  packId = "GoldPack",    reward = "Gold Pack",    label = "COMMON",    color = Color3.fromRGB(90,  200, 90)  },
+	{ threshold = 50,  packId = "RarePack",    reward = "Rare Pack",    label = "RARE",      color = Color3.fromRGB(80,  130, 255) },
+	{ threshold = 75,  packId = "PremiumPack", reward = "Premium Pack", label = "EPIC",      color = Color3.fromRGB(170, 75,  255) },
+	{ threshold = 100, packId = "JumboPack",   reward = "Jumbo Pack",   label = "SPECIAL",   color = Color3.fromRGB(255, 185, 0)   },
+	{ threshold = 150, packId = "DeluxePack",  reward = "Deluxe Pack",  label = "LEGENDARY", color = Color3.fromRGB(220, 75,  30)  },
 }
 
 Constants.Rebirth = {
-	BaseFanRequirement = 1000000,
-	FanRequirementMultiplier = 2,
-	RequiredSpecialCards = 3,
-	SpecialRarity = "Premium Gold",
 	StartingFansAfterRebirth = Constants.StartingCoins,
+
+	-- Requirements to go from tier N-1 → N.
+	-- cards = list of { count, rarity } where the player must own that many
+	-- cards OF THAT RARITY OR HIGHER to qualify.
+	TierRequirements = {
+		[1]  = { fans = 1000000,   cards = { { count = 1, rarity = "Talisman"           } } },
+		[2]  = { fans = 2000000,   cards = { { count = 1, rarity = "Maestro"            } } },
+		[3]  = { fans = 4000000,   cards = { { count = 2, rarity = "Maestro"            } } },
+		[4]  = { fans = 8000000,   cards = { { count = 2, rarity = "Immortal"           } } },
+		[5]  = { fans = 16000000,  cards = { { count = 3, rarity = "Immortal"           } } },
+		[6]  = { fans = 32000000,  cards = { { count = 3, rarity = "Player of the Year" } } },
+	},
+
+	-- Display slots
+	BaseSlots      = 6,   -- every player starts with this many
+	SlotsPerRebirth = 1,  -- +1 slot per rebirth
+	MaxSlots       = 12,  -- hard cap
+
 	MultiplierMilestones = {
-		{ tier = 0, multiplier = 1 },
-		{ tier = 1, multiplier = 1.2 },
-		{ tier = 2, multiplier = 1.4 },
-		{ tier = 5, multiplier = 2 },
-		{ tier = 10, multiplier = 5 },
+		{ tier = 0,  multiplier = 1   },
+		{ tier = 1,  multiplier = 1.2 },
+		{ tier = 2,  multiplier = 1.4 },
+		{ tier = 5,  multiplier = 2   },
+		{ tier = 10, multiplier = 5   },
 	},
 }
 

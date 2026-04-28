@@ -72,6 +72,7 @@ local ClaimFreePackFn = makeFunction("ClaimFreePack")
 local ClaimDailyRewardFn = makeFunction("ClaimDailyReward")
 local GetRebirthStatusFn = makeFunction("GetRebirthStatus")
 local RequestRebirthFn = makeFunction("RequestRebirth")
+local OpenRebirthUIEvent = makeEvent("OpenRebirthUI")
 
 PackService.Init(DataService, EconomyService, {
 	UpdateCoins = UpdateCoinsEvent,
@@ -83,6 +84,19 @@ RebirthService.Init(DataService)
 
 BaseService.BuildBaseMap()
 CrowdService.Init(BaseService, DataService)
+
+-- Wire every plot's rebirth-machine ProximityPrompt.
+-- Fires immediately from server, fires OpenRebirthUI to that player's client.
+for _, plot in ipairs(BaseService.GetPlots()) do
+	if plot.rebirthPrompt then
+		plot.rebirthPrompt.Triggered:Connect(function(player)
+			-- Only the owner can use their own machine
+			if plot.ownerPlayer ~= player then return end
+			local status = RebirthService.GetStatus(player)
+			OpenRebirthUIEvent:FireClient(player, status)
+		end)
+	end
+end
 
 local swingCooldowns = {}
 local initializedPlayers = {}
@@ -394,6 +408,65 @@ local function getCardById(cardId)
 	return cardId and CardData.ById[tonumber(cardId)] or nil
 end
 
+-- ── Milestone reward granting (cycles every CYCLE packs) ─────────────────────
+local function checkAndGrantMilestones(player, totalPacks)
+	local data = DataService.GetData(player)
+	if not data then return end
+	if type(data.claimedMilestones) ~= "table" then
+		data.claimedMilestones = {}
+	end
+
+	-- CYCLE = last milestone threshold; milestones repeat every CYCLE packs
+	local CYCLE = 0
+	for _, ms in ipairs(Constants.PackMilestones) do
+		CYCLE = math.max(CYCLE, ms.threshold)
+	end
+	if CYCLE == 0 then return end
+
+	for _, milestone in ipairs(Constants.PackMilestones) do
+		local T   = milestone.threshold
+		local key = tostring(T)
+
+		-- How many times should this milestone have fired by now?
+		-- e.g. threshold=25, CYCLE=150: fires at 25, 175, 325, 475…
+		local timesEarned = totalPacks >= T
+			and (math.floor((totalPacks - T) / CYCLE) + 1)
+			or 0
+
+		-- Migrate old boolean true → 1
+		local timesClaimed = data.claimedMilestones[key]
+		if timesClaimed == true then timesClaimed = 1 end
+		timesClaimed = tonumber(timesClaimed) or 0
+
+		-- Grant any un-rewarded fires
+		while timesClaimed < timesEarned do
+			timesClaimed += 1
+			data.claimedMilestones[key] = timesClaimed
+			DataService.MarkDirty(player)
+
+			local cap = milestone
+			task.spawn(function()
+				local packOk, result = PackService.OpenPack(player, cap.packId, { ignoreCost = true })
+				if not packOk or not result then return end
+				local pulledCard = result.card or (result.cards and result.cards[1])
+				if pulledCard then
+					local plot = BaseService.GetPlot(player)
+					if plot then
+						autoStorePulledCard(player, plot, pulledCard)
+					else
+						DataService.AddCard(player, pulledCard.id)
+					end
+					sendHint(player, "\u{1F3C6} MILESTONE (" .. cap.label .. "): "
+						.. cap.reward .. " \u{2192} " .. pulledCard.name .. "!")
+				end
+			end)
+		end
+
+		-- Write back normalised count
+		data.claimedMilestones[key] = timesClaimed
+	end
+end
+
 local function getBestInventoryCard(player)
 	local inventory = DataService.GetInventory(player)
 	local bestCard
@@ -663,36 +736,7 @@ local function spawnPackForPlot(plot)
 	createSurfaceLabel(Enum.NormalId.Front, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 	createSurfaceLabel(Enum.NormalId.Back, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 
-	-- ── Mini health bar (BillboardGui floating above the pack) ────────────
-	local healthBillboard = Instance.new("BillboardGui")
-	healthBillboard.Name = "PackHealthBar"
-	healthBillboard.AlwaysOnTop = false
-	healthBillboard.Size = UDim2.fromOffset(100, 12)
-	healthBillboard.StudsOffset = Vector3.new(0, 7.2, 0)
-	healthBillboard.Parent = cardBody
-
-	local hpBG = Instance.new("Frame")
-	hpBG.Name = "BG"
-	hpBG.Size = UDim2.fromScale(1, 1)
-	hpBG.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-	hpBG.BorderSizePixel = 0
-	hpBG.Parent = healthBillboard
-	local hpBGCorner = Instance.new("UICorner")
-	hpBGCorner.CornerRadius = UDim.new(1, 0)
-	hpBGCorner.Parent = hpBG
-
-	local hpFill = Instance.new("Frame")
-	hpFill.Name = "Fill"
-	hpFill.Size = UDim2.fromScale(1, 1)
-	hpFill.BackgroundColor3 = packDef.color
-	hpFill.BorderSizePixel = 0
-	hpFill.Parent = hpBG
-	local hpFillCorner = Instance.new("UICorner")
-	hpFillCorner.CornerRadius = UDim.new(1, 0)
-	hpFillCorner.Parent = hpFill
-
-	plot.activePackHealthFill = hpFill
-	plot.activePackHealthBillboard = healthBillboard
+	-- (pack health is shown in the padGui billboard — no floating bar needed)
 
 	-- Continuous idle: slow spin + gentle float.  All three parts updated together so
 	-- they never drift apart (the old tween only moved cardBody, leaving caps behind).
@@ -825,16 +869,6 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 		plot.activePackLight.Brightness = newBrightness
 	end
 
-	-- Update the floating mini health bar
-	if plot.activePackHealthFill and plot.activePackMaxHits and plot.activePackMaxHits > 0 then
-		local ratio = math.clamp(plot.activePackHitsRemaining / plot.activePackMaxHits, 0, 1)
-		plot.activePackHealthFill.Size = UDim2.fromScale(ratio, 1)
-		-- Colour shifts green → yellow → red as health drops
-		local r = math.clamp(2 * (1 - ratio), 0, 1)
-		local g = math.clamp(2 * ratio, 0, 1)
-		plot.activePackHealthFill.BackgroundColor3 = Color3.new(r, g, 0)
-	end
-
 	playPackHitEffect(plot, newBrightness)
 
 	if plot.activePackHitsRemaining > 0 then
@@ -923,10 +957,14 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 			passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
 		})
 
-		local milestoneOk, milestoneErr = pcall(BaseService.UpdatePackMilestone, plot, DataService.GetTotalPacksOpened(player))
+		local totalPacks = DataService.GetTotalPacksOpened(player)
+		local milestoneData = DataService.GetData(player)
+		local claimed = milestoneData and milestoneData.claimedMilestones or {}
+		local milestoneOk, milestoneErr = pcall(BaseService.UpdatePackMilestone, plot, totalPacks, claimed)
 		if not milestoneOk then
 			warn("[UnboxAFootballer] Pack milestone update failed:", milestoneErr)
 		end
+		checkAndGrantMilestones(player, totalPacks)
 
 		if pulledCard then
 			if storageResult.storedInInventory then
@@ -963,7 +1001,7 @@ local function handlePlayerAdded(player)
 	initializedPlayers[player] = true
 
 	local data = DataService.LoadPlayer(player)
-	local plot = BaseService.AssignPlot(player, data.rebirthTier or 0)
+	local plot = BaseService.AssignPlot(player, data.rebirthTier or 0, data.baseSlots or 6)
 	EconomyService.EnsureStarterCoins(player)
 	EconomyService.TryGrantDailyReward(player)
 	ensurePitchfork(player)
@@ -1007,7 +1045,7 @@ local function handlePlayerAdded(player)
 
 	if plot then
 		refreshPlotDisplayState(player, plot)
-		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
+		do local _tp = DataService.GetTotalPacksOpened(player); local _d = DataService.GetData(player); BaseService.UpdatePackMilestone(plot, _tp, _d and _d.claimedMilestones or {}) end
 		spawnPackForPlot(plot)
 	end
 
@@ -1051,11 +1089,32 @@ Players.PlayerRemoving:Connect(function(player)
 	BaseService.ReleasePlot(player)
 end)
 
+-- BindToClose fires BEFORE PlayerRemoving when the server shuts down,
+-- so cache is still populated here. Save all players in parallel so
+-- we don't run out of time waiting for sequential DataStore calls.
 game:BindToClose(function()
+	local threads = {}
 	for _, player in ipairs(Players:GetPlayers()) do
-		DataService.SavePlayer(player)
+		local t = task.spawn(function()
+			DataService.SavePlayer(player)
+		end)
+		table.insert(threads, t)
 	end
-	task.wait(2)
+
+	-- Wait up to 10 s for all parallel saves to complete.
+	-- DataStore SetAsync typically takes <2 s; 10 s covers 1 full retry cycle.
+	local deadline = tick() + 10
+	local function anyAlive()
+		for _, t in ipairs(threads) do
+			if coroutine.status(t) ~= "dead" then
+				return true
+			end
+		end
+		return false
+	end
+	while anyAlive() and tick() < deadline do
+		task.wait(0.1)
+	end
 end)
 
 task.spawn(function()
@@ -1354,7 +1413,7 @@ ClaimFreePackFn.OnServerInvoke = function(player)
 
 	local passiveIncome = getCardIncome(player, pulledCard)
 	if plot then
-		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
+		do local _tp = DataService.GetTotalPacksOpened(player); local _d = DataService.GetData(player); BaseService.UpdatePackMilestone(plot, _tp, _d and _d.claimedMilestones or {}) end
 	end
 
 	PackOpenedEvent:FireClient(player, {
@@ -1421,10 +1480,14 @@ RequestRebirthFn.OnServerInvoke = function(player)
 	local plot = BaseService.GetPlot(player)
 	if plot then
 		BaseService.ClearPlotDisplays(plot)
-		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
+		do local _tp = DataService.GetTotalPacksOpened(player); local _d = DataService.GetData(player); BaseService.UpdatePackMilestone(plot, _tp, _d and _d.claimedMilestones or {}) end
 		refreshPlotDisplayState(player, plot)
-		local newTier = DataService.GetData(player) and DataService.GetData(player).rebirthTier or 0
+		local newData = DataService.GetData(player)
+		local newTier = newData and newData.rebirthTier or 0
+		local newSlots = newData and newData.baseSlots or 6
 		BaseService.UpdateStadiumTier(plot, newTier)
+		-- Unlock the new display slot earned by this rebirth
+		BaseService.AddDisplaySlot(plot, newSlots)
 	end
 
 	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))

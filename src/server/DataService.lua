@@ -33,6 +33,7 @@ local DEFAULT_DATA = {
 	totalPacksOpened = 0,
 	totalRebirths = 0,
 	collectionRewards = {},
+	claimedMilestones = {},  -- keys are tostring(threshold), value true when claimed
 }
 
 local cache = {}
@@ -90,6 +91,19 @@ end
 
 local function deepMergeDefaults(source, defaults)
 	local merged = {}
+
+	-- If the defaults table is empty it's an open-ended map (e.g. inventory,
+	-- displayedCards, collectionRewards). Preserve ALL keys from source as-is;
+	-- don't wipe them by iterating an empty template.
+	if next(defaults) == nil then
+		if type(source) == "table" then
+			for k, v in pairs(source) do
+				merged[k] = v
+			end
+		end
+		return merged
+	end
+
 	for key, defaultValue in pairs(defaults) do
 		local value = source and source[key] or nil
 		if type(defaultValue) == "table" then
@@ -147,14 +161,19 @@ function DataService.SavePlayer(player)
 		return true
 	end
 
+	-- Snapshot data at save time so in-flight mutations don't corrupt payload
 	local payload = Utils.DeepCopy(data)
 	local key = tostring(player.UserId)
+
 	local ok = tryDataStore(function()
 		PlayerStore:SetAsync(key, payload)
 	end)
 
 	if ok then
 		dirtyPlayers[player] = nil
+	else
+		warn("[DataService] Failed to save data for", player.Name,
+			"— data will persist in cache for retry.")
 	end
 
 	return ok
