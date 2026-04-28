@@ -2132,19 +2132,19 @@ local ALL_SLOT_OFFSETS = {
 	Vector3.new(  0, 1.75,  14),  -- 5
 	Vector3.new( 12, 1.75,  14),  -- 6
 	-- Rebirth Terrace row 1 — closest to pitch, six slots across the back.
-	Vector3.new(-22, 6.75, -17.5), -- 7
-	Vector3.new(-22, 6.75, -10.5), -- 8
-	Vector3.new(-22, 6.75,  -3.5), -- 9
-	Vector3.new(-22, 6.75,   3.5), -- 10
-	Vector3.new(-22, 6.75,  10.5), -- 11
-	Vector3.new(-22, 6.75,  17.5), -- 12
+	Vector3.new(-22, 10.25, -17.5), -- 7
+	Vector3.new(-22, 10.25, -10.5), -- 8
+	Vector3.new(-22, 10.25,  -3.5), -- 9
+	Vector3.new(-22, 10.25,   3.5), -- 10
+	Vector3.new(-22, 10.25,  10.5), -- 11
+	Vector3.new(-22, 10.25,  17.5), -- 12
 	-- Rebirth Terrace row 2 — future expansion capacity.
-	Vector3.new(-30, 6.75, -17.5), -- 13
-	Vector3.new(-30, 6.75, -10.5), -- 14
-	Vector3.new(-30, 6.75,  -3.5), -- 15
-	Vector3.new(-30, 6.75,   3.5), -- 16
-	Vector3.new(-30, 6.75,  10.5), -- 17
-	Vector3.new(-30, 6.75,  17.5), -- 18
+	Vector3.new(-30, 10.25, -17.5), -- 13
+	Vector3.new(-30, 10.25, -10.5), -- 14
+	Vector3.new(-30, 10.25,  -3.5), -- 15
+	Vector3.new(-30, 10.25,   3.5), -- 16
+	Vector3.new(-30, 10.25,  10.5), -- 17
+	Vector3.new(-30, 10.25,  17.5), -- 18
 }
 
 local function slotLookDir(localOffset, facingDirection)
@@ -2165,9 +2165,13 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	local gold = Color3.fromRGB(255, 210, 55)
 	local stepColor = Color3.fromRGB(18, 24, 35)
 
-	local deckLocalY = 4.72 -- top lands at local Y 5.0, matching upper slot bottoms.
+	local deckLocalY = 8.22 -- top lands at local Y 8.5, matching upper slot bottoms.
 	local deckCenterX = -26 * facingDirection
 	local deckSize = Vector3.new(18, 0.56, 43)
+	local deckTopLocalY = deckLocalY + (deckSize.Y / 2)
+	local deckBottomLocalY = deckLocalY - (deckSize.Y / 2)
+	local supportHeight = deckBottomLocalY - 0.5
+	local supportCenterY = 0.5 + (supportHeight / 2)
 
 	local deck = make("Part", {
 		Name = "RebirthTerraceDeck",
@@ -2230,8 +2234,8 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 				CanTouch = false,
 				Material = Enum.Material.SmoothPlastic,
 				Color = supportColor,
-				Size = Vector3.new(0.55, 4.45, 0.55),
-				CFrame = baseCFrame * CFrame.new(x * facingDirection, 2.73, z),
+				Size = Vector3.new(0.55, supportHeight, 0.55),
+				CFrame = baseCFrame * CFrame.new(x * facingDirection, supportCenterY, z),
 			}, parent)
 		end
 	end
@@ -2239,11 +2243,12 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	-- Two staircases make the new floor read as reachable/intentional rather
 	-- than a floating shelf. They are visual only, so they won't snag players.
 	for _, zSign in ipairs({ -1, 1 }) do
-		for step = 1, 7 do
-			local alpha = (step - 1) / 6
-			local x = (-11.5 - (alpha * 9.5)) * facingDirection
-			local y = 0.72 + (alpha * 4.25)
-			local z = zSign * (19.6 + (alpha * 1.4))
+		local stairSteps = 11
+		for step = 1, stairSteps do
+			local alpha = (step - 1) / (stairSteps - 1)
+			local x = (-10.5 - (alpha * 12)) * facingDirection
+			local y = 0.72 + (alpha * (deckTopLocalY - 0.72))
+			local z = zSign * (19.4 + (alpha * 1.9))
 			local stepPart = make("Part", {
 				Name = "RebirthTerraceStair",
 				Anchored = true,
@@ -2271,7 +2276,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 		end
 	end
 
-	local signPosition = baseCFrame.Position + Vector3.new((-17.4 * facingDirection), 6.35, 0)
+	local signPosition = baseCFrame.Position + Vector3.new((-17.4 * facingDirection), deckLocalY + 1.8, 0)
 	local signLookAt = signPosition + Vector3.new(facingDirection, 0, 0)
 	local sign = make("Part", {
 		Name = "RebirthTerraceSign",
