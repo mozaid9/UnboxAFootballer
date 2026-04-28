@@ -2755,7 +2755,7 @@ local function createDisplaySlot(parent, index, cframe, lookDirection)
 		ObjectText = "Inventory Empty",
 		KeyboardKeyCode = Enum.KeyCode.E,
 		HoldDuration = 0.65,
-		MaxActivationDistance = 10,
+		MaxActivationDistance = index > 6 and 28 or 10,
 		RequiresLineOfSight = false,
 		Enabled = false,
 	}, base)
@@ -2788,19 +2788,19 @@ local ALL_SLOT_OFFSETS = {
 	Vector3.new(  0, 1.75,  14),  -- 5
 	Vector3.new( 12, 1.75,  14),  -- 6
 	-- Rebirth Terrace row 1 — closest to pitch, six slots across the back.
-	Vector3.new(-22, 17.75, -17.5), -- 7
-	Vector3.new(-22, 17.75, -10.5), -- 8
-	Vector3.new(-22, 17.75,  -3.5), -- 9
-	Vector3.new(-22, 17.75,   3.5), -- 10
-	Vector3.new(-22, 17.75,  10.5), -- 11
-	Vector3.new(-22, 17.75,  17.5), -- 12
+	Vector3.new(-27, 17.75, -17.5), -- 7
+	Vector3.new(-27, 17.75, -10.5), -- 8
+	Vector3.new(-27, 17.75,  -3.5), -- 9
+	Vector3.new(-27, 17.75,   3.5), -- 10
+	Vector3.new(-27, 17.75,  10.5), -- 11
+	Vector3.new(-27, 17.75,  17.5), -- 12
 	-- Rebirth Terrace row 2 — future expansion capacity.
-	Vector3.new(-30, 17.75, -17.5), -- 13
-	Vector3.new(-30, 17.75, -10.5), -- 14
-	Vector3.new(-30, 17.75,  -3.5), -- 15
-	Vector3.new(-30, 17.75,   3.5), -- 16
-	Vector3.new(-30, 17.75,  10.5), -- 17
-	Vector3.new(-30, 17.75,  17.5), -- 18
+	Vector3.new(-35, 17.75, -17.5), -- 13
+	Vector3.new(-35, 17.75, -10.5), -- 14
+	Vector3.new(-35, 17.75,  -3.5), -- 15
+	Vector3.new(-35, 17.75,   3.5), -- 16
+	Vector3.new(-35, 17.75,  10.5), -- 17
+	Vector3.new(-35, 17.75,  17.5), -- 18
 }
 
 local function slotLookDir(localOffset, facingDirection)
@@ -2815,24 +2815,29 @@ local function slotLookDir(localOffset, facingDirection)
 end
 
 local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirection)
-	local deckColor = Color3.fromRGB(14, 19, 31)
-	local railColor = Color3.fromRGB(26, 36, 54)
+	local deckColor    = Color3.fromRGB(14, 19, 31)
+	local railColor    = Color3.fromRGB(26, 36, 54)
 	local supportColor = Color3.fromRGB(18, 26, 40)
-	local gold = Color3.fromRGB(255, 210, 55)
-	local stepColor = Color3.fromRGB(18, 24, 35)
+	local gold         = Color3.fromRGB(255, 210, 55)
+	local stepColor    = Color3.fromRGB(18, 24, 35)
 
-	local deckLocalY = 15.72 -- top lands at local Y 16.0, matching upper slot bottoms.
-	local deckCenterX = -26 * facingDirection
-	local deckSize = Vector3.new(18, 0.56, 43)
-	local deckTopLocalY = deckLocalY + (deckSize.Y / 2)
-	local deckBottomLocalY = deckLocalY - (deckSize.Y / 2)
-	local supportHeight = deckBottomLocalY - 0.5
-	local supportCenterY = 0.5 + (supportHeight / 2)
+	-- Keep the terrace well behind the pack pad. The pack pad is centred at
+	-- local X = -16, and the terrace now starts at local X = -24.
+	local deckLocalY       = 15.72   -- centre; top surface = local Y 16.0
+	local deckCenterX      = (-33) * facingDirection
+	local deckSize         = Vector3.new(18, 0.56, 43)
+	local deckTopLocalY    = deckLocalY + (deckSize.Y / 2)    -- 16.0
+	local deckBottomLocalY = deckLocalY - (deckSize.Y / 2)    -- 15.44
+	local deckFrontLocalX  = (-24) * facingDirection           -- entrance-facing edge
+	local deckBackLocalX   = (-42) * facingDirection           -- back edge
+	local supportHeight    = deckBottomLocalY - 0.5
+	local supportCenterY   = 0.5 + (supportHeight / 2)
 
-	local deck = make("Part", {
+	-- ── Deck platform ──────────────────────────────────────────────────────────
+	make("Part", {
 		Name = "RebirthTerraceDeck",
 		Anchored = true,
-		CanCollide = false,
+		CanCollide = true,   -- walkable
 		CanQuery = false,
 		CanTouch = false,
 		Material = Enum.Material.SmoothPlastic,
@@ -2841,38 +2846,31 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 		CFrame = baseCFrame * CFrame.new(deckCenterX, deckLocalY, 0),
 	}, parent)
 
+	-- Gold Neon trim along the entrance-facing edge
 	make("Part", {
 		Name = "RebirthTerraceFrontGlow",
-		Anchored = true,
-		CanCollide = false,
-		CanQuery = false,
-		CanTouch = false,
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
 		Material = Enum.Material.Neon,
-		Color = gold,
-		Transparency = 0.5,
+		Color = gold, Transparency = 0.5,
 		Size = Vector3.new(0.18, 0.1, deckSize.Z - 2),
-		CFrame = baseCFrame * CFrame.new((-17.2 * facingDirection), deckLocalY + 0.34, 0),
+		CFrame = baseCFrame * CFrame.new(deckFrontLocalX, deckLocalY + 0.34, 0),
 	}, parent)
 
+	-- Back guard-rail
 	make("Part", {
 		Name = "RebirthTerraceBackRail",
-		Anchored = true,
-		CanCollide = false,
-		CanQuery = false,
-		CanTouch = false,
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = railColor,
 		Size = Vector3.new(0.45, 1.25, deckSize.Z),
-		CFrame = baseCFrame * CFrame.new((-35.2 * facingDirection), deckLocalY + 0.98, 0),
+		CFrame = baseCFrame * CFrame.new(deckBackLocalX, deckLocalY + 0.98, 0),
 	}, parent)
 
+	-- Side guard-rails (north & south edges)
 	for _, z in ipairs({ -21.8, 21.8 }) do
 		make("Part", {
 			Name = "RebirthTerraceSideRail",
-			Anchored = true,
-			CanCollide = false,
-			CanQuery = false,
-			CanTouch = false,
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
 			Material = Enum.Material.SmoothPlastic,
 			Color = railColor,
 			Size = Vector3.new(deckSize.X, 1.1, 0.35),
@@ -2880,14 +2878,12 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 		}, parent)
 	end
 
-	for _, x in ipairs({ -19, -26, -33 }) do
+	-- Support pillars — three columns × three Z rows, tucked behind the pack.
+	for _, x in ipairs({ -25, -33, -41 }) do
 		for _, z in ipairs({ -18, 0, 18 }) do
 			make("Part", {
 				Name = "RebirthTerraceSupport",
-				Anchored = true,
-				CanCollide = false,
-				CanQuery = false,
-				CanTouch = false,
+				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
 				Material = Enum.Material.SmoothPlastic,
 				Color = supportColor,
 				Size = Vector3.new(0.55, supportHeight, 0.55),
@@ -2896,16 +2892,45 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 		end
 	end
 
-	-- Two staircases make the new floor read as reachable/intentional rather
-	-- than a floating shelf. They are visual only, so they won't snag players.
+	-- ── Staircases ──────────────────────────────────────────────────────────────
+	-- The stairs run in the Z direction along the deck's entrance-facing edge.
+	-- Invisible ramps provide reliable Roblox collision; visible steps are only
+	-- presentation, so players do not snag on individual step lips.
+	local stairCount = 24
+	local stairX = deckFrontLocalX   -- flush with the deck's entrance face
+	local stairW = 3.8               -- step width along X (comfortable to walk)
+	local stairD = 1.25              -- visual step depth along Z
+	local stairH = 0.32              -- visual step thickness
+
 	for _, zSign in ipairs({ -1, 1 }) do
-		local stairSteps = 18
-		for step = 1, stairSteps do
-			local alpha = (step - 1) / (stairSteps - 1)
-			local x = (-10.5 - (alpha * 12)) * facingDirection
-			local y = 0.72 + (alpha * (deckTopLocalY - 0.72))
-			local z = zSign * (19.4 + (alpha * 1.9))
-			local stepPart = make("Part", {
+		local zBottom = zSign * 21   -- staircase foot (ground level, near side fence)
+		local zTop    = zSign * 4    -- staircase head (deck surface height)
+		local bottomY = 0.9
+		local topY = deckTopLocalY + 0.16
+		local run = math.abs(zBottom - zTop)
+		local rise = topY - bottomY
+		local rampLength = math.sqrt((run * run) + (rise * rise)) + 1.2
+		local rampAngle = math.atan(rise / run) * zSign
+
+		make("Part", {
+			Name = "RebirthTerraceRamp",
+			Anchored = true,
+			CanCollide = true,
+			CanQuery = false,
+			CanTouch = false,
+			Transparency = 1,
+			Size = Vector3.new(stairW + 0.8, 0.3, rampLength),
+			CFrame = baseCFrame
+				* CFrame.new(stairX, (bottomY + topY) / 2, (zBottom + zTop) / 2)
+				* CFrame.Angles(rampAngle, 0, 0),
+		}, parent)
+
+		for step = 0, stairCount - 1 do
+			local t  = step / (stairCount - 1)
+			local sz = zBottom + t * (zTop - zBottom)       -- travels from ±21 → ±4
+			local sy = bottomY + t * (deckTopLocalY - bottomY)     -- rises from floor to deck
+
+			make("Part", {
 				Name = "RebirthTerraceStair",
 				Anchored = true,
 				CanCollide = false,
@@ -2913,33 +2938,29 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 				CanTouch = false,
 				Material = Enum.Material.SmoothPlastic,
 				Color = stepColor,
-				Size = Vector3.new(3.1, 0.32, 3.2),
-				CFrame = baseCFrame * CFrame.new(x, y, z),
+				Size = Vector3.new(stairW, stairH, stairD),
+				CFrame = baseCFrame * CFrame.new(stairX, sy, sz),
 			}, parent)
 
+			-- Gold Neon edge-glow on the leading face of each step
+			-- (the face that the player approaches from: towards Z=0)
+			local glowZ = sz - (zSign * (stairD / 2 - 0.08))
 			make("Part", {
-				Name = stepPart.Name .. "Glow",
-				Anchored = true,
-				CanCollide = false,
-				CanQuery = false,
-				CanTouch = false,
+				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
 				Material = Enum.Material.Neon,
-				Color = gold,
-				Transparency = 0.58,
-				Size = Vector3.new(2.6, 0.06, 0.16),
-				CFrame = stepPart.CFrame * CFrame.new(0, 0.19, -1.45),
+				Color = gold, Transparency = 0.58,
+				Size = Vector3.new(stairW - 0.6, 0.07, 0.14),
+				CFrame = baseCFrame * CFrame.new(stairX, sy + (stairH / 2), glowZ),
 			}, parent)
 		end
 	end
 
-	local signPosition = baseCFrame.Position + Vector3.new((-17.4 * facingDirection), deckLocalY + 1.8, 0)
-	local signLookAt = signPosition + Vector3.new(facingDirection, 0, 0)
+	-- ── "REBIRTH TERRACE" sign mounted on the entrance-facing edge ─────────────
+	local signPosition = baseCFrame.Position + Vector3.new(deckFrontLocalX, deckLocalY + 1.8, 0)
+	local signLookAt   = signPosition + Vector3.new(facingDirection, 0, 0)
 	local sign = make("Part", {
 		Name = "RebirthTerraceSign",
-		Anchored = true,
-		CanCollide = false,
-		CanQuery = false,
-		CanTouch = false,
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(6, 8, 13),
 		Size = Vector3.new(17, 2.2, 0.35),
@@ -2957,11 +2978,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 		BackgroundTransparency = 1,
 		Size = UDim2.fromScale(1, 1),
 	}, gui)
-	make("UIStroke", {
-		Color = gold,
-		Thickness = 2,
-		Transparency = 0.25,
-	}, signFrame)
+	make("UIStroke", { Color = gold, Thickness = 2, Transparency = 0.25 }, signFrame)
 	make("TextLabel", {
 		BackgroundTransparency = 1,
 		Size = UDim2.fromScale(1, 0.56),
@@ -2981,33 +2998,27 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 		Font = Enum.Font.GothamBold,
 	}, signFrame)
 
+	-- ── Deck lamps at the front corners ────────────────────────────────────────
 	for _, z in ipairs({ -19.8, 19.8 }) do
 		make("Part", {
 			Name = "RebirthTerraceLamp",
-			Anchored = true,
-			CanCollide = false,
-			CanQuery = false,
-			CanTouch = false,
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
 			Material = Enum.Material.SmoothPlastic,
 			Color = supportColor,
 			Size = Vector3.new(0.45, 2.4, 0.45),
-			CFrame = baseCFrame * CFrame.new((-16.5 * facingDirection), deckLocalY + 1.5, z),
+			CFrame = baseCFrame * CFrame.new(deckFrontLocalX, deckLocalY + 1.5, z),
 		}, parent)
 		local bulb = make("Part", {
 			Name = "RebirthTerraceLampBulb",
-			Anchored = true,
-			CanCollide = false,
-			CanQuery = false,
-			CanTouch = false,
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
 			Material = Enum.Material.Neon,
 			Color = Color3.fromRGB(255, 226, 135),
 			Shape = Enum.PartType.Ball,
 			Size = Vector3.new(0.8, 0.8, 0.8),
-			CFrame = baseCFrame * CFrame.new((-16.5 * facingDirection), deckLocalY + 2.9, z),
+			CFrame = baseCFrame * CFrame.new(deckFrontLocalX, deckLocalY + 2.9, z),
 		}, parent)
 		make("PointLight", {
-			Brightness = 0.45,
-			Range = 15,
+			Brightness = 0.45, Range = 15,
 			Color = Color3.fromRGB(255, 226, 160),
 		}, bulb)
 	end
@@ -3383,10 +3394,10 @@ local function createPlot(plotId, side, laneIndex, position)
 		}, ownerFrame)
 
 	-- ── Pack Milestone Board ─────────────────────────────────────────────────────
-	-- Raised to Y=12 so the board floats clearly above head height and is easy to read.
+	-- Raised behind the upper terrace so the second floor no longer covers it.
 	local msW, msH = 28, 14
 	local milestoneSignPosition = position
-		+ Vector3.new(backEdgeX - (facingDirection * 5), 12, 0)
+		+ Vector3.new(backEdgeX - (facingDirection * 18), 27, 0)
 	local milestoneSign = make("Part", {
 		Name = "PackMilestoneBillboard",
 		Anchored = true,
