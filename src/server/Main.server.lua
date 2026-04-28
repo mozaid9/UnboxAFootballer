@@ -774,38 +774,44 @@ local function spawnPackForPlot(plot)
 	sendHint(plot.ownerPlayer, packDef.displayName .. " spawned on your red pad. Crack it with your pitchfork and use Hold E on green slots to swap players.")
 end
 
-for _, plot in ipairs(BaseService.GetPlots()) do
-	BaseService.SetPlotPadStatus(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
-	for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
-		slot.prompt.Triggered:Connect(function(player)
-			if plot.ownerPlayer ~= player then
+-- Reusable function so we can wire up prompt handlers for slots added after startup
+-- (e.g. upper-floor slots unlocked by rebirth or loaded from saved data)
+local function connectSlotPrompt(plot, slot)
+	slot.prompt.Triggered:Connect(function(player)
+		if plot.ownerPlayer ~= player then
+			PackOpenFailedEvent:FireClient(player, {
+				error = (plot.ownerPlayer and plot.ownerPlayer.DisplayName or "Another player") .. "'s display slot is on this base.",
+			})
+			return
+		end
+
+		if DataService.GetDisplayedCard(player, slot.slotIndex) then
+			local ok, cardOrError = moveDisplayedCardToInventory(player, plot, slot)
+			if ok then
+				sendHint(player, cardOrError.name .. " moved into your inventory. Hold E on this slot to place a stored player.")
+			else
+				PackOpenFailedEvent:FireClient(player, { error = cardOrError })
+			end
+		else
+			if not getBestInventoryCard(player) then
 				PackOpenFailedEvent:FireClient(player, {
-					error = (plot.ownerPlayer and plot.ownerPlayer.DisplayName or "Another player") .. "'s display slot is on this base.",
+					error = "You do not have a stored player to add.",
 				})
 				return
 			end
 
-			if DataService.GetDisplayedCard(player, slot.slotIndex) then
-				local ok, cardOrError = moveDisplayedCardToInventory(player, plot, slot)
-				if ok then
-					sendHint(player, cardOrError.name .. " moved into your inventory. Hold E on this slot to place a stored player.")
-				else
-					PackOpenFailedEvent:FireClient(player, { error = cardOrError })
-				end
-			else
-				if not getBestInventoryCard(player) then
-					PackOpenFailedEvent:FireClient(player, {
-						error = "You do not have a stored player to add.",
-					})
-					return
-				end
+			OpenSlotPickerEvent:FireClient(player, {
+				slotIndex = slot.slotIndex,
+			})
+			sendHint(player, "Choose a stored player for display slot " .. tostring(slot.slotIndex) .. ".")
+		end
+	end)
+end
 
-				OpenSlotPickerEvent:FireClient(player, {
-					slotIndex = slot.slotIndex,
-				})
-				sendHint(player, "Choose a stored player for display slot " .. tostring(slot.slotIndex) .. ".")
-			end
-		end)
+for _, plot in ipairs(BaseService.GetPlots()) do
+	BaseService.SetPlotPadStatus(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
+	for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
+		connectSlotPrompt(plot, slot)
 	end
 end
 
@@ -1002,6 +1008,14 @@ local function handlePlayerAdded(player)
 
 	local data = DataService.LoadPlayer(player)
 	local plot = BaseService.AssignPlot(player, data.rebirthTier or 0, data.baseSlots or 6)
+	-- Wire up prompt handlers for any extra slots loaded from saved data (slots > base 6)
+	if plot then
+		for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
+			if slot.slotIndex > 6 then
+				connectSlotPrompt(plot, slot)
+			end
+		end
+	end
 	EconomyService.EnsureStarterCoins(player)
 	EconomyService.TryGrantDailyReward(player)
 	ensurePitchfork(player)
@@ -1486,8 +1500,11 @@ RequestRebirthFn.OnServerInvoke = function(player)
 		local newTier = newData and newData.rebirthTier or 0
 		local newSlots = newData and newData.baseSlots or 6
 		BaseService.UpdateStadiumTier(plot, newTier)
-		-- Unlock the new display slot earned by this rebirth
-		BaseService.AddDisplaySlot(plot, newSlots)
+		-- Unlock the new display slot earned by this rebirth and wire up its prompt handler
+		local newSlot = BaseService.AddDisplaySlot(plot, newSlots)
+		if newSlot then
+			connectSlotPrompt(plot, newSlot)
+		end
 	end
 
 	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))

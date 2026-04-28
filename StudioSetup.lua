@@ -2853,7 +2853,9 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 		Material = Enum.Material.Neon,
 		Color = gold, Transparency = 0.5,
 		Size = Vector3.new(0.18, 0.1, deckSize.Z - 2),
-		CFrame = baseCFrame * CFrame.new(deckFrontLocalX, deckLocalY + 0.34, 0),
+		-- Offset toward the pitch so the trim reads as an outside edge, not an
+		-- embedded strip inside the deck surface.
+		CFrame = baseCFrame * CFrame.new(deckFrontLocalX + facingDirection * 0.16, deckTopLocalY + 0.08, 0),
 	}, parent)
 
 	-- Back guard-rail
@@ -2894,63 +2896,129 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 
 	-- ── Staircases ──────────────────────────────────────────────────────────────
 	-- The stairs run in the Z direction along the deck's entrance-facing edge.
-	-- Invisible ramps provide reliable Roblox collision; visible steps are only
-	-- presentation, so players do not snag on individual step lips.
-	local stairCount = 24
-	local stairX = deckFrontLocalX   -- flush with the deck's entrance face
-	local stairW = 3.8               -- step width along X (comfortable to walk)
-	local stairD = 1.25              -- visual step depth along Z
-	local stairH = 0.32              -- visual step thickness
+	-- Invisible ramps give smooth collision; the visible steps are decorative only.
+	-- Each step uses proper stacked geometry: block bottom = groundY + i * riserH,
+	-- so no step ever clips below the floor and the top step aligns with the deck.
+	local stairCount  = 10
+	local stairX      = deckFrontLocalX - facingDirection  -- 1 stud inside deck so ramp top lands ON the deck surface
+	local stairW      = 4.6
+	local groundY     = 0.9             -- floor surface in local Y
+	local stairTopY   = deckTopLocalY   -- deck surface in local Y (16.0)
+	local totalRise   = stairTopY - groundY            -- 15.1
+	local riserH      = totalRise / stairCount         -- height of each step block
+	local totalRun    = 17                             -- |zBottom − zTop|
+	local treadD      = totalRun / stairCount          -- depth of each step block
+	local landingX    = deckFrontLocalX - facingDirection * 3.2
+	local landingSize = Vector3.new(6.6, 0.16, 5.4)
 
 	for _, zSign in ipairs({ -1, 1 }) do
-		local zBottom = zSign * 21   -- staircase foot (ground level, near side fence)
-		local zTop    = zSign * 4    -- staircase head (deck surface height)
-		local bottomY = 0.9
-		local topY = deckTopLocalY + 0.16
-		local run = math.abs(zBottom - zTop)
-		local rise = topY - bottomY
-		local rampLength = math.sqrt((run * run) + (rise * rise)) + 1.2
-		local rampAngle = math.atan(rise / run) * zSign
+		local zBottom = zSign * 21   -- foot of staircase (near side fence)
+		local zTop    = zSign * 4    -- head of staircase (at deck)
+		local rampMidZ = (zBottom + zTop) / 2
+		local rampMidY = groundY + totalRise / 2
+		local rampRise = totalRise + 0.16   -- match topY used by original ramp
+		local rampLength = math.sqrt((totalRun * totalRun) + (rampRise * rampRise)) + 1.2
+		local rampAngle  = math.atan(rampRise / totalRun) * zSign
 
+		-- Invisible walkable ramp (smooth collision — no step-lip snagging)
 		make("Part", {
 			Name = "RebirthTerraceRamp",
+			Anchored = true, CanCollide = true, CanQuery = false, CanTouch = false,
+			Transparency = 1,
+			Size = Vector3.new(stairW + 1.0, 0.3, rampLength),
+			CFrame = baseCFrame
+				* CFrame.new(stairX, rampMidY, rampMidZ)
+				* CFrame.Angles(rampAngle, 0, 0),
+		}, parent)
+
+		-- Walk-on landing: bridges the final stair onto the terrace deck so the
+		-- player does not arrive against the vertical deck face.
+		make("Part", {
+			Name = "RebirthTerraceStairLanding",
 			Anchored = true,
 			CanCollide = true,
 			CanQuery = false,
 			CanTouch = false,
-			Transparency = 1,
-			Size = Vector3.new(stairW + 0.8, 0.3, rampLength),
-			CFrame = baseCFrame
-				* CFrame.new(stairX, (bottomY + topY) / 2, (zBottom + zTop) / 2)
-				* CFrame.Angles(rampAngle, 0, 0),
+			Material = Enum.Material.SmoothPlastic,
+			Color = deckColor,
+			Size = landingSize,
+			CFrame = baseCFrame * CFrame.new(landingX, deckTopLocalY + landingSize.Y / 2, zTop),
 		}, parent)
 
-		for step = 0, stairCount - 1 do
-			local t  = step / (stairCount - 1)
-			local sz = zBottom + t * (zTop - zBottom)       -- travels from ±21 → ±4
-			local sy = bottomY + t * (deckTopLocalY - bottomY)     -- rises from floor to deck
+		make("Part", {
+			Name = "RebirthTerraceLandingGlow",
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = gold,
+			Transparency = 0.45,
+			Size = Vector3.new(landingSize.X - 0.8, 0.08, 0.16),
+			CFrame = baseCFrame * CFrame.new(landingX, deckTopLocalY + 0.18, zTop + zSign * ((landingSize.Z / 2) - 0.18)),
+		}, parent)
+
+		-- Visible steps: each block sits cleanly on top of the previous one.
+		-- Step 0 bottom = groundY, step 9 top = stairTopY (= deck surface).
+		for i = 0, stairCount - 1 do
+			local stepBottomY  = groundY + i * riserH
+			local stepCenterY  = stepBottomY + riserH / 2
+			-- Steps run from zBottom toward zTop; zDir = -zSign
+			local stepCenterZ  = zBottom - zSign * (i + 0.5) * treadD
 
 			make("Part", {
 				Name = "RebirthTerraceStair",
-				Anchored = true,
-				CanCollide = false,
-				CanQuery = false,
-				CanTouch = false,
+				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
 				Material = Enum.Material.SmoothPlastic,
 				Color = stepColor,
-				Size = Vector3.new(stairW, stairH, stairD),
-				CFrame = baseCFrame * CFrame.new(stairX, sy, sz),
+				Size = Vector3.new(stairW, riserH, treadD),
+				CFrame = baseCFrame * CFrame.new(stairX, stepCenterY, stepCenterZ),
 			}, parent)
+		end
 
-			-- Gold Neon edge-glow on the leading face of each step
-			-- (the face that the player approaches from: towards Z=0)
-			local glowZ = sz - (zSign * (stairD / 2 - 0.08))
+		-- Single gold accent glow at the very top step edge (where you step onto the deck)
+		local topGlowZ = zTop - zSign * (treadD / 2 - 0.06)
+		make("Part", {
+			Name = "RebirthTerraceStairTopGlow",
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = gold, Transparency = 0.4,
+			Size = Vector3.new(stairW - 0.5, 0.08, 0.16),
+			-- Lifted above the walking surface so it doesn't disappear into the
+			-- deck when Roblox lighting/bloom kicks in.
+			CFrame = baseCFrame * CFrame.new(stairX, stairTopY + 0.2, topGlowZ),
+		}, parent)
+
+		-- Gold handrails along each side of the staircase
+		local railH   = 1.05  -- height of handrail above walking surface
+		local railMidY = rampMidY + railH
+		local railLen  = math.sqrt((totalRun * totalRun) + (totalRise * totalRise))
+		for _, xOff in ipairs({ (stairW / 2) + 0.12, -(stairW / 2) - 0.12 }) do
+			-- Bottom post
 			make("Part", {
+				Name = "RebirthTerraceStairPost",
 				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-				Material = Enum.Material.Neon,
-				Color = gold, Transparency = 0.58,
-				Size = Vector3.new(stairW - 0.6, 0.07, 0.14),
-				CFrame = baseCFrame * CFrame.new(stairX, sy + (stairH / 2), glowZ),
+				Material = Enum.Material.Metal, Color = gold,
+				Size = Vector3.new(0.16, railH * 2, 0.16),
+				CFrame = baseCFrame * CFrame.new(stairX + xOff, groundY + railH, zBottom),
+			}, parent)
+			-- Top post
+			make("Part", {
+				Name = "RebirthTerraceStairPost",
+				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+				Material = Enum.Material.Metal, Color = gold,
+				Size = Vector3.new(0.16, railH * 2, 0.16),
+				CFrame = baseCFrame * CFrame.new(stairX + xOff, stairTopY + railH, zTop),
+			}, parent)
+			-- Diagonal neon rail bar
+			make("Part", {
+				Name = "RebirthTerraceStairRail",
+				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+				Material = Enum.Material.Neon, Color = gold, Transparency = 0.3,
+				Size = Vector3.new(0.1, 0.1, railLen),
+				CFrame = baseCFrame
+					* CFrame.new(stairX + xOff, railMidY, rampMidZ)
+					* CFrame.Angles(rampAngle, 0, 0),
 			}, parent)
 		end
 	end
@@ -4297,7 +4365,6 @@ function BaseService.PlaceCharacterAtPlot(player, character)
 end
 
 return BaseService
-
 ]])
 
 makeModule('CrowdService', SSS, [[local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -5844,6 +5911,7 @@ local ClaimFreePackFn = makeFunction("ClaimFreePack")
 local ClaimDailyRewardFn = makeFunction("ClaimDailyReward")
 local GetRebirthStatusFn = makeFunction("GetRebirthStatus")
 local RequestRebirthFn = makeFunction("RequestRebirth")
+local OpenRebirthUIEvent = makeEvent("OpenRebirthUI")
 
 PackService.Init(DataService, EconomyService, {
 	UpdateCoins = UpdateCoinsEvent,
@@ -5855,6 +5923,19 @@ RebirthService.Init(DataService)
 
 BaseService.BuildBaseMap()
 CrowdService.Init(BaseService, DataService)
+
+-- Wire every plot's rebirth-machine ProximityPrompt.
+-- Fires immediately from server, fires OpenRebirthUI to that player's client.
+for _, plot in ipairs(BaseService.GetPlots()) do
+	if plot.rebirthPrompt then
+		plot.rebirthPrompt.Triggered:Connect(function(player)
+			-- Only the owner can use their own machine
+			if plot.ownerPlayer ~= player then return end
+			local status = RebirthService.GetStatus(player)
+			OpenRebirthUIEvent:FireClient(player, status)
+		end)
+	end
+end
 
 local swingCooldowns = {}
 local initializedPlayers = {}
@@ -5965,12 +6046,18 @@ local function getUpgradeCost(key, level)
 	if not spec or level >= spec.maxLevel then
 		return nil
 	end
+	-- Prefer explicit per-level cost table when present
+	if spec.levelCosts then
+		return spec.levelCosts[level + 1]  -- level 0 → index 1
+	end
 	return math.floor(spec.baseCost * (spec.costMultiplier ^ level))
 end
 
 local function computePitchforkDamage(level)
 	local spec = Constants.Upgrades.PitchforkDamage
-	return spec.baseDamage + level * spec.damagePerLevel
+	local mults = spec.multipliers
+	local idx = math.clamp(level + 1, 1, #mults)
+	return mults[idx]
 end
 
 local function computeSpawnDelay(level)
@@ -5979,8 +6066,15 @@ local function computeSpawnDelay(level)
 end
 
 local function computeLuckShift(level)
+	-- Returns the % chance of landing Rare or better pack at this luck level.
+	-- Used only for upgrade UI display.
 	local spec = Constants.Upgrades.PadLuck
-	return math.min(level * spec.shiftPerLevel, spec.maxShift)
+	local clampedLevel = math.clamp(level, 0, spec.maxLevel)
+	local weights = spec.padWeightsPerLevel and spec.padWeightsPerLevel[clampedLevel]
+	if weights then
+		return 100 - (weights[1] or 55)  -- 100 − Gold% = Rare+ chance
+	end
+	return 0
 end
 
 local function computeWalkSpeed(level)
@@ -6126,28 +6220,90 @@ local function playPackHitEffect(plot, settleBrightness)
 end
 
 local function rollPadPackForPlayer(player)
-	local weights = {}
-	for _, packDef in ipairs(PackConfig.PadSpawnOrder) do
-		table.insert(weights, packDef.padWeight or 1)
+	local luckLevel = player and getUpgradeLevel(player, "PadLuck") or 0
+	local luckSpec  = Constants.Upgrades.PadLuck
+	local levelWeights = luckSpec.padWeightsPerLevel and luckSpec.padWeightsPerLevel[luckLevel]
+
+	-- Build weight list aligned to PadSpawnOrder
+	local weights    = {}
+	local validPacks = {}
+	for i, packDef in ipairs(PackConfig.PadSpawnOrder) do
+		local w = levelWeights and (levelWeights[i] or 0) or (packDef.padWeight or 1)
+		if w > 0 then
+			table.insert(validPacks, packDef)
+			table.insert(weights, w)
+		end
 	end
 
-	if player and #weights >= 3 then
-		local shift = computeLuckShift(getUpgradeLevel(player, "PadLuck"))
-		local takeable = math.max(0, weights[1] - 5)
-		local taken = math.min(shift, takeable)
-		weights[1] = weights[1] - taken
-		local toRare = math.floor(taken * 0.6)
-		local toPremium = taken - toRare
-		weights[2] = weights[2] + toRare
-		weights[3] = weights[3] + toPremium
+	if #validPacks == 0 then
+		return PackConfig.PadSpawnOrder[1]
 	end
 
 	local chosenIndex = Utils.WeightedRandom(weights)
-	return PackConfig.PadSpawnOrder[chosenIndex]
+	return validPacks[chosenIndex]
 end
 
 local function getCardById(cardId)
 	return cardId and CardData.ById[tonumber(cardId)] or nil
+end
+
+-- ── Milestone reward granting (cycles every CYCLE packs) ─────────────────────
+local function checkAndGrantMilestones(player, totalPacks)
+	local data = DataService.GetData(player)
+	if not data then return end
+	if type(data.claimedMilestones) ~= "table" then
+		data.claimedMilestones = {}
+	end
+
+	-- CYCLE = last milestone threshold; milestones repeat every CYCLE packs
+	local CYCLE = 0
+	for _, ms in ipairs(Constants.PackMilestones) do
+		CYCLE = math.max(CYCLE, ms.threshold)
+	end
+	if CYCLE == 0 then return end
+
+	for _, milestone in ipairs(Constants.PackMilestones) do
+		local T   = milestone.threshold
+		local key = tostring(T)
+
+		-- How many times should this milestone have fired by now?
+		-- e.g. threshold=25, CYCLE=150: fires at 25, 175, 325, 475…
+		local timesEarned = totalPacks >= T
+			and (math.floor((totalPacks - T) / CYCLE) + 1)
+			or 0
+
+		-- Migrate old boolean true → 1
+		local timesClaimed = data.claimedMilestones[key]
+		if timesClaimed == true then timesClaimed = 1 end
+		timesClaimed = tonumber(timesClaimed) or 0
+
+		-- Grant any un-rewarded fires
+		while timesClaimed < timesEarned do
+			timesClaimed += 1
+			data.claimedMilestones[key] = timesClaimed
+			DataService.MarkDirty(player)
+
+			local cap = milestone
+			task.spawn(function()
+				local packOk, result = PackService.OpenPack(player, cap.packId, { ignoreCost = true })
+				if not packOk or not result then return end
+				local pulledCard = result.card or (result.cards and result.cards[1])
+				if pulledCard then
+					local plot = BaseService.GetPlot(player)
+					if plot then
+						autoStorePulledCard(player, plot, pulledCard)
+					else
+						DataService.AddCard(player, pulledCard.id)
+					end
+					sendHint(player, "\u{1F3C6} MILESTONE (" .. cap.label .. "): "
+						.. cap.reward .. " \u{2192} " .. pulledCard.name .. "!")
+				end
+			end)
+		end
+
+		-- Write back normalised count
+		data.claimedMilestones[key] = timesClaimed
+	end
 end
 
 local function getBestInventoryCard(player)
@@ -6419,6 +6575,8 @@ local function spawnPackForPlot(plot)
 	createSurfaceLabel(Enum.NormalId.Front, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 	createSurfaceLabel(Enum.NormalId.Back, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
 
+	-- (pack health is shown in the padGui billboard — no floating bar needed)
+
 	-- Continuous idle: slow spin + gentle float.  All three parts updated together so
 	-- they never drift apart (the old tween only moved cardBody, leaving caps behind).
 	local packOriginX = basePosition.X
@@ -6455,38 +6613,44 @@ local function spawnPackForPlot(plot)
 	sendHint(plot.ownerPlayer, packDef.displayName .. " spawned on your red pad. Crack it with your pitchfork and use Hold E on green slots to swap players.")
 end
 
-for _, plot in ipairs(BaseService.GetPlots()) do
-	BaseService.SetPlotPadStatus(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
-	for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
-		slot.prompt.Triggered:Connect(function(player)
-			if plot.ownerPlayer ~= player then
+-- Reusable function so we can wire up prompt handlers for slots added after startup
+-- (e.g. upper-floor slots unlocked by rebirth or loaded from saved data)
+local function connectSlotPrompt(plot, slot)
+	slot.prompt.Triggered:Connect(function(player)
+		if plot.ownerPlayer ~= player then
+			PackOpenFailedEvent:FireClient(player, {
+				error = (plot.ownerPlayer and plot.ownerPlayer.DisplayName or "Another player") .. "'s display slot is on this base.",
+			})
+			return
+		end
+
+		if DataService.GetDisplayedCard(player, slot.slotIndex) then
+			local ok, cardOrError = moveDisplayedCardToInventory(player, plot, slot)
+			if ok then
+				sendHint(player, cardOrError.name .. " moved into your inventory. Hold E on this slot to place a stored player.")
+			else
+				PackOpenFailedEvent:FireClient(player, { error = cardOrError })
+			end
+		else
+			if not getBestInventoryCard(player) then
 				PackOpenFailedEvent:FireClient(player, {
-					error = (plot.ownerPlayer and plot.ownerPlayer.DisplayName or "Another player") .. "'s display slot is on this base.",
+					error = "You do not have a stored player to add.",
 				})
 				return
 			end
 
-			if DataService.GetDisplayedCard(player, slot.slotIndex) then
-				local ok, cardOrError = moveDisplayedCardToInventory(player, plot, slot)
-				if ok then
-					sendHint(player, cardOrError.name .. " moved into your inventory. Hold E on this slot to place a stored player.")
-				else
-					PackOpenFailedEvent:FireClient(player, { error = cardOrError })
-				end
-			else
-				if not getBestInventoryCard(player) then
-					PackOpenFailedEvent:FireClient(player, {
-						error = "You do not have a stored player to add.",
-					})
-					return
-				end
+			OpenSlotPickerEvent:FireClient(player, {
+				slotIndex = slot.slotIndex,
+			})
+			sendHint(player, "Choose a stored player for display slot " .. tostring(slot.slotIndex) .. ".")
+		end
+	end)
+end
 
-				OpenSlotPickerEvent:FireClient(player, {
-					slotIndex = slot.slotIndex,
-				})
-				sendHint(player, "Choose a stored player for display slot " .. tostring(slot.slotIndex) .. ".")
-			end
-		end)
+for _, plot in ipairs(BaseService.GetPlots()) do
+	BaseService.SetPlotPadStatus(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
+	for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
+		connectSlotPrompt(plot, slot)
 	end
 end
 
@@ -6638,10 +6802,14 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 			passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
 		})
 
-		local milestoneOk, milestoneErr = pcall(BaseService.UpdatePackMilestone, plot, DataService.GetTotalPacksOpened(player))
+		local totalPacks = DataService.GetTotalPacksOpened(player)
+		local milestoneData = DataService.GetData(player)
+		local claimed = milestoneData and milestoneData.claimedMilestones or {}
+		local milestoneOk, milestoneErr = pcall(BaseService.UpdatePackMilestone, plot, totalPacks, claimed)
 		if not milestoneOk then
 			warn("[UnboxAFootballer] Pack milestone update failed:", milestoneErr)
 		end
+		checkAndGrantMilestones(player, totalPacks)
 
 		if pulledCard then
 			if storageResult.storedInInventory then
@@ -6678,7 +6846,15 @@ local function handlePlayerAdded(player)
 	initializedPlayers[player] = true
 
 	local data = DataService.LoadPlayer(player)
-	local plot = BaseService.AssignPlot(player)
+	local plot = BaseService.AssignPlot(player, data.rebirthTier or 0, data.baseSlots or 6)
+	-- Wire up prompt handlers for any extra slots loaded from saved data (slots > base 6)
+	if plot then
+		for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
+			if slot.slotIndex > 6 then
+				connectSlotPrompt(plot, slot)
+			end
+		end
+	end
 	EconomyService.EnsureStarterCoins(player)
 	EconomyService.TryGrantDailyReward(player)
 	ensurePitchfork(player)
@@ -6722,7 +6898,7 @@ local function handlePlayerAdded(player)
 
 	if plot then
 		refreshPlotDisplayState(player, plot)
-		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
+		do local _tp = DataService.GetTotalPacksOpened(player); local _d = DataService.GetData(player); BaseService.UpdatePackMilestone(plot, _tp, _d and _d.claimedMilestones or {}) end
 		spawnPackForPlot(plot)
 	end
 
@@ -6742,6 +6918,22 @@ for _, player in ipairs(Players:GetPlayers()) do
 	task.spawn(handlePlayerAdded, player)
 end
 
+-- ── Dev reset command ("/resetdata" in chat) ─────────────────
+-- Wipes ALL progress and kicks the player so they rejoin fresh.
+-- Remove this block before going to production.
+local function wireDevReset(player)
+	player.Chatted:Connect(function(msg)
+		if msg:lower() == "/resetdata" then
+			DataService.DevReset(player)
+			player:Kick("✅ Data wiped! Rejoin to start fresh.")
+		end
+	end)
+end
+Players.PlayerAdded:Connect(wireDevReset)
+for _, player in ipairs(Players:GetPlayers()) do
+	wireDevReset(player)
+end
+
 Players.PlayerRemoving:Connect(function(player)
 	initializedPlayers[player] = nil
 	swingCooldowns[player] = nil
@@ -6750,11 +6942,32 @@ Players.PlayerRemoving:Connect(function(player)
 	BaseService.ReleasePlot(player)
 end)
 
+-- BindToClose fires BEFORE PlayerRemoving when the server shuts down,
+-- so cache is still populated here. Save all players in parallel so
+-- we don't run out of time waiting for sequential DataStore calls.
 game:BindToClose(function()
+	local threads = {}
 	for _, player in ipairs(Players:GetPlayers()) do
-		DataService.SavePlayer(player)
+		local t = task.spawn(function()
+			DataService.SavePlayer(player)
+		end)
+		table.insert(threads, t)
 	end
-	task.wait(2)
+
+	-- Wait up to 10 s for all parallel saves to complete.
+	-- DataStore SetAsync typically takes <2 s; 10 s covers 1 full retry cycle.
+	local deadline = tick() + 10
+	local function anyAlive()
+		for _, t in ipairs(threads) do
+			if coroutine.status(t) ~= "dead" then
+				return true
+			end
+		end
+		return false
+	end
+	while anyAlive() and tick() < deadline do
+		task.wait(0.1)
+	end
 end)
 
 task.spawn(function()
@@ -6956,7 +7169,7 @@ local function buildUpgradePayload(player)
 		if key == "PitchforkDamage" then
 			entry.currentValue = computePitchforkDamage(level)
 			entry.nextValue = computePitchforkDamage(level + 1)
-			entry.valueSuffix = " dmg/swing"
+			entry.valueSuffix = "× per swing"
 		elseif key == "PackSpawnRate" then
 			entry.currentValue = computeSpawnDelay(level)
 			entry.nextValue = computeSpawnDelay(level + 1)
@@ -6964,7 +7177,7 @@ local function buildUpgradePayload(player)
 		elseif key == "PadLuck" then
 			entry.currentValue = computeLuckShift(level)
 			entry.nextValue = computeLuckShift(level + 1)
-			entry.valueSuffix = " luck shift"
+			entry.valueSuffix = "% Rare+ pads"
 		elseif key == "MoveSpeed" then
 			entry.currentValue = computeWalkSpeed(level)
 			entry.nextValue = computeWalkSpeed(level + 1)
@@ -7053,7 +7266,7 @@ ClaimFreePackFn.OnServerInvoke = function(player)
 
 	local passiveIncome = getCardIncome(player, pulledCard)
 	if plot then
-		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
+		do local _tp = DataService.GetTotalPacksOpened(player); local _d = DataService.GetData(player); BaseService.UpdatePackMilestone(plot, _tp, _d and _d.claimedMilestones or {}) end
 	end
 
 	PackOpenedEvent:FireClient(player, {
@@ -7120,8 +7333,17 @@ RequestRebirthFn.OnServerInvoke = function(player)
 	local plot = BaseService.GetPlot(player)
 	if plot then
 		BaseService.ClearPlotDisplays(plot)
-		BaseService.UpdatePackMilestone(plot, DataService.GetTotalPacksOpened(player))
+		do local _tp = DataService.GetTotalPacksOpened(player); local _d = DataService.GetData(player); BaseService.UpdatePackMilestone(plot, _tp, _d and _d.claimedMilestones or {}) end
 		refreshPlotDisplayState(player, plot)
+		local newData = DataService.GetData(player)
+		local newTier = newData and newData.rebirthTier or 0
+		local newSlots = newData and newData.baseSlots or 6
+		BaseService.UpdateStadiumTier(plot, newTier)
+		-- Unlock the new display slot earned by this rebirth and wire up its prompt handler
+		local newSlot = BaseService.AddDisplaySlot(plot, newSlots)
+		if newSlot then
+			connectSlotPrompt(plot, newSlot)
+		end
 	end
 
 	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
@@ -7136,7 +7358,6 @@ RequestRebirthFn.OnServerInvoke = function(player)
 end
 
 print("[UnboxAFootballer] Pack systems ready")
-
 ]])
 
 makeLocal('BaseUI', sps, [[return

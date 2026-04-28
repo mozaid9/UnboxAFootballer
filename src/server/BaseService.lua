@@ -2197,7 +2197,9 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 		Material = Enum.Material.Neon,
 		Color = gold, Transparency = 0.5,
 		Size = Vector3.new(0.18, 0.1, deckSize.Z - 2),
-		CFrame = baseCFrame * CFrame.new(deckFrontLocalX, deckLocalY + 0.34, 0),
+		-- Offset toward the pitch so the trim reads as an outside edge, not an
+		-- embedded strip inside the deck surface.
+		CFrame = baseCFrame * CFrame.new(deckFrontLocalX + facingDirection * 0.16, deckTopLocalY + 0.08, 0),
 	}, parent)
 
 	-- Back guard-rail
@@ -2238,63 +2240,129 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 
 	-- ── Staircases ──────────────────────────────────────────────────────────────
 	-- The stairs run in the Z direction along the deck's entrance-facing edge.
-	-- Invisible ramps provide reliable Roblox collision; visible steps are only
-	-- presentation, so players do not snag on individual step lips.
-	local stairCount = 24
-	local stairX = deckFrontLocalX   -- flush with the deck's entrance face
-	local stairW = 3.8               -- step width along X (comfortable to walk)
-	local stairD = 1.25              -- visual step depth along Z
-	local stairH = 0.32              -- visual step thickness
+	-- Invisible ramps give smooth collision; the visible steps are decorative only.
+	-- Each step uses proper stacked geometry: block bottom = groundY + i * riserH,
+	-- so no step ever clips below the floor and the top step aligns with the deck.
+	local stairCount  = 10
+	local stairX      = deckFrontLocalX - facingDirection  -- 1 stud inside deck so ramp top lands ON the deck surface
+	local stairW      = 4.6
+	local groundY     = 0.9             -- floor surface in local Y
+	local stairTopY   = deckTopLocalY   -- deck surface in local Y (16.0)
+	local totalRise   = stairTopY - groundY            -- 15.1
+	local riserH      = totalRise / stairCount         -- height of each step block
+	local totalRun    = 17                             -- |zBottom − zTop|
+	local treadD      = totalRun / stairCount          -- depth of each step block
+	local landingX    = deckFrontLocalX - facingDirection * 3.2
+	local landingSize = Vector3.new(6.6, 0.16, 5.4)
 
 	for _, zSign in ipairs({ -1, 1 }) do
-		local zBottom = zSign * 21   -- staircase foot (ground level, near side fence)
-		local zTop    = zSign * 4    -- staircase head (deck surface height)
-		local bottomY = 0.9
-		local topY = deckTopLocalY + 0.16
-		local run = math.abs(zBottom - zTop)
-		local rise = topY - bottomY
-		local rampLength = math.sqrt((run * run) + (rise * rise)) + 1.2
-		local rampAngle = math.atan(rise / run) * zSign
+		local zBottom = zSign * 21   -- foot of staircase (near side fence)
+		local zTop    = zSign * 4    -- head of staircase (at deck)
+		local rampMidZ = (zBottom + zTop) / 2
+		local rampMidY = groundY + totalRise / 2
+		local rampRise = totalRise + 0.16   -- match topY used by original ramp
+		local rampLength = math.sqrt((totalRun * totalRun) + (rampRise * rampRise)) + 1.2
+		local rampAngle  = math.atan(rampRise / totalRun) * zSign
 
+		-- Invisible walkable ramp (smooth collision — no step-lip snagging)
 		make("Part", {
 			Name = "RebirthTerraceRamp",
+			Anchored = true, CanCollide = true, CanQuery = false, CanTouch = false,
+			Transparency = 1,
+			Size = Vector3.new(stairW + 1.0, 0.3, rampLength),
+			CFrame = baseCFrame
+				* CFrame.new(stairX, rampMidY, rampMidZ)
+				* CFrame.Angles(rampAngle, 0, 0),
+		}, parent)
+
+		-- Walk-on landing: bridges the final stair onto the terrace deck so the
+		-- player does not arrive against the vertical deck face.
+		make("Part", {
+			Name = "RebirthTerraceStairLanding",
 			Anchored = true,
 			CanCollide = true,
 			CanQuery = false,
 			CanTouch = false,
-			Transparency = 1,
-			Size = Vector3.new(stairW + 0.8, 0.3, rampLength),
-			CFrame = baseCFrame
-				* CFrame.new(stairX, (bottomY + topY) / 2, (zBottom + zTop) / 2)
-				* CFrame.Angles(rampAngle, 0, 0),
+			Material = Enum.Material.SmoothPlastic,
+			Color = deckColor,
+			Size = landingSize,
+			CFrame = baseCFrame * CFrame.new(landingX, deckTopLocalY + landingSize.Y / 2, zTop),
 		}, parent)
 
-		for step = 0, stairCount - 1 do
-			local t  = step / (stairCount - 1)
-			local sz = zBottom + t * (zTop - zBottom)       -- travels from ±21 → ±4
-			local sy = bottomY + t * (deckTopLocalY - bottomY)     -- rises from floor to deck
+		make("Part", {
+			Name = "RebirthTerraceLandingGlow",
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = gold,
+			Transparency = 0.45,
+			Size = Vector3.new(landingSize.X - 0.8, 0.08, 0.16),
+			CFrame = baseCFrame * CFrame.new(landingX, deckTopLocalY + 0.18, zTop + zSign * ((landingSize.Z / 2) - 0.18)),
+		}, parent)
+
+		-- Visible steps: each block sits cleanly on top of the previous one.
+		-- Step 0 bottom = groundY, step 9 top = stairTopY (= deck surface).
+		for i = 0, stairCount - 1 do
+			local stepBottomY  = groundY + i * riserH
+			local stepCenterY  = stepBottomY + riserH / 2
+			-- Steps run from zBottom toward zTop; zDir = -zSign
+			local stepCenterZ  = zBottom - zSign * (i + 0.5) * treadD
 
 			make("Part", {
 				Name = "RebirthTerraceStair",
-				Anchored = true,
-				CanCollide = false,
-				CanQuery = false,
-				CanTouch = false,
+				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
 				Material = Enum.Material.SmoothPlastic,
 				Color = stepColor,
-				Size = Vector3.new(stairW, stairH, stairD),
-				CFrame = baseCFrame * CFrame.new(stairX, sy, sz),
+				Size = Vector3.new(stairW, riserH, treadD),
+				CFrame = baseCFrame * CFrame.new(stairX, stepCenterY, stepCenterZ),
 			}, parent)
+		end
 
-			-- Gold Neon edge-glow on the leading face of each step
-			-- (the face that the player approaches from: towards Z=0)
-			local glowZ = sz - (zSign * (stairD / 2 - 0.08))
+		-- Single gold accent glow at the very top step edge (where you step onto the deck)
+		local topGlowZ = zTop - zSign * (treadD / 2 - 0.06)
+		make("Part", {
+			Name = "RebirthTerraceStairTopGlow",
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = gold, Transparency = 0.4,
+			Size = Vector3.new(stairW - 0.5, 0.08, 0.16),
+			-- Lifted above the walking surface so it doesn't disappear into the
+			-- deck when Roblox lighting/bloom kicks in.
+			CFrame = baseCFrame * CFrame.new(stairX, stairTopY + 0.2, topGlowZ),
+		}, parent)
+
+		-- Gold handrails along each side of the staircase
+		local railH   = 1.05  -- height of handrail above walking surface
+		local railMidY = rampMidY + railH
+		local railLen  = math.sqrt((totalRun * totalRun) + (totalRise * totalRise))
+		for _, xOff in ipairs({ (stairW / 2) + 0.12, -(stairW / 2) - 0.12 }) do
+			-- Bottom post
 			make("Part", {
+				Name = "RebirthTerraceStairPost",
 				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-				Material = Enum.Material.Neon,
-				Color = gold, Transparency = 0.58,
-				Size = Vector3.new(stairW - 0.6, 0.07, 0.14),
-				CFrame = baseCFrame * CFrame.new(stairX, sy + (stairH / 2), glowZ),
+				Material = Enum.Material.Metal, Color = gold,
+				Size = Vector3.new(0.16, railH * 2, 0.16),
+				CFrame = baseCFrame * CFrame.new(stairX + xOff, groundY + railH, zBottom),
+			}, parent)
+			-- Top post
+			make("Part", {
+				Name = "RebirthTerraceStairPost",
+				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+				Material = Enum.Material.Metal, Color = gold,
+				Size = Vector3.new(0.16, railH * 2, 0.16),
+				CFrame = baseCFrame * CFrame.new(stairX + xOff, stairTopY + railH, zTop),
+			}, parent)
+			-- Diagonal neon rail bar
+			make("Part", {
+				Name = "RebirthTerraceStairRail",
+				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+				Material = Enum.Material.Neon, Color = gold, Transparency = 0.3,
+				Size = Vector3.new(0.1, 0.1, railLen),
+				CFrame = baseCFrame
+					* CFrame.new(stairX + xOff, railMidY, rampMidZ)
+					* CFrame.Angles(rampAngle, 0, 0),
 			}, parent)
 		end
 	end
