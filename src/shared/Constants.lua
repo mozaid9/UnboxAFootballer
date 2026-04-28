@@ -151,7 +151,7 @@ Constants.Rebirth = {
 	-- Display slots
 	BaseSlots      = 6,   -- every player starts with this many
 	SlotsPerRebirth = 1,  -- +1 slot per rebirth
-	MaxSlots       = 12,  -- hard cap
+	MaxSlots       = 18,  -- hard cap; rebirth terrace supports 12 upper slots
 
 	MultiplierMilestones = {
 		{ tier = 0,  multiplier = 1   },

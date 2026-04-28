@@ -154,44 +154,65 @@ Constants.RebirthCostMultiplier = 1.5
 Constants.RebirthLuckBonus = 0.05
 
 Constants.AutoSaveInterval = 60
-Constants.DataStoreRetries = 4
+Constants.DataStoreRetries = 3
 Constants.DataStoreRetryBackoff = {
 	1,
 	2,
-	4,
-	8,
+	3,
 }
 
+-- Sell values and market floors cover every rating used in CardData (78-97).
+-- Ratings are internal only — players never see them directly.
 Constants.SellValues = {
-	[92] = 5000,
-	[89] = 2500,
-	[88] = 2500,
-	[87] = 1500,
-	[86] = 1500,
-	[85] = 1500,
-	[84] = 750,
-	[83] = 750,
-	[82] = 750,
-	[81] = 750,
-	[80] = 750,
-	[79] = 300,
+	-- Gold tier (78-91)
 	[78] = 300,
+	[79] = 300,
+	[80] = 500,
+	[81] = 500,
+	[82] = 750,
+	[83] = 750,
+	[84] = 1000,
+	[85] = 1000,
+	[86] = 1200,
+	[87] = 1500,
+	[88] = 2000,
+	[89] = 2500,
+	[90] = 3000,
+	[91] = 3500,
+	-- Premium / Talisman / Maestro tier (92-94)
+	[92] = 5000,
+	[93] = 7000,
+	[94] = 10000,
+	-- Immortal / POTY tier (95-97)
+	[95] = 15000,
+	[96] = 20000,
+	[97] = 25000,
 }
 
 Constants.MarketFloors = {
-	[92] = 20000,
-	[89] = 10000,
-	[88] = 10000,
-	[87] = 6000,
-	[86] = 6000,
-	[85] = 6000,
-	[84] = 2500,
-	[83] = 2500,
-	[82] = 2500,
-	[81] = 2500,
-	[80] = 2500,
-	[79] = 800,
+	-- Gold tier
 	[78] = 800,
+	[79] = 800,
+	[80] = 1500,
+	[81] = 1500,
+	[82] = 2500,
+	[83] = 2500,
+	[84] = 3500,
+	[85] = 3500,
+	[86] = 5000,
+	[87] = 6000,
+	[88] = 8000,
+	[89] = 10000,
+	[90] = 12000,
+	[91] = 15000,
+	-- Premium / Talisman / Maestro tier
+	[92] = 20000,
+	[93] = 30000,
+	[94] = 45000,
+	-- Immortal / POTY tier
+	[95] = 65000,
+	[96] = 85000,
+	[97] = 110000,
 }
 
 Constants.MarketCeilingMultiplier = 5
@@ -206,9 +227,9 @@ Constants.BaseLayout = {
 	FenceHeight = 4.5,
 	WallThickness = 1.2,
 	EntranceWidth = 16,
-	EntrancePillarWidth = 2.2,
+	EntrancePillarWidth = 4.8,
 	PackPadSize = Vector3.new(10, 0.6, 10),
-	PadInfoMaxDistance = 38,
+	PadInfoMaxDistance = 55,
 	DisplaySlotCount = 6,
 	DisplaySlotSize = Vector3.new(7, 3.5, 7),
 }
@@ -246,32 +267,50 @@ Constants.FanZone = {
 	},
 }
 
+-- Each milestone fires once when totalPacksOpened crosses `threshold`.
+-- packId must match a PackConfig entry. label/color are used on the board.
 Constants.PackMilestones = {
-	{ interval = 50, reward = "Rare Pack" },
-	{ interval = 100, reward = "Special Pack" },
-	{ interval = 500, reward = "Player Pick" },
+	{ threshold = 25,  packId = "GoldPack",    reward = "Gold Pack",    label = "COMMON",    color = Color3.fromRGB(90,  200, 90)  },
+	{ threshold = 50,  packId = "RarePack",    reward = "Rare Pack",    label = "RARE",      color = Color3.fromRGB(80,  130, 255) },
+	{ threshold = 75,  packId = "PremiumPack", reward = "Premium Pack", label = "EPIC",      color = Color3.fromRGB(170, 75,  255) },
+	{ threshold = 100, packId = "JumboPack",   reward = "Jumbo Pack",   label = "SPECIAL",   color = Color3.fromRGB(255, 185, 0)   },
+	{ threshold = 150, packId = "DeluxePack",  reward = "Deluxe Pack",  label = "LEGENDARY", color = Color3.fromRGB(220, 75,  30)  },
 }
 
 Constants.Rebirth = {
-	BaseFanRequirement = 1000000,
-	FanRequirementMultiplier = 2,
-	RequiredSpecialCards = 3,
-	SpecialRarity = "Premium Gold",
 	StartingFansAfterRebirth = Constants.StartingCoins,
+
+	-- Requirements to go from tier N-1 → N.
+	-- cards = list of { count, rarity } where the player must own that many
+	-- cards OF THAT RARITY OR HIGHER to qualify.
+	TierRequirements = {
+		[1]  = { fans = 1000000,   cards = { { count = 1, rarity = "Talisman"           } } },
+		[2]  = { fans = 2000000,   cards = { { count = 1, rarity = "Maestro"            } } },
+		[3]  = { fans = 4000000,   cards = { { count = 2, rarity = "Maestro"            } } },
+		[4]  = { fans = 8000000,   cards = { { count = 2, rarity = "Immortal"           } } },
+		[5]  = { fans = 16000000,  cards = { { count = 3, rarity = "Immortal"           } } },
+		[6]  = { fans = 32000000,  cards = { { count = 3, rarity = "Player of the Year" } } },
+	},
+
+	-- Display slots
+	BaseSlots      = 6,   -- every player starts with this many
+	SlotsPerRebirth = 1,  -- +1 slot per rebirth
+	MaxSlots       = 18,  -- hard cap; rebirth terrace supports 12 upper slots
+
 	MultiplierMilestones = {
-		{ tier = 0, multiplier = 1 },
-		{ tier = 1, multiplier = 1.2 },
-		{ tier = 2, multiplier = 1.4 },
-		{ tier = 5, multiplier = 2 },
-		{ tier = 10, multiplier = 5 },
+		{ tier = 0,  multiplier = 1   },
+		{ tier = 1,  multiplier = 1.2 },
+		{ tier = 2,  multiplier = 1.4 },
+		{ tier = 5,  multiplier = 2   },
+		{ tier = 10, multiplier = 5   },
 	},
 }
 
 Constants.Pitchfork = {
 	BaseDamage = 1,
 	SwingCooldown = 0.42,
-	HitRange = 12,
-	HitFacingDot = 0.5,
+	HitRange = 18,       -- studs; close but not painfully strict
+	HitFacingDot = 0.35, -- ~70° cone; needs to face pack but not perfectly
 }
 
 -- ── Upgrade specs ─────────────────────────────────────────────
@@ -282,12 +321,12 @@ Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnRate", "PadLuck", "MoveSp
 Constants.Upgrades = {
 	PitchforkDamage = {
 		displayName = "Pitchfork Power",
-		description = "Deal more damage per swing, crack packs faster.",
-		maxLevel = 9,
-		baseCost = 400,
-		costMultiplier = 1.7,
-		baseDamage = 1,
-		damagePerLevel = 1,
+		description = "Each swing hits harder — multiply your damage per crack.",
+		maxLevel = 12,
+		-- Cost to go from level N → N+1 (index 1 = level 0→1, index 12 = level 11→12)
+		levelCosts = { 600, 1800, 5000, 14000, 38000, 100000, 260000, 650000, 1600000, 4000000, 10000000, 25000000 },
+		-- Damage multiplier at each level (index 1 = level 0, index 13 = level 12)
+		multipliers = { 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.3, 2.6, 3.0, 3.5, 4.0, 4.5, 5.0 },
 	},
 	PackSpawnRate = {
 		displayName = "Pack Spawn Speed",
@@ -301,12 +340,30 @@ Constants.Upgrades = {
 	},
 	PadLuck = {
 		displayName = "Pad Luck",
-		description = "Shifts your pad odds toward Rare and Premium packs.",
-		maxLevel = 10,
-		baseCost = 700,
-		costMultiplier = 1.85,
-		shiftPerLevel = 3,
-		maxShift = 30,
+		description = "Better packs spawn on your red pad. Lower luck = mostly Gold rubbish.",
+		maxLevel = 15,
+		-- Cost to go from level N → N+1
+		levelCosts = { 1500, 5000, 14000, 40000, 110000, 300000, 800000, 2200000, 6000000, 16000000, 45000000, 120000000, 320000000, 850000000, 2200000000 },
+		-- Pack pad spawn weights [Gold, Rare, Premium, Jumbo, Deluxe] at each luck level.
+		-- These are used directly in rollPadPackForPlayer.
+		padWeightsPerLevel = {
+			[0]  = { 55, 28, 12, 4, 1 },
+			[1]  = { 52, 29, 13, 5, 1 },
+			[2]  = { 49, 29, 14, 6, 2 },
+			[3]  = { 46, 29, 16, 7, 2 },
+			[4]  = { 43, 29, 17, 8, 3 },
+			[5]  = { 40, 28, 19, 10, 3 },
+			[6]  = { 37, 27, 21, 11, 4 },
+			[7]  = { 33, 26, 23, 13, 5 },
+			[8]  = { 29, 25, 25, 15, 6 },
+			[9]  = { 25, 23, 27, 18, 7 },
+			[10] = { 20, 21, 29, 21, 9 },
+			[11] = { 15, 19, 31, 24, 11 },
+			[12] = { 10, 16, 32, 28, 14 },
+			[13] = { 5,  13, 33, 32, 17 },
+			[14] = { 2,  10, 33, 35, 20 },
+			[15] = { 0,   8, 30, 38, 24 },
+		},
 	},
 	MoveSpeed = {
 		displayName = "Sprint Speed",
@@ -321,9 +378,18 @@ Constants.Upgrades = {
 }
 
 Constants.PassiveIncome = {
-	BaseRating = 78,
-	BasePerSecond = 20,
-	PerRatingStep = 8,
+	BaseRating    = 78,
+	BasePerSecond = 20,    -- fans/sec at rating 78
+	GrowthRate    = 1.23,  -- exponential multiplier per rating point above BaseRating
+	-- Resulting fan income by key rating:
+	--   78 →   20  (base Gold)
+	--   84 →   69  (mid Gold)
+	--   88 →  157  (top Gold)
+	--   91 →  294  (Talisman)
+	--   93 →  444  (Maestro tier)
+	--   95 →  672  (Immortal)
+	--   96 →  826  (Messi Immortal)
+	--   97 → 1016  (Maradona / Mbappe POTY)
 }
 
 Constants.UI = {
@@ -407,6 +473,7 @@ Constants.RarityStyles = {
 Constants.RarityStyles.POTY = Constants.RarityStyles["Player of the Year"]
 
 return Constants
+
 ]])
 
 makeModule('PackConfig', shared, [[local PackConfig = {}
@@ -2657,11 +2724,14 @@ local function createDisplaySlot(parent, index, cframe, lookDirection)
 		CFrame = base.CFrame + Vector3.new(0, topY + 0.08, 0),
 	}, model)
 
-	-- Slot number on the player-facing face.
-	-- lookDirection points toward the player, so map it to the correct NormalId:
-	--   lookDirection.Z > 0  (+Z toward player) → Back face  (+Z = NormalId.Back)
-	--   lookDirection.Z < 0  (-Z toward player) → Front face (-Z = NormalId.Front)
-	local numFace = lookDirection.Z > 0 and Enum.NormalId.Back or Enum.NormalId.Front
+	-- Slot number on the player-facing face. Ground slots face across Z; upper
+	-- terrace slots face across X toward the pitch.
+	local numFace
+	if math.abs(lookDirection.X) > math.abs(lookDirection.Z) then
+		numFace = lookDirection.X > 0 and Enum.NormalId.Right or Enum.NormalId.Left
+	else
+		numFace = lookDirection.Z > 0 and Enum.NormalId.Back or Enum.NormalId.Front
+	end
 	local numGui = make("SurfaceGui", {
 		Name = "SlotNum",
 		Face = numFace,
@@ -2706,8 +2776,9 @@ end
 
 -- ── Display-slot world offsets (local space, X scaled by facingDirection) ─────
 -- Slots 1-6  : base layout (every player starts with these)
--- Slots 7-12 : unlocked one-per-rebirth
--- Side slots (|X| > 12) face inward; front/back slots face the plot centre in Z.
+-- Slots 7-18 : unlocked one-per-rebirth on the raised Rebirth Terrace.
+-- Slot X values are multiplied by facingDirection later, so negative X means
+-- "toward the back wall" for both left- and right-side plots.
 local ALL_SLOT_OFFSETS = {
 	-- Ground floor (always present) — 2 rows of 3 across the pitch
 	Vector3.new(-12, 1.75, -14),  -- 1
@@ -2716,77 +2787,99 @@ local ALL_SLOT_OFFSETS = {
 	Vector3.new(-12, 1.75,  14),  -- 4
 	Vector3.new(  0, 1.75,  14),  -- 5
 	Vector3.new( 12, 1.75,  14),  -- 6
-	-- Upper gallery (rebirth unlocks) — raised side balconies instead of
-	-- cluttering the pitch. The gallery platform top is local Y +5.0, and
-	-- slot centres are 1.75 studs above that surface.
-	Vector3.new(-12, 6.75, -18.25), -- 7
-	Vector3.new(  0, 6.75, -18.25), -- 8
-	Vector3.new( 12, 6.75, -18.25), -- 9
-	Vector3.new(-12, 6.75,  18.25), -- 10
-	Vector3.new(  0, 6.75,  18.25), -- 11
-	Vector3.new( 12, 6.75,  18.25), -- 12
+	-- Rebirth Terrace row 1 — closest to pitch, six slots across the back.
+	Vector3.new(-22, 6.75, -17.5), -- 7
+	Vector3.new(-22, 6.75, -10.5), -- 8
+	Vector3.new(-22, 6.75,  -3.5), -- 9
+	Vector3.new(-22, 6.75,   3.5), -- 10
+	Vector3.new(-22, 6.75,  10.5), -- 11
+	Vector3.new(-22, 6.75,  17.5), -- 12
+	-- Rebirth Terrace row 2 — future expansion capacity.
+	Vector3.new(-30, 6.75, -17.5), -- 13
+	Vector3.new(-30, 6.75, -10.5), -- 14
+	Vector3.new(-30, 6.75,  -3.5), -- 15
+	Vector3.new(-30, 6.75,   3.5), -- 16
+	Vector3.new(-30, 6.75,  10.5), -- 17
+	Vector3.new(-30, 6.75,  17.5), -- 18
 }
 
-local function slotLookDir(localOffset, _facingDirection)
-	-- All slots (ground and second floor) use Z-based facing:
-	-- back row (Z < 0) faces south (+Z); front row (Z > 0) faces north (−Z).
+local function slotLookDir(localOffset, facingDirection)
+	if localOffset.Y > 5 then
+		-- Upper terrace cards face inward toward the pitch/entrance.
+		return Vector3.new(facingDirection, 0, 0)
+	end
+
+	-- Ground-floor slots use Z-based facing:
+	-- back row (Z < 0) faces south (+Z); front row (Z > 0) faces north (-Z).
 	return localOffset.Z < 0 and Vector3.new(0, 0, 1) or Vector3.new(0, 0, -1)
 end
 
-local function createSecondFloorDisplayGallery(parent, baseCFrame)
+local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirection)
 	local deckColor = Color3.fromRGB(14, 19, 31)
 	local railColor = Color3.fromRGB(26, 36, 54)
 	local supportColor = Color3.fromRGB(18, 26, 40)
 	local gold = Color3.fromRGB(255, 210, 55)
+	local stepColor = Color3.fromRGB(18, 24, 35)
 
 	local deckLocalY = 4.72 -- top lands at local Y 5.0, matching upper slot bottoms.
-	local deckSize = Vector3.new(43, 0.56, 7.2)
-	local galleryRows = {
-		{ name = "North", z = -18.25, outerSign = -1 },
-		{ name = "South", z =  18.25, outerSign =  1 },
-	}
+	local deckCenterX = -26 * facingDirection
+	local deckSize = Vector3.new(18, 0.56, 43)
 
-	for _, row in ipairs(galleryRows) do
-		local deck = make("Part", {
-			Name = "SecondFloor" .. row.name .. "Gallery",
-			Anchored = true,
-			CanCollide = false,
-			CanQuery = false,
-			CanTouch = false,
-			Material = Enum.Material.SmoothPlastic,
-			Color = deckColor,
-			Size = deckSize,
-			CFrame = baseCFrame * CFrame.new(0, deckLocalY, row.z),
-		}, parent)
+	local deck = make("Part", {
+		Name = "RebirthTerraceDeck",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = deckColor,
+		Size = deckSize,
+		CFrame = baseCFrame * CFrame.new(deckCenterX, deckLocalY, 0),
+	}, parent)
 
+	make("Part", {
+		Name = "RebirthTerraceFrontGlow",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = gold,
+		Transparency = 0.5,
+		Size = Vector3.new(0.18, 0.1, deckSize.Z - 2),
+		CFrame = baseCFrame * CFrame.new((-17.2 * facingDirection), deckLocalY + 0.34, 0),
+	}, parent)
+
+	make("Part", {
+		Name = "RebirthTerraceBackRail",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = railColor,
+		Size = Vector3.new(0.45, 1.25, deckSize.Z),
+		CFrame = baseCFrame * CFrame.new((-35.2 * facingDirection), deckLocalY + 0.98, 0),
+	}, parent)
+
+	for _, z in ipairs({ -21.8, 21.8 }) do
 		make("Part", {
-			Name = deck.Name .. "Glow",
-			Anchored = true,
-			CanCollide = false,
-			CanQuery = false,
-			CanTouch = false,
-			Material = Enum.Material.Neon,
-			Color = gold,
-			Transparency = 0.62,
-			Size = Vector3.new(deckSize.X - 1.4, 0.08, 0.18),
-			CFrame = baseCFrame * CFrame.new(0, deckLocalY + 0.34, row.z - (row.outerSign * 3.15)),
-		}, parent)
-
-		make("Part", {
-			Name = deck.Name .. "OuterRail",
+			Name = "RebirthTerraceSideRail",
 			Anchored = true,
 			CanCollide = false,
 			CanQuery = false,
 			CanTouch = false,
 			Material = Enum.Material.SmoothPlastic,
 			Color = railColor,
-			Size = Vector3.new(deckSize.X, 1.05, 0.35),
-			CFrame = baseCFrame * CFrame.new(0, deckLocalY + 0.9, row.z + row.outerSign * 3.75),
+			Size = Vector3.new(deckSize.X, 1.1, 0.35),
+			CFrame = baseCFrame * CFrame.new(deckCenterX, deckLocalY + 0.92, z),
 		}, parent)
+	end
 
-		for _, x in ipairs({ -19, 0, 19 }) do
+	for _, x in ipairs({ -19, -26, -33 }) do
+		for _, z in ipairs({ -18, 0, 18 }) do
 			make("Part", {
-				Name = deck.Name .. "Support",
+				Name = "RebirthTerraceSupport",
 				Anchored = true,
 				CanCollide = false,
 				CanQuery = false,
@@ -2794,9 +2887,124 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame)
 				Material = Enum.Material.SmoothPlastic,
 				Color = supportColor,
 				Size = Vector3.new(0.55, 4.45, 0.55),
-				CFrame = baseCFrame * CFrame.new(x, 2.73, row.z + row.outerSign * 2.65),
+				CFrame = baseCFrame * CFrame.new(x * facingDirection, 2.73, z),
 			}, parent)
 		end
+	end
+
+	-- Two staircases make the new floor read as reachable/intentional rather
+	-- than a floating shelf. They are visual only, so they won't snag players.
+	for _, zSign in ipairs({ -1, 1 }) do
+		for step = 1, 7 do
+			local alpha = (step - 1) / 6
+			local x = (-11.5 - (alpha * 9.5)) * facingDirection
+			local y = 0.72 + (alpha * 4.25)
+			local z = zSign * (19.6 + (alpha * 1.4))
+			local stepPart = make("Part", {
+				Name = "RebirthTerraceStair",
+				Anchored = true,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				Material = Enum.Material.SmoothPlastic,
+				Color = stepColor,
+				Size = Vector3.new(3.1, 0.32, 3.2),
+				CFrame = baseCFrame * CFrame.new(x, y, z),
+			}, parent)
+
+			make("Part", {
+				Name = stepPart.Name .. "Glow",
+				Anchored = true,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				Material = Enum.Material.Neon,
+				Color = gold,
+				Transparency = 0.58,
+				Size = Vector3.new(2.6, 0.06, 0.16),
+				CFrame = stepPart.CFrame * CFrame.new(0, 0.19, -1.45),
+			}, parent)
+		end
+	end
+
+	local signPosition = baseCFrame.Position + Vector3.new((-17.4 * facingDirection), 6.35, 0)
+	local signLookAt = signPosition + Vector3.new(facingDirection, 0, 0)
+	local sign = make("Part", {
+		Name = "RebirthTerraceSign",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(6, 8, 13),
+		Size = Vector3.new(17, 2.2, 0.35),
+		CFrame = CFrame.lookAt(signPosition, signLookAt),
+	}, parent)
+
+	local gui = make("SurfaceGui", {
+		Name = "TerraceGui",
+		Face = Enum.NormalId.Front,
+		AlwaysOnTop = false,
+		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+		PixelsPerStud = 28,
+	}, sign)
+	local signFrame = make("Frame", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+	}, gui)
+	make("UIStroke", {
+		Color = gold,
+		Thickness = 2,
+		Transparency = 0.25,
+	}, signFrame)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 0.56),
+		Position = UDim2.fromScale(0, 0.05),
+		Text = "REBIRTH TERRACE",
+		TextColor3 = Color3.fromRGB(255, 215, 72),
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+	}, signFrame)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 0.32),
+		Position = UDim2.fromScale(0, 0.62),
+		Text = "SECOND FLOOR SLOTS",
+		TextColor3 = Color3.fromRGB(245, 238, 210),
+		TextScaled = true,
+		Font = Enum.Font.GothamBold,
+	}, signFrame)
+
+	for _, z in ipairs({ -19.8, 19.8 }) do
+		make("Part", {
+			Name = "RebirthTerraceLamp",
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = supportColor,
+			Size = Vector3.new(0.45, 2.4, 0.45),
+			CFrame = baseCFrame * CFrame.new((-16.5 * facingDirection), deckLocalY + 1.5, z),
+		}, parent)
+		local bulb = make("Part", {
+			Name = "RebirthTerraceLampBulb",
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(255, 226, 135),
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(0.8, 0.8, 0.8),
+			CFrame = baseCFrame * CFrame.new((-16.5 * facingDirection), deckLocalY + 2.9, z),
+		}, parent)
+		make("PointLight", {
+			Brightness = 0.45,
+			Range = 15,
+			Color = Color3.fromRGB(255, 226, 160),
+		}, bulb)
 	end
 end
 
@@ -3757,9 +3965,9 @@ function BaseService.UpdateStadiumTier(plot, tier)
 		tierD, backW
 	)
 
-	-- Rebirth display slots 7-12 live on these raised side galleries. Keeping the
-	-- gallery in StadiumExtras lets it rebuild cleanly whenever the tier changes.
-	createSecondFloorDisplayGallery(parent, plot.baseCFrame)
+	-- Rebirth display slots 7-18 live on this raised terrace. Keeping the
+	-- terrace in StadiumExtras lets it rebuild cleanly whenever the tier changes.
+	createSecondFloorDisplayGallery(parent, plot.baseCFrame, fd)
 end
 
 function BaseService.BuildBaseMap()

@@ -2068,11 +2068,14 @@ local function createDisplaySlot(parent, index, cframe, lookDirection)
 		CFrame = base.CFrame + Vector3.new(0, topY + 0.08, 0),
 	}, model)
 
-	-- Slot number on the player-facing face.
-	-- lookDirection points toward the player, so map it to the correct NormalId:
-	--   lookDirection.Z > 0  (+Z toward player) → Back face  (+Z = NormalId.Back)
-	--   lookDirection.Z < 0  (-Z toward player) → Front face (-Z = NormalId.Front)
-	local numFace = lookDirection.Z > 0 and Enum.NormalId.Back or Enum.NormalId.Front
+	-- Slot number on the player-facing face. Ground slots face across Z; upper
+	-- terrace slots face across X toward the pitch.
+	local numFace
+	if math.abs(lookDirection.X) > math.abs(lookDirection.Z) then
+		numFace = lookDirection.X > 0 and Enum.NormalId.Right or Enum.NormalId.Left
+	else
+		numFace = lookDirection.Z > 0 and Enum.NormalId.Back or Enum.NormalId.Front
+	end
 	local numGui = make("SurfaceGui", {
 		Name = "SlotNum",
 		Face = numFace,
@@ -2117,8 +2120,9 @@ end
 
 -- ── Display-slot world offsets (local space, X scaled by facingDirection) ─────
 -- Slots 1-6  : base layout (every player starts with these)
--- Slots 7-12 : unlocked one-per-rebirth
--- Side slots (|X| > 12) face inward; front/back slots face the plot centre in Z.
+-- Slots 7-18 : unlocked one-per-rebirth on the raised Rebirth Terrace.
+-- Slot X values are multiplied by facingDirection later, so negative X means
+-- "toward the back wall" for both left- and right-side plots.
 local ALL_SLOT_OFFSETS = {
 	-- Ground floor (always present) — 2 rows of 3 across the pitch
 	Vector3.new(-12, 1.75, -14),  -- 1
@@ -2127,77 +2131,99 @@ local ALL_SLOT_OFFSETS = {
 	Vector3.new(-12, 1.75,  14),  -- 4
 	Vector3.new(  0, 1.75,  14),  -- 5
 	Vector3.new( 12, 1.75,  14),  -- 6
-	-- Upper gallery (rebirth unlocks) — raised side balconies instead of
-	-- cluttering the pitch. The gallery platform top is local Y +5.0, and
-	-- slot centres are 1.75 studs above that surface.
-	Vector3.new(-12, 6.75, -18.25), -- 7
-	Vector3.new(  0, 6.75, -18.25), -- 8
-	Vector3.new( 12, 6.75, -18.25), -- 9
-	Vector3.new(-12, 6.75,  18.25), -- 10
-	Vector3.new(  0, 6.75,  18.25), -- 11
-	Vector3.new( 12, 6.75,  18.25), -- 12
+	-- Rebirth Terrace row 1 — closest to pitch, six slots across the back.
+	Vector3.new(-22, 6.75, -17.5), -- 7
+	Vector3.new(-22, 6.75, -10.5), -- 8
+	Vector3.new(-22, 6.75,  -3.5), -- 9
+	Vector3.new(-22, 6.75,   3.5), -- 10
+	Vector3.new(-22, 6.75,  10.5), -- 11
+	Vector3.new(-22, 6.75,  17.5), -- 12
+	-- Rebirth Terrace row 2 — future expansion capacity.
+	Vector3.new(-30, 6.75, -17.5), -- 13
+	Vector3.new(-30, 6.75, -10.5), -- 14
+	Vector3.new(-30, 6.75,  -3.5), -- 15
+	Vector3.new(-30, 6.75,   3.5), -- 16
+	Vector3.new(-30, 6.75,  10.5), -- 17
+	Vector3.new(-30, 6.75,  17.5), -- 18
 }
 
-local function slotLookDir(localOffset, _facingDirection)
-	-- All slots (ground and second floor) use Z-based facing:
-	-- back row (Z < 0) faces south (+Z); front row (Z > 0) faces north (−Z).
+local function slotLookDir(localOffset, facingDirection)
+	if localOffset.Y > 5 then
+		-- Upper terrace cards face inward toward the pitch/entrance.
+		return Vector3.new(facingDirection, 0, 0)
+	end
+
+	-- Ground-floor slots use Z-based facing:
+	-- back row (Z < 0) faces south (+Z); front row (Z > 0) faces north (-Z).
 	return localOffset.Z < 0 and Vector3.new(0, 0, 1) or Vector3.new(0, 0, -1)
 end
 
-local function createSecondFloorDisplayGallery(parent, baseCFrame)
+local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirection)
 	local deckColor = Color3.fromRGB(14, 19, 31)
 	local railColor = Color3.fromRGB(26, 36, 54)
 	local supportColor = Color3.fromRGB(18, 26, 40)
 	local gold = Color3.fromRGB(255, 210, 55)
+	local stepColor = Color3.fromRGB(18, 24, 35)
 
 	local deckLocalY = 4.72 -- top lands at local Y 5.0, matching upper slot bottoms.
-	local deckSize = Vector3.new(43, 0.56, 7.2)
-	local galleryRows = {
-		{ name = "North", z = -18.25, outerSign = -1 },
-		{ name = "South", z =  18.25, outerSign =  1 },
-	}
+	local deckCenterX = -26 * facingDirection
+	local deckSize = Vector3.new(18, 0.56, 43)
 
-	for _, row in ipairs(galleryRows) do
-		local deck = make("Part", {
-			Name = "SecondFloor" .. row.name .. "Gallery",
-			Anchored = true,
-			CanCollide = false,
-			CanQuery = false,
-			CanTouch = false,
-			Material = Enum.Material.SmoothPlastic,
-			Color = deckColor,
-			Size = deckSize,
-			CFrame = baseCFrame * CFrame.new(0, deckLocalY, row.z),
-		}, parent)
+	local deck = make("Part", {
+		Name = "RebirthTerraceDeck",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = deckColor,
+		Size = deckSize,
+		CFrame = baseCFrame * CFrame.new(deckCenterX, deckLocalY, 0),
+	}, parent)
 
+	make("Part", {
+		Name = "RebirthTerraceFrontGlow",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = gold,
+		Transparency = 0.5,
+		Size = Vector3.new(0.18, 0.1, deckSize.Z - 2),
+		CFrame = baseCFrame * CFrame.new((-17.2 * facingDirection), deckLocalY + 0.34, 0),
+	}, parent)
+
+	make("Part", {
+		Name = "RebirthTerraceBackRail",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = railColor,
+		Size = Vector3.new(0.45, 1.25, deckSize.Z),
+		CFrame = baseCFrame * CFrame.new((-35.2 * facingDirection), deckLocalY + 0.98, 0),
+	}, parent)
+
+	for _, z in ipairs({ -21.8, 21.8 }) do
 		make("Part", {
-			Name = deck.Name .. "Glow",
-			Anchored = true,
-			CanCollide = false,
-			CanQuery = false,
-			CanTouch = false,
-			Material = Enum.Material.Neon,
-			Color = gold,
-			Transparency = 0.62,
-			Size = Vector3.new(deckSize.X - 1.4, 0.08, 0.18),
-			CFrame = baseCFrame * CFrame.new(0, deckLocalY + 0.34, row.z - (row.outerSign * 3.15)),
-		}, parent)
-
-		make("Part", {
-			Name = deck.Name .. "OuterRail",
+			Name = "RebirthTerraceSideRail",
 			Anchored = true,
 			CanCollide = false,
 			CanQuery = false,
 			CanTouch = false,
 			Material = Enum.Material.SmoothPlastic,
 			Color = railColor,
-			Size = Vector3.new(deckSize.X, 1.05, 0.35),
-			CFrame = baseCFrame * CFrame.new(0, deckLocalY + 0.9, row.z + row.outerSign * 3.75),
+			Size = Vector3.new(deckSize.X, 1.1, 0.35),
+			CFrame = baseCFrame * CFrame.new(deckCenterX, deckLocalY + 0.92, z),
 		}, parent)
+	end
 
-		for _, x in ipairs({ -19, 0, 19 }) do
+	for _, x in ipairs({ -19, -26, -33 }) do
+		for _, z in ipairs({ -18, 0, 18 }) do
 			make("Part", {
-				Name = deck.Name .. "Support",
+				Name = "RebirthTerraceSupport",
 				Anchored = true,
 				CanCollide = false,
 				CanQuery = false,
@@ -2205,9 +2231,124 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame)
 				Material = Enum.Material.SmoothPlastic,
 				Color = supportColor,
 				Size = Vector3.new(0.55, 4.45, 0.55),
-				CFrame = baseCFrame * CFrame.new(x, 2.73, row.z + row.outerSign * 2.65),
+				CFrame = baseCFrame * CFrame.new(x * facingDirection, 2.73, z),
 			}, parent)
 		end
+	end
+
+	-- Two staircases make the new floor read as reachable/intentional rather
+	-- than a floating shelf. They are visual only, so they won't snag players.
+	for _, zSign in ipairs({ -1, 1 }) do
+		for step = 1, 7 do
+			local alpha = (step - 1) / 6
+			local x = (-11.5 - (alpha * 9.5)) * facingDirection
+			local y = 0.72 + (alpha * 4.25)
+			local z = zSign * (19.6 + (alpha * 1.4))
+			local stepPart = make("Part", {
+				Name = "RebirthTerraceStair",
+				Anchored = true,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				Material = Enum.Material.SmoothPlastic,
+				Color = stepColor,
+				Size = Vector3.new(3.1, 0.32, 3.2),
+				CFrame = baseCFrame * CFrame.new(x, y, z),
+			}, parent)
+
+			make("Part", {
+				Name = stepPart.Name .. "Glow",
+				Anchored = true,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				Material = Enum.Material.Neon,
+				Color = gold,
+				Transparency = 0.58,
+				Size = Vector3.new(2.6, 0.06, 0.16),
+				CFrame = stepPart.CFrame * CFrame.new(0, 0.19, -1.45),
+			}, parent)
+		end
+	end
+
+	local signPosition = baseCFrame.Position + Vector3.new((-17.4 * facingDirection), 6.35, 0)
+	local signLookAt = signPosition + Vector3.new(facingDirection, 0, 0)
+	local sign = make("Part", {
+		Name = "RebirthTerraceSign",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(6, 8, 13),
+		Size = Vector3.new(17, 2.2, 0.35),
+		CFrame = CFrame.lookAt(signPosition, signLookAt),
+	}, parent)
+
+	local gui = make("SurfaceGui", {
+		Name = "TerraceGui",
+		Face = Enum.NormalId.Front,
+		AlwaysOnTop = false,
+		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+		PixelsPerStud = 28,
+	}, sign)
+	local signFrame = make("Frame", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+	}, gui)
+	make("UIStroke", {
+		Color = gold,
+		Thickness = 2,
+		Transparency = 0.25,
+	}, signFrame)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 0.56),
+		Position = UDim2.fromScale(0, 0.05),
+		Text = "REBIRTH TERRACE",
+		TextColor3 = Color3.fromRGB(255, 215, 72),
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+	}, signFrame)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 0.32),
+		Position = UDim2.fromScale(0, 0.62),
+		Text = "SECOND FLOOR SLOTS",
+		TextColor3 = Color3.fromRGB(245, 238, 210),
+		TextScaled = true,
+		Font = Enum.Font.GothamBold,
+	}, signFrame)
+
+	for _, z in ipairs({ -19.8, 19.8 }) do
+		make("Part", {
+			Name = "RebirthTerraceLamp",
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = supportColor,
+			Size = Vector3.new(0.45, 2.4, 0.45),
+			CFrame = baseCFrame * CFrame.new((-16.5 * facingDirection), deckLocalY + 1.5, z),
+		}, parent)
+		local bulb = make("Part", {
+			Name = "RebirthTerraceLampBulb",
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(255, 226, 135),
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(0.8, 0.8, 0.8),
+			CFrame = baseCFrame * CFrame.new((-16.5 * facingDirection), deckLocalY + 2.9, z),
+		}, parent)
+		make("PointLight", {
+			Brightness = 0.45,
+			Range = 15,
+			Color = Color3.fromRGB(255, 226, 160),
+		}, bulb)
 	end
 end
 
@@ -3168,9 +3309,9 @@ function BaseService.UpdateStadiumTier(plot, tier)
 		tierD, backW
 	)
 
-	-- Rebirth display slots 7-12 live on these raised side galleries. Keeping the
-	-- gallery in StadiumExtras lets it rebuild cleanly whenever the tier changes.
-	createSecondFloorDisplayGallery(parent, plot.baseCFrame)
+	-- Rebirth display slots 7-18 live on this raised terrace. Keeping the
+	-- terrace in StadiumExtras lets it rebuild cleanly whenever the tier changes.
+	createSecondFloorDisplayGallery(parent, plot.baseCFrame, fd)
 end
 
 function BaseService.BuildBaseMap()
