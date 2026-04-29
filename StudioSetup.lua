@@ -2898,47 +2898,72 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	end
 
 	-- ── Staircases ──────────────────────────────────────────────────────────────
-	-- These climb up the side corridors. Ground/terrace display slots stop before
-	-- the wall, so the stairs no longer cut through player cards.
-	local stairCount  = 28
-	local stairW      = 2.7
-	local groundY     = 0.9
-	local stairTopY   = deckTopLocalY
-	local totalRise   = stairTopY - groundY
-	local stairBottomX = deckFrontLocalX + facingDirection * 24
-	local stairTopX    = deckFrontLocalX - facingDirection * 5.2
-	local totalRun     = math.abs(stairTopX - stairBottomX)
-	local riserH       = totalRise / stairCount
-	local treadD       = totalRun / stairCount
-	local landingSize  = Vector3.new(10.5, 0.14, 2.9)
-	local bridgeSize   = Vector3.new(12, 0.28, 3.5)
+	-- Grid-snapped block stairs: 16 × 1-stud rises. The final top surface is
+	-- exactly local Y = 16, matching the terrace deck surface with no overlap.
+	local stairCount = 16
+	local stepHeight = 1
+	local treadD = 2
+	local stairW = 3
+	local stairTopSurfaceY = deckTopLocalY -- 16
+	local stairTopX = deckFrontLocalX + facingDirection * (treadD / 2)
+	local stairBottomX = stairTopX + facingDirection * (treadD * (stairCount - 1))
 
 	for _, zSign in ipairs({ -1, 1 }) do
-		local stairZ = zSign * 20.0
-		local rampBottom = (baseCFrame * CFrame.new(stairBottomX, groundY, stairZ)).Position
-		local rampTop = (baseCFrame * CFrame.new(stairTopX, stairTopY + 0.04, stairZ)).Position
-		local rampMid = (rampBottom + rampTop) / 2
-		local rampLength = (rampTop - rampBottom).Magnitude + 1.4
+		local stairZ = zSign * 20
+		local railOuterOffset = (stairW / 2) + 0.45
 
+		for i = 1, stairCount do
+			local surfaceY = i * stepHeight
+			local stepCenterY = surfaceY - (stepHeight / 2)
+			local stepCenterX = stairBottomX - facingDirection * (treadD * (i - 1))
+
+			make("Part", {
+				Name = "RebirthTerraceStair",
+				Anchored = true,
+				CanCollide = true,
+				CanQuery = false,
+				CanTouch = false,
+				Material = Enum.Material.SmoothPlastic,
+				Color = stepColor,
+				Size = Vector3.new(treadD, stepHeight, stairW),
+				CFrame = baseCFrame * CFrame.new(stepCenterX, stepCenterY, stairZ),
+			}, parent)
+
+			make("Part", {
+				Name = "RebirthTerraceStairGoldLip",
+				Anchored = true,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				Material = Enum.Material.Neon,
+				Color = gold,
+				Transparency = 0.2,
+				Size = Vector3.new(treadD - 0.35, 0.08, stairW + 0.12),
+				CFrame = baseCFrame * CFrame.new(stepCenterX, surfaceY + 0.05, stairZ),
+			}, parent)
+		end
+
+		-- Thin non-colliding top glow sits on the terrace edge without becoming
+		-- part of the collision path or clipping under the final step.
 		make("Part", {
-			Name = "RebirthTerraceRamp",
+			Name = "RebirthTerraceStairTopGlow",
 			Anchored = true,
-			CanCollide = true,
+			CanCollide = false,
 			CanQuery = false,
 			CanTouch = false,
-			Transparency = 1,
-			Size = Vector3.new(stairW + 0.25, 0.45, rampLength),
-			CFrame = CFrame.lookAt(rampMid, rampTop),
+			Material = Enum.Material.Neon,
+			Color = gold,
+			Transparency = 0.38,
+			Size = Vector3.new(0.16, 0.08, stairW + 0.2),
+			CFrame = baseCFrame * CFrame.new(deckFrontLocalX + facingDirection * 0.1, stairTopSurfaceY + 0.08, stairZ),
 		}, parent)
 
-		local railBottom = (baseCFrame * CFrame.new(stairBottomX, groundY + 2.35, stairZ)).Position
-		local railTop = (baseCFrame * CFrame.new(stairTopX, stairTopY + 2.1, stairZ)).Position
-		local railLength = (railTop - railBottom).Magnitude
 		for _, sideOffset in ipairs({ -1, 1 }) do
-			local railZ = stairZ + sideOffset * ((stairW / 2) + 0.38)
-			local railStart = (baseCFrame * CFrame.new(stairBottomX, groundY + 2.35, railZ)).Position
-			local railEnd = (baseCFrame * CFrame.new(stairTopX, stairTopY + 2.1, railZ)).Position
+			local railZ = stairZ + sideOffset * railOuterOffset
+			local railStart = (baseCFrame * CFrame.new(stairBottomX, 3, railZ)).Position
+			local railEnd = (baseCFrame * CFrame.new(stairTopX, stairTopSurfaceY + 2, railZ)).Position
 			local railMid = (railStart + railEnd) / 2
+			local railLength = (railEnd - railStart).Magnitude
 
 			make("Part", {
 				Name = "RebirthTerraceStairRail",
@@ -2953,10 +2978,9 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 				CFrame = CFrame.lookAt(railMid, railEnd),
 			}, parent)
 
-			for postIndex = 0, 4 do
-				local t = postIndex / 4
-				local postX = stairBottomX + (stairTopX - stairBottomX) * t
-				local postY = groundY + 1.25 + (stairTopY - groundY) * t
+			for _, stepIndex in ipairs({ 1, 5, 9, 13, 16 }) do
+				local postSurfaceY = stepIndex * stepHeight
+				local postCenterX = stairBottomX - facingDirection * (treadD * (stepIndex - 1))
 				make("Part", {
 					Name = "RebirthTerraceStairRailPost",
 					Anchored = true,
@@ -2965,116 +2989,10 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 					CanTouch = false,
 					Material = Enum.Material.SmoothPlastic,
 					Color = gold,
-					Size = Vector3.new(0.18, 2.25, 0.18),
-					CFrame = baseCFrame * CFrame.new(postX, postY, railZ),
+					Size = Vector3.new(0.18, 2, 0.18),
+					CFrame = baseCFrame * CFrame.new(postCenterX, postSurfaceY + 1, railZ),
 				}, parent)
 			end
-		end
-
-		-- Flush invisible bridge: overlaps both the ramp top and the deck surface,
-		-- removing the tiny ledge that made avatars "climb" onto the terrace.
-		make("Part", {
-			Name = "RebirthTerraceTopBridge",
-			Anchored = true,
-			CanCollide = true,
-			CanQuery = false,
-			CanTouch = false,
-			Transparency = 1,
-			Size = bridgeSize,
-			CFrame = baseCFrame * CFrame.new(stairTopX + facingDirection * 0.25, deckTopLocalY, stairZ),
-		}, parent)
-
-		make("Part", {
-			Name = "RebirthTerraceStairLanding",
-			Anchored = true,
-			CanCollide = true,
-			CanQuery = false,
-			CanTouch = false,
-			Material = Enum.Material.SmoothPlastic,
-			Color = deckColor,
-			Size = landingSize,
-			CFrame = baseCFrame * CFrame.new(stairTopX, deckTopLocalY + 0.05, stairZ),
-		}, parent)
-
-		make("Part", {
-			Name = "RebirthTerraceLandingGlow",
-			Anchored = true,
-			CanCollide = false,
-			CanQuery = false,
-			CanTouch = false,
-			Material = Enum.Material.Neon,
-			Color = gold,
-			Transparency = 0.45,
-			Size = Vector3.new(landingSize.X - 0.8, 0.08, 0.16),
-			CFrame = baseCFrame * CFrame.new(stairTopX, deckTopLocalY + 0.18, stairZ - zSign * (landingSize.Z / 2 - 0.18)),
-		}, parent)
-
-		for i = 0, stairCount - 1 do
-			local stepBottomY = groundY + i * riserH
-			local stepCenterY = stepBottomY + riserH / 2
-			local stepT = (i + 0.5) / stairCount
-			local stepCenterX = stairBottomX + (stairTopX - stairBottomX) * stepT
-
-			make("Part", {
-				Name = "RebirthTerraceStair",
-				Anchored = true,
-				CanCollide = false,
-				CanQuery = false,
-				CanTouch = false,
-				Material = Enum.Material.SmoothPlastic,
-				Color = stepColor,
-				Size = Vector3.new(treadD, riserH, stairW),
-				CFrame = baseCFrame * CFrame.new(stepCenterX, stepCenterY, stairZ),
-			}, parent)
-
-			make("Part", {
-				Name = "RebirthTerraceStairGoldLip",
-				Anchored = true,
-				CanCollide = false,
-				CanQuery = false,
-				CanTouch = false,
-				Material = Enum.Material.Neon,
-				Color = gold,
-				Transparency = 0.22,
-				Size = Vector3.new(treadD * 0.78, 0.06, stairW + 0.12),
-				CFrame = baseCFrame * CFrame.new(stepCenterX, stepBottomY + riserH + 0.045, stairZ),
-			}, parent)
-		end
-
-		-- Small top-edge accent, lifted above the floor so it doesn't fuse into
-		-- the terrace surface.
-		make("Part", {
-			Name = "RebirthTerraceStairTopGlow",
-			Anchored = true,
-			CanCollide = false,
-			CanQuery = false,
-			CanTouch = false,
-			Material = Enum.Material.Neon,
-			Color = gold,
-			Transparency = 0.42,
-			Size = Vector3.new(0.16, 0.08, stairW - 0.5),
-			CFrame = baseCFrame * CFrame.new(stairTopX + facingDirection * 0.7, stairTopY + 0.2, stairZ),
-		}, parent)
-
-		-- Small outside markers give the stairs shape without drawing diagonal
-		-- rail bars through the player walkway at the top.
-		local outerZ = stairZ + zSign * ((stairW / 2) + 0.35)
-		for _, marker in ipairs({
-			{ x = stairBottomX, y = groundY + 0.8 },
-			{ x = stairTopX,    y = stairTopY + 0.55 },
-		}) do
-			make("Part", {
-				Name = "RebirthTerraceStairMarker",
-				Anchored = true,
-				CanCollide = false,
-				CanQuery = false,
-				CanTouch = false,
-				Material = Enum.Material.Neon,
-				Color = gold,
-				Transparency = 0.25,
-				Size = Vector3.new(0.18, 1.6, 0.18),
-				CFrame = baseCFrame * CFrame.new(marker.x, marker.y, outerZ),
-			}, parent)
 		end
 	end
 
