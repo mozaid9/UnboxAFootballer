@@ -86,16 +86,17 @@ addCorner(panel, 18)
 
 local panelSize = Instance.new("UISizeConstraint")
 panelSize.MinSize = Vector2.new(320, 360)
-panelSize.MaxSize = Vector2.new(620, 500)
+panelSize.MaxSize = Vector2.new(660, 520)
 panelSize.Parent = panel
 
 local title = make("TextLabel", {
 	BackgroundTransparency = 1,
 	Size = UDim2.new(1, -72, 0, 36),
 	Position = UDim2.new(0, 12, 0, 10),
-	Text = "Club Inventory",
+	Text = "Stored Players",
 	TextColor3 = Constants.UI.Text,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 28,
 	Font = Enum.Font.GothamBlack,
 	TextXAlignment = Enum.TextXAlignment.Left,
 }, panel)
@@ -118,7 +119,9 @@ local statusLabel = make("TextLabel", {
 	Position = UDim2.new(0, 12, 0, 48),
 	Text = "",
 	TextColor3 = Constants.UI.Muted,
-	TextScaled = true,
+	TextScaled = false,
+	TextSize = 14,
+	TextTruncate = Enum.TextTruncate.AtEnd,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	Font = Enum.Font.GothamBold,
 }, panel)
@@ -148,8 +151,8 @@ local scrolling = make("ScrollingFrame", {
 }, panel)
 
 local layout = make("UIGridLayout", {
-	CellSize = UDim2.fromOffset(126, 190),
-	CellPadding = UDim2.fromOffset(12, 12),
+	CellSize = UDim2.fromOffset(132, 176),
+	CellPadding = UDim2.fromOffset(10, 10),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, scrolling)
 
@@ -171,6 +174,10 @@ local RARITY_RANK = {
 	["Player of the Year"] = 7,
 }
 
+local function formatShortNumber(value)
+	return Utils.FormatNumber(math.max(0, tonumber(value) or 0))
+end
+
 local sortButtons = {}
 
 local function setSortMode(mode)
@@ -187,12 +194,12 @@ end
 local function createSortButton(order, mode, label)
 	local button = make("TextButton", {
 		LayoutOrder = order,
-		Size = UDim2.fromOffset(44, 24),
+		Size = UDim2.fromOffset(76, 24),
 		BackgroundColor3 = Constants.UI.PanelAlt,
 		Text = label,
 		TextColor3 = Constants.UI.Text,
 		TextScaled = false,
-		TextSize = 9,
+		TextSize = 10,
 		Font = Enum.Font.GothamBlack,
 	}, sortBar)
 	addCorner(button, 8)
@@ -203,12 +210,11 @@ local function createSortButton(order, mode, label)
 	return button
 end
 
-createSortButton(1, "fans", "Fans")
-createSortButton(2, "rarity", "Rare")
-createSortButton(3, "newest", "New")
-createSortButton(4, "position", "Pos")
-createSortButton(5, "nation", "Nation")
-createSortButton(6, "quantity", "Qty")
+createSortButton(1, "fans", "Best")
+createSortButton(2, "rarity", "Rarity")
+createSortButton(3, "newest", "Newest")
+createSortButton(4, "quantity", "Stacks")
+createSortButton(5, "value", "Value")
 setSortMode("fans")
 
 local function clearEntries()
@@ -273,17 +279,15 @@ local function mergeInventoryRows(inventory)
 			if a.id ~= b.id then
 				return a.id > b.id
 			end
-		elseif currentSortMode == "position" then
-			if a.position ~= b.position then
-				return tostring(a.position) < tostring(b.position)
-			end
-		elseif currentSortMode == "nation" then
-			if a.nation ~= b.nation then
-				return tostring(a.nation) < tostring(b.nation)
-			end
 		elseif currentSortMode == "quantity" then
 			if a.quantity ~= b.quantity then
 				return a.quantity > b.quantity
+			end
+		elseif currentSortMode == "value" then
+			local aValue = (a.sellValue or 0) * (a.quantity or 1)
+			local bValue = (b.sellValue or 0) * (b.quantity or 1)
+			if aValue ~= bValue then
+				return aValue > bValue
 			end
 		end
 
@@ -294,6 +298,30 @@ local function mergeInventoryRows(inventory)
 	end)
 
 	return merged
+end
+
+local function getInventorySummary(inventory)
+	if #inventory == 0 then
+		return "Open packs to build your club."
+	end
+
+	local totalCards = 0
+	local totalValue = 0
+	local bestFans = 0
+	for _, card in ipairs(inventory) do
+		local quantity = card.quantity or 1
+		totalCards += quantity
+		totalValue += (card.sellValue or 0) * quantity
+		bestFans = math.max(bestFans, card.fansPerSecond or 0)
+	end
+
+	return string.format(
+		"%d stored • %d card types • best %s fans/s • stack value %s",
+		totalCards,
+		#inventory,
+		formatShortNumber(bestFans),
+		formatShortNumber(totalValue)
+	)
 end
 
 function refreshInventory()
@@ -313,10 +341,10 @@ function refreshInventory()
 
 	if isSlotPicker then
 		title.Text = "Choose Player"
-		statusLabel.Text = "Pick a stored player for display slot " .. tostring(targetSlotIndex) .. "."
+		statusLabel.Text = "Best earners are shown first for display slot " .. tostring(targetSlotIndex) .. "."
 	else
-		title.Text = "Club Inventory"
-		statusLabel.Text = #inventory > 0 and "Stored players earn fans when placed on green display slots." or "Stored players will appear here when your displays are full."
+		title.Text = "Stored Players"
+		statusLabel.Text = getInventorySummary(inventory)
 	end
 	if statusOverride then
 		statusLabel.Text = statusOverride
@@ -368,50 +396,26 @@ function refreshInventory()
 
 		local rarityLabel = make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(9, 8),
-			Size = UDim2.new(1, -18, 0, 18),
+			Position = UDim2.fromOffset(10, 8),
+			Size = UDim2.new(1, -62, 0, 18),
 			Text = string.upper(style.label or card.rarity or "CARD"),
 			TextColor3 = textColor,
 			TextScaled = false,
 			TextSize = 10,
 			Font = Enum.Font.GothamBlack,
+			TextXAlignment = Enum.TextXAlignment.Left,
 		}, tile)
 		make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 10 }, rarityLabel)
 		addStroke(rarityLabel, Color3.fromRGB(0, 0, 0), 1, 0.38)
 
-		local topRow = make("Frame", {
-			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(10, 32),
-			Size = UDim2.new(1, -20, 0, 28),
-		}, tile)
-
-		local positionBadge = make("Frame", {
-			BackgroundColor3 = Color3.fromRGB(6, 8, 13),
-			BackgroundTransparency = 0.08,
-			Size = UDim2.fromOffset(38, 24),
-			BorderSizePixel = 0,
-		}, topRow)
-		addCorner(positionBadge, 8)
-		addStroke(positionBadge, trimColor, 1, 0.35)
-
-		make("TextLabel", {
-			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(1, 1),
-			Text = card.position or "--",
-			TextColor3 = textColor,
-			TextScaled = false,
-			TextSize = 13,
-			Font = Enum.Font.GothamBlack,
-		}, positionBadge)
-
 		local quantityBadge = make("Frame", {
 			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, 0, 0, 0),
-			Size = UDim2.fromOffset(40, 24),
+			Position = UDim2.new(1, -10, 0, 8),
+			Size = UDim2.fromOffset(42, 22),
 			BackgroundColor3 = Color3.fromRGB(7, 9, 14),
 			BackgroundTransparency = 0.1,
 			BorderSizePixel = 0,
-		}, topRow)
+		}, tile)
 		addCorner(quantityBadge, 8)
 		addStroke(quantityBadge, trimColor, 1, 0.45)
 
@@ -421,39 +425,57 @@ function refreshInventory()
 			Text = "x" .. tostring(card.quantity),
 			TextColor3 = textColor,
 			TextScaled = false,
-			TextSize = 13,
+			TextSize = 12,
 			Font = Enum.Font.GothamBlack,
 		}, quantityBadge)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0.08, 0, 0.39, 0),
-			Size = UDim2.new(0.84, 0, 0.2, 0),
+			Position = UDim2.fromOffset(10, 32),
+			Size = UDim2.new(1, -20, 0, 18),
+			Text = string.upper(tostring(card.position or "--")) .. "  •  " .. tostring(card.nation or "Unknown"),
+			TextColor3 = Constants.UI.Muted,
+			TextScaled = false,
+			TextSize = 10,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+		}, tile)
+
+		local nameLabel = make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(10, 52),
+			Size = UDim2.new(1, -20, 0, 46),
 			Text = card.name,
 			TextColor3 = textColor,
 			TextScaled = true,
 			TextWrapped = true,
 			Font = Enum.Font.GothamBlack,
 		}, tile)
+		make("UITextSizeConstraint", { MinTextSize = 14, MaxTextSize = 24 }, nameLabel)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0.08, 0, 0.62, 0),
-			Size = UDim2.new(0.84, 0, 0.09, 0),
-			Text = card.nation or "Unknown",
-			TextColor3 = Constants.UI.Muted,
-			TextScaled = true,
+			Position = UDim2.fromOffset(10, 101),
+			Size = UDim2.new(1, -20, 0, 24),
+			Text = formatShortNumber(incomePerSecond) .. " fans/s",
+			TextColor3 = rarityColor,
+			TextScaled = false,
+			TextSize = 18,
 			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
 		}, tile)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0.08, 0, 0.72, 0),
-			Size = UDim2.new(0.84, 0, 0.07, 0),
-			Text = "+" .. tostring(incomePerSecond) .. " fans/s",
-			TextColor3 = rarityColor,
-			TextScaled = true,
+			Position = UDim2.fromOffset(10, 123),
+			Size = UDim2.new(1, -20, 0, 14),
+			Text = isSlotPicker and "Ready for display" or ("Sell +" .. formatShortNumber(card.sellValue or 0) .. " each"),
+			TextColor3 = Constants.UI.Muted,
+			TextScaled = false,
+			TextSize = 10,
 			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
 		}, tile)
 
 		local actionButton
@@ -462,34 +484,39 @@ function refreshInventory()
 			actionButton = make("TextButton", {
 				AnchorPoint = Vector2.new(0.5, 1),
 				Position = UDim2.new(0.5, 0, 1, -8),
-				Size = UDim2.new(0.82, 0, 0, 30),
+				Size = UDim2.new(0.84, 0, 0, 30),
 				BackgroundColor3 = Color3.fromRGB(74, 185, 98),
-				Text = card.quantity > 1 and ("Place x" .. tostring(card.quantity)) or "Place",
+				Text = "Place",
 				TextColor3 = Constants.UI.Text,
-				TextScaled = true,
+				TextScaled = false,
+				TextSize = 15,
 				Font = Enum.Font.GothamBlack,
 			}, tile)
 		else
 			local hasDuplicates = (card.quantity or 1) > 1
 			actionButton = make("TextButton", {
 				AnchorPoint = Vector2.new(0, 1),
-				Position = hasDuplicates and UDim2.new(0.09, 0, 1, -8) or UDim2.new(0.09, 0, 1, -8),
-				Size = hasDuplicates and UDim2.new(0.39, 0, 0, 30) or UDim2.new(0.82, 0, 0, 30),
+				Position = UDim2.new(0.08, 0, 1, -8),
+				Size = hasDuplicates and UDim2.new(0.40, 0, 0, 30) or UDim2.new(0.84, 0, 0, 30),
 				BackgroundColor3 = Constants.UI.Danger,
-				Text = "Sell 1 +" .. tostring(card.sellValue),
+				Text = hasDuplicates and ("Sell 1\n+" .. formatShortNumber(card.sellValue or 0)) or ("Sell +" .. formatShortNumber(card.sellValue or 0)),
 				TextColor3 = Constants.UI.Text,
-				TextScaled = true,
+				TextScaled = false,
+				TextSize = hasDuplicates and 11 or 14,
+				TextWrapped = true,
 				Font = Enum.Font.GothamBlack,
 			}, tile)
 			if hasDuplicates then
 				sellAllButton = make("TextButton", {
 					AnchorPoint = Vector2.new(1, 1),
-					Position = UDim2.new(0.91, 0, 1, -8),
-					Size = UDim2.new(0.39, 0, 0, 30),
+					Position = UDim2.new(0.92, 0, 1, -8),
+					Size = UDim2.new(0.40, 0, 0, 30),
 					BackgroundColor3 = Color3.fromRGB(128, 45, 40),
-					Text = "All +" .. tostring((card.sellValue or 0) * (card.quantity or 1)),
+					Text = "All\n+" .. formatShortNumber((card.sellValue or 0) * (card.quantity or 1)),
 					TextColor3 = Constants.UI.Text,
-					TextScaled = true,
+					TextScaled = false,
+					TextSize = 11,
+					TextWrapped = true,
 					Font = Enum.Font.GothamBlack,
 				}, tile)
 				addCorner(sellAllButton, 10)
