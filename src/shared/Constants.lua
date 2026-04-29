@@ -187,7 +187,7 @@ Constants.Pitchfork = {
 -- ── Upgrade specs ─────────────────────────────────────────────
 -- Each upgrade has levels 0..maxLevel. Power-cost upgrades use
 -- floor(baseCost * nextLevel^costExponent) for intentionally slow scaling.
-Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnLuck", "CardPullLuck" }
+Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnLuck", "CardPullLuck", "MoveSpeed" }
 
 Constants.Upgrades = {
 	PitchforkDamage = {
