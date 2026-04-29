@@ -245,18 +245,6 @@ local function computeCardPullLuckValue(level)
 	return math.floor(((clampedLevel - (spec.startLevel or 1)) / math.max(1, spec.maxLevel - (spec.startLevel or 1))) * 100)
 end
 
-local function computeFansBoostMultiplier(level)
-	local spec = Constants.Upgrades.FansBoost
-	return 1 + (math.clamp(level or 0, 0, spec.maxLevel) * spec.multiplierPerLevel)
-end
-
-local function computeStadiumCapacitySlots(player, level)
-	local data = DataService.GetData(player)
-	local baseSlots = data and data.baseSlots or Constants.Rebirth.BaseSlots
-	local spec = Constants.Upgrades.StadiumCapacity
-	return math.min(baseSlots + (math.clamp(level or 0, 0, spec.maxLevel) * spec.slotsPerLevel), Constants.Rebirth.MaxSlots)
-end
-
 local function computeWalkSpeed(level)
 	local spec = Constants.Upgrades.MoveSpeed
 	return math.min(spec.baseWalkSpeed + level * spec.speedPerLevel, spec.maxWalkSpeed)
@@ -271,8 +259,7 @@ local function getFanEarningsMultiplier(player)
 	local rebirthMultiplier = type(RebirthService.GetFanMultiplier) == "function"
 		and RebirthService.GetFanMultiplier(data and data.rebirthTier or 0)
 		or 1
-	local boostMultiplier = computeFansBoostMultiplier(getUpgradeLevel(player, "FansBoost"))
-	return rebirthMultiplier * boostMultiplier
+	return rebirthMultiplier
 end
 
 local function applyMovementUpgrade(player, character)
@@ -801,7 +788,8 @@ local function connectSlotPrompt(plot, slot)
 end
 
 local function getEffectiveDisplaySlotCount(player)
-	return computeStadiumCapacitySlots(player, getUpgradeLevel(player, "StadiumCapacity"))
+	local data = DataService.GetData(player)
+	return math.min(data and data.baseSlots or Constants.Rebirth.BaseSlots, Constants.Rebirth.MaxSlots)
 end
 
 local function syncDisplaySlotsForPlayer(player, plot)
@@ -1359,14 +1347,6 @@ local function buildUpgradePayload(player)
 			entry.currentValue = computeCardPullLuckValue(level)
 			entry.nextValue = computeCardPullLuckValue(level + 1)
 			entry.valueSuffix = "% pull luck"
-		elseif key == "StadiumCapacity" then
-			entry.currentValue = computeStadiumCapacitySlots(player, level)
-			entry.nextValue = computeStadiumCapacitySlots(player, level + 1)
-			entry.valueSuffix = " display slots"
-		elseif key == "FansBoost" then
-			entry.currentValue = computeFansBoostMultiplier(level)
-			entry.nextValue = computeFansBoostMultiplier(level + 1)
-			entry.valueSuffix = "× fans"
 		elseif key == "MoveSpeed" then
 			entry.currentValue = computeWalkSpeed(level)
 			entry.nextValue = computeWalkSpeed(level + 1)
@@ -1411,10 +1391,6 @@ PurchaseUpgradeFn.OnServerInvoke = function(player, upgradeKey)
 
 	if upgradeKey == "MoveSpeed" then
 		applyMovementUpgrade(player)
-	elseif upgradeKey == "FansBoost" then
-		refreshPlotDisplayState(player, BaseService.GetPlot(player))
-	elseif upgradeKey == "StadiumCapacity" then
-		syncDisplaySlotsForPlayer(player, BaseService.GetPlot(player))
 	end
 
 	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))

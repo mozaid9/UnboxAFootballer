@@ -130,10 +130,6 @@ local function formatValue(entry)
 		return string.format("%d%% better packs", entry.currentValue)
 	elseif entry.key == "CardPullLuck" then
 		return string.format("%d%% pull luck", entry.currentValue)
-	elseif entry.key == "StadiumCapacity" then
-		return string.format("%d display slots", entry.currentValue)
-	elseif entry.key == "FansBoost" then
-		return string.format("%.2g× fans", entry.currentValue)
 	end
 	return string.format("%s%s", tostring(entry.currentValue), entry.valueSuffix or "")
 end
@@ -143,10 +139,6 @@ local function formatNextValue(entry)
 		return string.format("%.2g×", entry.nextValue)
 	elseif entry.key == "PackSpawnLuck" or entry.key == "CardPullLuck" then
 		return string.format("%d%%", entry.nextValue)
-	elseif entry.key == "StadiumCapacity" then
-		return string.format("%d slots", entry.nextValue)
-	elseif entry.key == "FansBoost" then
-		return string.format("%.2g×", entry.nextValue)
 	end
 	return tostring(entry.nextValue)
 end

@@ -187,7 +187,7 @@ Constants.Pitchfork = {
 -- ── Upgrade specs ─────────────────────────────────────────────
 -- Each upgrade has levels 0..maxLevel. Power-cost upgrades use
 -- floor(baseCost * nextLevel^costExponent) for intentionally slow scaling.
-Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnLuck", "CardPullLuck", "StadiumCapacity", "FansBoost" }
+Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnLuck", "CardPullLuck" }
 
 Constants.Upgrades = {
 	PitchforkDamage = {
@@ -214,22 +214,6 @@ Constants.Upgrades = {
 		startLevel = 1,
 		baseCost = 350,
 		costExponent = 1.70,
-	},
-	StadiumCapacity = {
-		displayName = "Stadium Capacity",
-		description = "Unlock more display slots for this rebirth run.",
-		maxLevel = 6,
-		baseCost = 2000,
-		costMultiplier = 2.35,
-		slotsPerLevel = 1,
-	},
-	FansBoost = {
-		displayName = "Fans Boost",
-		description = "Displayed cards earn more Fans per second.",
-		maxLevel = 25,
-		baseCost = 1200,
-		costMultiplier = 1.42,
-		multiplierPerLevel = 0.04,
 	},
 	-- Hidden legacy/support upgrades. They remain load-safe for old data but
 	-- are no longer shown in the upgrade shop.
