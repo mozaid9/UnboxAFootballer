@@ -2244,18 +2244,18 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	-- ── Staircases ──────────────────────────────────────────────────────────────
 	-- These climb up the side corridors. Ground/terrace display slots stop before
 	-- the wall, so the stairs no longer cut through player cards.
-	local stairCount  = 18
+	local stairCount  = 24
 	local stairW      = 2.7
 	local groundY     = 0.9
 	local stairTopY   = deckTopLocalY
 	local totalRise   = stairTopY - groundY
-	local stairBottomX = deckFrontLocalX + facingDirection * 14
-	local stairTopX    = deckFrontLocalX - facingDirection * 8.6
+	local stairBottomX = deckFrontLocalX + facingDirection * 20
+	local stairTopX    = deckFrontLocalX - facingDirection * 5.2
 	local totalRun     = math.abs(stairTopX - stairBottomX)
 	local riserH       = totalRise / stairCount
 	local treadD       = totalRun / stairCount
-	local landingSize  = Vector3.new(9.8, 0.12, 2.8)
-	local bridgeSize   = Vector3.new(11.4, 0.22, 3.4)
+	local landingSize  = Vector3.new(10.5, 0.14, 2.9)
+	local bridgeSize   = Vector3.new(12, 0.28, 3.5)
 
 	for _, zSign in ipairs({ -1, 1 }) do
 		local stairZ = zSign * 20.0
@@ -2267,11 +2267,11 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 		make("Part", {
 			Name = "RebirthTerraceRamp",
 			Anchored = true,
-			CanCollide = true,
+			CanCollide = false,
 			CanQuery = false,
 			CanTouch = false,
 			Transparency = 1,
-			Size = Vector3.new(stairW + 0.25, 0.28, rampLength),
+			Size = Vector3.new(stairW + 0.25, 0.45, rampLength),
 			CFrame = CFrame.lookAt(rampMid, rampTop),
 		}, parent)
 
@@ -2291,13 +2291,13 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 		make("Part", {
 			Name = "RebirthTerraceStairLanding",
 			Anchored = true,
-			CanCollide = false,
+			CanCollide = true,
 			CanQuery = false,
 			CanTouch = false,
 			Material = Enum.Material.SmoothPlastic,
 			Color = deckColor,
 			Size = landingSize,
-			CFrame = baseCFrame * CFrame.new(stairTopX, deckTopLocalY + 0.08, stairZ),
+			CFrame = baseCFrame * CFrame.new(stairTopX, deckTopLocalY + 0.05, stairZ),
 		}, parent)
 
 		make("Part", {
@@ -2322,7 +2322,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 			make("Part", {
 				Name = "RebirthTerraceStair",
 				Anchored = true,
-				CanCollide = false,
+				CanCollide = true,
 				CanQuery = false,
 				CanTouch = false,
 				Material = Enum.Material.SmoothPlastic,
