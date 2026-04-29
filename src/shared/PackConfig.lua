@@ -1,175 +1,413 @@
 -- ============================================================
 -- PackConfig.lua
--- Defines the 7 pack types and the rarity-based weight tiers
--- used by PackService to roll cards.
+-- Pack definitions plus clean spawn/pull luck helpers.
 --
--- WeightTiers index order (1 = lowest, 7 = highest):
---   1 Gold | 2 Rare Gold | 3 Premium Gold | 4 Talisman
---   5 Maestro | 6 Immortal | 7 Player of the Year
---
--- tierWeights per pack must sum to 100.
+-- Every pack opens exactly ONE card. Odds are intentionally harsh:
+-- low packs mostly produce Gold/Rare Gold, while high-tier cards stay
+-- rare unless the player reaches better packs or pity milestones.
 -- ============================================================
 
 local PackConfig = {}
 
--- ── Global rarity tier definitions ───────────────────────────
--- Each tier names the rarity strings that belong to it.
--- PackService uses these to filter CardData.Pool.
+PackConfig.RarityOrder = {
+	"Gold",
+	"Rare Gold",
+	"Premium Gold",
+	"Talisman",
+	"Maestro",
+	"Immortal",
+	"Player of the Year",
+}
+
 PackConfig.WeightTiers = {
-	{ label = "Gold",             rarities = { "Gold" } },
-	{ label = "Rare Gold",        rarities = { "Rare Gold" } },
-	{ label = "Premium Gold",     rarities = { "Premium Gold" } },
-	{ label = "Talisman",         rarities = { "Talisman" } },
-	{ label = "Maestro",          rarities = { "Maestro" } },
-	{ label = "Immortal",         rarities = { "Immortal" } },
+	{ label = "Gold",               rarities = { "Gold" } },
+	{ label = "Rare Gold",          rarities = { "Rare Gold" } },
+	{ label = "Premium Gold",       rarities = { "Premium Gold" } },
+	{ label = "Talisman",           rarities = { "Talisman" } },
+	{ label = "Maestro",            rarities = { "Maestro" } },
+	{ label = "Immortal",           rarities = { "Immortal" } },
 	{ label = "Player of the Year", rarities = { "Player of the Year" } },
 }
 
--- Minimum weight floor per tier (rebirth luck can't push below these).
--- Indexed 1-7, matching WeightTiers above.
-PackConfig.WeightFloorPerTier = { 5, 2, 1, 0, 0, 0, 0 }
+PackConfig.RarityRank = {}
+for index, rarity in ipairs(PackConfig.RarityOrder) do
+	PackConfig.RarityRank[rarity] = index
+end
+PackConfig.RarityRank.POTY = PackConfig.RarityRank["Player of the Year"]
 
--- Maximum total luck-shift points from rebirth (spread across tiers).
-PackConfig.MaxLuckShift = 18
+local NATURAL_PACK_IDS = {
+	"GoldPack",
+	"RarePack",
+	"PremiumPack",
+	"JumboPack",
+	"DeluxePack",
+}
+
+local function copyArray(values)
+	local result = {}
+	for index, value in ipairs(values or {}) do
+		result[index] = value
+	end
+	return result
+end
+
+local function normalizeWeights(weights)
+	local total = 0
+	for _, weight in ipairs(weights) do
+		total += weight
+	end
+	if total <= 0 then
+		return weights
+	end
+
+	local normalized = {}
+	for index, weight in ipairs(weights) do
+		normalized[index] = (weight / total) * 100
+	end
+	return normalized
+end
+
+local function weightedIndex(weights)
+	local total = 0
+	for _, weight in ipairs(weights) do
+		total += weight
+	end
+	if total <= 0 then
+		return nil
+	end
+
+	local roll = math.random() * total
+	local running = 0
+	for index, weight in ipairs(weights) do
+		running += weight
+		if roll <= running then
+			return index
+		end
+	end
+
+	return #weights
+end
 
 -- ── Pack definitions ─────────────────────────────────────────
--- tierWeights[i] = chance (out of 100) of landing in WeightTiers[i].
--- guaranteed.minRarity = lowest rarity name that is guaranteed.
--- padWeight = relative spawn frequency on the player's pack pad.
---             Set to 0 to prevent pad spawning entirely.
-
+-- tierWeights are base rarity odds, ordered by RarityOrder.
 PackConfig.ShopOrder = {
-	-- ── 1 · Gold Pack ──────────────────────────────────────
 	{
-		id          = "GoldPack",
+		id = "GoldPack",
 		displayName = "Gold Pack",
-		description = "A solid pull — mostly Gold with a chance at Rare Gold.",
-		cost        = 0,
-		futureCost  = 3000,
-		cardCount   = 1,
+		description = "Starter pack: mostly Gold, with tiny upgrades possible.",
+		cost = 0,
+		futureCost = 3000,
+		cardCount = 1,
 		hitsRequired = 8,
-		padWeight   = 55,
-		color       = Color3.fromRGB(255, 215, 0),
-		-- 92 Gold · 7 Rare · 1 Premium · 0 · 0 · 0 · 0
-		tierWeights = { 92, 7, 1, 0, 0, 0, 0 },
-		station     = { position = Vector3.new(-24, 1.5, -16) },
+		padWeight = 55,
+		color = Color3.fromRGB(255, 215, 0),
+		tierWeights = { 97.5, 2.3, 0.19, 0.01, 0, 0, 0 },
+		station = { position = Vector3.new(-24, 1.5, -16) },
 	},
-
-	-- ── 2 · Rare Pack ──────────────────────────────────────
 	{
-		id          = "RarePack",
+		id = "RarePack",
 		displayName = "Rare Pack",
-		description = "Guaranteed at least a Rare Gold. Real chance at Premium.",
-		cost        = 0,
-		futureCost  = 7500,
-		cardCount   = 1,
+		description = "Better odds, but still mostly Gold and Rare Gold.",
+		cost = 0,
+		futureCost = 7500,
+		cardCount = 1,
 		hitsRequired = 12,
-		padWeight   = 28,
-		color       = Color3.fromRGB(255, 168, 42),
-		-- 55 Gold · 36 Rare · 7 Premium · 2 Talisman · 0 · 0 · 0
-		tierWeights = { 55, 36, 7, 2, 0, 0, 0 },
-		guaranteed  = { minRarity = "Rare Gold" },
-		station     = { position = Vector3.new(-8, 1.5, -16) },
+		padWeight = 28,
+		color = Color3.fromRGB(255, 168, 42),
+		tierWeights = { 85, 13.5, 1.4, 0.1, 0, 0, 0 },
+		station = { position = Vector3.new(-8, 1.5, -16) },
 	},
-
-	-- ── 3 · Premium Pack ───────────────────────────────────
 	{
-		id          = "PremiumPack",
+		id = "PremiumPack",
 		displayName = "Premium Pack",
-		description = "Guaranteed Premium Gold minimum. Slim Talisman chance.",
-		cost        = 0,
-		futureCost  = 15000,
-		cardCount   = 1,
+		description = "Mid-game pack with a real Premium Gold target.",
+		cost = 0,
+		futureCost = 15000,
+		cardCount = 1,
 		hitsRequired = 18,
-		padWeight   = 12,
-		color       = Color3.fromRGB(255, 238, 172),
-		-- 18 Gold · 47 Rare · 28 Premium · 6 Talisman · 1 Maestro · 0 · 0
-		tierWeights = { 18, 47, 28, 6, 1, 0, 0 },
-		guaranteed  = { minRarity = "Premium Gold" },
-		station     = { position = Vector3.new(8, 1.5, -16) },
+		padWeight = 12,
+		color = Color3.fromRGB(255, 238, 172),
+		tierWeights = { 65, 25, 8.5, 1.4, 0.1, 0, 0 },
+		station = { position = Vector3.new(8, 1.5, -16) },
 	},
-
-	-- ── 4 · Jumbo Pack ─────────────────────────────────────
 	{
-		id          = "JumboPack",
+		id = "JumboPack",
 		displayName = "Jumbo Pack",
-		description = "Premium Gold guaranteed. Real shot at Talisman.",
-		cost        = 0,
-		futureCost  = 30000,
-		cardCount   = 1,
+		description = "Strong odds without letting legends leak too early.",
+		cost = 0,
+		futureCost = 30000,
+		cardCount = 1,
 		hitsRequired = 25,
-		padWeight   = 4,
-		color       = Color3.fromRGB(255, 100, 50),
-		-- 5 Gold · 28 Rare · 47 Premium · 17 Talisman · 3 Maestro · 0 · 0
-		tierWeights = { 5, 28, 47, 17, 3, 0, 0 },
-		guaranteed  = { minRarity = "Premium Gold" },
-		station     = { position = Vector3.new(24, 1.5, -16) },
+		padWeight = 4,
+		color = Color3.fromRGB(255, 100, 50),
+		tierWeights = { 55, 28, 13, 3.7, 0.3, 0, 0 },
+		station = { position = Vector3.new(24, 1.5, -16) },
 	},
-
-	-- ── 5 · Deluxe Pack ────────────────────────────────────
 	{
-		id          = "DeluxePack",
+		id = "DeluxePack",
 		displayName = "Deluxe Pack",
-		description = "Talisman guaranteed. Maestro and Immortal in the mix.",
-		cost        = 0,
-		futureCost  = 75000,
-		cardCount   = 1,
+		description = "Late natural pack with tiny Immortal odds.",
+		cost = 0,
+		futureCost = 75000,
+		cardCount = 1,
 		hitsRequired = 35,
-		padWeight   = 1,
-		color       = Color3.fromRGB(235, 56, 43),
-		-- 0 · 8 Rare · 40 Premium · 38 Talisman · 11 Maestro · 2 Immortal · 1 POTY
-		tierWeights = { 0, 8, 40, 38, 11, 2, 1 },
-		guaranteed  = { minRarity = "Talisman" },
-		station     = { position = Vector3.new(-16, 1.5, 4) },
+		padWeight = 1,
+		color = Color3.fromRGB(235, 56, 43),
+		tierWeights = { 45, 30, 18, 6, 0.9, 0.1, 0 },
+		station = { position = Vector3.new(-16, 1.5, 4) },
 	},
-
-	-- ── 6 · Mythic Pack ────────────────────────────────────
 	{
-		id          = "MythicPack",
+		id = "MythicPack",
 		displayName = "Mythic Pack",
-		description = "Maestro guaranteed. Immortal and POTY are possible.",
-		cost        = 0,
-		futureCost  = 200000,
-		cardCount   = 1,
+		description = "Future shop/event pack. Not a natural pad spawn.",
+		cost = 0,
+		futureCost = 200000,
+		cardCount = 1,
 		hitsRequired = 50,
-		padWeight   = 0,  -- does not spawn on pads
-		color       = Color3.fromRGB(157, 80, 255),
-		-- 0 · 0 · 12 Premium · 48 Talisman · 30 Maestro · 8 Immortal · 2 POTY
-		tierWeights = { 0, 0, 12, 48, 30, 8, 2 },
-		guaranteed  = { minRarity = "Maestro" },
-		station     = { position = Vector3.new(0, 1.5, 4) },
+		padWeight = 0,
+		color = Color3.fromRGB(157, 80, 255),
+		tierWeights = { 0, 30, 35, 20, 10, 3.5, 1.5 },
+		station = { position = Vector3.new(0, 1.5, 4) },
 	},
-
-	-- ── 7 · God Pack ───────────────────────────────────────
 	{
-		id          = "GodPack",
+		id = "GodPack",
 		displayName = "God Pack",
-		description = "The rarest pull in the game. Legends and POTY only.",
-		cost        = 0,
-		futureCost  = 999999,
-		cardCount   = 1,
+		description = "Future shop/event pack. Not a natural pad spawn.",
+		cost = 0,
+		futureCost = 999999,
+		cardCount = 1,
 		hitsRequired = 80,
-		padWeight   = 0,  -- shop drop only — logic TBD
-		color       = Color3.fromRGB(226, 248, 255),
-		-- 0 · 0 · 0 · 20 Talisman · 48 Maestro · 24 Immortal · 8 POTY
-		tierWeights = { 0, 0, 0, 20, 48, 24, 8 },
-		guaranteed  = { minRarity = "Talisman" },
-		station     = { position = Vector3.new(16, 1.5, 4) },
+		padWeight = 0,
+		color = Color3.fromRGB(226, 248, 255),
+		tierWeights = { 0, 0, 25, 30, 20, 15, 10 },
+		station = { position = Vector3.new(16, 1.5, 4) },
 	},
 }
 
--- ── Fast lookup by ID ────────────────────────────────────────
 PackConfig.ById = {}
 for _, pack in ipairs(PackConfig.ShopOrder) do
 	PackConfig.ById[pack.id] = pack
 end
 
--- Pads only spawn packs with padWeight > 0
 PackConfig.PadSpawnOrder = {}
-for _, pack in ipairs(PackConfig.ShopOrder) do
-	if (pack.padWeight or 0) > 0 then
+for _, packId in ipairs(NATURAL_PACK_IDS) do
+	local pack = PackConfig.ById[packId]
+	if pack then
 		table.insert(PackConfig.PadSpawnOrder, pack)
 	end
+end
+
+-- ── Pack Spawn Luck ──────────────────────────────────────────
+PackConfig.PackSpawnLuckKeyframes = {
+	{
+		level = 1,
+		weights = {
+			GoldPack = 92,
+			RarePack = 7,
+			PremiumPack = 1,
+			JumboPack = 0,
+			DeluxePack = 0,
+			MythicPack = 0,
+			GodPack = 0,
+		},
+	},
+	{
+		level = 10,
+		weights = {
+			GoldPack = 78,
+			RarePack = 17,
+			PremiumPack = 4,
+			JumboPack = 1,
+			DeluxePack = 0,
+			MythicPack = 0,
+			GodPack = 0,
+		},
+	},
+	{
+		level = 20,
+		weights = {
+			GoldPack = 55,
+			RarePack = 25,
+			PremiumPack = 13,
+			JumboPack = 5,
+			DeluxePack = 2,
+			MythicPack = 0,
+			GodPack = 0,
+		},
+	},
+	{
+		level = 35,
+		weights = {
+			GoldPack = 35,
+			RarePack = 28,
+			PremiumPack = 22,
+			JumboPack = 10,
+			DeluxePack = 5,
+			MythicPack = 0,
+			GodPack = 0,
+		},
+	},
+	{
+		level = 50,
+		weights = {
+			GoldPack = 20,
+			RarePack = 25,
+			PremiumPack = 28,
+			JumboPack = 17,
+			DeluxePack = 10,
+			MythicPack = 0,
+			GodPack = 0,
+		},
+	},
+}
+
+function PackConfig.GetPackSpawnWeights(packSpawnLuckLevel)
+	local level = math.clamp(packSpawnLuckLevel or 1, 1, 50)
+	local keyframes = PackConfig.PackSpawnLuckKeyframes
+	local lower = keyframes[1]
+	local upper = keyframes[#keyframes]
+
+	for index = 1, #keyframes - 1 do
+		local current = keyframes[index]
+		local nextFrame = keyframes[index + 1]
+		if level >= current.level and level <= nextFrame.level then
+			lower = current
+			upper = nextFrame
+			break
+		end
+	end
+
+	if level <= keyframes[1].level then
+		lower = keyframes[1]
+		upper = keyframes[1]
+	elseif level >= keyframes[#keyframes].level then
+		lower = keyframes[#keyframes]
+		upper = keyframes[#keyframes]
+	end
+
+	local span = math.max(1, upper.level - lower.level)
+	local alpha = lower == upper and 0 or ((level - lower.level) / span)
+	local weights = {}
+	for _, pack in ipairs(PackConfig.ShopOrder) do
+		local from = lower.weights[pack.id] or 0
+		local to = upper.weights[pack.id] or from
+		weights[pack.id] = from + ((to - from) * alpha)
+	end
+
+	weights.MythicPack = 0
+	weights.GodPack = 0
+	return weights
+end
+
+function PackConfig.ChooseSpawnPack(packSpawnLuckLevel)
+	local weightsById = PackConfig.GetPackSpawnWeights(packSpawnLuckLevel)
+	local packs = {}
+	local weights = {}
+
+	for _, pack in ipairs(PackConfig.PadSpawnOrder) do
+		local weight = weightsById[pack.id] or 0
+		if weight > 0 then
+			table.insert(packs, pack)
+			table.insert(weights, weight)
+		end
+	end
+
+	local index = weightedIndex(weights)
+	return index and packs[index] or PackConfig.ById.GoldPack
+end
+
+-- ── Card Pull Luck ───────────────────────────────────────────
+-- Max-luck targets are deliberately conservative and preserve each pack's caps.
+PackConfig.CardPullLuckTargets = {
+	GoldPack = { 94.1, 5.2, 0.65, 0.05, 0, 0, 0 },
+	RarePack = { 75, 20, 4.4, 0.6, 0, 0, 0 },
+	PremiumPack = { 53, 29, 14.2, 3.4, 0.4, 0, 0 },
+	JumboPack = { 42, 30, 18.5, 8.4, 1.1, 0, 0 },
+	DeluxePack = { 32, 30, 23, 11, 3.4, 0.6, 0 },
+	MythicPack = { 0, 22, 34, 22, 13, 6, 3 },
+	GodPack = { 0, 0, 18, 28, 23, 19, 12 },
+}
+
+function PackConfig.GetBaseRarityOdds(packType)
+	local pack = PackConfig.ById[packType]
+	return copyArray(pack and pack.tierWeights or PackConfig.ById.GoldPack.tierWeights)
+end
+
+function PackConfig.ApplyCardPullLuck(baseOdds, cardPullLuckLevel, packType)
+	local base = normalizeWeights(copyArray(baseOdds))
+	local target = PackConfig.CardPullLuckTargets[packType]
+	if not target then
+		return base
+	end
+
+	local level = math.clamp(cardPullLuckLevel or 1, 1, 50)
+	local alpha = ((level - 1) / 49) ^ 1.15
+	local adjusted = {}
+	for index = 1, #PackConfig.RarityOrder do
+		local from = base[index] or 0
+		local to = target[index] or from
+		adjusted[index] = from + ((to - from) * alpha)
+	end
+
+	return normalizeWeights(adjusted)
+end
+
+local function getHighestAllowedRarityIndex(odds)
+	local highest = 1
+	for index, weight in ipairs(odds or {}) do
+		if weight > 0 then
+			highest = math.max(highest, index)
+		end
+	end
+	return highest
+end
+
+local function chooseMinimumAllowedRarity(minRarity, odds, allowBeyondPackCap)
+	local minIndex = PackConfig.RarityRank[minRarity] or 1
+	if allowBeyondPackCap then
+		return PackConfig.RarityOrder[minIndex] or "Gold"
+	end
+
+	local highestAllowed = getHighestAllowedRarityIndex(odds)
+	local targetIndex = math.min(minIndex, highestAllowed)
+	for index = targetIndex, highestAllowed do
+		if odds[index] and odds[index] > 0 then
+			return PackConfig.RarityOrder[index]
+		end
+	end
+	return PackConfig.RarityOrder[highestAllowed] or "Gold"
+end
+
+function PackConfig.GetMilestoneGuarantee(packCount, milestones)
+	local best
+	for _, milestone in ipairs(milestones or {}) do
+		local threshold = tonumber(milestone.threshold)
+		if threshold and threshold > 0 and packCount % threshold == 0 then
+			local rank = PackConfig.RarityRank[milestone.minRarity] or 0
+			local bestRank = best and (PackConfig.RarityRank[best.minRarity] or 0) or -1
+			if rank > bestRank or (rank == bestRank and threshold > (best.threshold or 0)) then
+				best = milestone
+			end
+		end
+	end
+	return best
+end
+
+function PackConfig.ChooseCardRarity(packType, cardPullLuckLevel, pityInfo)
+	local baseOdds = PackConfig.GetBaseRarityOdds(packType)
+	local odds = PackConfig.ApplyCardPullLuck(baseOdds, cardPullLuckLevel, packType)
+	local index = weightedIndex(odds) or 1
+	local rarity = PackConfig.RarityOrder[index] or "Gold"
+
+	if pityInfo and pityInfo.minRarity then
+		local currentRank = PackConfig.RarityRank[rarity] or 1
+		local pityRank = PackConfig.RarityRank[pityInfo.minRarity] or currentRank
+		if currentRank < pityRank then
+			rarity = chooseMinimumAllowedRarity(pityInfo.minRarity, odds, pityInfo.allowBeyondPackCap)
+		end
+	end
+
+	return rarity, odds
 end
 
 return PackConfig

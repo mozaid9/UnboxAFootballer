@@ -211,6 +211,10 @@ local function getUpgradeCost(key, level)
 	if spec.levelCosts then
 		return spec.levelCosts[level + 1]  -- level 0 → index 1
 	end
+	if spec.costExponent then
+		local formulaLevel = spec.startLevel and math.max(spec.startLevel, level) or (level + 1)
+		return math.floor(spec.baseCost * (formulaLevel ^ spec.costExponent))
+	end
 	return math.floor(spec.baseCost * (spec.costMultiplier ^ level))
 end
 
@@ -226,16 +230,31 @@ local function computeSpawnDelay(level)
 	return math.max(spec.minDelay, spec.baseDelay - level * spec.delayReductionPerLevel)
 end
 
-local function computeLuckShift(level)
+local function computePackSpawnLuckValue(level)
 	-- Returns the % chance of landing Rare or better pack at this luck level.
 	-- Used only for upgrade UI display.
-	local spec = Constants.Upgrades.PadLuck
+	local spec = Constants.Upgrades.PackSpawnLuck
 	local clampedLevel = math.clamp(level, 0, spec.maxLevel)
-	local weights = spec.padWeightsPerLevel and spec.padWeightsPerLevel[clampedLevel]
-	if weights then
-		return 100 - (weights[1] or 55)  -- 100 − Gold% = Rare+ chance
-	end
-	return 0
+	local weights = PackConfig.GetPackSpawnWeights(math.max(1, clampedLevel))
+	return math.floor(100 - (weights.GoldPack or 100))  -- 100 − Gold% = better-pack chance
+end
+
+local function computeCardPullLuckValue(level)
+	local spec = Constants.Upgrades.CardPullLuck
+	local clampedLevel = math.clamp(level or spec.startLevel or 1, spec.startLevel or 1, spec.maxLevel)
+	return math.floor(((clampedLevel - (spec.startLevel or 1)) / math.max(1, spec.maxLevel - (spec.startLevel or 1))) * 100)
+end
+
+local function computeFansBoostMultiplier(level)
+	local spec = Constants.Upgrades.FansBoost
+	return 1 + (math.clamp(level or 0, 0, spec.maxLevel) * spec.multiplierPerLevel)
+end
+
+local function computeStadiumCapacitySlots(player, level)
+	local data = DataService.GetData(player)
+	local baseSlots = data and data.baseSlots or Constants.Rebirth.BaseSlots
+	local spec = Constants.Upgrades.StadiumCapacity
+	return math.min(baseSlots + (math.clamp(level or 0, 0, spec.maxLevel) * spec.slotsPerLevel), Constants.Rebirth.MaxSlots)
 end
 
 local function computeWalkSpeed(level)
@@ -245,6 +264,15 @@ end
 
 local function getPitchforkDamage(player)
 	return computePitchforkDamage(getUpgradeLevel(player, "PitchforkDamage"))
+end
+
+local function getFanEarningsMultiplier(player)
+	local data = DataService.GetData(player)
+	local rebirthMultiplier = type(RebirthService.GetFanMultiplier) == "function"
+		and RebirthService.GetFanMultiplier(data and data.rebirthTier or 0)
+		or 1
+	local boostMultiplier = computeFansBoostMultiplier(getUpgradeLevel(player, "FansBoost"))
+	return rebirthMultiplier * boostMultiplier
 end
 
 local function applyMovementUpgrade(player, character)
@@ -381,34 +409,31 @@ local function playPackHitEffect(plot, settleBrightness)
 end
 
 local function rollPadPackForPlayer(player)
-	local luckLevel = player and getUpgradeLevel(player, "PadLuck") or 0
-	local luckSpec  = Constants.Upgrades.PadLuck
-	local levelWeights = luckSpec.padWeightsPerLevel and luckSpec.padWeightsPerLevel[luckLevel]
-
-	-- Build weight list aligned to PadSpawnOrder
-	local weights    = {}
-	local validPacks = {}
-	for i, packDef in ipairs(PackConfig.PadSpawnOrder) do
-		local w = levelWeights and (levelWeights[i] or 0) or (packDef.padWeight or 1)
-		if w > 0 then
-			table.insert(validPacks, packDef)
-			table.insert(weights, w)
-		end
-	end
-
-	if #validPacks == 0 then
-		return PackConfig.PadSpawnOrder[1]
-	end
-
-	local chosenIndex = Utils.WeightedRandom(weights)
-	return validPacks[chosenIndex]
+	local luckLevel = player and getUpgradeLevel(player, "PackSpawnLuck") or 1
+	return PackConfig.ChooseSpawnPack(luckLevel)
 end
 
 local function getCardById(cardId)
 	return cardId and CardData.ById[tonumber(cardId)] or nil
 end
 
--- ── Milestone reward granting (cycles every CYCLE packs) ─────────────────────
+local function serializeCardForClient(card)
+	if not card then
+		return nil
+	end
+	return {
+		id = card.id,
+		name = card.name,
+		nation = card.nation,
+		position = card.position,
+		rarity = card.rarity,
+		club = card.club,
+		fansPerSecond = Utils.CalculateFansPerSecond(card),
+		sellValue = Utils.GetSellValue(card),
+	}
+end
+
+-- ── Milestone pity tracking ───────────────────────────────────────────────────
 local function checkAndGrantMilestones(player, totalPacks)
 	local data = DataService.GetData(player)
 	if not data then return end
@@ -416,53 +441,24 @@ local function checkAndGrantMilestones(player, totalPacks)
 		data.claimedMilestones = {}
 	end
 
-	-- CYCLE = last milestone threshold; milestones repeat every CYCLE packs
-	local CYCLE = 0
-	for _, ms in ipairs(Constants.PackMilestones) do
-		CYCLE = math.max(CYCLE, ms.threshold)
-	end
-	if CYCLE == 0 then return end
-
 	for _, milestone in ipairs(Constants.PackMilestones) do
-		local T   = milestone.threshold
-		local key = tostring(T)
+		local threshold = tonumber(milestone.threshold)
+		if not threshold or threshold <= 0 then
+			continue
+		end
 
-		-- How many times should this milestone have fired by now?
-		-- e.g. threshold=25, CYCLE=150: fires at 25, 175, 325, 475…
-		local timesEarned = totalPacks >= T
-			and (math.floor((totalPacks - T) / CYCLE) + 1)
-			or 0
-
-		-- Migrate old boolean true → 1
+		local key = tostring(threshold)
+		local timesEarned = math.floor((totalPacks or 0) / threshold)
 		local timesClaimed = data.claimedMilestones[key]
 		if timesClaimed == true then timesClaimed = 1 end
 		timesClaimed = tonumber(timesClaimed) or 0
 
-		-- Grant any un-rewarded fires
 		while timesClaimed < timesEarned do
 			timesClaimed += 1
 			data.claimedMilestones[key] = timesClaimed
 			DataService.MarkDirty(player)
-
-			local cap = milestone
-			task.spawn(function()
-				local packOk, result = PackService.OpenPack(player, cap.packId, { ignoreCost = true })
-				if not packOk or not result then return end
-				local pulledCard = result.card or (result.cards and result.cards[1])
-				if pulledCard then
-					local plot = BaseService.GetPlot(player)
-					if plot then
-						autoStorePulledCard(player, plot, pulledCard)
-					else
-						DataService.AddCard(player, pulledCard.id)
-					end
-					sendHint(player, "\u{1F3C6} MILESTONE (" .. cap.label .. "): "
-						.. cap.reward .. " \u{2192} " .. pulledCard.name .. "!")
-				end
-			end)
 		end
 
-		-- Write back normalised count
 		data.claimedMilestones[key] = timesClaimed
 	end
 end
@@ -475,7 +471,9 @@ local function getBestInventoryCard(player)
 		if amount > 0 then
 			local card = getCardById(key)
 			if card then
-				if not bestCard or card.rating > bestCard.rating or (card.rating == bestCard.rating and card.name < bestCard.name) then
+				local powerScore = Utils.GetPowerScore(card)
+				local bestPowerScore = bestCard and Utils.GetPowerScore(bestCard) or -math.huge
+				if not bestCard or powerScore > bestPowerScore or (powerScore == bestPowerScore and card.name < bestCard.name) then
 					bestCard = card
 				end
 			end
@@ -488,15 +486,12 @@ end
 local function getDisplayedIncomePerSecond(player)
 	local displayedCards = DataService.GetDisplayedCards(player)
 	local total = 0
-	local data = DataService.GetData(player)
-	local multiplier = type(RebirthService.GetFanMultiplier) == "function"
-		and RebirthService.GetFanMultiplier(data and data.rebirthTier or 0)
-		or 1
+	local multiplier = getFanEarningsMultiplier(player)
 
 	for _, cardId in pairs(displayedCards) do
 		local card = getCardById(cardId)
 		if card then
-			total += math.floor(Utils.GetPassiveIncome(card.rating) * multiplier)
+			total += math.floor(Utils.CalculateFansPerSecond(card) * multiplier)
 		end
 	end
 
@@ -508,11 +503,8 @@ local function getCardIncome(player, card)
 		return 0
 	end
 
-	local data = DataService.GetData(player)
-	local multiplier = type(RebirthService.GetFanMultiplier) == "function"
-		and RebirthService.GetFanMultiplier(data and data.rebirthTier or 0)
-		or 1
-	return math.floor(Utils.GetPassiveIncome(card.rating) * multiplier)
+	local sourceCard = getCardById(card.id) or card
+	return math.floor(Utils.CalculateFansPerSecond(sourceCard) * getFanEarningsMultiplier(player))
 end
 
 local function refreshPlotDisplayState(player, plot)
@@ -733,8 +725,8 @@ local function spawnPackForPlot(plot)
 	hitHighlight.OutlineTransparency = 0.82
 	hitHighlight.Parent = model
 
-	createSurfaceLabel(Enum.NormalId.Front, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
-	createSurfaceLabel(Enum.NormalId.Back, tostring(packDef.displayRating), packDef.displayName, packDef.color, cardBody)
+	createSurfaceLabel(Enum.NormalId.Front, "1 CARD", packDef.displayName, packDef.color, cardBody)
+	createSurfaceLabel(Enum.NormalId.Back, "1 CARD", packDef.displayName, packDef.color, cardBody)
 
 	-- (pack health is shown in the padGui billboard — no floating bar needed)
 
@@ -806,6 +798,30 @@ local function connectSlotPrompt(plot, slot)
 			sendHint(player, "Choose a stored player for display slot " .. tostring(slot.slotIndex) .. ".")
 		end
 	end)
+end
+
+local function getEffectiveDisplaySlotCount(player)
+	return computeStadiumCapacitySlots(player, getUpgradeLevel(player, "StadiumCapacity"))
+end
+
+local function syncDisplaySlotsForPlayer(player, plot)
+	if not player or not plot then
+		return
+	end
+
+	local data = DataService.GetData(player)
+	local slotCount = getEffectiveDisplaySlotCount(player)
+	local visualTier = math.max(data and data.rebirthTier or 0, slotCount > Constants.BaseLayout.DisplaySlotCount and 1 or 0)
+
+	BaseService.SetDisplaySlotLimit(plot, slotCount)
+	BaseService.UpdateStadiumTier(plot, visualTier)
+	for slotIndex = Constants.BaseLayout.DisplaySlotCount + 1, slotCount do
+		local newSlot = BaseService.AddDisplaySlot(plot, slotIndex)
+		if newSlot then
+			connectSlotPrompt(plot, newSlot)
+		end
+	end
+	refreshPlotDisplayState(player, plot)
 end
 
 for _, plot in ipairs(BaseService.GetPlots()) do
@@ -964,15 +980,18 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 		})
 
 		local totalPacks = DataService.GetTotalPacksOpened(player)
+		checkAndGrantMilestones(player, totalPacks)
 		local milestoneData = DataService.GetData(player)
 		local claimed = milestoneData and milestoneData.claimedMilestones or {}
 		local milestoneOk, milestoneErr = pcall(BaseService.UpdatePackMilestone, plot, totalPacks, claimed)
 		if not milestoneOk then
 			warn("[UnboxAFootballer] Pack milestone update failed:", milestoneErr)
 		end
-		checkAndGrantMilestones(player, totalPacks)
 
 		if pulledCard then
+			if result.pityInfo then
+				sendHint(player, "Pack milestone hit: " .. (result.pityInfo.reward or "guarantee") .. " upgraded this pull.")
+			end
 			if storageResult.storedInInventory then
 				sendHint(player, pulledCard.name .. " went to inventory because your display slots are full.")
 			else
@@ -1007,7 +1026,7 @@ local function handlePlayerAdded(player)
 	initializedPlayers[player] = true
 
 	local data = DataService.LoadPlayer(player)
-	local plot = BaseService.AssignPlot(player, data.rebirthTier or 0, data.baseSlots or 6)
+	local plot = BaseService.AssignPlot(player, data.rebirthTier or 0, getEffectiveDisplaySlotCount(player))
 	-- Wire up prompt handlers for any extra slots loaded from saved data (slots > base 6)
 	if plot then
 		for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
@@ -1184,6 +1203,7 @@ GetInventoryFn.OnServerInvoke = function(player)
 		local card = cardId and CardData.ById[cardId]
 		if card and amount > 0 then
 			local existing = inventoryById[card.id]
+			local fansPerSecond = Utils.CalculateFansPerSecond(card)
 			if existing then
 				existing.quantity += amount
 			else
@@ -1192,10 +1212,10 @@ GetInventoryFn.OnServerInvoke = function(player)
 					name = card.name,
 					nation = card.nation,
 					position = card.position,
-					rating = card.rating,
 					rarity = card.rarity,
 					quantity = amount,
-					sellValue = Utils.GetSellValue(card.rating),
+					fansPerSecond = fansPerSecond,
+					sellValue = Utils.GetSellValue(card),
 				}
 			end
 		end
@@ -1207,10 +1227,10 @@ GetInventoryFn.OnServerInvoke = function(player)
 	end
 
 	table.sort(inventory, function(a, b)
-		if a.rating == b.rating then
+		if a.fansPerSecond == b.fansPerSecond then
 			return a.name < b.name
 		end
-		return a.rating > b.rating
+		return a.fansPerSecond > b.fansPerSecond
 	end)
 
 	return inventory
@@ -1240,7 +1260,7 @@ PlaceInventoryCardInSlotFn.OnServerInvoke = function(player, slotIndex, cardId)
 
 	return {
 		success = true,
-		card = cardOrError,
+		card = serializeCardForClient(cardOrError),
 		slotIndex = slotIndex,
 		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
 	}
@@ -1267,7 +1287,7 @@ SellCardFn.OnServerInvoke = function(player, cardId)
 		return { success = false, error = "Card not owned" }
 	end
 
-	local earned = Utils.GetSellValue(card.rating)
+	local earned = Utils.GetSellValue(card)
 	EconomyService.AddCoins(player, earned)
 	refreshPlotDisplayState(player, BaseService.GetPlot(player))
 	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
@@ -1289,7 +1309,7 @@ SellAllCardsFn.OnServerInvoke = function(player, cardIds)
 		if type(cardId) == "number" then
 			local card = CardData.ById[cardId]
 			if card and DataService.RemoveCard(player, cardId) then
-				total += Utils.GetSellValue(card.rating)
+				total += Utils.GetSellValue(card)
 			end
 		end
 	end
@@ -1331,14 +1351,22 @@ local function buildUpgradePayload(player)
 			entry.currentValue = computePitchforkDamage(level)
 			entry.nextValue = computePitchforkDamage(level + 1)
 			entry.valueSuffix = "× per swing"
-		elseif key == "PackSpawnRate" then
-			entry.currentValue = computeSpawnDelay(level)
-			entry.nextValue = computeSpawnDelay(level + 1)
-			entry.valueSuffix = "s respawn"
-		elseif key == "PadLuck" then
-			entry.currentValue = computeLuckShift(level)
-			entry.nextValue = computeLuckShift(level + 1)
-			entry.valueSuffix = "% Rare+ pads"
+		elseif key == "PackSpawnLuck" then
+			entry.currentValue = computePackSpawnLuckValue(level)
+			entry.nextValue = computePackSpawnLuckValue(level + 1)
+			entry.valueSuffix = "% better packs"
+		elseif key == "CardPullLuck" then
+			entry.currentValue = computeCardPullLuckValue(level)
+			entry.nextValue = computeCardPullLuckValue(level + 1)
+			entry.valueSuffix = "% pull luck"
+		elseif key == "StadiumCapacity" then
+			entry.currentValue = computeStadiumCapacitySlots(player, level)
+			entry.nextValue = computeStadiumCapacitySlots(player, level + 1)
+			entry.valueSuffix = " display slots"
+		elseif key == "FansBoost" then
+			entry.currentValue = computeFansBoostMultiplier(level)
+			entry.nextValue = computeFansBoostMultiplier(level + 1)
+			entry.valueSuffix = "× fans"
 		elseif key == "MoveSpeed" then
 			entry.currentValue = computeWalkSpeed(level)
 			entry.nextValue = computeWalkSpeed(level + 1)
@@ -1383,6 +1411,10 @@ PurchaseUpgradeFn.OnServerInvoke = function(player, upgradeKey)
 
 	if upgradeKey == "MoveSpeed" then
 		applyMovementUpgrade(player)
+	elseif upgradeKey == "FansBoost" then
+		refreshPlotDisplayState(player, BaseService.GetPlot(player))
+	elseif upgradeKey == "StadiumCapacity" then
+		syncDisplaySlotsForPlayer(player, BaseService.GetPlot(player))
 	end
 
 	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
@@ -1426,8 +1458,16 @@ ClaimFreePackFn.OnServerInvoke = function(player)
 	end
 
 	local passiveIncome = getCardIncome(player, pulledCard)
+	local totalPacks = DataService.GetTotalPacksOpened(player)
+	checkAndGrantMilestones(player, totalPacks)
 	if plot then
-		do local _tp = DataService.GetTotalPacksOpened(player); local _d = DataService.GetData(player); BaseService.UpdatePackMilestone(plot, _tp, _d and _d.claimedMilestones or {}) end
+		do
+			local _d = DataService.GetData(player)
+			BaseService.UpdatePackMilestone(plot, totalPacks, _d and _d.claimedMilestones or {})
+		end
+	end
+	if result.pityInfo then
+		sendHint(player, "Pack milestone hit: " .. (result.pityInfo.reward or "guarantee") .. " upgraded this pull.")
 	end
 
 	PackOpenedEvent:FireClient(player, {
@@ -1497,13 +1537,8 @@ RequestRebirthFn.OnServerInvoke = function(player)
 		do local _tp = DataService.GetTotalPacksOpened(player); local _d = DataService.GetData(player); BaseService.UpdatePackMilestone(plot, _tp, _d and _d.claimedMilestones or {}) end
 		refreshPlotDisplayState(player, plot)
 		local newData = DataService.GetData(player)
-		local newTier = newData and newData.rebirthTier or 0
-		local newSlots = newData and newData.baseSlots or 6
-		BaseService.UpdateStadiumTier(plot, newTier)
-		-- Unlock the new display slot earned by this rebirth and wire up its prompt handler
-		local newSlot = BaseService.AddDisplaySlot(plot, newSlots)
-		if newSlot then
-			connectSlotPrompt(plot, newSlot)
+		if newData then
+			syncDisplaySlotsForPlayer(player, plot)
 		end
 	end
 

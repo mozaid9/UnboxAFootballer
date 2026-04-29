@@ -121,52 +121,50 @@ end
 
 local function getNextPackMilestone(totalPacks)
 	totalPacks = math.max(0, totalPacks or 0)
-	-- Milestones repeat every CYCLE packs (= the last milestone's threshold)
-	local CYCLE = packMilestones and packMilestones[#packMilestones].threshold or 150
-	local cycleNum    = math.floor(totalPacks / CYCLE)
-	local posInCycle  = totalPacks % CYCLE
-	local prevAt      = cycleNum * CYCLE  -- absolute start of current cycle
 
+	local bestMilestone
+	local nextAt = math.huge
 	for _, milestone in ipairs(packMilestones or {}) do
-		local T = milestone.threshold
-		if type(T) == "number" and posInCycle < T then
-			local absoluteNext = cycleNum * CYCLE + T
-			local span = absoluteNext - prevAt
-			local progress = span > 0 and math.clamp((totalPacks - prevAt) / span, 0, 1) or 1
-			return {
-				nextAt    = absoluteNext,
-				prevAt    = prevAt,
-				progress  = progress,
-				reward    = milestone.reward or "Pack",
-				packId    = milestone.packId,
-				label     = milestone.label  or "REWARD",
-				color     = milestone.color  or Color3.fromRGB(255, 215, 0),
-				threshold = T,
-				cycleNum  = cycleNum,
-			}
-		end
-		if type(T) == "number" then
-			prevAt = cycleNum * CYCLE + T
+		local threshold = tonumber(milestone.threshold)
+		if threshold and threshold > 0 then
+			local candidateAt = math.ceil((totalPacks + 1) / threshold) * threshold
+			if candidateAt < nextAt then
+				nextAt = candidateAt
+				bestMilestone = milestone
+			elseif candidateAt == nextAt and bestMilestone then
+				local currentRank = milestone.threshold or 0
+				local bestRank = bestMilestone.threshold or 0
+				if currentRank > bestRank then
+					bestMilestone = milestone
+				end
+			end
 		end
 	end
 
-	-- All milestones done in this cycle — show teaser for first in next cycle
-	local nextCycle = cycleNum + 1
-	local firstMs   = packMilestones and packMilestones[1]
-	local firstT    = firstMs and firstMs.threshold or 25
-	local absNext   = nextCycle * CYCLE + firstT
-	local span      = absNext - prevAt
-	local progress  = span > 0 and math.clamp((totalPacks - prevAt) / span, 0, 1) or 1
+	local prevAt = 0
+	for _, milestone in ipairs(packMilestones or {}) do
+		local threshold = tonumber(milestone.threshold)
+		if threshold and threshold > 0 then
+			local candidatePrev = math.floor(totalPacks / threshold) * threshold
+			if candidatePrev < nextAt then
+				prevAt = math.max(prevAt, candidatePrev)
+			end
+		end
+	end
+
+	local firstMs = packMilestones and packMilestones[1]
+	bestMilestone = bestMilestone or firstMs or {}
+	nextAt = nextAt < math.huge and nextAt or (bestMilestone.threshold or 50)
+	local span = math.max(1, nextAt - prevAt)
+	local progress = math.clamp((totalPacks - prevAt) / span, 0, 1)
 	return {
-		nextAt    = absNext,
-		prevAt    = prevAt,
-		progress  = progress,
-		reward    = firstMs and firstMs.reward or "Gold Pack",
-		packId    = firstMs and firstMs.packId,
-		label     = firstMs and firstMs.label  or "COMMON",
-		color     = firstMs and firstMs.color  or Color3.fromRGB(90, 200, 90),
-		threshold = firstT,
-		cycleNum  = nextCycle,
+		nextAt = nextAt,
+		prevAt = prevAt,
+		progress = progress,
+		reward = bestMilestone.reward or "Rare Gold+ Guarantee",
+		label = bestMilestone.label or "REWARD",
+		color = bestMilestone.color or Color3.fromRGB(255, 215, 0),
+		threshold = bestMilestone.threshold or 50,
 	}
 end
 
@@ -2875,8 +2873,8 @@ local function createPlot(plotId, side, laneIndex, position)
 		textStrokeTransparency = 0.90, font = Enum.Font.GothamBold,
 	}, mf)
 
-	-- ── Next reward text: "X / Y PACKS → PACK NAME" (0.46 – 0.58) ─
-	local milestoneNextLabel = createOwnerSignText("25 / 25 PACKS \u{2192} GOLD PACK",
+	-- ── Next reward text: "X / Y PACKS → GUARANTEE" (0.46 – 0.58) ─
+	local milestoneNextLabel = createOwnerSignText("0 / 50 PACKS \u{2192} RARE GOLD+",
 		UDim2.fromScale(0.82, 0.10), UDim2.fromScale(0.09, 0.46),
 		Color3.fromRGB(255, 215, 0), {
 		textScaled = true, minTextSize = 12, maxTextSize = 36,
@@ -2941,7 +2939,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, mf)
 
 	-- ── Milestone icons row (0.78 – 1.00) ─────────────────────────
-	-- Five evenly-spaced pack cards showing each milestone
+	-- Evenly-spaced cards showing each repeating pity milestone.
 	local iconY    = 0.785
 	local iconH    = 0.195
 	local iconW    = 0.13
@@ -3460,6 +3458,23 @@ function BaseService.AddDisplaySlot(plot, slotIndex)
 	return slot
 end
 
+function BaseService.SetDisplaySlotLimit(plot, slotCount)
+	if not plot or not plot.displaySlots then
+		return
+	end
+
+	slotCount = math.clamp(slotCount or layout.DisplaySlotCount, layout.DisplaySlotCount, Constants.Rebirth.MaxSlots)
+	for index, slot in pairs(plot.displaySlots) do
+		if index > slotCount then
+			clearDisplayCard(slot)
+			if slot.model and slot.model.Parent then
+				slot.model:Destroy()
+			end
+			plot.displaySlots[index] = nil
+		end
+	end
+end
+
 function BaseService.AssignPlot(player, rebirthTier, baseSlots)
 	if assignedPlots[player] then
 		return assignedPlots[player]
@@ -3480,10 +3495,10 @@ function BaseService.AssignPlot(player, rebirthTier, baseSlots)
 			if plot.spawnLocation then
 				player.RespawnLocation = plot.spawnLocation
 			end
-			BaseService.UpdateStadiumTier(plot, rebirthTier or 0)
-
 			-- Build any extra slots the player has earned through rebirths
 			local slotCount = math.min(baseSlots or 6, Constants.Rebirth.MaxSlots)
+			local visualTier = math.max(rebirthTier or 0, slotCount > layout.DisplaySlotCount and 1 or 0)
+			BaseService.UpdateStadiumTier(plot, visualTier)
 			for i = layout.DisplaySlotCount + 1, slotCount do
 				BaseService.AddDisplaySlot(plot, i)
 			end
@@ -3560,19 +3575,15 @@ function BaseService.UpdatePackMilestone(plot, totalPacks, claimedMilestones)
 		plot.milestoneBarPct.Text = tostring(pct) .. "%"
 	end
 
-	-- Tick marks: show if this milestone has been claimed in the current cycle
+	-- Tick marks: show after the player has reached each repeating pity tier.
 	if plot.milestoneIconFrames then
-		local CYCLE     = packMilestones and packMilestones[#packMilestones].threshold or 150
-		local cycleNum  = math.floor(totalPacks / CYCLE)
-		local posInCycle = totalPacks % CYCLE
 		for _, entry in ipairs(plot.milestoneIconFrames) do
 			if entry.tick then
 				local T       = entry.threshold
 				local claimed = claimedMilestones[tostring(T)]
 				if claimed == true then claimed = 1 end
 				claimed = tonumber(claimed) or 0
-				-- Tick = reached this threshold in current cycle AND reward was granted
-				entry.tick.Visible = (posInCycle >= T) and (claimed >= cycleNum + 1)
+				entry.tick.Visible = claimed > 0 or totalPacks >= T
 			end
 		end
 	end

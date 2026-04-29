@@ -126,12 +126,14 @@ local layout = make("UIListLayout", {
 local function formatValue(entry)
 	if entry.key == "PitchforkDamage" then
 		return string.format("%.2g× per swing", entry.currentValue)
-	elseif entry.key == "PackSpawnRate" then
-		return string.format("%.1fs respawn", entry.currentValue)
-	elseif entry.key == "PadLuck" then
-		return string.format("%d%% Rare+ pads", entry.currentValue)
-	elseif entry.key == "MoveSpeed" then
-		return string.format("%d studs/s", entry.currentValue)
+	elseif entry.key == "PackSpawnLuck" then
+		return string.format("%d%% better packs", entry.currentValue)
+	elseif entry.key == "CardPullLuck" then
+		return string.format("%d%% pull luck", entry.currentValue)
+	elseif entry.key == "StadiumCapacity" then
+		return string.format("%d display slots", entry.currentValue)
+	elseif entry.key == "FansBoost" then
+		return string.format("%.2g× fans", entry.currentValue)
 	end
 	return string.format("%s%s", tostring(entry.currentValue), entry.valueSuffix or "")
 end
@@ -139,12 +141,12 @@ end
 local function formatNextValue(entry)
 	if entry.key == "PitchforkDamage" then
 		return string.format("%.2g×", entry.nextValue)
-	elseif entry.key == "PackSpawnRate" then
-		return string.format("%.1fs", entry.nextValue)
-	elseif entry.key == "PadLuck" then
+	elseif entry.key == "PackSpawnLuck" or entry.key == "CardPullLuck" then
 		return string.format("%d%%", entry.nextValue)
-	elseif entry.key == "MoveSpeed" then
-		return string.format("%d studs/s", entry.nextValue)
+	elseif entry.key == "StadiumCapacity" then
+		return string.format("%d slots", entry.nextValue)
+	elseif entry.key == "FansBoost" then
+		return string.format("%.2g×", entry.nextValue)
 	end
 	return tostring(entry.nextValue)
 end

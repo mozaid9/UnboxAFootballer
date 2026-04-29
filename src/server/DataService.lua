@@ -25,6 +25,10 @@ local DEFAULT_DATA = {
 	baseSlots = 6,
 	upgrades = {
 		PitchforkDamage = 0,
+		PackSpawnLuck = 1,
+		CardPullLuck = 1,
+		StadiumCapacity = 0,
+		FansBoost = 0,
 		PackSpawnRate = 0,
 		PadLuck = 0,
 		MoveSpeed = 0,
@@ -38,6 +42,41 @@ local DEFAULT_DATA = {
 
 local cache = {}
 local dirtyPlayers = {}
+
+local function normalizeUpgradeData(data)
+	if not data then
+		return false
+	end
+
+	if type(data.upgrades) ~= "table" then
+		data.upgrades = Utils.DeepCopy(DEFAULT_DATA.upgrades)
+		return true
+	end
+
+	local changed = false
+	for key, defaultValue in pairs(DEFAULT_DATA.upgrades) do
+		if data.upgrades[key] == nil then
+			data.upgrades[key] = defaultValue
+			changed = true
+		end
+	end
+
+	for key, spec in pairs(Constants.Upgrades) do
+		if spec.startLevel and (tonumber(data.upgrades[key]) or 0) < spec.startLevel then
+			data.upgrades[key] = spec.startLevel
+			changed = true
+		end
+	end
+
+	-- One-time compatibility bridge from the old all-purpose PadLuck upgrade.
+	local legacyPadLuck = tonumber(data.upgrades.PadLuck) or 0
+	if (data.upgrades.PackSpawnLuck or 0) <= (Constants.Upgrades.PackSpawnLuck.startLevel or 1) and legacyPadLuck > 0 then
+		data.upgrades.PackSpawnLuck = math.min(legacyPadLuck, Constants.Upgrades.PackSpawnLuck.maxLevel)
+		changed = true
+	end
+
+	return changed
+end
 
 local function normalizeInventoryData(data)
 	if not data then
@@ -151,6 +190,7 @@ function DataService.LoadPlayer(player)
 
 	cache[player] = deepMergeDefaults(ok and storedData or {}, DEFAULT_DATA)
 	normalizeInventoryData(cache[player])
+	normalizeUpgradeData(cache[player])
 	DataService.MarkDirty(player)
 	return cache[player]
 end
@@ -343,12 +383,17 @@ function DataService.ResetForRebirth(player, startingFans)
 	data.baseLayoutData.displayedCards = {}
 	data.upgrades = {
 		PitchforkDamage = 0,
+		PackSpawnLuck = Constants.Upgrades.PackSpawnLuck.startLevel or 1,
+		CardPullLuck = Constants.Upgrades.CardPullLuck.startLevel or 1,
+		StadiumCapacity = 0,
+		FansBoost = 0,
 		PackSpawnRate = 0,
 		PadLuck = 0,
 		MoveSpeed = 0,
 	}
 	data.totalCardsOpened = 0
 	data.totalPacksOpened = 0
+	data.claimedMilestones = {}
 	DataService.MarkDirty(player)
 	return true
 end

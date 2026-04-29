@@ -17,8 +17,8 @@ Constants.DataStoreRetryBackoff = {
 	3,
 }
 
--- Sell values and market floors cover every rating used in CardData (78-97).
--- Ratings are internal only — players never see them directly.
+-- Sell values and market floors cover every powerScore used in CardData (78-99).
+-- powerScore is internal only — players never see it directly.
 Constants.SellValues = {
 	-- Gold tier (78-91)
 	[78] = 300,
@@ -39,10 +39,22 @@ Constants.SellValues = {
 	[92] = 5000,
 	[93] = 7000,
 	[94] = 10000,
-	-- Immortal / POTY tier (95-97)
+	-- Immortal / POTY tier (95-99)
 	[95] = 15000,
 	[96] = 20000,
 	[97] = 25000,
+	[98] = 32500,
+	[99] = 40000,
+}
+
+Constants.RaritySellMultipliers = {
+	["Gold"] = 1.00,
+	["Rare Gold"] = 1.10,
+	["Premium Gold"] = 1.25,
+	["Talisman"] = 1.45,
+	["Maestro"] = 1.75,
+	["Immortal"] = 2.00,
+	["Player of the Year"] = 2.25,
 }
 
 Constants.MarketFloors = {
@@ -69,6 +81,8 @@ Constants.MarketFloors = {
 	[95] = 65000,
 	[96] = 85000,
 	[97] = 110000,
+	[98] = 145000,
+	[99] = 190000,
 }
 
 Constants.MarketCeilingMultiplier = 5
@@ -123,14 +137,14 @@ Constants.FanZone = {
 	},
 }
 
--- Each milestone fires once when totalPacksOpened crosses `threshold`.
--- packId must match a PackConfig entry. label/color are used on the board.
+-- Pack pity milestones. These repeat independently: every 50th pack gives
+-- Rare Gold+, every 150th Premium Gold+, every 500th Talisman+, and every
+-- 1000th pack can break normal pack caps for a special high-tier pull.
 Constants.PackMilestones = {
-	{ threshold = 25,  packId = "GoldPack",    reward = "Gold Pack",    label = "COMMON",    color = Color3.fromRGB(90,  200, 90)  },
-	{ threshold = 50,  packId = "RarePack",    reward = "Rare Pack",    label = "RARE",      color = Color3.fromRGB(80,  130, 255) },
-	{ threshold = 75,  packId = "PremiumPack", reward = "Premium Pack", label = "EPIC",      color = Color3.fromRGB(170, 75,  255) },
-	{ threshold = 100, packId = "JumboPack",   reward = "Jumbo Pack",   label = "SPECIAL",   color = Color3.fromRGB(255, 185, 0)   },
-	{ threshold = 150, packId = "DeluxePack",  reward = "Deluxe Pack",  label = "LEGENDARY", color = Color3.fromRGB(220, 75,  30)  },
+	{ threshold = 50,   minRarity = "Rare Gold",    reward = "Rare Gold+ Guarantee",     label = "RARE+",     color = Color3.fromRGB(255, 170, 48)  },
+	{ threshold = 150,  minRarity = "Premium Gold", reward = "Premium Gold+ Guarantee",  label = "PREM+",     color = Color3.fromRGB(255, 226, 112) },
+	{ threshold = 500,  minRarity = "Talisman",     reward = "Talisman+ Guarantee",      label = "TALISMAN",  color = Color3.fromRGB(235, 56, 43)   },
+	{ threshold = 1000, minRarity = "Maestro",      reward = "Special High-Tier Reward", label = "SPECIAL",   color = Color3.fromRGB(157, 80, 255), allowBeyondPackCap = true },
 }
 
 Constants.Rebirth = {
@@ -155,10 +169,11 @@ Constants.Rebirth = {
 
 	MultiplierMilestones = {
 		{ tier = 0,  multiplier = 1   },
-		{ tier = 1,  multiplier = 1.2 },
-		{ tier = 2,  multiplier = 1.4 },
-		{ tier = 5,  multiplier = 2   },
-		{ tier = 10, multiplier = 5   },
+		{ tier = 1,  multiplier = 1.25 },
+		{ tier = 2,  multiplier = 2.00 },
+		{ tier = 3,  multiplier = 3.00 },
+		{ tier = 5,  multiplier = 4.00 },
+		{ tier = 10, multiplier = 7.50 },
 	},
 }
 
@@ -170,20 +185,54 @@ Constants.Pitchfork = {
 }
 
 -- ── Upgrade specs ─────────────────────────────────────────────
--- Each upgrade has levels 0..maxLevel; cost(level) = floor(baseCost * costMultiplier^level)
--- is the cost to go from `level` to `level+1`.
-Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnRate", "PadLuck", "MoveSpeed" }
+-- Each upgrade has levels 0..maxLevel. Power-cost upgrades use
+-- floor(baseCost * nextLevel^costExponent) for intentionally slow scaling.
+Constants.UpgradeKeys = { "PitchforkDamage", "PackSpawnLuck", "CardPullLuck", "StadiumCapacity", "FansBoost" }
 
 Constants.Upgrades = {
 	PitchforkDamage = {
-		displayName = "Pitchfork Power",
-		description = "Each swing hits harder — multiply your damage per crack.",
+		displayName = "Tool Power",
+		description = "Break packs faster with stronger pitchfork hits.",
 		maxLevel = 12,
 		-- Cost to go from level N → N+1 (index 1 = level 0→1, index 12 = level 11→12)
 		levelCosts = { 600, 1800, 5000, 14000, 38000, 100000, 260000, 650000, 1600000, 4000000, 10000000, 25000000 },
 		-- Damage multiplier at each level (index 1 = level 0, index 13 = level 12)
 		multipliers = { 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.3, 2.6, 3.0, 3.5, 4.0, 4.5, 5.0 },
 	},
+	PackSpawnLuck = {
+		displayName = "Pack Spawn Luck",
+		description = "Better packs appear on your red pad.",
+		maxLevel = 50,
+		startLevel = 1,
+		baseCost = 250,
+		costExponent = 1.65,
+	},
+	CardPullLuck = {
+		displayName = "Card Pull Luck",
+		description = "Higher chance of better footballers inside packs.",
+		maxLevel = 50,
+		startLevel = 1,
+		baseCost = 350,
+		costExponent = 1.70,
+	},
+	StadiumCapacity = {
+		displayName = "Stadium Capacity",
+		description = "Unlock more display slots for this rebirth run.",
+		maxLevel = 6,
+		baseCost = 2000,
+		costMultiplier = 2.35,
+		slotsPerLevel = 1,
+	},
+	FansBoost = {
+		displayName = "Fans Boost",
+		description = "Displayed cards earn more Fans per second.",
+		maxLevel = 25,
+		baseCost = 1200,
+		costMultiplier = 1.42,
+		multiplierPerLevel = 0.04,
+	},
+	-- Hidden legacy/support upgrades. They remain load-safe for old data but
+	-- are no longer shown in the upgrade shop.
 	PackSpawnRate = {
 		displayName = "Pack Spawn Speed",
 		description = "Packs respawn on your red pad faster.",
@@ -235,17 +284,18 @@ Constants.Upgrades = {
 
 Constants.PassiveIncome = {
 	BaseRating    = 78,
-	BasePerSecond = 20,    -- fans/sec at rating 78
-	GrowthRate    = 1.23,  -- exponential multiplier per rating point above BaseRating
-	-- Resulting fan income by key rating:
+	BasePerSecond = 20,    -- fans/sec at powerScore 78
+	GrowthRate    = 1.23,  -- exponential multiplier per powerScore point above BaseRating
+	-- Resulting fan income by key powerScore:
 	--   78 →   20  (base Gold)
 	--   84 →   69  (mid Gold)
-	--   88 →  157  (top Gold)
+	--   88 →  158  (top Gold)
 	--   91 →  294  (Talisman)
-	--   93 →  444  (Maestro tier)
+	--   93 →  446  (Maestro tier)
 	--   95 →  672  (Immortal)
 	--   96 →  826  (Messi Immortal)
-	--   97 → 1016  (Maradona / Mbappe POTY)
+	--   97 → 1021  (Messi / Ronaldo / Mbappe POTY)
+	--   99 → 1545  (top POTY)
 }
 
 Constants.UI = {

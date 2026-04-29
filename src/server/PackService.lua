@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CardData   = require(ReplicatedStorage.Shared.CardData)
+local Constants  = require(ReplicatedStorage.Shared.Constants)
 local PackConfig = require(ReplicatedStorage.Shared.PackConfig)
 local Utils      = require(ReplicatedStorage.Shared.Utils)
 
@@ -16,85 +17,6 @@ function PackService.Init(dataService, economyService, remotes)
 	Remotes        = remotes
 end
 
--- ── Rarity tier helpers ──────────────────────────────────────
-
--- Maps a rarity string to its tier index in PackConfig.WeightTiers.
-local rarityToTierIndex = {}
-for i, tier in ipairs(PackConfig.WeightTiers) do
-	for _, rarityName in ipairs(tier.rarities) do
-		rarityToTierIndex[rarityName] = i
-	end
-end
-
--- Returns the pool of cards that belong to a given WeightTier.
-local function getCardsForTier(tier)
-	local raritySet = {}
-	for _, r in ipairs(tier.rarities) do
-		raritySet[r] = true
-	end
-
-	local results = {}
-	for _, card in ipairs(CardData.Pool) do
-		if raritySet[card.rarity] then
-			table.insert(results, card)
-		end
-	end
-	return results
-end
-
--- Returns all cards whose rarity is >= minRarity (by tier index).
-local function getCardsAboveMinRarity(minRarity)
-	local minIndex = rarityToTierIndex[minRarity] or 1
-	local results  = {}
-	for _, card in ipairs(CardData.Pool) do
-		local cardIndex = rarityToTierIndex[card.rarity] or 1
-		if cardIndex >= minIndex then
-			table.insert(results, card)
-		end
-	end
-	return results
-end
-
--- ── Weight adjustment (rebirth luck) ─────────────────────────
--- Shifts weight from lower tiers toward higher tiers based on
--- how many rebirth levels the player has.
-local function buildAdjustedWeights(baseWeights, rebirthTier)
-	local weights = {}
-	for i, w in ipairs(baseWeights) do
-		weights[i] = w
-	end
-
-	local upwardShift = math.min(rebirthTier or 0, PackConfig.MaxLuckShift)
-	while upwardShift > 0 do
-		for tierIndex = 1, #weights - 1 do
-			if upwardShift <= 0 then
-				break
-			end
-			local floor        = PackConfig.WeightFloorPerTier[tierIndex] or 0
-			local transferable = math.min(weights[tierIndex] - floor, 1)
-			if transferable > 0 then
-				weights[tierIndex]     = weights[tierIndex] - transferable
-				weights[tierIndex + 1] = weights[tierIndex + 1] + transferable
-				upwardShift            = upwardShift - transferable
-			end
-		end
-		-- Break if we can't shift anything further
-		local canShift = false
-		for tierIndex = 1, #weights - 1 do
-			local floor = PackConfig.WeightFloorPerTier[tierIndex] or 0
-			if weights[tierIndex] - floor >= 1 then
-				canShift = true
-				break
-			end
-		end
-		if not canShift then
-			break
-		end
-	end
-
-	return weights
-end
-
 -- ── Card selection ────────────────────────────────────────────
 
 local function chooseRandomCard(pool)
@@ -104,23 +26,20 @@ local function chooseRandomCard(pool)
 	return pool[math.random(1, #pool)]
 end
 
--- Roll one card using the weighted tier table.
-local function rollCard(weights)
-	local tierIndex = Utils.WeightedRandom(weights)
-	local tier      = PackConfig.WeightTiers[tierIndex]
-	local candidates = getCardsForTier(tier)
-	if #candidates == 0 then
-		-- Fallback: anything from the pool
-		candidates = CardData.Pool
+local function getCardsForRarity(rarity)
+	local results = {}
+	for _, card in ipairs(CardData.Pool) do
+		if card.rarity == rarity then
+			table.insert(results, card)
+		end
 	end
-	return chooseRandomCard(candidates)
+	return results
 end
 
--- Roll a guaranteed card that is at least minRarity.
-local function rollGuaranteed(minRarity)
-	local candidates = getCardsAboveMinRarity(minRarity)
+function PackService.ChooseCardVariant(rarity)
+	local candidates = getCardsForRarity(rarity)
 	if #candidates == 0 then
-		candidates = CardData.Pool
+		candidates = getCardsForRarity("Gold")
 	end
 	return chooseRandomCard(candidates)
 end
@@ -128,20 +47,43 @@ end
 -- ── Serialise ─────────────────────────────────────────────────
 
 local function serializeCard(card)
+	local powerScore = Utils.GetPowerScore(card)
 	return {
-		id         = card.id,
-		name       = card.name,
-		nation     = card.nation,
-		position   = card.position,
-		rating     = card.rating,
-		rarity     = card.rarity,
-		club       = card.club,
-		sellValue  = Utils.GetSellValue(card.rating),
-		marketFloor = Utils.GetMarketFloor(card.rating),
+		id = card.id,
+		name = card.name,
+		nation = card.nation,
+		position = card.position,
+		rarity = card.rarity,
+		club = card.club,
+		fansPerSecond = Utils.CalculateFansPerSecond(powerScore),
+		sellValue = Utils.GetSellValue(card),
+		marketFloor = Utils.GetMarketFloor(powerScore),
 	}
 end
 
+local function getCardPullLuckLevel(data)
+	local upgrades = data and data.upgrades or {}
+	return upgrades.CardPullLuck or 1
+end
+
+local function getPityInfoForNextPack(data)
+	local nextPackCount = (data.totalPacksOpened or data.totalCardsOpened or 0) + 1
+	return PackConfig.GetMilestoneGuarantee(nextPackCount, Constants.PackMilestones), nextPackCount
+end
+
 -- ── Public API ────────────────────────────────────────────────
+
+function PackService.GetBaseRarityOdds(packType)
+	return PackConfig.GetBaseRarityOdds(packType)
+end
+
+function PackService.ApplyCardPullLuck(baseOdds, cardPullLuckLevel, packType)
+	return PackConfig.ApplyCardPullLuck(baseOdds, cardPullLuckLevel, packType)
+end
+
+function PackService.ChooseCardRarity(packType, cardPullLuckLevel, pityInfo)
+	return PackConfig.ChooseCardRarity(packType, cardPullLuckLevel, pityInfo)
+end
 
 function PackService.OpenPack(player, packId, options)
 	if not DataService or not EconomyService then
@@ -162,7 +104,7 @@ function PackService.OpenPack(player, packId, options)
 
 	-- Cost handling
 	if options.ignoreCost then
-		-- Base pad spawns are free during early access.
+		-- Base pad spawns and scripted rewards are free.
 	elseif packDef.isFree then
 		local ok, err = EconomyService.ClaimFreePack(player)
 		if not ok then
@@ -175,37 +117,18 @@ function PackService.OpenPack(player, packId, options)
 		end
 	end
 
-	-- Build the per-pack weight table, then apply rebirth luck shift.
-	local baseWeights = packDef.tierWeights
-	if not baseWeights then
-		-- Fallback: equal weight across all tiers
-		baseWeights = {}
-		for i = 1, #PackConfig.WeightTiers do
-			baseWeights[i] = PackConfig.WeightTiers[i].weight or 0
-		end
+	local pityInfo, nextPackCount = getPityInfoForNextPack(data)
+	local cardPullLuckLevel = getCardPullLuckLevel(data)
+	local rarity = PackService.ChooseCardRarity(packId, cardPullLuckLevel, pityInfo)
+	local card = PackService.ChooseCardVariant(rarity)
+	if not card then
+		return false, { error = "Pack roll failed. Please try again." }
 	end
-	local weights = buildAdjustedWeights(baseWeights, data.rebirthTier or 0)
 
-	-- Roll cards
-	local cards = {}
-	for slot = 1, packDef.cardCount do
-		local card
-		if packDef.guaranteed and slot == 1 then
-			-- First slot is always the guaranteed roll.
-			card = rollGuaranteed(packDef.guaranteed.minRarity)
-		else
-			card = rollCard(weights)
-		end
-
-		if not card then
-			return false, { error = "Pack roll failed. Please try again." }
-		end
-
-		table.insert(cards, serializeCard(card))
-	end
+	local serializedCard = serializeCard(card)
 
 	-- Update stats
-	data.totalCardsOpened = (data.totalCardsOpened or 0) + #cards
+	data.totalCardsOpened = (data.totalCardsOpened or 0) + 1
 	data.totalPacksOpened = (data.totalPacksOpened or 0) + 1
 	DataService.MarkDirty(player)
 
@@ -214,14 +137,74 @@ function PackService.OpenPack(player, packId, options)
 	end
 
 	return true, {
-		success   = true,
-		packId    = packId,
-		packName  = packDef.displayName,
-		isFree    = options.ignoreCost == true or packDef.cost == 0,
-		newCoins  = DataService.GetCoins(player),
-		card      = cards[1],
-		cards     = cards,
+		success = true,
+		packId = packId,
+		packName = packDef.displayName,
+		isFree = options.ignoreCost == true or packDef.cost == 0,
+		newCoins = DataService.GetCoins(player),
+		card = serializedCard,
+		cards = { serializedCard },
+		cardPullLuckLevel = cardPullLuckLevel,
+		pityInfo = pityInfo,
+		packCount = nextPackCount,
 	}
+end
+
+-- ── Debug simulations ─────────────────────────────────────────
+
+function PackService.SimulatePackOpens(packType, cardPullLuckLevel, amount)
+	amount = math.max(1, math.floor(amount or 1000))
+	packType = packType or "GoldPack"
+	cardPullLuckLevel = cardPullLuckLevel or 1
+
+	local result = {
+		packType = packType,
+		cardPullLuckLevel = cardPullLuckLevel,
+		amount = amount,
+		countsByRarity = {},
+		exampleCards = {},
+	}
+
+	for _ = 1, amount do
+		local rarity = PackService.ChooseCardRarity(packType, cardPullLuckLevel)
+		local card = PackService.ChooseCardVariant(rarity)
+		result.countsByRarity[rarity] = (result.countsByRarity[rarity] or 0) + 1
+		if card and not result.exampleCards[rarity] then
+			result.exampleCards[rarity] = card.name .. " (" .. card.position .. ", " .. card.nation .. ")"
+		end
+	end
+
+	print("[PackService] Pull simulation:", packType, "CardPullLuck", cardPullLuckLevel, "opens", amount)
+	for _, rarity in ipairs(PackConfig.RarityOrder) do
+		print(rarity, result.countsByRarity[rarity] or 0, result.exampleCards[rarity] or "-")
+	end
+
+	return result
+end
+
+function PackService.SimulatePackSpawns(packSpawnLuckLevel, amount)
+	amount = math.max(1, math.floor(amount or 1000))
+	packSpawnLuckLevel = packSpawnLuckLevel or 1
+
+	local result = {
+		packSpawnLuckLevel = packSpawnLuckLevel,
+		amount = amount,
+		countsByPackType = {},
+		weights = PackConfig.GetPackSpawnWeights(packSpawnLuckLevel),
+	}
+
+	for _ = 1, amount do
+		local pack = PackConfig.ChooseSpawnPack(packSpawnLuckLevel)
+		local packName = pack and pack.displayName or "Unknown"
+		result.countsByPackType[packName] = (result.countsByPackType[packName] or 0) + 1
+	end
+
+	print("[PackService] Spawn simulation:", "PackSpawnLuck", packSpawnLuckLevel, "spawns", amount)
+	for _, pack in ipairs(PackConfig.ShopOrder) do
+		print(pack.displayName, result.countsByPackType[pack.displayName] or 0, "weight", result.weights[pack.id] or 0)
+	end
+
+	return result
 end
 
 return PackService

@@ -13,7 +13,7 @@ Replace these once you have real assets uploaded to Roblox.
 | Button click      | All button presses                  | "UI click" / "button press"         |
 
 ## Card art
-Cards currently show text only (name, rating, position, nation).
+Cards currently show text only (name, position, nation, rarity, fans/sec).
 To add art: upload player images to Roblox, note the asset ID, and add an
 ImageLabel inside the card's Front frame positioned in the upper half.
 

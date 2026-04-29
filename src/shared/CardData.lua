@@ -1,12 +1,13 @@
 -- ============================================================
 -- CardData.lua
--- Master card pool — 77 players, 123 card variants.
+-- Master card pool. Ratings remain as a legacy internal field and are mirrored
+-- to powerScore at load time. Never show either value in player-facing UI.
 --
 -- Rarity hierarchy (low → high):
 --   Gold → Rare Gold → Premium Gold → Talisman
 --   → Maestro → Immortal  (+ Player of the Year, special tier)
 --
--- Ratings are INTERNAL ONLY — never shown in player-facing UI.
+-- powerScore values are INTERNAL ONLY — never shown in player-facing UI.
 -- They drive passive fan income via the PassiveIncome formula
 -- in Constants.lua.
 --
@@ -21,10 +22,11 @@ CardData.Pool = {
 	-- ════════════════════════════════════════════════════════
 	-- IMMORTAL  ·  All-time legends  ·  no Gold base card
 	-- ════════════════════════════════════════════════════════
-	{ id = 1,  name = "Diego Maradona",         nation = "Argentina",   club = "Legend",         position = "SS",  rating = 97, rarity = "Immortal" },
-	{ id = 2,  name = "Pelé",                   nation = "Brazil",      club = "Legend",         position = "ST",  rating = 97, rarity = "Immortal" },
-	{ id = 3,  name = "Lionel Messi",           nation = "Argentina",   club = "Legend",         position = "RW",  rating = 96, rarity = "Immortal" },
-	{ id = 4,  name = "Cristiano Ronaldo",      nation = "Portugal",    club = "Legend",         position = "ST",  rating = 95, rarity = "Immortal" },
+	{ id = 1,   name = "Diego Maradona",        nation = "Argentina",   club = "Legend",         position = "SS",  rating = 95, rarity = "Immortal" },
+	{ id = 2,   name = "Pelé",                  nation = "Brazil",      club = "Legend",         position = "ST",  rating = 95, rarity = "Immortal" },
+	{ id = 3,   name = "Lionel Messi",          nation = "Argentina",   club = "Legend",         position = "RW",  rating = 97, rarity = "Immortal" },
+	{ id = 4,   name = "Cristiano Ronaldo",     nation = "Portugal",    club = "Legend",         position = "ST",  rating = 97, rarity = "Immortal" },
+	{ id = 124, name = "Neymar",                nation = "Brazil",      club = "Legend",         position = "LW",  rating = 93, rarity = "Immortal" },
 
 	-- ════════════════════════════════════════════════════════
 	-- MAESTRO  ·  Golden-era legends  ·  no Gold base card
@@ -64,6 +66,12 @@ CardData.Pool = {
 	{ id = 25, name = "Raphinha",               nation = "Brazil",      club = "Barcelona",      position = "LW",  rating = 91, rarity = "Premium Gold" },
 	{ id = 26, name = "Raphinha",               nation = "Brazil",      club = "Barcelona",      position = "LW",  rating = 93, rarity = "Player of the Year" },
 
+	-- Ousmane Dembele
+	{ id = 95,  name = "Ousmane Dembele",       nation = "France",      club = "PSG",            position = "RW",  rating = 91, rarity = "Gold" },
+	{ id = 125, name = "Ousmane Dembele",       nation = "France",      club = "PSG",            position = "RW",  rating = 92, rarity = "Rare Gold" },
+	{ id = 126, name = "Ousmane Dembele",       nation = "France",      club = "PSG",            position = "RW",  rating = 95, rarity = "Premium Gold" },
+	{ id = 127, name = "Ousmane Dembele",       nation = "France",      club = "PSG",            position = "RW",  rating = 99, rarity = "Player of the Year" },
+
 	-- ════════════════════════════════════════════════════════
 	-- TALISMAN  ·  3-card players (Gold + Rare Gold + Talisman)
 	-- ════════════════════════════════════════════════════════
@@ -86,7 +94,7 @@ CardData.Pool = {
 	-- Kevin De Bruyne
 	{ id = 36, name = "Kevin De Bruyne",        nation = "Belgium",     club = "Man City",       position = "CM",  rating = 87, rarity = "Gold" },
 	{ id = 37, name = "Kevin De Bruyne",        nation = "Belgium",     club = "Man City",       position = "CM",  rating = 89, rarity = "Rare Gold" },
-	{ id = 38, name = "Kevin De Bruyne",        nation = "Belgium",     club = "Man City",       position = "CM",  rating = 91, rarity = "Talisman" },
+	{ id = 38, name = "Kevin De Bruyne",        nation = "Belgium",     club = "Man City",       position = "CM",  rating = 90, rarity = "Talisman" },
 
 	-- Pedri
 	{ id = 39, name = "Pedri",                  nation = "Spain",       club = "Barcelona",      position = "CM",  rating = 86, rarity = "Gold" },
@@ -102,6 +110,11 @@ CardData.Pool = {
 	{ id = 45, name = "Khvicha Kvaratskhelia",  nation = "Georgia",     club = "PSG",            position = "LW",  rating = 85, rarity = "Gold" },
 	{ id = 46, name = "Khvicha Kvaratskhelia",  nation = "Georgia",     club = "PSG",            position = "LW",  rating = 87, rarity = "Rare Gold" },
 	{ id = 47, name = "Khvicha Kvaratskhelia",  nation = "Georgia",     club = "PSG",            position = "LW",  rating = 89, rarity = "Talisman" },
+
+	-- Bruno Fernandes
+	{ id = 90,  name = "Bruno Fernandes",       nation = "Portugal",    club = "Man United",     position = "CAM", rating = 88, rarity = "Gold" },
+	{ id = 128, name = "Bruno Fernandes",       nation = "Portugal",    club = "Man United",     position = "CAM", rating = 89, rarity = "Rare Gold" },
+	{ id = 129, name = "Bruno Fernandes",       nation = "Portugal",    club = "Man United",     position = "CAM", rating = 91, rarity = "Talisman" },
 
 	-- ════════════════════════════════════════════════════════
 	-- RARE GOLD  ·  2-card players (Gold + Rare Gold)
@@ -173,12 +186,10 @@ CardData.Pool = {
 
 	{ id = 88,  name = "Luka Modric",            nation = "Croatia",     club = "Real Madrid",    position = "CM",  rating = 83, rarity = "Gold" },
 	{ id = 89,  name = "Marcus Rashford",         nation = "England",     club = "Aston Villa",    position = "LW",  rating = 79, rarity = "Gold" },
-	{ id = 90,  name = "Bruno Fernandes",         nation = "Portugal",    club = "Man United",     position = "CAM", rating = 85, rarity = "Gold" },
 	{ id = 91,  name = "Frenkie de Jong",         nation = "Netherlands", club = "Barcelona",      position = "CM",  rating = 83, rarity = "Gold" },
 	{ id = 92,  name = "Gavi",                    nation = "Spain",       club = "Barcelona",      position = "CM",  rating = 83, rarity = "Gold" },
 	{ id = 93,  name = "Eduardo Camavinga",       nation = "France",      club = "Real Madrid",    position = "CM",  rating = 83, rarity = "Gold" },
 	{ id = 94,  name = "Federico Chiesa",         nation = "Italy",       club = "Liverpool",      position = "RW",  rating = 82, rarity = "Gold" },
-	{ id = 95,  name = "Ousmane Dembele",         nation = "France",      club = "PSG",            position = "RW",  rating = 84, rarity = "Gold" },
 	{ id = 96,  name = "Marcus Thuram",           nation = "France",      club = "Inter Milan",    position = "ST",  rating = 82, rarity = "Gold" },
 	{ id = 97,  name = "Darwin Nunez",            nation = "Uruguay",     club = "Liverpool",      position = "ST",  rating = 82, rarity = "Gold" },
 	{ id = 98,  name = "Dusan Vlahovic",          nation = "Serbia",      club = "Juventus",       position = "ST",  rating = 83, rarity = "Gold" },
@@ -207,23 +218,26 @@ CardData.Pool = {
 	{ id = 121, name = "Xavi Simons",             nation = "Netherlands", club = "PSG",            position = "CAM", rating = 83, rarity = "Gold" },
 	{ id = 122, name = "Warren Zaire-Emery",      nation = "France",      club = "PSG",            position = "CM",  rating = 81, rarity = "Gold" },
 	{ id = 123, name = "Mikel Merino",            nation = "Spain",       club = "Arsenal",        position = "CM",  rating = 82, rarity = "Gold" },
+	{ id = 130, name = "Anthony Martial",         nation = "France",      club = "Man United",     position = "ST",  rating = 83, rarity = "Gold" },
 }
 
 -- ── Fast lookup by ID ────────────────────────────────────────
 CardData.ById = {}
 for _, card in ipairs(CardData.Pool) do
+	card.powerScore = card.powerScore or card.rating
+	card.internalRating = card.internalRating or card.powerScore
 	CardData.ById[card.id] = card
 end
 
 -- ── Nation groupings (used by collection milestones) ─────────
 CardData.NationGroups = {
 	England     = { 30, 48, 52, 68, 70, 80, 89, 115, 120 },
-	France      = { 7,  9,  11, 23, 84, 93, 95, 96, 105, 113, 122 },
-	Brazil      = { 2,  6,  8,  33, 60, 78, 96, 97, 101, 104, 106, 109, 116 },
+	France      = { 7,  9,  11, 23, 84, 93, 95, 96, 105, 113, 122, 125, 126, 127, 130 },
+	Brazil      = { 2,  6,  8,  33, 60, 78, 96, 97, 101, 104, 106, 109, 116, 124 },
 	Spain       = { 5,  39, 56, 72, 92, 100, 102, 119, 123 },
 	Germany     = { 10, 42, 50, 66, 110, 111, 117 },
 	Argentina   = { 1,  3,  62, 108 },
-	Portugal    = { 4,  64, 76, 90, 114 },
+	Portugal    = { 4,  64, 76, 90, 114, 128, 129 },
 }
 
 return CardData

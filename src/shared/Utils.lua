@@ -9,6 +9,9 @@ function Utils.WeightedRandom(weights)
 	for _, weight in ipairs(weights) do
 		total += weight
 	end
+	if total <= 0 then
+		return nil
+	end
 
 	local roll = math.random() * total
 	local running = 0
@@ -51,28 +54,48 @@ function Utils.FormatCountdown(seconds)
 	return string.format("%ds", secs)
 end
 
-function Utils.GetSellValue(rating)
-	return Constants.SellValues[rating] or 0
+function Utils.GetPowerScore(cardOrScore)
+	if type(cardOrScore) == "table" then
+		return cardOrScore.powerScore
+			or cardOrScore.internalRating
+			or cardOrScore.rating
+			or Constants.PassiveIncome.BaseRating
+	end
+
+	return cardOrScore or Constants.PassiveIncome.BaseRating
 end
 
-function Utils.GetMarketFloor(rating)
-	return Constants.MarketFloors[rating] or 0
+function Utils.GetSellValue(cardOrScore)
+	local powerScore = Utils.GetPowerScore(cardOrScore)
+	local baseValue = Constants.SellValues[powerScore] or 0
+	if type(cardOrScore) == "table" then
+		local multipliers = Constants.RaritySellMultipliers or {}
+		local rarityMultiplier = multipliers[cardOrScore.rarity] or 1
+		return math.floor(baseValue * rarityMultiplier)
+	end
+	return baseValue
 end
 
-function Utils.GetPassiveIncome(rating)
+function Utils.GetMarketFloor(cardOrScore)
+	local powerScore = Utils.GetPowerScore(cardOrScore)
+	return Constants.MarketFloors[powerScore] or 0
+end
+
+function Utils.CalculateFansPerSecond(cardOrScore)
 	local config = Constants.PassiveIncome
-	local ratingSteps = math.max(0, (rating or config.BaseRating) - config.BaseRating)
+	local powerScore = Utils.GetPowerScore(cardOrScore)
+	local ratingSteps = math.max(0, powerScore - config.BaseRating)
 	-- Exponential curve: base * growthRate^steps
 	-- This makes high-rarity cards dramatically more valuable (Immortals = 1000+/s)
 	return math.floor(config.BasePerSecond * (config.GrowthRate ^ ratingSteps))
 end
 
-function Utils.GetCardIncomeRating(cardOrRating)
-	if type(cardOrRating) == "table" then
-		return cardOrRating.internalRating or cardOrRating.rating or Constants.PassiveIncome.BaseRating
-	end
+function Utils.GetPassiveIncome(cardOrScore)
+	return Utils.CalculateFansPerSecond(cardOrScore)
+end
 
-	return cardOrRating or Constants.PassiveIncome.BaseRating
+function Utils.GetCardIncomeRating(cardOrRating)
+	return Utils.GetPowerScore(cardOrRating)
 end
 
 function Utils.GetRarityStyle(rarity)

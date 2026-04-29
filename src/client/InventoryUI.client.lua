@@ -13,6 +13,7 @@ local Utils = require(Shared:WaitForChild("Utils"))
 
 local GetInventoryFn = Remotes:WaitForChild("GetInventory")
 local SellCardFn = Remotes:WaitForChild("SellCard")
+local SellAllCardsFn = Remotes:WaitForChild("SellAllCards")
 local PackOpenedEvent = Remotes:WaitForChild("PackOpened")
 local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
 local OpenSlotPickerEvent = Remotes:WaitForChild("OpenSlotPicker")
@@ -122,11 +123,26 @@ local statusLabel = make("TextLabel", {
 	Font = Enum.Font.GothamBold,
 }, panel)
 
+local sortBar = make("Frame", {
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1, -24, 0, 26),
+	Position = UDim2.new(0, 12, 0, 76),
+}, panel)
+
+local sortLayout = make("UIListLayout", {
+	FillDirection = Enum.FillDirection.Horizontal,
+	HorizontalAlignment = Enum.HorizontalAlignment.Left,
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+	Padding = UDim.new(0, 6),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, sortBar)
+_ = sortLayout
+
 local scrolling = make("ScrollingFrame", {
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
-	Size = UDim2.new(1, -24, 1, -94),
-	Position = UDim2.new(0, 12, 0, 82),
+	Size = UDim2.new(1, -24, 1, -124),
+	Position = UDim2.new(0, 12, 0, 112),
 	CanvasSize = UDim2.new(),
 	ScrollBarThickness = 6,
 }, panel)
@@ -138,11 +154,62 @@ local layout = make("UIGridLayout", {
 }, scrolling)
 
 local currentMode = "inventory"
+local currentSortMode = "fans"
 local targetSlotIndex = nil
 local isSubmitting = false
 local statusOverride = nil
 local refreshToken = 0
 local refreshInventory
+
+local RARITY_RANK = {
+	["Gold"] = 1,
+	["Rare Gold"] = 2,
+	["Premium Gold"] = 3,
+	["Talisman"] = 4,
+	["Maestro"] = 5,
+	["Immortal"] = 6,
+	["Player of the Year"] = 7,
+}
+
+local sortButtons = {}
+
+local function setSortMode(mode)
+	currentSortMode = mode
+	for _, entry in ipairs(sortButtons) do
+		entry.button.BackgroundColor3 = entry.mode == currentSortMode and Constants.UI.Gold or Constants.UI.PanelAlt
+		entry.button.TextColor3 = entry.mode == currentSortMode and Color3.fromRGB(18, 12, 6) or Constants.UI.Text
+	end
+	if panel.Visible then
+		refreshInventory()
+	end
+end
+
+local function createSortButton(order, mode, label)
+	local button = make("TextButton", {
+		LayoutOrder = order,
+		Size = UDim2.fromOffset(44, 24),
+		BackgroundColor3 = Constants.UI.PanelAlt,
+		Text = label,
+		TextColor3 = Constants.UI.Text,
+		TextScaled = false,
+		TextSize = 9,
+		Font = Enum.Font.GothamBlack,
+	}, sortBar)
+	addCorner(button, 8)
+	table.insert(sortButtons, { mode = mode, button = button })
+	button.MouseButton1Click:Connect(function()
+		setSortMode(mode)
+	end)
+	return button
+end
+
+createSortButton(1, "fans", "Fans")
+createSortButton(2, "rarity", "Rare")
+createSortButton(3, "newest", "New")
+createSortButton(4, "position", "Pos")
+createSortButton(5, "nation", "Nation")
+createSortButton(6, "quantity", "Qty")
+setSortMode("fans")
 
 local function clearEntries()
 	for _, child in ipairs(scrolling:GetChildren()) do
@@ -184,9 +251,9 @@ local function mergeInventoryRows(inventory)
 					name = card.name,
 					nation = card.nation,
 					position = card.position,
-					rating = card.rating,
 					rarity = card.rarity,
 					quantity = tonumber(card.quantity) or 1,
+					fansPerSecond = card.fansPerSecond or 0,
 					sellValue = card.sellValue,
 				}
 				byId[cardId] = entry
@@ -196,10 +263,34 @@ local function mergeInventoryRows(inventory)
 	end
 
 	table.sort(merged, function(a, b)
-		if a.rating == b.rating then
+		if currentSortMode == "rarity" then
+			local ar = RARITY_RANK[a.rarity] or 0
+			local br = RARITY_RANK[b.rarity] or 0
+			if ar ~= br then
+				return ar > br
+			end
+		elseif currentSortMode == "newest" then
+			if a.id ~= b.id then
+				return a.id > b.id
+			end
+		elseif currentSortMode == "position" then
+			if a.position ~= b.position then
+				return tostring(a.position) < tostring(b.position)
+			end
+		elseif currentSortMode == "nation" then
+			if a.nation ~= b.nation then
+				return tostring(a.nation) < tostring(b.nation)
+			end
+		elseif currentSortMode == "quantity" then
+			if a.quantity ~= b.quantity then
+				return a.quantity > b.quantity
+			end
+		end
+
+		if a.fansPerSecond == b.fansPerSecond then
 			return a.name < b.name
 		end
-		return a.rating > b.rating
+		return a.fansPerSecond > b.fansPerSecond
 	end)
 
 	return merged
@@ -257,7 +348,7 @@ function refreshInventory()
 		local darkColor = style.dark or Constants.UI.PanelAlt
 		local trimColor = style.trim or rarityColor
 		local textColor = style.text or Constants.UI.Text
-		local incomePerSecond = Utils.GetPassiveIncome(Utils.GetCardIncomeRating(card))
+		local incomePerSecond = card.fansPerSecond or 0
 
 		local tile = make("Frame", {
 			LayoutOrder = index,
@@ -366,6 +457,7 @@ function refreshInventory()
 		}, tile)
 
 		local actionButton
+		local sellAllButton
 		if isSlotPicker then
 			actionButton = make("TextButton", {
 				AnchorPoint = Vector2.new(0.5, 1),
@@ -378,16 +470,30 @@ function refreshInventory()
 				Font = Enum.Font.GothamBlack,
 			}, tile)
 		else
+			local hasDuplicates = (card.quantity or 1) > 1
 			actionButton = make("TextButton", {
-				AnchorPoint = Vector2.new(0.5, 1),
-				Position = UDim2.new(0.5, 0, 1, -8),
-				Size = UDim2.new(0.82, 0, 0, 30),
+				AnchorPoint = Vector2.new(0, 1),
+				Position = hasDuplicates and UDim2.new(0.09, 0, 1, -8) or UDim2.new(0.09, 0, 1, -8),
+				Size = hasDuplicates and UDim2.new(0.39, 0, 0, 30) or UDim2.new(0.82, 0, 0, 30),
 				BackgroundColor3 = Constants.UI.Danger,
 				Text = "Sell 1 +" .. tostring(card.sellValue),
 				TextColor3 = Constants.UI.Text,
 				TextScaled = true,
 				Font = Enum.Font.GothamBlack,
 			}, tile)
+			if hasDuplicates then
+				sellAllButton = make("TextButton", {
+					AnchorPoint = Vector2.new(1, 1),
+					Position = UDim2.new(0.91, 0, 1, -8),
+					Size = UDim2.new(0.39, 0, 0, 30),
+					BackgroundColor3 = Color3.fromRGB(128, 45, 40),
+					Text = "All +" .. tostring((card.sellValue or 0) * (card.quantity or 1)),
+					TextColor3 = Constants.UI.Text,
+					TextScaled = true,
+					Font = Enum.Font.GothamBlack,
+				}, tile)
+				addCorner(sellAllButton, 10)
+			end
 		end
 		addCorner(actionButton, 10)
 
@@ -427,6 +533,32 @@ function refreshInventory()
 			statusOverride = (result and result.error) or "Could not sell that player."
 			refreshInventory()
 		end)
+
+		if sellAllButton then
+			sellAllButton.MouseButton1Click:Connect(function()
+				if isSubmitting then
+					return
+				end
+
+				isSubmitting = true
+				sellAllButton.Text = "Selling..."
+				local cardIds = {}
+				for _ = 1, (card.quantity or 1) do
+					table.insert(cardIds, card.id)
+				end
+				local result = SellAllCardsFn:InvokeServer(cardIds)
+				isSubmitting = false
+
+				if result and result.success then
+					statusOverride = card.name .. " stack sold for +" .. tostring(result.coinsEarned or 0) .. " Fans."
+					refreshInventory()
+					return
+				end
+
+				statusOverride = (result and result.error) or "Could not sell that stack."
+				refreshInventory()
+			end)
+		end
 	end
 
 	task.defer(function()
