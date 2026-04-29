@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
@@ -9,6 +10,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local Constants = require(Shared:WaitForChild("Constants"))
+local CardData = require(Shared:WaitForChild("CardData"))
 local Utils = require(Shared:WaitForChild("Utils"))
 
 local GetInventoryFn = Remotes:WaitForChild("GetInventory")
@@ -126,10 +128,43 @@ local statusLabel = make("TextLabel", {
 	Font = Enum.Font.GothamBold,
 }, panel)
 
+local bulkBar = make("Frame", {
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1, -24, 0, 26),
+	Position = UDim2.new(0, 12, 0, 78),
+}, panel)
+
+make("UIListLayout", {
+	FillDirection = Enum.FillDirection.Horizontal,
+	HorizontalAlignment = Enum.HorizontalAlignment.Left,
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+	Padding = UDim.new(0, 8),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, bulkBar)
+
+local function createBulkButton(order, text, backgroundColor)
+	local button = make("TextButton", {
+		LayoutOrder = order,
+		Size = UDim2.fromOffset(136, 24),
+		BackgroundColor3 = backgroundColor,
+		Text = text,
+		TextColor3 = Color3.fromRGB(18, 12, 6),
+		TextScaled = false,
+		TextSize = 10,
+		Font = Enum.Font.GothamBlack,
+	}, bulkBar)
+	addCorner(button, 8)
+	addStroke(button, Color3.fromRGB(255, 236, 150), 1, 0.45)
+	return button
+end
+
+local sellGoldButton = createBulkButton(1, "Sell All Gold", Constants.UI.Gold)
+local sellWeakButton = createBulkButton(2, "Sell <100/s", Color3.fromRGB(255, 190, 78))
+
 local sortBar = make("Frame", {
 	BackgroundTransparency = 1,
 	Size = UDim2.new(1, -24, 0, 26),
-	Position = UDim2.new(0, 12, 0, 76),
+	Position = UDim2.new(0, 12, 0, 110),
 }, panel)
 
 local sortLayout = make("UIListLayout", {
@@ -144,14 +179,14 @@ _ = sortLayout
 local scrolling = make("ScrollingFrame", {
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
-	Size = UDim2.new(1, -24, 1, -124),
-	Position = UDim2.new(0, 12, 0, 112),
+	Size = UDim2.new(1, -24, 1, -158),
+	Position = UDim2.new(0, 12, 0, 146),
 	CanvasSize = UDim2.new(),
 	ScrollBarThickness = 6,
 }, panel)
 
 local layout = make("UIGridLayout", {
-	CellSize = UDim2.fromOffset(132, 176),
+	CellSize = UDim2.fromOffset(132, 188),
 	CellPadding = UDim2.fromOffset(10, 10),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, scrolling)
@@ -159,6 +194,7 @@ local layout = make("UIGridLayout", {
 local currentMode = "inventory"
 local currentSortMode = "fans"
 local targetSlotIndex = nil
+local lastInventory = {}
 local isSubmitting = false
 local statusOverride = nil
 local refreshToken = 0
@@ -174,9 +210,27 @@ local RARITY_RANK = {
 	["Player of the Year"] = 7,
 }
 
+local TOTAL_CARD_VARIANTS = #(CardData.Pool or {})
+
 local function formatShortNumber(value)
 	return Utils.FormatNumber(math.max(0, tonumber(value) or 0))
 end
+
+local function addButtonHover(button, normalColor, hoverColor)
+	button.MouseEnter:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.1), {
+			BackgroundColor3 = hoverColor,
+		}):Play()
+	end)
+	button.MouseLeave:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.1), {
+			BackgroundColor3 = normalColor,
+		}):Play()
+	end)
+end
+
+addButtonHover(sellGoldButton, Constants.UI.Gold, Color3.fromRGB(255, 235, 88))
+addButtonHover(sellWeakButton, Color3.fromRGB(255, 190, 78), Color3.fromRGB(255, 213, 110))
 
 local sortButtons = {}
 
@@ -194,12 +248,12 @@ end
 local function createSortButton(order, mode, label)
 	local button = make("TextButton", {
 		LayoutOrder = order,
-		Size = UDim2.fromOffset(76, 24),
+		Size = UDim2.fromOffset(54, 24),
 		BackgroundColor3 = Constants.UI.PanelAlt,
 		Text = label,
 		TextColor3 = Constants.UI.Text,
 		TextScaled = false,
-		TextSize = 10,
+		TextSize = 9,
 		Font = Enum.Font.GothamBlack,
 	}, sortBar)
 	addCorner(button, 8)
@@ -316,19 +370,69 @@ local function getInventorySummary(inventory)
 	end
 
 	return string.format(
-		"%d stored • %d card types • best %s fans/s • stack value %s",
+		"Stored: %d    Unique: %d/%d    Best: %s fans/s    Total Value: %s",
 		totalCards,
 		#inventory,
+		TOTAL_CARD_VARIANTS,
 		formatShortNumber(bestFans),
 		formatShortNumber(totalValue)
 	)
 end
+
+local function sellMatchingCards(predicate, emptyMessage, successMessage)
+	if isSubmitting then
+		return
+	end
+	if currentMode ~= "inventory" then
+		return
+	end
+
+	local cardIds = {}
+	for _, card in ipairs(lastInventory) do
+		if predicate(card) then
+			for _ = 1, (card.quantity or 1) do
+				table.insert(cardIds, card.id)
+			end
+		end
+	end
+
+	if #cardIds == 0 then
+		statusOverride = emptyMessage
+		refreshInventory()
+		return
+	end
+
+	isSubmitting = true
+	statusOverride = "Selling..."
+	local result = SellAllCardsFn:InvokeServer(cardIds)
+	isSubmitting = false
+
+	if result and result.success then
+		statusOverride = successMessage .. " +" .. formatShortNumber(result.coinsEarned or 0) .. " Fans."
+	else
+		statusOverride = (result and result.error) or "Could not sell those players."
+	end
+	refreshInventory()
+end
+
+sellGoldButton.MouseButton1Click:Connect(function()
+	sellMatchingCards(function(card)
+		return card.rarity == "Gold"
+	end, "No stored Gold cards to sell.", "Gold cards sold for")
+end)
+
+sellWeakButton.MouseButton1Click:Connect(function()
+	sellMatchingCards(function(card)
+		return (card.fansPerSecond or 0) < 100
+	end, "No stored players below 100 fans/s.", "Low earners sold for")
+end)
 
 function refreshInventory()
 	refreshToken += 1
 	local myToken = refreshToken
 
 	local inventory = mergeInventoryRows(GetInventoryFn:InvokeServer())
+	lastInventory = inventory
 
 	-- If another refresh started while we were yielded on InvokeServer, bail so we
 	-- don't append a stale render on top of (or before) the newer one.
@@ -340,9 +444,11 @@ function refreshInventory()
 	local isSlotPicker = currentMode == "slotPicker"
 
 	if isSlotPicker then
+		bulkBar.Visible = false
 		title.Text = "Choose Player"
 		statusLabel.Text = "Best earners are shown first for display slot " .. tostring(targetSlotIndex) .. "."
 	else
+		bulkBar.Visible = true
 		title.Text = "Stored Players"
 		statusLabel.Text = getInventorySummary(inventory)
 	end
@@ -383,15 +489,25 @@ function refreshInventory()
 			BackgroundColor3 = darkColor,
 		}, scrolling)
 		addCorner(tile, 14)
-		addStroke(tile, trimColor, 1.5, 0.35)
+		local tileStroke = addStroke(tile, trimColor, 2, 0.28)
+		local tileScale = make("UIScale", { Scale = 1 }, tile)
+
+		tile.MouseEnter:Connect(function()
+			TweenService:Create(tileScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Scale = 1.025 }):Play()
+			TweenService:Create(tileStroke, TweenInfo.new(0.12), { Transparency = 0.06 }):Play()
+		end)
+		tile.MouseLeave:Connect(function()
+			TweenService:Create(tileScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Scale = 1 }):Play()
+			TweenService:Create(tileStroke, TweenInfo.new(0.12), { Transparency = 0.28 }):Play()
+		end)
 
 		make("UIGradient", {
 			Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.08)),
-				ColorSequenceKeypoint.new(0.52, secondaryColor),
+				ColorSequenceKeypoint.new(0, darkColor),
+				ColorSequenceKeypoint.new(0.48, secondaryColor),
 				ColorSequenceKeypoint.new(1, darkColor),
 			}),
-			Rotation = 145,
+			Rotation = 35,
 		}, tile)
 
 		local rarityLabel = make("TextLabel", {
@@ -411,41 +527,28 @@ function refreshInventory()
 		local quantityBadge = make("Frame", {
 			AnchorPoint = Vector2.new(1, 0),
 			Position = UDim2.new(1, -10, 0, 8),
-			Size = UDim2.fromOffset(42, 22),
-			BackgroundColor3 = Color3.fromRGB(7, 9, 14),
-			BackgroundTransparency = 0.1,
+			Size = UDim2.fromOffset(44, 24),
+			BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0,
 			BorderSizePixel = 0,
 		}, tile)
-		addCorner(quantityBadge, 8)
-		addStroke(quantityBadge, trimColor, 1, 0.45)
+		addCorner(quantityBadge, 10)
+		addStroke(quantityBadge, Color3.fromRGB(255, 246, 190), 1, 0.45)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
 			Size = UDim2.fromScale(1, 1),
 			Text = "x" .. tostring(card.quantity),
-			TextColor3 = textColor,
+			TextColor3 = Color3.fromRGB(18, 12, 6),
 			TextScaled = false,
-			TextSize = 12,
+			TextSize = 13,
 			Font = Enum.Font.GothamBlack,
 		}, quantityBadge)
 
-		make("TextLabel", {
-			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(10, 32),
-			Size = UDim2.new(1, -20, 0, 18),
-			Text = string.upper(tostring(card.position or "--")) .. "  •  " .. tostring(card.nation or "Unknown"),
-			TextColor3 = Constants.UI.Muted,
-			TextScaled = false,
-			TextSize = 10,
-			Font = Enum.Font.GothamBold,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-		}, tile)
-
 		local nameLabel = make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(10, 52),
-			Size = UDim2.new(1, -20, 0, 46),
+			Position = UDim2.fromOffset(10, 36),
+			Size = UDim2.new(1, -20, 0, 42),
 			Text = card.name,
 			TextColor3 = textColor,
 			TextScaled = true,
@@ -454,23 +557,47 @@ function refreshInventory()
 		}, tile)
 		make("UITextSizeConstraint", { MinTextSize = 14, MaxTextSize = 24 }, nameLabel)
 
-		make("TextLabel", {
-			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(10, 101),
-			Size = UDim2.new(1, -20, 0, 24),
-			Text = formatShortNumber(incomePerSecond) .. " fans/s",
-			TextColor3 = rarityColor,
-			TextScaled = false,
-			TextSize = 18,
-			Font = Enum.Font.GothamBold,
-			TextXAlignment = Enum.TextXAlignment.Left,
+		local fansPill = make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(6, 8, 13),
+			BackgroundTransparency = 0.08,
+			BorderSizePixel = 0,
+			Position = UDim2.fromOffset(10, 82),
+			Size = UDim2.new(1, -20, 0, 34),
 		}, tile)
+		addCorner(fansPill, 10)
+		addStroke(fansPill, style.glow or trimColor, 1.5, 0.08)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(10, 123),
+			Size = UDim2.fromScale(1, 1),
+			Text = formatShortNumber(incomePerSecond) .. " fans/s",
+			TextColor3 = style.glow or Color3.fromRGB(255, 225, 88),
+			TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
+			TextStrokeTransparency = 0.45,
+			TextScaled = false,
+			TextSize = 20,
+			Font = Enum.Font.GothamBlack,
+		}, fansPill)
+
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(10, 120),
+			Size = UDim2.new(1, -20, 0, 16),
+			Text = string.upper(tostring(card.position or "--")) .. "  •  " .. tostring(card.nation or "Unknown"),
+			TextColor3 = Constants.UI.Muted,
+			TextScaled = false,
+			TextSize = 10,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+		}, tile)
+
+		local hasDuplicates = (card.quantity or 1) > 1
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(10, 136),
 			Size = UDim2.new(1, -20, 0, 14),
-			Text = isSlotPicker and "Ready for display" or ("Sell +" .. formatShortNumber(card.sellValue or 0) .. " each"),
+			Text = isSlotPicker and "Select for display" or (hasDuplicates and ("+" .. formatShortNumber(card.sellValue or 0) .. " each") or ""),
 			TextColor3 = Constants.UI.Muted,
 			TextScaled = false,
 			TextSize = 10,
@@ -481,45 +608,48 @@ function refreshInventory()
 		local actionButton
 		local sellAllButton
 		if isSlotPicker then
+			local selectColor = Color3.fromRGB(74, 185, 98)
 			actionButton = make("TextButton", {
 				AnchorPoint = Vector2.new(0.5, 1),
 				Position = UDim2.new(0.5, 0, 1, -8),
-				Size = UDim2.new(0.84, 0, 0, 30),
-				BackgroundColor3 = Color3.fromRGB(74, 185, 98),
-				Text = "Place",
+				Size = UDim2.new(0.84, 0, 0, 28),
+				BackgroundColor3 = selectColor,
+				Text = "Select",
 				TextColor3 = Constants.UI.Text,
 				TextScaled = false,
 				TextSize = 15,
 				Font = Enum.Font.GothamBlack,
 			}, tile)
+			addButtonHover(actionButton, selectColor, Color3.fromRGB(92, 210, 118))
 		else
-			local hasDuplicates = (card.quantity or 1) > 1
+			local sellOneColor = Constants.UI.Danger
 			actionButton = make("TextButton", {
 				AnchorPoint = Vector2.new(0, 1),
 				Position = UDim2.new(0.08, 0, 1, -8),
-				Size = hasDuplicates and UDim2.new(0.40, 0, 0, 30) or UDim2.new(0.84, 0, 0, 30),
-				BackgroundColor3 = Constants.UI.Danger,
-				Text = hasDuplicates and ("Sell 1\n+" .. formatShortNumber(card.sellValue or 0)) or ("Sell +" .. formatShortNumber(card.sellValue or 0)),
+				Size = hasDuplicates and UDim2.new(0.40, 0, 0, 28) or UDim2.new(0.84, 0, 0, 28),
+				BackgroundColor3 = sellOneColor,
+				Text = hasDuplicates and "Sell 1" or ("Sell +" .. formatShortNumber(card.sellValue or 0)),
 				TextColor3 = Constants.UI.Text,
 				TextScaled = false,
-				TextSize = hasDuplicates and 11 or 14,
-				TextWrapped = true,
+				TextSize = 14,
 				Font = Enum.Font.GothamBlack,
 			}, tile)
+			addButtonHover(actionButton, sellOneColor, Color3.fromRGB(210, 92, 68))
 			if hasDuplicates then
+				local sellAllColor = Color3.fromRGB(128, 45, 40)
 				sellAllButton = make("TextButton", {
 					AnchorPoint = Vector2.new(1, 1),
 					Position = UDim2.new(0.92, 0, 1, -8),
-					Size = UDim2.new(0.40, 0, 0, 30),
-					BackgroundColor3 = Color3.fromRGB(128, 45, 40),
-					Text = "All\n+" .. formatShortNumber((card.sellValue or 0) * (card.quantity or 1)),
+					Size = UDim2.new(0.40, 0, 0, 28),
+					BackgroundColor3 = sellAllColor,
+					Text = "Sell All",
 					TextColor3 = Constants.UI.Text,
 					TextScaled = false,
-					TextSize = 11,
-					TextWrapped = true,
+					TextSize = 13,
 					Font = Enum.Font.GothamBlack,
 				}, tile)
 				addCorner(sellAllButton, 10)
+				addButtonHover(sellAllButton, sellAllColor, Color3.fromRGB(154, 56, 50))
 			end
 		end
 		addCorner(actionButton, 10)
@@ -532,7 +662,7 @@ function refreshInventory()
 			isSubmitting = true
 
 			if isSlotPicker then
-				actionButton.Text = "Placing..."
+				actionButton.Text = "Selecting..."
 
 				local result = PlaceInventoryCardInSlotFn:InvokeServer(targetSlotIndex, card.id)
 				isSubmitting = false
@@ -542,7 +672,7 @@ function refreshInventory()
 					return
 				end
 
-				statusOverride = (result and result.error) or "Could not place that player."
+				statusOverride = (result and result.error) or "Could not select that player."
 				refreshInventory()
 				return
 			end
