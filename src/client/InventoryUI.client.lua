@@ -210,10 +210,118 @@ local RARITY_RANK = {
 	["Player of the Year"] = 7,
 }
 
+local INVENTORY_SKINS = {
+	["Gold"] = {
+		bgA = Color3.fromRGB(132, 96, 18),
+		bgB = Color3.fromRGB(214, 158, 36),
+		bgC = Color3.fromRGB(104, 72, 12),
+		trim = Color3.fromRGB(255, 207, 66),
+		glow = Color3.fromRGB(255, 222, 88),
+		text = Color3.fromRGB(255, 250, 226),
+		meta = Color3.fromRGB(238, 210, 140),
+		fansBg = Color3.fromRGB(52, 37, 8),
+		badgeBg = Color3.fromRGB(255, 211, 64),
+		badgeText = Color3.fromRGB(32, 22, 4),
+	},
+	["Rare Gold"] = {
+		bgA = Color3.fromRGB(118, 43, 4),
+		bgB = Color3.fromRGB(255, 142, 18),
+		bgC = Color3.fromRGB(70, 25, 3),
+		trim = Color3.fromRGB(255, 236, 88),
+		glow = Color3.fromRGB(255, 176, 34),
+		text = Color3.fromRGB(255, 248, 220),
+		meta = Color3.fromRGB(255, 205, 130),
+		fansBg = Color3.fromRGB(50, 18, 2),
+		badgeBg = Color3.fromRGB(255, 236, 88),
+		badgeText = Color3.fromRGB(42, 20, 2),
+	},
+	["Premium Gold"] = {
+		bgA = Color3.fromRGB(0, 0, 0),
+		bgB = Color3.fromRGB(13, 13, 15),
+		bgC = Color3.fromRGB(0, 0, 0),
+		trim = Color3.fromRGB(255, 222, 72),
+		glow = Color3.fromRGB(255, 232, 126),
+		text = Color3.fromRGB(255, 248, 220),
+		meta = Color3.fromRGB(205, 180, 105),
+		fansBg = Color3.fromRGB(18, 14, 4),
+		badgeBg = Color3.fromRGB(255, 222, 72),
+		badgeText = Color3.fromRGB(6, 6, 6),
+	},
+	["Talisman"] = {
+		bgA = Color3.fromRGB(72, 4, 10),
+		bgB = Color3.fromRGB(196, 22, 26),
+		bgC = Color3.fromRGB(38, 2, 7),
+		trim = Color3.fromRGB(255, 98, 72),
+		glow = Color3.fromRGB(255, 76, 58),
+		text = Color3.fromRGB(255, 235, 226),
+		meta = Color3.fromRGB(255, 156, 140),
+		fansBg = Color3.fromRGB(34, 2, 5),
+		badgeBg = Color3.fromRGB(255, 98, 72),
+		badgeText = Color3.fromRGB(36, 2, 4),
+	},
+	["Maestro"] = {
+		bgA = Color3.fromRGB(28, 8, 72),
+		bgB = Color3.fromRGB(116, 44, 214),
+		bgC = Color3.fromRGB(14, 5, 36),
+		trim = Color3.fromRGB(218, 160, 255),
+		glow = Color3.fromRGB(190, 104, 255),
+		text = Color3.fromRGB(250, 238, 255),
+		meta = Color3.fromRGB(218, 178, 255),
+		fansBg = Color3.fromRGB(20, 5, 46),
+		badgeBg = Color3.fromRGB(218, 160, 255),
+		badgeText = Color3.fromRGB(24, 8, 50),
+	},
+	["Immortal"] = {
+		bgA = Color3.fromRGB(232, 248, 255),
+		bgB = Color3.fromRGB(116, 184, 255),
+		bgC = Color3.fromRGB(246, 255, 255),
+		trim = Color3.fromRGB(255, 255, 255),
+		glow = Color3.fromRGB(228, 252, 255),
+		text = Color3.fromRGB(12, 22, 36),
+		meta = Color3.fromRGB(42, 72, 104),
+		fansBg = Color3.fromRGB(12, 32, 52),
+		badgeBg = Color3.fromRGB(255, 255, 255),
+		badgeText = Color3.fromRGB(12, 22, 36),
+	},
+	["Player of the Year"] = {
+		bgA = Color3.fromRGB(0, 0, 0),
+		bgB = Color3.fromRGB(70, 52, 8),
+		bgC = Color3.fromRGB(0, 0, 0),
+		trim = Color3.fromRGB(255, 226, 74),
+		glow = Color3.fromRGB(255, 226, 88),
+		text = Color3.fromRGB(255, 246, 210),
+		meta = Color3.fromRGB(230, 198, 100),
+		fansBg = Color3.fromRGB(20, 14, 2),
+		badgeBg = Color3.fromRGB(255, 226, 74),
+		badgeText = Color3.fromRGB(4, 4, 4),
+		crown = true,
+	},
+}
+
 local TOTAL_CARD_VARIANTS = #(CardData.Pool or {})
 
 local function formatShortNumber(value)
 	return Utils.FormatNumber(math.max(0, tonumber(value) or 0))
+end
+
+local function getInventorySkin(rarity, style)
+	local skin = INVENTORY_SKINS[rarity]
+	if skin then
+		return skin
+	end
+
+	return {
+		bgA = style.dark or Constants.UI.PanelAlt,
+		bgB = style.secondary or style.primary or Constants.UI.Gold,
+		bgC = style.dark or Constants.UI.PanelAlt,
+		trim = style.trim or style.primary or Constants.UI.Gold,
+		glow = style.glow or style.primary or Constants.UI.Gold,
+		text = style.text or Constants.UI.Text,
+		meta = Constants.UI.Muted,
+		fansBg = Color3.fromRGB(6, 8, 13),
+		badgeBg = style.trim or style.primary or Constants.UI.Gold,
+		badgeText = Color3.fromRGB(18, 12, 6),
+	}
 end
 
 local function addButtonHover(button, normalColor, hoverColor)
@@ -477,11 +585,12 @@ function refreshInventory()
 
 	for index, card in ipairs(inventory) do
 		local style = Utils.GetRarityStyle(card.rarity)
-		local rarityColor = style.primary
-		local secondaryColor = style.secondary or rarityColor
-		local darkColor = style.dark or Constants.UI.PanelAlt
-		local trimColor = style.trim or rarityColor
-		local textColor = style.text or Constants.UI.Text
+		local skin = getInventorySkin(card.rarity, style)
+		local rarityColor = skin.glow
+		local secondaryColor = skin.bgB
+		local darkColor = skin.bgA
+		local trimColor = skin.trim
+		local textColor = skin.text
 		local incomePerSecond = card.fansPerSecond or 0
 
 		local tile = make("Frame", {
@@ -503,12 +612,41 @@ function refreshInventory()
 
 		make("UIGradient", {
 			Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, darkColor),
+				ColorSequenceKeypoint.new(0, skin.bgA),
 				ColorSequenceKeypoint.new(0.48, secondaryColor),
-				ColorSequenceKeypoint.new(1, darkColor),
+				ColorSequenceKeypoint.new(1, skin.bgC),
 			}),
-			Rotation = 35,
+			Rotation = skin.crown and 0 or 35,
 		}, tile)
+
+		make("Frame", {
+			BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0,
+			BorderSizePixel = 0,
+			Size = UDim2.new(1, 0, 0, 5),
+		}, tile)
+
+		make("Frame", {
+			BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.12,
+			BorderSizePixel = 0,
+			Position = UDim2.new(0, 0, 0, 5),
+			Size = UDim2.new(0, 5, 1, -5),
+		}, tile)
+
+		if skin.crown then
+			make("TextLabel", {
+				BackgroundTransparency = 1,
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.new(0.5, 0, 0, 8),
+				Size = UDim2.fromOffset(52, 16),
+				Text = "CROWN",
+				TextColor3 = trimColor,
+				TextScaled = false,
+				TextSize = 10,
+				Font = Enum.Font.GothamBlack,
+			}, tile)
+		end
 
 		local rarityLabel = make("TextLabel", {
 			BackgroundTransparency = 1,
@@ -528,7 +666,7 @@ function refreshInventory()
 			AnchorPoint = Vector2.new(1, 0),
 			Position = UDim2.new(1, -10, 0, 8),
 			Size = UDim2.fromOffset(44, 24),
-			BackgroundColor3 = trimColor,
+			BackgroundColor3 = skin.badgeBg,
 			BackgroundTransparency = 0,
 			BorderSizePixel = 0,
 		}, tile)
@@ -539,7 +677,7 @@ function refreshInventory()
 			BackgroundTransparency = 1,
 			Size = UDim2.fromScale(1, 1),
 			Text = "x" .. tostring(card.quantity),
-			TextColor3 = Color3.fromRGB(18, 12, 6),
+			TextColor3 = skin.badgeText,
 			TextScaled = false,
 			TextSize = 13,
 			Font = Enum.Font.GothamBlack,
@@ -558,7 +696,7 @@ function refreshInventory()
 		make("UITextSizeConstraint", { MinTextSize = 14, MaxTextSize = 24 }, nameLabel)
 
 		local fansPill = make("Frame", {
-			BackgroundColor3 = Color3.fromRGB(6, 8, 13),
+			BackgroundColor3 = skin.fansBg,
 			BackgroundTransparency = 0.08,
 			BorderSizePixel = 0,
 			Position = UDim2.fromOffset(10, 82),
@@ -571,9 +709,9 @@ function refreshInventory()
 			BackgroundTransparency = 1,
 			Size = UDim2.fromScale(1, 1),
 			Text = formatShortNumber(incomePerSecond) .. " fans/s",
-			TextColor3 = style.glow or Color3.fromRGB(255, 225, 88),
+			TextColor3 = skin.glow,
 			TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
-			TextStrokeTransparency = 0.45,
+			TextStrokeTransparency = card.rarity == "Immortal" and 0.18 or 0.45,
 			TextScaled = false,
 			TextSize = 20,
 			Font = Enum.Font.GothamBlack,
@@ -584,7 +722,7 @@ function refreshInventory()
 			Position = UDim2.fromOffset(10, 120),
 			Size = UDim2.new(1, -20, 0, 16),
 			Text = string.upper(tostring(card.position or "--")) .. "  •  " .. tostring(card.nation or "Unknown"),
-			TextColor3 = Constants.UI.Muted,
+			TextColor3 = skin.meta,
 			TextScaled = false,
 			TextSize = 10,
 			Font = Enum.Font.GothamBold,
