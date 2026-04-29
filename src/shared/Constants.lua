@@ -204,16 +204,16 @@ Constants.Upgrades = {
 		description = "Better packs appear on your red pad.",
 		maxLevel = 50,
 		startLevel = 1,
-		baseCost = 250,
-		costExponent = 1.65,
+		baseCost = 650,
+		costExponent = 2.05,
 	},
 	CardPullLuck = {
 		displayName = "Card Pull Luck",
 		description = "Higher chance of better footballers inside packs.",
 		maxLevel = 50,
 		startLevel = 1,
-		baseCost = 350,
-		costExponent = 1.70,
+		baseCost = 850,
+		costExponent = 2.10,
 	},
 	-- Hidden legacy/support upgrades. They remain load-safe for old data but
 	-- are no longer shown in the upgrade shop.
