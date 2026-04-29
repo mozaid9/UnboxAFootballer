@@ -2923,13 +2923,53 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 		make("Part", {
 			Name = "RebirthTerraceRamp",
 			Anchored = true,
-			CanCollide = false,
+			CanCollide = true,
 			CanQuery = false,
 			CanTouch = false,
 			Transparency = 1,
 			Size = Vector3.new(stairW + 0.25, 0.45, rampLength),
 			CFrame = CFrame.lookAt(rampMid, rampTop),
 		}, parent)
+
+		local railBottom = (baseCFrame * CFrame.new(stairBottomX, groundY + 2.35, stairZ)).Position
+		local railTop = (baseCFrame * CFrame.new(stairTopX, stairTopY + 2.1, stairZ)).Position
+		local railLength = (railTop - railBottom).Magnitude
+		for _, sideOffset in ipairs({ -1, 1 }) do
+			local railZ = stairZ + sideOffset * ((stairW / 2) + 0.38)
+			local railStart = (baseCFrame * CFrame.new(stairBottomX, groundY + 2.35, railZ)).Position
+			local railEnd = (baseCFrame * CFrame.new(stairTopX, stairTopY + 2.1, railZ)).Position
+			local railMid = (railStart + railEnd) / 2
+
+			make("Part", {
+				Name = "RebirthTerraceStairRail",
+				Anchored = true,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				Material = Enum.Material.Neon,
+				Color = gold,
+				Transparency = 0.18,
+				Size = Vector3.new(0.16, 0.16, railLength),
+				CFrame = CFrame.lookAt(railMid, railEnd),
+			}, parent)
+
+			for postIndex = 0, 4 do
+				local t = postIndex / 4
+				local postX = stairBottomX + (stairTopX - stairBottomX) * t
+				local postY = groundY + 1.25 + (stairTopY - groundY) * t
+				make("Part", {
+					Name = "RebirthTerraceStairRailPost",
+					Anchored = true,
+					CanCollide = false,
+					CanQuery = false,
+					CanTouch = false,
+					Material = Enum.Material.SmoothPlastic,
+					Color = gold,
+					Size = Vector3.new(0.18, 2.25, 0.18),
+					CFrame = baseCFrame * CFrame.new(postX, postY, railZ),
+				}, parent)
+			end
+		end
 
 		-- Flush invisible bridge: overlaps both the ramp top and the deck surface,
 		-- removing the tiny ledge that made avatars "climb" onto the terrace.
@@ -2978,7 +3018,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 			make("Part", {
 				Name = "RebirthTerraceStair",
 				Anchored = true,
-				CanCollide = true,
+				CanCollide = false,
 				CanQuery = false,
 				CanTouch = false,
 				Material = Enum.Material.SmoothPlastic,
