@@ -87,7 +87,7 @@ Constants.BaseLayout = {
 	PackPadSize = Vector3.new(10, 0.6, 10),
 	PadInfoMaxDistance = 55,
 	DisplaySlotCount = 6,
-	DisplaySlotSize = Vector3.new(7, 3.5, 7),
+	DisplaySlotSize = Vector3.new(5, 3.5, 5),
 }
 
 Constants.FanZone = {

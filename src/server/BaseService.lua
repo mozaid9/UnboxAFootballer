@@ -2132,20 +2132,22 @@ local ALL_SLOT_OFFSETS = {
 	Vector3.new(  0, 1.75,  14),  -- 5
 	Vector3.new( 12, 1.75,  14),  -- 6
 	-- Rebirth Terrace row 1 — closest to pitch, six slots across the back.
-	-- The outer slots are pulled inward so the side stairs have a clean walkway.
-	Vector3.new(-27, 17.75, -15), -- 7
+	-- Slots are now 5-wide (down from 7) with 5-stud spacing so each slot is
+	-- visually distinct.  Outer slots sit at Z=±14 leaving ~3 studs of clear
+	-- walkway between the slot edge and the side staircase corridor at Z=±20.
+	Vector3.new(-27, 17.75, -14), -- 7
 	Vector3.new(-27, 17.75,  -9), -- 8
-	Vector3.new(-27, 17.75,  -3), -- 9
-	Vector3.new(-27, 17.75,   3), -- 10
+	Vector3.new(-27, 17.75,  -4), -- 9
+	Vector3.new(-27, 17.75,   4), -- 10
 	Vector3.new(-27, 17.75,   9), -- 11
-	Vector3.new(-27, 17.75,  15), -- 12
-	-- Rebirth Terrace row 2 — future expansion capacity.
-	Vector3.new(-35, 17.75, -15), -- 13
+	Vector3.new(-27, 17.75,  14), -- 12
+	-- Rebirth Terrace row 2 — further back, matching row-1 Z positions.
+	Vector3.new(-35, 17.75, -14), -- 13
 	Vector3.new(-35, 17.75,  -9), -- 14
-	Vector3.new(-35, 17.75,  -3), -- 15
-	Vector3.new(-35, 17.75,   3), -- 16
+	Vector3.new(-35, 17.75,  -4), -- 15
+	Vector3.new(-35, 17.75,   4), -- 16
 	Vector3.new(-35, 17.75,   9), -- 17
-	Vector3.new(-35, 17.75,  15), -- 18
+	Vector3.new(-35, 17.75,  14), -- 18
 }
 
 local function slotLookDir(localOffset, facingDirection)
@@ -2252,8 +2254,8 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	local totalRun     = math.abs(stairTopX - stairBottomX)
 	local riserH       = totalRise / stairCount
 	local treadD       = totalRun / stairCount
-	local landingSize  = Vector3.new(8.8, 0.12, 2.8)
-	local bridgeSize   = Vector3.new(9.2, 0.12, 2.9)
+	local landingSize  = Vector3.new(9.8, 0.12, 2.8)
+	local bridgeSize   = Vector3.new(11.4, 0.22, 3.4)
 
 	for _, zSign in ipairs({ -1, 1 }) do
 		local stairZ = zSign * 20.0
@@ -2283,7 +2285,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 			CanTouch = false,
 			Transparency = 1,
 			Size = bridgeSize,
-			CFrame = baseCFrame * CFrame.new(stairTopX, deckTopLocalY + 0.02, stairZ),
+			CFrame = baseCFrame * CFrame.new(stairTopX + facingDirection * 0.25, deckTopLocalY, stairZ),
 		}, parent)
 
 		make("Part", {
@@ -2345,32 +2347,24 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 			CFrame = baseCFrame * CFrame.new(stairTopX + facingDirection * 0.7, stairTopY + 0.2, stairZ),
 		}, parent)
 
-		local railH = 1.05
-		for _, zOff in ipairs({ (stairW / 2) + 0.28, -(stairW / 2) - 0.28 }) do
-			local railBottom = (baseCFrame * CFrame.new(stairBottomX, groundY + railH, stairZ + zOff)).Position
-			local railTop = (baseCFrame * CFrame.new(stairTopX, stairTopY + railH, stairZ + zOff)).Position
-			local railMid = (railBottom + railTop) / 2
-
+		-- Small outside markers give the stairs shape without drawing diagonal
+		-- rail bars through the player walkway at the top.
+		local outerZ = stairZ + zSign * ((stairW / 2) + 0.35)
+		for _, marker in ipairs({
+			{ x = stairBottomX, y = groundY + 0.8 },
+			{ x = stairTopX,    y = stairTopY + 0.55 },
+		}) do
 			make("Part", {
-				Name = "RebirthTerraceStairPost",
-				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-				Material = Enum.Material.Metal, Color = gold,
-				Size = Vector3.new(0.16, railH * 2, 0.16),
-				CFrame = baseCFrame * CFrame.new(stairBottomX, groundY + railH, stairZ + zOff),
-			}, parent)
-			make("Part", {
-				Name = "RebirthTerraceStairPost",
-				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-				Material = Enum.Material.Metal, Color = gold,
-				Size = Vector3.new(0.16, railH * 2, 0.16),
-				CFrame = baseCFrame * CFrame.new(stairTopX, stairTopY + railH, stairZ + zOff),
-			}, parent)
-			make("Part", {
-				Name = "RebirthTerraceStairRail",
-				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-				Material = Enum.Material.Neon, Color = gold, Transparency = 0.32,
-				Size = Vector3.new(0.1, 0.1, (railTop - railBottom).Magnitude),
-				CFrame = CFrame.lookAt(railMid, railTop),
+				Name = "RebirthTerraceStairMarker",
+				Anchored = true,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				Material = Enum.Material.Neon,
+				Color = gold,
+				Transparency = 0.25,
+				Size = Vector3.new(0.18, 1.6, 0.18),
+				CFrame = baseCFrame * CFrame.new(marker.x, marker.y, outerZ),
 			}, parent)
 		end
 	end
