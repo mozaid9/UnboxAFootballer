@@ -142,24 +142,24 @@ make("UIListLayout", {
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, bulkBar)
 
-local function createBulkButton(order, text, backgroundColor)
+local function createBulkButton(order, text, backgroundColor, textColor, strokeTransparency)
 	local button = make("TextButton", {
 		LayoutOrder = order,
 		Size = UDim2.fromOffset(136, 24),
 		BackgroundColor3 = backgroundColor,
 		Text = text,
-		TextColor3 = Color3.fromRGB(18, 12, 6),
+		TextColor3 = textColor or Color3.fromRGB(18, 12, 6),
 		TextScaled = false,
 		TextSize = 10,
 		Font = Enum.Font.GothamBlack,
 	}, bulkBar)
 	addCorner(button, 8)
-	addStroke(button, Color3.fromRGB(255, 236, 150), 1, 0.45)
+	addStroke(button, Color3.fromRGB(255, 236, 150), 1, strokeTransparency or 0.45)
 	return button
 end
 
 local sellGoldButton = createBulkButton(1, "Sell All Gold", Constants.UI.Gold)
-local sellWeakButton = createBulkButton(2, "Sell <100/s", Color3.fromRGB(255, 190, 78))
+local sellWeakButton = createBulkButton(2, "Sell <100/s", Color3.fromRGB(82, 65, 42), Constants.UI.Text, 0.72)
 
 local sortBar = make("Frame", {
 	BackgroundTransparency = 1,
@@ -215,6 +215,7 @@ local INVENTORY_SKINS = {
 		bgA = Color3.fromRGB(132, 96, 18),
 		bgB = Color3.fromRGB(214, 158, 36),
 		bgC = Color3.fromRGB(104, 72, 12),
+		shine = Color3.fromRGB(242, 186, 54),
 		trim = Color3.fromRGB(255, 207, 66),
 		glow = Color3.fromRGB(255, 222, 88),
 		text = Color3.fromRGB(255, 250, 226),
@@ -222,11 +223,13 @@ local INVENTORY_SKINS = {
 		fansBg = Color3.fromRGB(52, 37, 8),
 		badgeBg = Color3.fromRGB(255, 211, 64),
 		badgeText = Color3.fromRGB(32, 22, 4),
+		icon = "G",
 	},
 	["Rare Gold"] = {
 		bgA = Color3.fromRGB(118, 43, 4),
 		bgB = Color3.fromRGB(255, 142, 18),
 		bgC = Color3.fromRGB(70, 25, 3),
+		shine = Color3.fromRGB(255, 207, 72),
 		trim = Color3.fromRGB(255, 236, 88),
 		glow = Color3.fromRGB(255, 176, 34),
 		text = Color3.fromRGB(255, 248, 220),
@@ -234,23 +237,35 @@ local INVENTORY_SKINS = {
 		fansBg = Color3.fromRGB(50, 18, 2),
 		badgeBg = Color3.fromRGB(255, 236, 88),
 		badgeText = Color3.fromRGB(42, 20, 2),
+		icon = "R",
 	},
 	["Premium Gold"] = {
 		bgA = Color3.fromRGB(0, 0, 0),
-		bgB = Color3.fromRGB(13, 13, 15),
+		bgB = Color3.fromRGB(22, 17, 8),
 		bgC = Color3.fromRGB(0, 0, 0),
-		trim = Color3.fromRGB(255, 222, 72),
-		glow = Color3.fromRGB(255, 232, 126),
+		shine = Color3.fromRGB(255, 236, 158),
+		trim = Color3.fromRGB(255, 238, 132),
+		glow = Color3.fromRGB(255, 245, 188),
 		text = Color3.fromRGB(255, 248, 220),
 		meta = Color3.fromRGB(205, 180, 105),
 		fansBg = Color3.fromRGB(18, 14, 4),
-		badgeBg = Color3.fromRGB(255, 222, 72),
+		badgeBg = Color3.fromRGB(255, 238, 132),
 		badgeText = Color3.fromRGB(6, 6, 6),
+		icon = "P",
+		baseScale = 1.035,
+		hoverScale = 1.07,
+		outerGlow = true,
+		shineOverlay = true,
+		topStrip = 4,
+		sideStrip = 3,
+		strokeThickness = 1.5,
+		strokeTransparency = 0.12,
 	},
 	["Talisman"] = {
 		bgA = Color3.fromRGB(72, 4, 10),
 		bgB = Color3.fromRGB(196, 22, 26),
 		bgC = Color3.fromRGB(38, 2, 7),
+		shine = Color3.fromRGB(255, 66, 48),
 		trim = Color3.fromRGB(255, 98, 72),
 		glow = Color3.fromRGB(255, 76, 58),
 		text = Color3.fromRGB(255, 235, 226),
@@ -258,11 +273,13 @@ local INVENTORY_SKINS = {
 		fansBg = Color3.fromRGB(34, 2, 5),
 		badgeBg = Color3.fromRGB(255, 98, 72),
 		badgeText = Color3.fromRGB(36, 2, 4),
+		icon = "T",
 	},
 	["Maestro"] = {
 		bgA = Color3.fromRGB(28, 8, 72),
 		bgB = Color3.fromRGB(116, 44, 214),
 		bgC = Color3.fromRGB(14, 5, 36),
+		shine = Color3.fromRGB(184, 96, 255),
 		trim = Color3.fromRGB(218, 160, 255),
 		glow = Color3.fromRGB(190, 104, 255),
 		text = Color3.fromRGB(250, 238, 255),
@@ -270,11 +287,13 @@ local INVENTORY_SKINS = {
 		fansBg = Color3.fromRGB(20, 5, 46),
 		badgeBg = Color3.fromRGB(218, 160, 255),
 		badgeText = Color3.fromRGB(24, 8, 50),
+		icon = "M",
 	},
 	["Immortal"] = {
 		bgA = Color3.fromRGB(232, 248, 255),
 		bgB = Color3.fromRGB(116, 184, 255),
 		bgC = Color3.fromRGB(246, 255, 255),
+		shine = Color3.fromRGB(255, 255, 255),
 		trim = Color3.fromRGB(255, 255, 255),
 		glow = Color3.fromRGB(228, 252, 255),
 		text = Color3.fromRGB(12, 22, 36),
@@ -282,11 +301,14 @@ local INVENTORY_SKINS = {
 		fansBg = Color3.fromRGB(12, 32, 52),
 		badgeBg = Color3.fromRGB(255, 255, 255),
 		badgeText = Color3.fromRGB(12, 22, 36),
+		icon = "I",
+		shineOverlay = true,
 	},
 	["Player of the Year"] = {
 		bgA = Color3.fromRGB(0, 0, 0),
 		bgB = Color3.fromRGB(70, 52, 8),
 		bgC = Color3.fromRGB(0, 0, 0),
+		shine = Color3.fromRGB(255, 226, 74),
 		trim = Color3.fromRGB(255, 226, 74),
 		glow = Color3.fromRGB(255, 226, 88),
 		text = Color3.fromRGB(255, 246, 210),
@@ -295,6 +317,8 @@ local INVENTORY_SKINS = {
 		badgeBg = Color3.fromRGB(255, 226, 74),
 		badgeText = Color3.fromRGB(4, 4, 4),
 		crown = true,
+		icon = "POTY",
+		shineOverlay = true,
 	},
 }
 
@@ -321,24 +345,46 @@ local function getInventorySkin(rarity, style)
 		fansBg = Color3.fromRGB(6, 8, 13),
 		badgeBg = style.trim or style.primary or Constants.UI.Gold,
 		badgeText = Color3.fromRGB(18, 12, 6),
+		icon = "?",
 	}
 end
 
 local function addButtonHover(button, normalColor, hoverColor)
+	local normalScale = button:FindFirstChild("HoverScale") or make("UIScale", {
+		Name = "HoverScale",
+		Scale = 1,
+	}, button)
+
 	button.MouseEnter:Connect(function()
 		TweenService:Create(button, TweenInfo.new(0.1), {
 			BackgroundColor3 = hoverColor,
+		}):Play()
+		TweenService:Create(normalScale, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {
+			Scale = 1.04,
 		}):Play()
 	end)
 	button.MouseLeave:Connect(function()
 		TweenService:Create(button, TweenInfo.new(0.1), {
 			BackgroundColor3 = normalColor,
 		}):Play()
+		TweenService:Create(normalScale, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {
+			Scale = 1,
+		}):Play()
+	end)
+	button.MouseButton1Down:Connect(function()
+		TweenService:Create(normalScale, TweenInfo.new(0.06, Enum.EasingStyle.Quad), {
+			Scale = 0.97,
+		}):Play()
+	end)
+	button.MouseButton1Up:Connect(function()
+		TweenService:Create(normalScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad), {
+			Scale = 1.04,
+		}):Play()
 	end)
 end
 
 addButtonHover(sellGoldButton, Constants.UI.Gold, Color3.fromRGB(255, 235, 88))
-addButtonHover(sellWeakButton, Color3.fromRGB(255, 190, 78), Color3.fromRGB(255, 213, 110))
+addButtonHover(sellWeakButton, Color3.fromRGB(82, 65, 42), Color3.fromRGB(112, 86, 50))
 
 local sortButtons = {}
 
@@ -478,7 +524,7 @@ local function getInventorySummary(inventory)
 	end
 
 	return string.format(
-		"Stored: %d    Unique: %d/%d    Best: %s fans/s    Total Value: %s",
+		"Stored: %d  |  Unique: %d/%d  |  Best: %s fans/s  |  Value: %s",
 		totalCards,
 		#inventory,
 		TOTAL_CARD_VARIANTS,
@@ -595,43 +641,93 @@ function refreshInventory()
 
 		local tile = make("Frame", {
 			LayoutOrder = index,
+			Active = true,
 			BackgroundColor3 = darkColor,
 		}, scrolling)
 		addCorner(tile, 14)
-		local tileStroke = addStroke(tile, trimColor, 2, 0.28)
-		local tileScale = make("UIScale", { Scale = 1 }, tile)
+		local baseScale = skin.baseScale or 1
+		local hoverScale = skin.hoverScale or (baseScale + 0.025)
+		local strokeTransparency = skin.strokeTransparency or 0.34
+		local tileStroke = addStroke(tile, trimColor, skin.strokeThickness or 1.4, strokeTransparency)
+		local glowStroke
+		if skin.outerGlow then
+			glowStroke = addStroke(tile, skin.glow, 5, 0.78)
+		end
+		local tileScale = make("UIScale", { Scale = baseScale }, tile)
 
 		tile.MouseEnter:Connect(function()
-			TweenService:Create(tileScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Scale = 1.025 }):Play()
+			tile.ZIndex = 3
+			TweenService:Create(tileScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Scale = hoverScale }):Play()
 			TweenService:Create(tileStroke, TweenInfo.new(0.12), { Transparency = 0.06 }):Play()
+			if glowStroke then
+				TweenService:Create(glowStroke, TweenInfo.new(0.12), { Transparency = 0.52 }):Play()
+			end
 		end)
 		tile.MouseLeave:Connect(function()
-			TweenService:Create(tileScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Scale = 1 }):Play()
-			TweenService:Create(tileStroke, TweenInfo.new(0.12), { Transparency = 0.28 }):Play()
+			tile.ZIndex = 1
+			TweenService:Create(tileScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Scale = baseScale }):Play()
+			TweenService:Create(tileStroke, TweenInfo.new(0.12), { Transparency = strokeTransparency }):Play()
+			if glowStroke then
+				TweenService:Create(glowStroke, TweenInfo.new(0.12), { Transparency = 0.78 }):Play()
+			end
+		end)
+		tile.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				TweenService:Create(tileScale, TweenInfo.new(0.06, Enum.EasingStyle.Quad), {
+					Scale = math.max(0.98, baseScale - 0.02),
+				}):Play()
+			end
+		end)
+		tile.InputEnded:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				TweenService:Create(tileScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad), {
+					Scale = hoverScale,
+				}):Play()
+			end
 		end)
 
 		make("UIGradient", {
 			Color = ColorSequence.new({
 				ColorSequenceKeypoint.new(0, skin.bgA),
-				ColorSequenceKeypoint.new(0.48, secondaryColor),
+				ColorSequenceKeypoint.new(0.22, skin.shine or secondaryColor),
+				ColorSequenceKeypoint.new(0.58, secondaryColor),
 				ColorSequenceKeypoint.new(1, skin.bgC),
 			}),
 			Rotation = skin.crown and 0 or 35,
 		}, tile)
 
+		if skin.shineOverlay then
+			local shine = make("Frame", {
+				BackgroundColor3 = skin.glow,
+				BackgroundTransparency = 0.86,
+				BorderSizePixel = 0,
+				Position = UDim2.new(0.12, 0, -0.18, 0),
+				Rotation = 18,
+				Size = UDim2.new(0, 28, 1.4, 0),
+			}, tile)
+			make("UIGradient", {
+				Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 1),
+					NumberSequenceKeypoint.new(0.5, 0),
+					NumberSequenceKeypoint.new(1, 1),
+				}),
+				Rotation = 0,
+			}, shine)
+		end
+
 		make("Frame", {
 			BackgroundColor3 = trimColor,
 			BackgroundTransparency = 0,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, 5),
+			Size = UDim2.new(1, 0, 0, skin.topStrip or 3),
 		}, tile)
 
 		make("Frame", {
 			BackgroundColor3 = trimColor,
 			BackgroundTransparency = 0.12,
 			BorderSizePixel = 0,
-			Position = UDim2.new(0, 0, 0, 5),
-			Size = UDim2.new(0, 5, 1, -5),
+			Position = UDim2.new(0, 0, 0, skin.topStrip or 3),
+			Size = UDim2.new(0, skin.sideStrip or 3, 1, -(skin.topStrip or 3)),
 		}, tile)
 
 		if skin.crown then
@@ -648,10 +744,31 @@ function refreshInventory()
 			}, tile)
 		end
 
+		local iconWidth = skin.icon == "POTY" and 34 or 18
+		local iconBadge = make("Frame", {
+			BackgroundColor3 = skin.badgeBg,
+			BackgroundTransparency = 0.08,
+			BorderSizePixel = 0,
+			Position = UDim2.fromOffset(10, 8),
+			Size = UDim2.fromOffset(iconWidth, 18),
+		}, tile)
+		addCorner(iconBadge, 7)
+		addStroke(iconBadge, skin.glow, 1, 0.55)
+
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 1),
+			Text = skin.icon or "?",
+			TextColor3 = skin.badgeText,
+			TextScaled = false,
+			TextSize = skin.icon == "POTY" and 8 or 10,
+			Font = Enum.Font.GothamBlack,
+		}, iconBadge)
+
 		local rarityLabel = make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(10, 8),
-			Size = UDim2.new(1, -62, 0, 18),
+			Position = UDim2.fromOffset(10 + iconWidth + 6, 8),
+			Size = UDim2.new(1, -(iconWidth + 72), 0, 18),
 			Text = string.upper(style.label or card.rarity or "CARD"),
 			TextColor3 = textColor,
 			TextScaled = false,
@@ -664,14 +781,14 @@ function refreshInventory()
 
 		local quantityBadge = make("Frame", {
 			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -10, 0, 8),
-			Size = UDim2.fromOffset(44, 24),
+			Position = UDim2.new(1, -9, 0, 8),
+			Size = UDim2.fromOffset(39, 21),
 			BackgroundColor3 = skin.badgeBg,
 			BackgroundTransparency = 0,
 			BorderSizePixel = 0,
 		}, tile)
-		addCorner(quantityBadge, 10)
-		addStroke(quantityBadge, Color3.fromRGB(255, 246, 190), 1, 0.45)
+		addCorner(quantityBadge, 9)
+		addStroke(quantityBadge, skin.glow, 1, 0.24)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
@@ -679,7 +796,7 @@ function refreshInventory()
 			Text = "x" .. tostring(card.quantity),
 			TextColor3 = skin.badgeText,
 			TextScaled = false,
-			TextSize = 13,
+			TextSize = 12,
 			Font = Enum.Font.GothamBlack,
 		}, quantityBadge)
 
@@ -697,13 +814,13 @@ function refreshInventory()
 
 		local fansPill = make("Frame", {
 			BackgroundColor3 = skin.fansBg,
-			BackgroundTransparency = 0.08,
+			BackgroundTransparency = 0.02,
 			BorderSizePixel = 0,
-			Position = UDim2.fromOffset(10, 82),
-			Size = UDim2.new(1, -20, 0, 34),
+			Position = UDim2.fromOffset(10, 84),
+			Size = UDim2.new(1, -20, 0, 30),
 		}, tile)
 		addCorner(fansPill, 10)
-		addStroke(fansPill, style.glow or trimColor, 1.5, 0.08)
+		addStroke(fansPill, skin.glow, 1.2, 0.06)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
@@ -711,9 +828,9 @@ function refreshInventory()
 			Text = formatShortNumber(incomePerSecond) .. " fans/s",
 			TextColor3 = skin.glow,
 			TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
-			TextStrokeTransparency = card.rarity == "Immortal" and 0.18 or 0.45,
+			TextStrokeTransparency = card.rarity == "Immortal" and 0.12 or 0.32,
 			TextScaled = false,
-			TextSize = 20,
+			TextSize = 19,
 			Font = Enum.Font.GothamBlack,
 		}, fansPill)
 
@@ -760,7 +877,7 @@ function refreshInventory()
 			}, tile)
 			addButtonHover(actionButton, selectColor, Color3.fromRGB(92, 210, 118))
 		else
-			local sellOneColor = Constants.UI.Danger
+			local sellOneColor = Color3.fromRGB(138, 51, 42)
 			actionButton = make("TextButton", {
 				AnchorPoint = Vector2.new(0, 1),
 				Position = UDim2.new(0.08, 0, 1, -8),
@@ -772,9 +889,9 @@ function refreshInventory()
 				TextSize = 14,
 				Font = Enum.Font.GothamBlack,
 			}, tile)
-			addButtonHover(actionButton, sellOneColor, Color3.fromRGB(210, 92, 68))
+			addButtonHover(actionButton, sellOneColor, Color3.fromRGB(176, 68, 54))
 			if hasDuplicates then
-				local sellAllColor = Color3.fromRGB(128, 45, 40)
+				local sellAllColor = Color3.fromRGB(108, 38, 36)
 				sellAllButton = make("TextButton", {
 					AnchorPoint = Vector2.new(1, 1),
 					Position = UDim2.new(0.92, 0, 1, -8),
@@ -787,7 +904,7 @@ function refreshInventory()
 					Font = Enum.Font.GothamBlack,
 				}, tile)
 				addCorner(sellAllButton, 10)
-				addButtonHover(sellAllButton, sellAllColor, Color3.fromRGB(154, 56, 50))
+				addButtonHover(sellAllButton, sellAllColor, Color3.fromRGB(142, 50, 46))
 			end
 		end
 		addCorner(actionButton, 10)
