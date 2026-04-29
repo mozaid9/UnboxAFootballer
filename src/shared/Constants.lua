@@ -147,6 +147,14 @@ Constants.PackMilestones = {
 	{ threshold = 1000, minRarity = "Maestro",      reward = "Special High-Tier Reward", label = "SPECIAL",   color = Color3.fromRGB(157, 80, 255), allowBeyondPackCap = true },
 }
 
+Constants.CollectionRewards = {
+	{ id = "10",  requiredCards = 10,  label = "10 cards",  reward = "+5,000 Fans",    fans = 5000 },
+	{ id = "25",  requiredCards = 25,  label = "25 cards",  reward = "+25,000 Fans",   fans = 25000 },
+	{ id = "50",  requiredCards = 50,  label = "50 cards",  reward = "+100,000 Fans",  fans = 100000 },
+	{ id = "100", requiredCards = 100, label = "100 cards", reward = "+500,000 Fans",  fans = 500000 },
+	{ id = "130", requiredCards = 130, label = "130 cards", reward = "+1,000,000 Fans", fans = 1000000 },
+}
+
 Constants.Rebirth = {
 	StartingFansAfterRebirth = Constants.StartingCoins,
 

@@ -14,6 +14,7 @@ local DEFAULT_DATA = {
 	gems = 0,
 	starterGrantClaimed = false,
 	inventory = {},
+	collection = {},
 	rebirthTier = 0,
 	rebirthTokens = 0,
 	lastDailyReward = 0,
@@ -126,6 +127,85 @@ local function normalizeInventoryData(data)
 	return changed
 end
 
+local function normalizeCollectionData(data)
+	if not data then
+		return false
+	end
+
+	if type(data.collection) ~= "table" then
+		data.collection = {}
+	end
+	if type(data.collectionRewards) ~= "table" then
+		data.collectionRewards = {}
+	end
+
+	local normalized = {}
+	local changed = false
+
+	for key, amount in pairs(data.collection) do
+		local cardId = tonumber(key)
+		local count = tonumber(amount)
+		if cardId and count and count > 0 then
+			local normalizedKey = tostring(math.floor(cardId))
+			local normalizedCount = math.floor(count)
+			normalized[normalizedKey] = (normalized[normalizedKey] or 0) + normalizedCount
+			if type(key) ~= "string" or key ~= normalizedKey or amount ~= normalizedCount then
+				changed = true
+			end
+		else
+			changed = true
+		end
+	end
+
+	if type(data.inventory) == "table" then
+		for key, amount in pairs(data.inventory) do
+			local cardId = tonumber(key)
+			local count = tonumber(amount)
+			if cardId and count and count > 0 then
+				local normalizedKey = tostring(math.floor(cardId))
+				if (normalized[normalizedKey] or 0) < math.floor(count) then
+					normalized[normalizedKey] = math.floor(count)
+					changed = true
+				end
+			end
+		end
+	end
+
+	local displayedCards = data.baseLayoutData and data.baseLayoutData.displayedCards
+	if type(displayedCards) == "table" then
+		for _, cardId in pairs(displayedCards) do
+			local numericId = tonumber(cardId)
+			if numericId then
+				local normalizedKey = tostring(math.floor(numericId))
+				if (normalized[normalizedKey] or 0) < 1 then
+					normalized[normalizedKey] = 1
+					changed = true
+				end
+			end
+		end
+	end
+
+	for key, amount in pairs(normalized) do
+		if data.collection[key] ~= amount then
+			changed = true
+			break
+		end
+	end
+
+	for key in pairs(data.collection) do
+		if normalized[key] == nil then
+			changed = true
+			break
+		end
+	end
+
+	if changed then
+		data.collection = normalized
+	end
+
+	return changed
+end
+
 local function deepMergeDefaults(source, defaults)
 	local merged = {}
 
@@ -188,6 +268,7 @@ function DataService.LoadPlayer(player)
 
 	cache[player] = deepMergeDefaults(ok and storedData or {}, DEFAULT_DATA)
 	normalizeInventoryData(cache[player])
+	normalizeCollectionData(cache[player])
 	normalizeUpgradeData(cache[player])
 	DataService.MarkDirty(player)
 	return cache[player]
@@ -328,6 +409,33 @@ function DataService.GetInventory(player)
 		DataService.MarkDirty(player)
 	end
 	return data.inventory
+end
+
+function DataService.RecordCardPacked(player, cardId, amount)
+	local data = cache[player]
+	if not data then
+		return false
+	end
+	if normalizeCollectionData(data) then
+		DataService.MarkDirty(player)
+	end
+
+	local key = tostring(cardId)
+	local delta = math.max(1, math.floor(tonumber(amount) or 1))
+	data.collection[key] = (data.collection[key] or 0) + delta
+	DataService.MarkDirty(player)
+	return true
+end
+
+function DataService.GetCollection(player)
+	local data = cache[player]
+	if not data then
+		return {}
+	end
+	if normalizeCollectionData(data) then
+		DataService.MarkDirty(player)
+	end
+	return data.collection
 end
 
 function DataService.GetDisplayedCards(player)

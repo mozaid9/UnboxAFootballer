@@ -130,6 +130,9 @@ function PackService.OpenPack(player, packId, options)
 	-- Update stats
 	data.totalCardsOpened = (data.totalCardsOpened or 0) + 1
 	data.totalPacksOpened = (data.totalPacksOpened or 0) + 1
+	if type(DataService.RecordCardPacked) == "function" then
+		DataService.RecordCardPacked(player, card.id)
+	end
 	DataService.MarkDirty(player)
 
 	if Remotes and Remotes.UpdateCoins then

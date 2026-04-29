@@ -157,7 +157,7 @@ end)
 local sidebar = make("Frame", {
 	Name = "Sidebar",
 	AnchorPoint = Vector2.new(0, 1),
-	Size = UDim2.fromOffset(190, 276),
+	Size = UDim2.fromOffset(190, 338),
 	Position = UDim2.new(0, 20, 1, -20),
 	BackgroundColor3 = Color3.fromRGB(5, 8, 15),
 	BackgroundTransparency = 0.18,
@@ -362,6 +362,38 @@ local function drawInventoryIcon(parent, accentColor)
 	end
 end
 
+local function drawCollectionIcon(parent, accentColor)
+	local book = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(5, 8, 16), 0.32),
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(21, 22),
+		Size = UDim2.fromOffset(25, 30),
+		ZIndex = 2,
+	}, parent)
+	addCorner(book, 5)
+	addStroke(book, accentColor, 2, 0.18)
+
+	make("Frame", {
+		BackgroundColor3 = accentColor,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(6, 4),
+		Size = UDim2.fromOffset(3, 22),
+		ZIndex = 3,
+	}, book)
+
+	for index = 1, 3 do
+		make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(255, 250, 220),
+			BackgroundTransparency = 0.08,
+			BorderSizePixel = 0,
+			Position = UDim2.fromOffset(12, 7 + (index - 1) * 7),
+			Size = UDim2.fromOffset(9, 2),
+			ZIndex = 3,
+		}, book)
+	end
+end
+
 local function drawUpgradeIcon(parent, accentColor)
 	make("TextLabel", {
 		BackgroundTransparency = 1,
@@ -435,6 +467,8 @@ end
 local function drawMenuIcon(parent, iconKind, accentColor)
 	if iconKind == "inventory" then
 		drawInventoryIcon(parent, accentColor)
+	elseif iconKind == "collection" then
+		drawCollectionIcon(parent, accentColor)
 	elseif iconKind == "upgrades" then
 		drawUpgradeIcon(parent, accentColor)
 	elseif iconKind == "quests" then
@@ -518,15 +552,16 @@ local function createMenuButton(order, text, iconKind, accentColor)
 end
 
 local inventoryButton = createMenuButton(1, "Inventory", "inventory", Color3.fromRGB(78, 170, 255))
-local upgradesButton  = createMenuButton(2, "Upgrades",  "upgrades",  UI.Gold)
-local questsButton    = createMenuButton(3, "Quests",    "quests",    Color3.fromRGB(205, 88, 255))
-local shopButton      = createMenuButton(4, "Shop",      "shop",      Color3.fromRGB(85, 226, 112))
+local collectionButton = createMenuButton(2, "Collection", "collection", Color3.fromRGB(255, 210, 68))
+local upgradesButton  = createMenuButton(3, "Upgrades",  "upgrades",  UI.Gold)
+local questsButton    = createMenuButton(4, "Quests",    "quests",    Color3.fromRGB(205, 88, 255))
+local shopButton      = createMenuButton(5, "Shop",      "shop",      Color3.fromRGB(85, 226, 112))
 
 -- ── Sidebar collapse tab ──────────────────────────────────────────────────────
 local SIDEBAR_OPEN_POS = UDim2.new(0, 20, 1, -20)
 local SIDEBAR_CLOSED_POS = UDim2.new(0, -208, 1, -20)
-local TAB_OPEN_POS = UDim2.new(0, 218, 1, -158)
-local TAB_CLOSED_POS = UDim2.new(0, 10, 1, -158)
+local TAB_OPEN_POS = UDim2.new(0, 218, 1, -190)
+local TAB_CLOSED_POS = UDim2.new(0, 10, 1, -190)
 local SLIDE_INFO = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 local sidebarIsOpen = true
 
@@ -669,6 +704,12 @@ end
 inventoryButton.MouseButton1Click:Connect(function()
 	if not fireGuiToggle("InventoryUI") then
 		showToast("Inventory UI is still loading. Try again in a second.", UI.Gold)
+	end
+end)
+
+collectionButton.MouseButton1Click:Connect(function()
+	if not fireGuiToggle("CollectionUI") then
+		showToast("Collection book is still loading. Try again in a second.", UI.Gold)
 	end
 end)
 

@@ -65,6 +65,8 @@ local OpenPackFn = makeFunction("OpenPack")
 local SellCardFn = makeFunction("SellCard")
 local SellAllCardsFn = makeFunction("SellAllCards")
 local GetInventoryFn = makeFunction("GetInventory")
+local GetCollectionFn = makeFunction("GetCollection")
+local ClaimCollectionRewardFn = makeFunction("ClaimCollectionReward")
 local GetUpgradesFn = makeFunction("GetUpgrades")
 local PurchaseUpgradeFn = makeFunction("PurchaseUpgrade")
 local PlaceInventoryCardInSlotFn = makeFunction("PlaceInventoryCardInSlot")
@@ -1234,6 +1236,104 @@ GetInventoryFn.OnServerInvoke = function(player)
 	end)
 
 	return inventory
+end
+
+local function getCollectionUnlockedCount(collection)
+	local count = 0
+	for key, amount in pairs(collection or {}) do
+		if CardData.ById[tonumber(key)] and (tonumber(amount) or 0) > 0 then
+			count += 1
+		end
+	end
+	return count
+end
+
+local function buildCollectionPayload(player)
+	local data = DataService.GetData(player)
+	if not data then
+		return nil
+	end
+
+	local collection = DataService.GetCollection(player)
+	local unlockedCount = getCollectionUnlockedCount(collection)
+	local claimedRewards = data.collectionRewards or {}
+	local rewards = {}
+	local claimedCount = 0
+
+	for _, reward in ipairs(Constants.CollectionRewards or {}) do
+		local id = tostring(reward.id)
+		local claimed = claimedRewards[id] == true
+		if claimed then
+			claimedCount += 1
+		end
+		table.insert(rewards, {
+			id = id,
+			label = reward.label,
+			requiredCards = reward.requiredCards,
+			reward = reward.reward,
+			claimed = claimed,
+			canClaim = (not claimed) and unlockedCount >= (reward.requiredCards or math.huge),
+		})
+	end
+
+	return {
+		counts = collection,
+		unlockedCount = unlockedCount,
+		totalCards = #CardData.Pool,
+		claimedRewards = claimedRewards,
+		rewards = rewards,
+		claimedRewardCount = claimedCount,
+		totalRewardCount = #rewards,
+		coins = DataService.GetCoins(player),
+	}
+end
+
+GetCollectionFn.OnServerInvoke = function(player)
+	return buildCollectionPayload(player)
+end
+
+ClaimCollectionRewardFn.OnServerInvoke = function(player, rewardId)
+	local data = DataService.GetData(player)
+	if not data then
+		return { success = false, error = "Your data is still loading." }
+	end
+
+	rewardId = tostring(rewardId or "")
+	local rewardSpec
+	for _, reward in ipairs(Constants.CollectionRewards or {}) do
+		if tostring(reward.id) == rewardId then
+			rewardSpec = reward
+			break
+		end
+	end
+
+	if not rewardSpec then
+		return { success = false, error = "Unknown collection reward." }
+	end
+
+	data.collectionRewards = data.collectionRewards or {}
+	if data.collectionRewards[rewardId] == true then
+		return { success = false, error = "Reward already claimed.", collection = buildCollectionPayload(player) }
+	end
+
+	local unlockedCount = getCollectionUnlockedCount(DataService.GetCollection(player))
+	if unlockedCount < (rewardSpec.requiredCards or math.huge) then
+		return { success = false, error = "Unlock more cards first.", collection = buildCollectionPayload(player) }
+	end
+
+	data.collectionRewards[rewardId] = true
+	DataService.MarkDirty(player)
+	if rewardSpec.fans and rewardSpec.fans > 0 then
+		EconomyService.AddCoins(player, rewardSpec.fans)
+		UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+	end
+
+	return {
+		success = true,
+		reward = rewardSpec.reward,
+		coins = DataService.GetCoins(player),
+		collection = buildCollectionPayload(player),
+	}
 end
 
 PlaceInventoryCardInSlotFn.OnServerInvoke = function(player, slotIndex, cardId)
