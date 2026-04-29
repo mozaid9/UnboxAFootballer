@@ -2244,12 +2244,12 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	-- ── Staircases ──────────────────────────────────────────────────────────────
 	-- These climb up the side corridors. Ground/terrace display slots stop before
 	-- the wall, so the stairs no longer cut through player cards.
-	local stairCount  = 24
+	local stairCount  = 28
 	local stairW      = 2.7
 	local groundY     = 0.9
 	local stairTopY   = deckTopLocalY
 	local totalRise   = stairTopY - groundY
-	local stairBottomX = deckFrontLocalX + facingDirection * 20
+	local stairBottomX = deckFrontLocalX + facingDirection * 24
 	local stairTopX    = deckFrontLocalX - facingDirection * 5.2
 	local totalRun     = math.abs(stairTopX - stairBottomX)
 	local riserH       = totalRise / stairCount
