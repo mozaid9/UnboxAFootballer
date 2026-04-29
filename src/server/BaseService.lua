@@ -119,6 +119,16 @@ local function formatStadiumTitle(ownerName)
 	return string.upper(ownerName) .. "'S"
 end
 
+local function formatFanMultiplier(multiplier)
+	local rounded = math.floor((tonumber(multiplier) or 1) * 100 + 0.5) / 100
+	if math.abs(rounded - math.floor(rounded)) < 0.001 then
+		return tostring(math.floor(rounded)) .. "x FANS"
+	end
+
+	local text = string.format("%.2f", rounded):gsub("0+$", ""):gsub("%.$", "")
+	return text .. "x FANS"
+end
+
 local function getNextPackMilestone(totalPacks)
 	totalPacks = math.max(0, totalPacks or 0)
 
@@ -2776,6 +2786,60 @@ local function createPlot(plotId, side, laneIndex, position)
 			font = Enum.Font.GothamBlack,
 		}, ownerFrame)
 
+	-- ── Close-range rebirth multiplier badge near the entrance ─────────────────
+	local multiplierAnchor = make("Part", {
+		Name = "RebirthMultiplierAnchor",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(1, 1, 1),
+		CFrame = baseCFrame * CFrame.new(frontEdgeX + (facingDirection * 4.4), 6.3, 0),
+	}, model)
+
+	local multiplierGui = make("BillboardGui", {
+		Name = "RebirthMultiplierGui",
+		Adornee = multiplierAnchor,
+		AlwaysOnTop = true,
+		Enabled = false,
+		MaxDistance = 38,
+		Size = UDim2.fromOffset(190, 58),
+		StudsOffset = Vector3.new(0, 0, 0),
+	}, multiplierAnchor)
+
+	local multiplierFrame = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(7, 10, 18),
+		BackgroundTransparency = 0.08,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+	}, multiplierGui)
+	make("UICorner", { CornerRadius = UDim.new(0, 10) }, multiplierFrame)
+	make("UIStroke", {
+		Color = Color3.fromRGB(255, 210, 50),
+		Thickness = 2,
+		Transparency = 0.15,
+	}, multiplierFrame)
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 27, 46)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(7, 10, 18)),
+		}),
+		Rotation = 90,
+	}, multiplierFrame)
+
+	createOwnerSignText("REBIRTH BOOST", UDim2.fromScale(0.84, 0.28),
+		UDim2.fromScale(0.08, 0.08), Color3.fromRGB(190, 170, 110), {
+		textScaled = true, minTextSize = 9, maxTextSize = 16,
+		textStrokeTransparency = 0.92, font = Enum.Font.GothamBold,
+	}, multiplierFrame)
+
+	local rebirthMultiplierLabel = createOwnerSignText("1x FANS", UDim2.fromScale(0.88, 0.48),
+		UDim2.fromScale(0.06, 0.40), Color3.fromRGB(255, 232, 110), {
+		textScaled = true, minTextSize = 18, maxTextSize = 42,
+		textStrokeTransparency = 0.45, font = Enum.Font.GothamBlack,
+	}, multiplierFrame)
+
 	-- ── Pack Milestone Board ─────────────────────────────────────────────────────
 	-- Raised behind the upper terrace so the second floor no longer covers it.
 	local msW, msH = 28, 14
@@ -3258,6 +3322,8 @@ local function createPlot(plotId, side, laneIndex, position)
 		ownerTopLabel = ownerTopLabel,
 		ownerNameLabel = ownerNameLabel,
 		ownerSubtitleLabel = ownerSubtitleLabel,
+		rebirthMultiplierGui = multiplierGui,
+		rebirthMultiplierLabel = rebirthMultiplierLabel,
 		milestoneSign = milestoneSign,
 		milestonePacksLabel = milestonePacksLabel,
 		milestoneNextLabel = milestoneNextLabel,
@@ -3475,6 +3541,21 @@ function BaseService.SetDisplaySlotLimit(plot, slotCount)
 	end
 end
 
+function BaseService.UpdateRebirthMultiplier(plot, multiplier)
+	if not plot or not plot.rebirthMultiplierGui or not plot.rebirthMultiplierLabel then
+		return
+	end
+
+	if not plot.ownerPlayer or not multiplier then
+		plot.rebirthMultiplierGui.Enabled = false
+		plot.rebirthMultiplierLabel.Text = "1x FANS"
+		return
+	end
+
+	plot.rebirthMultiplierLabel.Text = formatFanMultiplier(multiplier)
+	plot.rebirthMultiplierGui.Enabled = true
+end
+
 function BaseService.AssignPlot(player, rebirthTier, baseSlots)
 	if assignedPlots[player] then
 		return assignedPlots[player]
@@ -3490,6 +3571,7 @@ function BaseService.AssignPlot(player, rebirthTier, baseSlots)
 			plot.model:SetAttribute("OwnerUserId", player.UserId)
 			plot.model:SetAttribute("OwnerName", player.DisplayName)
 			updateOwnerSign(plot, player.DisplayName, "")
+			BaseService.UpdateRebirthMultiplier(plot, 1)
 			updatePadLabel(plot, "Rolling Pack", "Preparing your next spawn", Color3.fromRGB(255, 170, 48))
 			assignedPlots[player] = plot
 			if plot.spawnLocation then
@@ -3528,6 +3610,7 @@ function BaseService.ReleasePlot(player)
 	BaseService.ClearPlotDisplays(plot)
 	BaseService.UpdatePackMilestone(plot, 0)
 	updateOwnerSign(plot, nil, "")
+	BaseService.UpdateRebirthMultiplier(plot, nil)
 	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
 	if player.RespawnLocation == plot.spawnLocation then
 		player.RespawnLocation = nil

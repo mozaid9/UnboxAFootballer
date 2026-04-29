@@ -792,6 +792,16 @@ local function getEffectiveDisplaySlotCount(player)
 	return math.min(data and data.baseSlots or Constants.Rebirth.BaseSlots, Constants.Rebirth.MaxSlots)
 end
 
+local function syncRebirthMultiplierBadge(player, plot)
+	if not player or not plot then
+		return
+	end
+
+	local data = DataService.GetData(player)
+	local multiplier = RebirthService.GetFanMultiplier(data and data.rebirthTier or 0)
+	BaseService.UpdateRebirthMultiplier(plot, multiplier)
+end
+
 local function syncDisplaySlotsForPlayer(player, plot)
 	if not player or not plot then
 		return
@@ -809,6 +819,7 @@ local function syncDisplaySlotsForPlayer(player, plot)
 			connectSlotPrompt(plot, newSlot)
 		end
 	end
+	syncRebirthMultiplierBadge(player, plot)
 	refreshPlotDisplayState(player, plot)
 end
 
@@ -1017,6 +1028,7 @@ local function handlePlayerAdded(player)
 	local plot = BaseService.AssignPlot(player, data.rebirthTier or 0, getEffectiveDisplaySlotCount(player))
 	-- Wire up prompt handlers for any extra slots loaded from saved data (slots > base 6)
 	if plot then
+		syncRebirthMultiplierBadge(player, plot)
 		for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
 			if slot.slotIndex > 6 then
 				connectSlotPrompt(plot, slot)
