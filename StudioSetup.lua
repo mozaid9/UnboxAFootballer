@@ -2905,8 +2905,8 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	local groundY     = 0.9
 	local stairTopY   = deckTopLocalY
 	local totalRise   = stairTopY - groundY
-	local stairBottomX = deckFrontLocalX + facingDirection * 17
-	local stairTopX    = deckFrontLocalX - facingDirection * 5.6
+	local stairBottomX = deckFrontLocalX + facingDirection * 14
+	local stairTopX    = deckFrontLocalX - facingDirection * 8.6
 	local totalRun     = math.abs(stairTopX - stairBottomX)
 	local riserH       = totalRise / stairCount
 	local treadD       = totalRun / stairCount
@@ -2985,6 +2985,19 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 				Color = stepColor,
 				Size = Vector3.new(treadD, riserH, stairW),
 				CFrame = baseCFrame * CFrame.new(stepCenterX, stepCenterY, stairZ),
+			}, parent)
+
+			make("Part", {
+				Name = "RebirthTerraceStairGoldLip",
+				Anchored = true,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				Material = Enum.Material.Neon,
+				Color = gold,
+				Transparency = 0.22,
+				Size = Vector3.new(treadD * 0.78, 0.06, stairW + 0.12),
+				CFrame = baseCFrame * CFrame.new(stepCenterX, stepBottomY + riserH + 0.045, stairZ),
 			}, parent)
 		end
 
