@@ -145,7 +145,7 @@ Constants.FanZone = {
 		{ id = "cycle_100_deluxe",     threshold = 100,  rewardKind = "pack",      rewardPackId = "DeluxePack",  reward = "Deluxe Pack Queued",        label = "DELUXE",    color = Color3.fromRGB(255, 110, 64)  },
 		{ id = "cycle_250_mythic",     threshold = 250,  rewardKind = "pack",      rewardPackId = "MythicPack",  reward = "Mythic Pack Queued",        label = "MYTHIC",    color = Color3.fromRGB(157, 80, 255)  },
 		{ id = "cycle_500_god",        threshold = 500,  rewardKind = "pack",      rewardPackId = "GodPack",     reward = "God Pack Queued",           label = "GOD",       color = Color3.fromRGB(255, 246, 160) },
-		{ id = "cycle_1000_talisman",  threshold = 1000, rewardKind = "guarantee", minRarity = "Talisman",       reward = "Guaranteed Talisman+ Queued", label = "TALISMAN+", color = Color3.fromRGB(235, 56, 43), allowBeyondPackCap = true },
+		{ id = "cycle_1000_immortal",  threshold = 1000, rewardKind = "guarantee", minRarity = "Immortal",       reward = "Guaranteed Immortal+ Queued", label = "IMMORTAL+", color = Color3.fromRGB(226, 248, 255), allowBeyondPackCap = true },
 	}
 
 Constants.CollectionRewards = {
@@ -166,9 +166,9 @@ Constants.Rebirth = {
 		[1]  = { fans = 1000000,   cards = { { count = 1, rarity = "Talisman"           } } },
 		[2]  = { fans = 2000000,   cards = { { count = 1, rarity = "Maestro"            } } },
 		[3]  = { fans = 4000000,   cards = { { count = 2, rarity = "Maestro"            } } },
-		[4]  = { fans = 8000000,   cards = { { count = 2, rarity = "Immortal"           } } },
-		[5]  = { fans = 16000000,  cards = { { count = 3, rarity = "Immortal"           } } },
-		[6]  = { fans = 32000000,  cards = { { count = 3, rarity = "Player of the Year" } } },
+		[4]  = { fans = 8000000,   cards = { { count = 1, rarity = "Immortal"           } } },
+		[5]  = { fans = 16000000,  cards = { { count = 1, rarity = "Immortal"           } } },
+		[6]  = { fans = 32000000,  cards = { { count = 2, rarity = "Immortal"           } } },
 	},
 
 	-- Display slots
