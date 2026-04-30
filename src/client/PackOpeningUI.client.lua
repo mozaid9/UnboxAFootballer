@@ -86,6 +86,20 @@ local revealSound = make("Sound", {
 	PlaybackSpeed = 1.18,
 }, screenGui)
 
+local cardRiseSound = make("Sound", {
+	Name = "CardRiseSound",
+	SoundId = "rbxasset://sounds/electronicpingshort.wav",
+	Volume = 0.22,
+	PlaybackSpeed = 0.72,
+}, screenGui)
+
+local cardFlipSound = make("Sound", {
+	Name = "CardFlipSound",
+	SoundId = "rbxasset://sounds/electronicpingshort.wav",
+	Volume = 0.28,
+	PlaybackSpeed = 1.52,
+}, screenGui)
+
 local watchedPlots = {}
 
 local function getOwnedPlot()
@@ -889,7 +903,7 @@ local function showImpactFlash(color, isFinal)
 		BackgroundTransparency = isFinal and 0.32 or 0.64,
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(1, 1),
-		ZIndex = isFinal and 184 or 176,
+		ZIndex = isFinal and 190 or 188,
 	}, screenGui)
 
 	TweenService:Create(flash, TweenInfo.new(isFinal and 0.34 or 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -947,26 +961,27 @@ local function sweepShimmer(panel, color)
 end
 
 -- ── Rare pull screen effect ───────────────────────────────────────────────────
--- Gold       = tier 0 : subtle flash only (new)
--- Talisman   = tier 1 : stronger flash + particle burst
--- Maestro    = tier 2 : flash + particles + rarity burst label + cinematic bars
--- Immortal/POTY = tier 3 : all of the above + camera shake
+-- Gold       = tier 0 : quick flash
+-- Premium    = tier 1 : particles + stronger shine
+-- Talisman   = tier 2 : rarity label + cinematic bars
+-- Maestro+   = tier 3/4 : suspense pause + impact shake
 -- Returns seconds the caller should wait before showing the card panel.
 local REVEAL_TIERS = {
-	["Talisman"]           = 1,
-	["Maestro"]            = 2,
-	["Immortal"]           = 3,
-	["Player of the Year"] = 3,
+	["Premium Gold"]       = 1,
+	["Talisman"]           = 2,
+	["Maestro"]            = 3,
+	["Immortal"]           = 4,
+	["Player of the Year"] = 4,
 }
 
 local REVEAL_DELAYS = {
 	["Gold"] = 0.02,
 	["Rare Gold"] = 0.08,
-	["Premium Gold"] = 0.18,
-	["Talisman"] = 0.30,
-	["Maestro"] = 0.42,
-	["Immortal"] = 0.54,
-	["Player of the Year"] = 0.58,
+	["Premium Gold"] = 0.24,
+	["Talisman"] = 0.42,
+	["Maestro"] = 0.66,
+	["Immortal"] = 0.78,
+	["Player of the Year"] = 0.82,
 }
 
 local function playRevealEffect(rarity)
@@ -1102,7 +1117,114 @@ local function playRevealEffect(rarity)
 		end)
 	end
 
-	return tier == 1 and 0.12 or (tier == 2 and 0.30 or 0.38)
+	if tier >= 4 then
+		return 0.52
+	end
+	return tier == 1 and 0.14 or (tier == 2 and 0.32 or 0.42)
+end
+
+local function getRevealFocusTransparency(tier)
+	if tier >= 4 then
+		return 0.40
+	elseif tier >= 3 then
+		return 0.46
+	elseif tier >= 2 then
+		return 0.56
+	elseif tier >= 1 then
+		return 0.64
+	end
+	return 0.74
+end
+
+local function makeRevealFocus(style, tier, revealPos)
+	local glowColor = style.glow or style.primary or UI.Gold
+	local overlay = make("Frame", {
+		Name = "RevealFocusOverlay",
+		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+		ZIndex = 187,
+	}, screenGui)
+	TweenService:Create(overlay, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = getRevealFocusTransparency(tier),
+	}):Play()
+
+	local stage = make("Frame", {
+		Name = "RevealStageGlow",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundTransparency = 1,
+		Position = revealPos,
+		Size = UDim2.fromOffset(560, 560),
+		ZIndex = 196,
+	}, screenGui)
+
+	local haloSize = 300 + (tier * 34)
+	local halo = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = glowColor,
+		BackgroundTransparency = tier >= 3 and 0.62 or 0.72,
+		BorderSizePixel = 0,
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(haloSize, haloSize),
+		ZIndex = 197,
+	}, stage)
+	addCorner(halo, haloSize)
+	make("UIGradient", {
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.10),
+			NumberSequenceKeypoint.new(0.58, 0.72),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+	}, halo)
+
+	local rayCount = tier >= 3 and 14 or (tier >= 2 and 10 or (tier >= 1 and 7 or 4))
+	for index = 1, rayCount do
+		local ray = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundColor3 = glowColor:Lerp(Color3.fromRGB(255, 255, 255), 0.18),
+			BackgroundTransparency = tier >= 2 and 0.70 or 0.82,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.5),
+			Rotation = (360 / rayCount) * (index - 1),
+			Size = UDim2.fromOffset(tier >= 3 and 9 or 6, 270 + (tier * 24)),
+			ZIndex = 198,
+		}, stage)
+		make("UIGradient", {
+			Rotation = 90,
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.48, 0.18),
+				NumberSequenceKeypoint.new(1, 1),
+			}),
+		}, ray)
+	end
+
+	return {
+		overlay = overlay,
+		stage = stage,
+	}
+end
+
+local function clearRevealFocus(focus)
+	if not focus then
+		return
+	end
+
+	if focus.overlay and focus.overlay.Parent then
+		TweenService:Create(focus.overlay, TweenInfo.new(0.26, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundTransparency = 1,
+		}):Play()
+		task.delay(0.30, function()
+			if focus.overlay and focus.overlay.Parent then
+				focus.overlay:Destroy()
+			end
+		end)
+	end
+
+	if focus.stage and focus.stage.Parent then
+		focus.stage:Destroy()
+	end
 end
 
 -- ── Card reveal ───────────────────────────────────────────────────────────────
@@ -1116,7 +1238,17 @@ local function showCardReveal(payload)
 	local card = payload.card
 	if not card then return end
 
-	-- Phase 1 + 2: flash & particles — wait for pre-delay before card appears
+	local style          = Utils.GetRarityStyle(card.rarity)
+	local rarityColor    = style.primary
+	local secondaryColor = style.secondary or rarityColor
+	local darkColor      = style.dark or Color3.fromRGB(10, 5, 2)
+	local trimColor      = style.trim or rarityColor
+	local textColor      = style.text or Color3.fromRGB(255, 255, 255)
+	local glowColor      = style.glow or trimColor
+	local toInventory    = payload.storedInInventory == true
+	local tier           = REVEAL_TIERS[card.rarity] or 0
+
+	-- Phase 1 + 2: flash, particles, and rarity-specific suspense.
 	local revealPreDelay = playRevealEffect(card.rarity)
 	if revealPreDelay > 0 then
 		task.wait(revealPreDelay)
@@ -1125,219 +1257,352 @@ local function showCardReveal(payload)
 	if rarityDelay > 0 then
 		task.wait(rarityDelay)
 	end
-	revealSound.PlaybackSpeed = 1.08 + ((REVEAL_TIERS[card.rarity] or 0) * 0.06)
-	revealSound:Play()
 
-	local style         = Utils.GetRarityStyle(card.rarity)
-	local rarityColor   = style.primary
-	local secondaryColor = style.secondary or rarityColor
-	local darkColor     = style.dark or Color3.fromRGB(10, 5, 2)
-	local trimColor     = style.trim or rarityColor
-	local textColor     = style.text or Color3.fromRGB(255, 255, 255)
-	local toInventory   = payload.storedInInventory == true
-	local tier          = REVEAL_TIERS[card.rarity] or 0
-
-	-- Card stays clean: name, rarity, position, nation.
-	local CARD_W, CARD_H = 180, 252
+	local cardWidth = 184 + math.min(tier, 3) * 6
+	local cardHeight = 258 + math.min(tier, 3) * 7
 	local revealPos = UDim2.new(0.5, 0, 0.46, 0)
 	local startPos = getWorldScreenTarget(payload.packWorldPosition, UDim2.new(0.5, 0, 0.78, 0))
+	local focus = makeRevealFocus(style, tier, revealPos)
 
-	-- ── Phase 3: REVEAL — card panel ─────────────────────────────────
-	-- Starts near the broken pack, tilted, then rises into place.
+	cardRiseSound.PlaybackSpeed = 0.72 + (tier * 0.04)
+	cardRiseSound.Volume = 0.20 + (tier * 0.025)
+	cardRiseSound:Play()
+
 	local cardPanel = make("Frame", {
-		Name             = "CardReveal",
-		AnchorPoint      = Vector2.new(0.5, 0.5),
-		Position         = startPos,
-		Size             = UDim2.fromOffset(CARD_W, CARD_H),
+		Name = "CardReveal",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = startPos,
+		Size = UDim2.fromOffset(math.max(18, cardWidth * 0.18), cardHeight),
 		BackgroundColor3 = darkColor,
-		Rotation         = -12,
-		ZIndex           = 200,
+		BorderSizePixel = 0,
+		Rotation = -16,
+		ZIndex = 200,
+		ClipsDescendants = false,
 	}, screenGui)
-	addCorner(cardPanel, 16)
-	addStroke(cardPanel, trimColor, 3)
+	addCorner(cardPanel, 18)
+	local outerStroke = addStroke(cardPanel, trimColor, tier >= 2 and 4 or 3, tier >= 2 and 0.02 or 0.14)
 
 	make("UIGradient", {
 		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0,    rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.12)),
-			ColorSequenceKeypoint.new(0.48, secondaryColor),
-			ColorSequenceKeypoint.new(1,    darkColor),
+			ColorSequenceKeypoint.new(0, darkColor),
+			ColorSequenceKeypoint.new(0.30, secondaryColor),
+			ColorSequenceKeypoint.new(0.62, rarityColor:Lerp(Color3.fromRGB(255, 255, 255), tier >= 2 and 0.24 or 0.12)),
+			ColorSequenceKeypoint.new(1, darkColor),
 		}),
-		Rotation = 158,
+		Rotation = 146,
 	}, cardPanel)
 
-	-- UIScale drives the bounce pop-in (starts tiny, springs to full size)
-	local cardScale = make("UIScale", { Scale = 0.06 }, cardPanel)
+	local cardScale = make("UIScale", { Scale = 0.84 }, cardPanel)
 
-	-- ── Phase 4: REVEAL aura — pulsing glow ring (tier 1+) ───────────
-	-- Lives inside cardPanel so it follows the card automatically.
-	if tier >= 1 then
-		local aura = make("Frame", {
-			AnchorPoint          = Vector2.new(0.5, 0.5),
-			Position             = UDim2.fromScale(0.5, 0.5),
-			Size                 = UDim2.new(1, 22, 1, 22),   -- 11 px outside card edge
-			BackgroundTransparency = 1,
-			ZIndex               = 199,
+	for index = 1, 9 do
+		make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = tier >= 2 and 0.86 or 0.92,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, index / 10),
+			Rotation = -22,
+			Size = UDim2.new(1.25, 0, 0, 1),
+			ZIndex = 201,
 		}, cardPanel)
-		addCorner(aura, 22)
-		local auraStroke = addStroke(aura, rarityColor, 4, 0.36)
-
-		local function pulseAura()
-			if not aura.Parent then return end
-			TweenService:Create(aura, TweenInfo.new(0.55, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-				Size = UDim2.new(1, 40, 1, 40),
-			}):Play()
-			TweenService:Create(auraStroke, TweenInfo.new(0.55, Enum.EasingStyle.Sine), {
-				Transparency = 0.80,
-			}):Play()
-			task.delay(0.55, function()
-				if aura.Parent then
-					TweenService:Create(aura, TweenInfo.new(0.55, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-						Size = UDim2.new(1, 22, 1, 22),
-					}):Play()
-					TweenService:Create(auraStroke, TweenInfo.new(0.55, Enum.EasingStyle.Sine), {
-						Transparency = 0.36,
-					}):Play()
-				end
-			end)
-		end
-
-		task.delay(0.40, pulseAura)
-		task.delay(1.50, pulseAura)
 	end
 
-	-- ── Rarity band ───────────────────────────────────────────────────
-	local rarityBand = make("Frame", {
-		AnchorPoint      = Vector2.new(0.5, 0),
-		Position         = UDim2.new(0.5, 0, 0, 12),
-		Size             = UDim2.fromOffset(142, 24),
-		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
-		BackgroundTransparency = 0.10,
-		BorderSizePixel  = 0,
-		ZIndex           = 202,
+	local innerGlow = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundTransparency = 1,
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, -12, 1, -12),
+		ZIndex = 207,
 	}, cardPanel)
-	addCorner(rarityBand, 12)
-	addStroke(rarityBand, trimColor, 1.2, 0.28)
+	addCorner(innerGlow, 14)
+	local innerStroke = addStroke(innerGlow, glowColor, tier >= 2 and 2.2 or 1.4, tier >= 1 and 0.34 or 0.58)
+
+	local aura
+	local auraStroke
+	if tier >= 1 then
+		aura = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundTransparency = 1,
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.new(1, 28, 1, 28),
+			Visible = false,
+			ZIndex = 199,
+		}, cardPanel)
+		addCorner(aura, 24)
+		auraStroke = addStroke(aura, glowColor, tier >= 3 and 5 or 3.5, tier >= 3 and 0.22 or 0.36)
+	end
+
+	local cardBack = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(5, 7, 13),
+		BackgroundTransparency = 0.04,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+		ZIndex = 214,
+	}, cardPanel)
+	addCorner(cardBack, 18)
+	addStroke(cardBack, trimColor, 1.4, 0.24)
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, glowColor:Lerp(Color3.fromRGB(0, 0, 0), 0.35)),
+			ColorSequenceKeypoint.new(0.54, Color3.fromRGB(5, 7, 13)),
+			ColorSequenceKeypoint.new(1, darkColor),
+		}),
+		Rotation = 156,
+	}, cardBack)
+
+	make("TextLabel", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundTransparency = 1,
+		Position = UDim2.fromScale(0.5, 0.42),
+		Size = UDim2.new(0.82, 0, 0.28, 0),
+		Text = "PACK THAT PLAYER",
+		TextColor3 = textColor,
+		TextScaled = true,
+		TextWrapped = true,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 215,
+	}, cardBack)
+
+	make("TextLabel", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		BackgroundTransparency = 1,
+		Position = UDim2.fromScale(0.5, 0.64),
+		Size = UDim2.new(0.82, 0, 0.10, 0),
+		Text = string.upper(style.label or card.rarity or "CARD"),
+		TextColor3 = glowColor,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 215,
+	}, cardBack)
+
+	local frontGroup = make("Frame", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Visible = false,
+		ZIndex = 202,
+	}, cardPanel)
+
+	local rarityBand = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 13),
+		Size = UDim2.fromOffset(cardWidth - 42, 26),
+		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
+		BackgroundTransparency = 0.08,
+		BorderSizePixel = 0,
+		ZIndex = 204,
+	}, frontGroup)
+	addCorner(rarityBand, 13)
+	addStroke(rarityBand, trimColor, 1.2, 0.18)
 
 	local rarityLabel = make("TextLabel", {
 		BackgroundTransparency = 1,
-		Size       = UDim2.fromScale(1, 1),
-		Text       = string.upper(style.label or card.rarity or "CARD"),
+		Size = UDim2.fromScale(1, 1),
+		Text = string.upper(style.label or card.rarity or "CARD"),
 		TextColor3 = textColor,
 		TextScaled = false,
-		TextSize   = 12,
-		Font       = Enum.Font.GothamBlack,
-		ZIndex     = 203,
+		TextSize = 12,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 205,
 	}, rarityBand)
-	addStroke(rarityLabel, Color3.fromRGB(6, 3, 1), 1, 0.35)
+	addStroke(rarityLabel, Color3.fromRGB(6, 3, 1), 1, 0.30)
 
-	-- ── Divider ───────────────────────────────────────────────────────
 	make("Frame", {
-		AnchorPoint      = Vector2.new(0.5, 0),
-		Position         = UDim2.new(0.5, 0, 0, 78),
-		Size             = UDim2.new(0.84, 0, 0, 1.5),
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-		BackgroundTransparency = 0.55,
-		BorderSizePixel  = 0,
-		ZIndex           = 202,
-	}, cardPanel)
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 78),
+		Size = UDim2.new(0.84, 0, 0, 1.5),
+		BackgroundColor3 = glowColor,
+		BackgroundTransparency = 0.36,
+		BorderSizePixel = 0,
+		ZIndex = 203,
+	}, frontGroup)
 
-	-- ── Monogram circle — tinted by rarity colour ─────────────────────
-	local monogram = make("Frame", {
-		AnchorPoint      = Vector2.new(0.5, 0),
-		Position         = UDim2.new(0.5, 0, 0, 86),
-		Size             = UDim2.fromOffset(84, 84),
-		BackgroundColor3 = rarityColor:Lerp(Color3.fromRGB(12, 16, 30), 0.45),
-		BackgroundTransparency = 0.10,
-		ZIndex           = 201,
-	}, cardPanel)
-	addCorner(monogram, 42)
-	addStroke(monogram, rarityColor, 2.5, 0.25)
+	local badgeGlow = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		BackgroundColor3 = glowColor,
+		BackgroundTransparency = tier >= 2 and 0.60 or 0.74,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0.5, 0, 0, 86),
+		Size = UDim2.fromOffset(104, 104),
+		ZIndex = 202,
+	}, frontGroup)
+	addCorner(badgeGlow, 52)
+
+	local badge = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		BackgroundColor3 = Color3.fromRGB(8, 10, 18),
+		BackgroundTransparency = 0.03,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0.5, 0, 0, 102),
+		Rotation = 45,
+		Size = UDim2.fromOffset(70, 70),
+		ZIndex = 204,
+	}, frontGroup)
+	addCorner(badge, 12)
+	addStroke(badge, trimColor, 2.4, 0.12)
 
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Size             = UDim2.fromScale(1, 1),
-		Text             = string.upper(string.sub(card.name, 1, 1)),
-		TextColor3       = Color3.fromRGB(255, 255, 255),
-		TextTransparency = 0,
-		TextScaled       = true,
-		Font             = Enum.Font.GothamBlack,
-		ZIndex           = 202,
-	}, monogram)
+		Position = UDim2.fromScale(0, 0),
+		Rotation = -45,
+		Size = UDim2.fromScale(1, 1),
+		Text = string.upper(string.sub(card.name, 1, 1)),
+		TextColor3 = textColor,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 205,
+	}, badge)
 
-	-- ── Player name ───────────────────────────────────────────────────
 	local nameLabel = make("TextLabel", {
+		AnchorPoint = Vector2.new(0.5, 0),
 		BackgroundTransparency = 1,
-		AnchorPoint    = Vector2.new(0.5, 0),
-		Position       = UDim2.new(0.5, 0, 0, 176),
-		Size           = UDim2.new(0.90, 0, 0, 38),
-		Text           = string.upper(card.name),
-		TextColor3     = Color3.fromRGB(255, 255, 255),
-		TextScaled     = true,
-		TextWrapped    = true,
-		Font           = Enum.Font.GothamBlack,
+		Position = UDim2.new(0.5, 0, 0, 178),
+		Size = UDim2.new(0.90, 0, 0, 40),
+		Text = string.upper(card.name),
+		TextColor3 = textColor,
+		TextScaled = true,
+		TextWrapped = true,
+		Font = Enum.Font.GothamBlack,
 		TextXAlignment = Enum.TextXAlignment.Center,
-		ZIndex         = 202,
-	}, cardPanel)
-	make("UITextSizeConstraint", { MinTextSize = 9, MaxTextSize = 22 }, nameLabel)
-	addStroke(nameLabel, Color3.fromRGB(6, 3, 1), 1.2, 0.20)
+		ZIndex = 204,
+	}, frontGroup)
+	make("UITextSizeConstraint", { MinTextSize = 9, MaxTextSize = 23 }, nameLabel)
+	addStroke(nameLabel, Color3.fromRGB(6, 3, 1), 1.2, 0.18)
 
 	local metaPanel = make("Frame", {
-		AnchorPoint      = Vector2.new(0.5, 0),
-		Position         = UDim2.new(0.5, 0, 0, 220),
-		Size             = UDim2.fromOffset(150, 22),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, cardHeight - 34),
+		Size = UDim2.fromOffset(cardWidth - 36, 24),
 		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
-		BackgroundTransparency = 0.12,
-		ZIndex           = 202,
-	}, cardPanel)
-	addCorner(metaPanel, 11)
-	addStroke(metaPanel, trimColor, 1.2, 0.3)
+		BackgroundTransparency = 0.10,
+		BorderSizePixel = 0,
+		ZIndex = 204,
+	}, frontGroup)
+	addCorner(metaPanel, 12)
+	addStroke(metaPanel, trimColor, 1.2, 0.24)
 
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Size           = UDim2.fromScale(1, 1),
-		Text           = (card.position or "--") .. "  |  " .. (card.nation or "Unknown"),
-		TextColor3     = textColor,
-		TextScaled     = false,
-		TextSize       = 11,
-		Font           = Enum.Font.GothamBlack,
+		Size = UDim2.fromScale(1, 1),
+		Text = (card.position or "--") .. "  |  " .. (card.nation or "Unknown"),
+		TextColor3 = textColor,
+		TextScaled = false,
+		TextSize = 11,
+		Font = Enum.Font.GothamBlack,
 		TextXAlignment = Enum.TextXAlignment.Center,
-		ZIndex         = 203,
+		ZIndex = 205,
 	}, metaPanel)
 
-	-- ── Pop-in: slide up from below + scale bounce ────────────────────
 	task.wait(0.04)
-	TweenService:Create(cardPanel,
-		TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Position = revealPos, Rotation = 0 }
-	):Play()
-	TweenService:Create(cardScale,
-		TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Scale = 1 }
-	):Play()
+	local riseTime = 0.34 + (math.min(tier, 3) * 0.03)
+	TweenService:Create(cardPanel, TweenInfo.new(riseTime, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = revealPos,
+		Rotation = -4,
+		Size = UDim2.fromOffset(cardWidth, cardHeight),
+	}):Play()
+	TweenService:Create(cardScale, TweenInfo.new(riseTime, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1,
+	}):Play()
+	task.wait(riseTime + (tier >= 3 and 0.24 or (tier >= 2 and 0.12 or 0.04)))
 
-	-- ── Shimmer sweep once the card has landed ────────────────────────
-	task.delay(0.38, function()
+	cardFlipSound.PlaybackSpeed = 1.36 + (tier * 0.04)
+	cardFlipSound.Volume = 0.24 + (tier * 0.025)
+	cardFlipSound:Play()
+	TweenService:Create(cardPanel, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Size = UDim2.fromOffset(18, cardHeight),
+		Rotation = 7,
+	}):Play()
+	task.wait(0.12)
+
+	cardBack.Visible = false
+	frontGroup.Visible = true
+	if aura then
+		aura.Visible = true
+	end
+
+	TweenService:Create(cardPanel, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.fromOffset(cardWidth, cardHeight),
+		Rotation = 0,
+	}):Play()
+	task.wait(0.12)
+
+	revealSound.PlaybackSpeed = 1.08 + (tier * 0.05)
+	revealSound.Volume = math.min(0.58, 0.34 + (tier * 0.045))
+	revealSound:Play()
+	showImpactFlash(glowColor, tier >= 2)
+	spawnParticleBurst(glowColor, tier >= 2 and 28 or 12, payload.packWorldPosition, tier >= 2 and 0.86 or 0.45)
+	if tier >= 2 then
+		shakeCamera(tier >= 3 and 0.11 or 0.06, 0.16, tier >= 3 and 7 or 5)
+	end
+
+	TweenService:Create(cardScale, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1.04 + (math.min(tier, 3) * 0.015),
+	}):Play()
+	TweenService:Create(outerStroke, TweenInfo.new(0.20, Enum.EasingStyle.Quad), {
+		Transparency = 0,
+	}):Play()
+	TweenService:Create(innerStroke, TweenInfo.new(0.20, Enum.EasingStyle.Quad), {
+		Transparency = tier >= 2 and 0.08 or 0.24,
+	}):Play()
+	task.delay(0.14, function()
+		if cardScale.Parent then
+			TweenService:Create(cardScale, TweenInfo.new(0.24, Enum.EasingStyle.Quad), { Scale = 1 }):Play()
+		end
+	end)
+
+	local function pulseAura()
+		if not aura or not aura.Parent or not auraStroke then return end
+		TweenService:Create(aura, TweenInfo.new(0.58, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+			Size = UDim2.new(1, 48, 1, 48),
+		}):Play()
+		TweenService:Create(auraStroke, TweenInfo.new(0.58, Enum.EasingStyle.Sine), {
+			Transparency = 0.82,
+		}):Play()
+		task.delay(0.58, function()
+			if aura and aura.Parent then
+				TweenService:Create(aura, TweenInfo.new(0.58, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+					Size = UDim2.new(1, 28, 1, 28),
+				}):Play()
+				TweenService:Create(auraStroke, TweenInfo.new(0.58, Enum.EasingStyle.Sine), {
+					Transparency = tier >= 3 and 0.22 or 0.36,
+				}):Play()
+			end
+		end)
+	end
+	pulseAura()
+	task.delay(1.15, pulseAura)
+
+	task.delay(0.16, function()
 		if cardPanel.Parent then
 			sweepShimmer(cardPanel, Color3.fromRGB(255, 255, 255))
 		end
 	end)
+	if tier >= 2 then
+		task.delay(0.72, function()
+			if cardPanel.Parent then
+				sweepShimmer(cardPanel, glowColor)
+			end
+		end)
+	end
 
-	-- ── Fly-off after 1.9 s ──────────────────────────────────────────
-	task.delay(1.9, function()
-		if not cardPanel.Parent then return end
+	local holdTime = tier >= 3 and 2.45 or (tier >= 2 and 2.15 or 1.85)
+	task.delay(holdTime, function()
+		if not cardPanel.Parent then
+			clearRevealFocus(focus)
+			return
+		end
 
+		clearRevealFocus(focus)
 		local flyTarget = toInventory
 			and getGuiCenterTarget(inventoryButton, UDim2.new(0.16, 0, 0.72, 0))
-			or  getWorldScreenTarget(payload.slotWorldPosition, UDim2.new(0.5, 0, 0.72, 0))
+			or getWorldScreenTarget(payload.slotWorldPosition, UDim2.new(0.5, 0, 0.72, 0))
 
-		TweenService:Create(cardPanel,
-			TweenInfo.new(0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{ Position = flyTarget }
-		):Play()
-		TweenService:Create(cardScale,
-			TweenInfo.new(0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{ Scale = 0 }
-		):Play()
+		TweenService:Create(cardPanel, TweenInfo.new(0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Position = flyTarget,
+			Rotation = tier >= 2 and 8 or 0,
+		}):Play()
+		TweenService:Create(cardScale, TweenInfo.new(0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Scale = 0,
+		}):Play()
 
 		task.delay(0.34, function()
 			if cardPanel.Parent then cardPanel:Destroy() end
