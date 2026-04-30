@@ -134,30 +134,24 @@ local function getNextPackMilestone(totalPacks)
 
 	local bestMilestone
 	local nextAt = math.huge
+	local bestRemaining = math.huge
 	for _, milestone in ipairs(packMilestones or {}) do
 		local threshold = tonumber(milestone.threshold)
 		if threshold and threshold > 0 then
-			local candidateAt = math.ceil((totalPacks + 1) / threshold) * threshold
-			if candidateAt < nextAt then
+			local progressCount = totalPacks % threshold
+			local packsRemaining = threshold - progressCount
+			local candidateAt = totalPacks + packsRemaining
+			if packsRemaining < bestRemaining then
+				bestRemaining = packsRemaining
 				nextAt = candidateAt
 				bestMilestone = milestone
-			elseif candidateAt == nextAt and bestMilestone then
+			elseif packsRemaining == bestRemaining and bestMilestone then
 				local currentRank = milestone.threshold or 0
 				local bestRank = bestMilestone.threshold or 0
 				if currentRank > bestRank then
 					bestMilestone = milestone
+					nextAt = candidateAt
 				end
-			end
-		end
-	end
-
-	local prevAt = 0
-	for _, milestone in ipairs(packMilestones or {}) do
-		local threshold = tonumber(milestone.threshold)
-		if threshold and threshold > 0 then
-			local candidatePrev = math.floor(totalPacks / threshold) * threshold
-			if candidatePrev < nextAt then
-				prevAt = math.max(prevAt, candidatePrev)
 			end
 		end
 	end
@@ -165,16 +159,18 @@ local function getNextPackMilestone(totalPacks)
 	local firstMs = packMilestones and packMilestones[1]
 	bestMilestone = bestMilestone or firstMs or {}
 	nextAt = nextAt < math.huge and nextAt or (bestMilestone.threshold or 50)
-	local span = math.max(1, nextAt - prevAt)
-	local progress = math.clamp((totalPacks - prevAt) / span, 0, 1)
+	local threshold = math.max(1, tonumber(bestMilestone.threshold) or 50)
+	local progressCount = totalPacks % threshold
+	local progress = math.clamp(progressCount / threshold, 0, 1)
+
 	return {
 		nextAt = nextAt,
-		prevAt = prevAt,
+		progressCount = progressCount,
 		progress = progress,
-		reward = bestMilestone.reward or "Rare Gold+ Guarantee",
+		reward = bestMilestone.reward or "Rare Pack Queued",
 		label = bestMilestone.label or "REWARD",
 		color = bestMilestone.color or Color3.fromRGB(255, 215, 0),
-		threshold = bestMilestone.threshold or 50,
+		threshold = threshold,
 	}
 end
 
@@ -2873,9 +2869,9 @@ local function createPlot(plotId, side, laneIndex, position)
 		}, model)
 	end
 
-	make("PointLight", {
-		Color = boardGold, Range = 22, Brightness = 0.5, Shadows = false,
-	}, milestoneSign)
+		local milestoneLight = make("PointLight", {
+			Color = boardGold, Range = 22, Brightness = 0.5, Shadows = false,
+		}, milestoneSign)
 
 	local milestoneGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
@@ -2938,9 +2934,9 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, mf)
 
 	-- ── Next reward text: "X / Y PACKS → GUARANTEE" (0.46 – 0.58) ─
-	local milestoneNextLabel = createOwnerSignText("0 / 50 PACKS \u{2192} RARE GOLD+",
-		UDim2.fromScale(0.82, 0.10), UDim2.fromScale(0.09, 0.46),
-		Color3.fromRGB(255, 215, 0), {
+		local milestoneNextLabel = createOwnerSignText("NEXT: RARE PACK",
+			UDim2.fromScale(0.82, 0.10), UDim2.fromScale(0.09, 0.46),
+			Color3.fromRGB(255, 215, 0), {
 		textScaled = true, minTextSize = 12, maxTextSize = 36,
 		textStrokeTransparency = 0.55, font = Enum.Font.GothamBlack,
 	}, mf)
@@ -3006,7 +3002,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	-- Evenly-spaced cards showing each repeating pity milestone.
 	local iconY    = 0.785
 	local iconH    = 0.195
-	local iconW    = 0.13
+		local iconW    = 0.118
 	local iconGap  = (1 - 0.10 * 2 - iconW * #packMilestones) / (#packMilestones - 1)
 	local milestoneIconFrames = {}
 
@@ -3071,8 +3067,8 @@ local function createPlot(plotId, side, laneIndex, position)
 			textStrokeTransparency = 0.50, font = Enum.Font.GothamBlack,
 		}, tick)
 
-		milestoneIconFrames[i] = { tick = tick, threshold = ms.threshold }
-	end
+			milestoneIconFrames[i] = { card = card, tick = tick, threshold = ms.threshold, color = col }
+		end
 
 	local padGui = make("BillboardGui", {
 		Name = "PadGui",
@@ -3326,10 +3322,11 @@ local function createPlot(plotId, side, laneIndex, position)
 		rebirthMultiplierLabel = rebirthMultiplierLabel,
 		milestoneSign = milestoneSign,
 		milestonePacksLabel = milestonePacksLabel,
-		milestoneNextLabel = milestoneNextLabel,
-		milestoneBarFill = milestoneBarFill,
-		milestoneBarPct = milestoneBarPct,
-		milestoneIconFrames = milestoneIconFrames,
+			milestoneNextLabel = milestoneNextLabel,
+			milestoneBarFill = milestoneBarFill,
+			milestoneBarPct = milestoneBarPct,
+			milestoneLight = milestoneLight,
+			milestoneIconFrames = milestoneIconFrames,
 		padTitleLabel = padTitleLabel,
 		padSubtitleLabel = padSubtitleLabel,
 		padAccent = padAccent,
@@ -3626,47 +3623,68 @@ function BaseService.GetDisplaySlots(plot)
 	return plot and plot.displaySlots or {}
 end
 
-function BaseService.UpdatePackMilestone(plot, totalPacks, claimedMilestones)
+function BaseService.UpdatePackMilestone(plot, totalPacks, claimedMilestones, queuedRewardCount)
 	if not plot or not plot.milestonePacksLabel or not plot.milestoneNextLabel or not plot.milestoneBarFill then
 		return
 	end
 
 	totalPacks = math.max(0, totalPacks or 0)
 	claimedMilestones = claimedMilestones or {}
+	queuedRewardCount = math.max(0, tonumber(queuedRewardCount) or 0)
 
 	local ms = getNextPackMilestone(totalPacks)
+	local nearMilestone = ms.progress >= 0.80
+	local milestoneColor = ms.color or Color3.fromRGB(255, 215, 0)
 
 	-- Hero counter
-	plot.milestonePacksLabel.Text = Utils.FormatNumber(totalPacks) .. " PACKS OPENED"
+	if queuedRewardCount > 0 then
+		plot.milestonePacksLabel.Text = Utils.FormatNumber(totalPacks) .. " PACKS OPENED  |  " .. tostring(queuedRewardCount) .. " QUEUED"
+	else
+		plot.milestonePacksLabel.Text = Utils.FormatNumber(totalPacks) .. " PACKS OPENED"
+	end
 
 	-- Next reward line
-	if ms.progress >= 1 then
-		plot.milestoneNextLabel.Text = "\u{2605} ALL MILESTONES COMPLETE!"
-	else
-		plot.milestoneNextLabel.Text = string.format(
-			"%s / %s PACKS  \u{2192}  %s",
-			Utils.FormatNumber(totalPacks - ms.prevAt),
-			Utils.FormatNumber(ms.nextAt   - ms.prevAt),
-			string.upper(ms.reward)
-		)
-	end
+	plot.milestoneNextLabel.Text = "NEXT: " .. string.upper(ms.reward)
+	plot.milestoneNextLabel.TextColor3 = nearMilestone and Color3.fromRGB(255, 250, 220) or milestoneColor
 
 	-- Progress bar + % label
 	local pct = math.floor(ms.progress * 100)
 	plot.milestoneBarFill.Size = UDim2.fromScale(ms.progress, 1)
+	plot.milestoneBarFill.BackgroundColor3 = milestoneColor
 	if plot.milestoneBarPct then
-		plot.milestoneBarPct.Text = tostring(pct) .. "%"
+		plot.milestoneBarPct.Text = string.format(
+			"%s / %s  (%d%%)",
+			Utils.FormatNumber(ms.progressCount),
+			Utils.FormatNumber(ms.threshold),
+			pct
+		)
+		plot.milestoneBarPct.TextColor3 = nearMilestone and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 248, 220)
+	end
+	if plot.milestoneLight then
+		plot.milestoneLight.Color = milestoneColor
+		plot.milestoneLight.Brightness = nearMilestone and 1.25 or 0.5
+		plot.milestoneLight.Range = nearMilestone and 34 or 22
 	end
 
-	-- Tick marks: show after the player has reached each repeating pity tier.
+	-- Reward icons: flash the just-hit cycle, then return to tracking the next loop.
 	if plot.milestoneIconFrames then
 		for _, entry in ipairs(plot.milestoneIconFrames) do
 			if entry.tick then
 				local T       = entry.threshold
-				local claimed = claimedMilestones[tostring(T)]
+				local key = nil
+				for _, milestone in ipairs(packMilestones or {}) do
+					if milestone.threshold == T then
+						key = milestone.id or tostring(T)
+						break
+					end
+				end
+				local claimed = key and claimedMilestones[key] or claimedMilestones[tostring(T)]
 				if claimed == true then claimed = 1 end
 				claimed = tonumber(claimed) or 0
-				entry.tick.Visible = claimed > 0 or totalPacks >= T
+				entry.tick.Visible = claimed > 0 and totalPacks > 0 and (totalPacks % T == 0)
+			end
+			if entry.card then
+				entry.card.BackgroundColor3 = entry.threshold == ms.threshold and Color3.fromRGB(20, 26, 42) or Color3.fromRGB(12, 16, 28)
 			end
 		end
 	end

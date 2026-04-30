@@ -59,6 +59,7 @@ local PackOpenFailedEvent = makeEvent("PackOpenFailed")
 local PromptPackShopEvent = makeEvent("PromptPackShop")
 local RequestPitchforkHitEvent = makeEvent("RequestPitchforkHit")
 local PackHitFeedbackEvent = makeEvent("PackHitFeedback")
+local MilestoneRewardEvent = makeEvent("MilestoneReward")
 local OpenSlotPickerEvent = makeEvent("OpenSlotPicker")
 
 local GetPlayerDataFn = makeFunction("GetPlayerData")
@@ -503,6 +504,105 @@ local function rollPadPackForPlayer(player)
 	return PackConfig.ChooseSpawnPack(luckLevel)
 end
 
+local function getMilestoneId(milestone)
+	if not milestone then
+		return nil
+	end
+	return milestone.id or tostring(milestone.threshold)
+end
+
+local function getMilestoneById(milestoneId)
+	for _, milestone in ipairs(Constants.PackMilestones or {}) do
+		if getMilestoneId(milestone) == milestoneId then
+			return milestone
+		end
+	end
+	return nil
+end
+
+local function buildMilestoneRewardEntry(milestone, repeatCount, totalPacks)
+	if not milestone then
+		return nil
+	end
+
+	local rewardKind = milestone.rewardKind or (milestone.rewardPackId and "pack" or "guarantee")
+	local entry = {
+		milestoneId = getMilestoneId(milestone),
+		kind = rewardKind,
+		reward = milestone.reward,
+		label = milestone.label,
+		threshold = milestone.threshold,
+		repeatCount = repeatCount,
+		earnedAt = totalPacks,
+	}
+
+	if rewardKind == "pack" then
+		entry.packId = milestone.rewardPackId
+	elseif rewardKind == "guarantee" then
+		entry.minRarity = milestone.minRarity
+		entry.allowBeyondPackCap = milestone.allowBeyondPackCap == true
+	end
+
+	return entry
+end
+
+local function serializeMilestoneReward(reward)
+	if type(reward) ~= "table" then
+		return nil
+	end
+
+	local milestone = getMilestoneById(reward.milestoneId) or {}
+	local packDef = reward.packId and PackConfig.ById[reward.packId] or nil
+	local rewardText = reward.reward or milestone.reward
+	if not rewardText and packDef then
+		rewardText = packDef.displayName .. " Queued"
+	end
+
+	return {
+		kind = reward.kind or milestone.rewardKind,
+		packId = reward.packId,
+		packName = packDef and packDef.displayName or nil,
+		minRarity = reward.minRarity or milestone.minRarity,
+		reward = rewardText or "Milestone Reward Queued",
+		label = reward.label or milestone.label or "REWARD",
+		threshold = reward.threshold or milestone.threshold,
+		repeatCount = reward.repeatCount,
+		earnedAt = reward.earnedAt,
+		color = milestone.color or (packDef and packDef.color) or Color3.fromRGB(255, 215, 0),
+	}
+end
+
+local function getQueuedMilestoneCount(player)
+	if type(DataService.GetMilestoneRewardQueueLength) == "function" then
+		return DataService.GetMilestoneRewardQueueLength(player)
+	end
+	return 0
+end
+
+local function fireMilestoneRewards(player, rewards)
+	if not player or type(rewards) ~= "table" or #rewards == 0 then
+		return
+	end
+
+	local serializedRewards = {}
+	for _, reward in ipairs(rewards) do
+		local serialized = serializeMilestoneReward(reward)
+		if serialized then
+			table.insert(serializedRewards, serialized)
+		end
+	end
+
+	if #serializedRewards == 0 then
+		return
+	end
+
+	MilestoneRewardEvent:FireClient(player, {
+		reward = serializedRewards[1],
+		rewards = serializedRewards,
+		queueLength = getQueuedMilestoneCount(player),
+	})
+end
+
 local function getCardById(cardId)
 	return cardId and CardData.ById[tonumber(cardId)] or nil
 end
@@ -523,34 +623,53 @@ local function serializeCardForClient(card)
 	}
 end
 
--- ── Milestone pity tracking ───────────────────────────────────────────────────
+-- ── Milestone reward queue tracking ───────────────────────────────────────────
 local function checkAndGrantMilestones(player, totalPacks)
 	local data = DataService.GetData(player)
-	if not data then return end
+	if not data then return {} end
 	if type(data.claimedMilestones) ~= "table" then
 		data.claimedMilestones = {}
 	end
 
+	local triggeredRewards = {}
 	for _, milestone in ipairs(Constants.PackMilestones) do
 		local threshold = tonumber(milestone.threshold)
 		if not threshold or threshold <= 0 then
 			continue
 		end
 
-		local key = tostring(threshold)
+		local key = getMilestoneId(milestone) or tostring(threshold)
 		local timesEarned = math.floor((totalPacks or 0) / threshold)
 		local timesClaimed = data.claimedMilestones[key]
 		if timesClaimed == true then timesClaimed = 1 end
-		timesClaimed = tonumber(timesClaimed) or 0
+		if timesClaimed == nil then
+			timesClaimed = math.floor(math.max(0, (totalPacks or 0) - 1) / threshold)
+		else
+			timesClaimed = tonumber(timesClaimed) or 0
+		end
 
 		while timesClaimed < timesEarned do
 			timesClaimed += 1
 			data.claimedMilestones[key] = timesClaimed
+			local reward = buildMilestoneRewardEntry(milestone, timesClaimed, totalPacks)
+			if reward then
+				table.insert(triggeredRewards, reward)
+			end
 			DataService.MarkDirty(player)
 		end
 
 		data.claimedMilestones[key] = timesClaimed
 	end
+
+	table.sort(triggeredRewards, function(a, b)
+		return (tonumber(a.threshold) or 0) > (tonumber(b.threshold) or 0)
+	end)
+
+	for _, reward in ipairs(triggeredRewards) do
+		DataService.EnqueueMilestoneReward(player, reward)
+	end
+
+	return triggeredRewards
 end
 
 local function getBestInventoryCard(player)
@@ -737,7 +856,33 @@ local function clearPlotPack(plot)
 	plot.activePackCracks = nil
 	plot.activePackIntegrity = nil
 	plot.activePackShakeUntil = nil
+	plot.activePackMilestoneReward = nil
+	plot.activePackMilestoneGuarantee = nil
 	plot.isOpeningPack = nil
+end
+
+local function popNextMilestoneSpawnReward(player)
+	if type(DataService.PopMilestoneReward) ~= "function" then
+		return nil, nil, nil
+	end
+
+	while true do
+		local reward = DataService.PopMilestoneReward(player)
+		if not reward then
+			return nil, nil, nil
+		end
+
+		local serialized = serializeMilestoneReward(reward)
+		if reward.kind == "pack" then
+			local packDef = PackConfig.ById[reward.packId]
+			if packDef then
+				return packDef, reward, serialized
+			end
+		elseif reward.kind == "guarantee" and reward.minRarity then
+			local packDef = rollPadPackForPlayer(player)
+			return packDef, reward, serialized
+		end
+	end
 end
 
 local function spawnPackForPlot(plot)
@@ -747,7 +892,8 @@ local function spawnPackForPlot(plot)
 
 	clearPlotPack(plot)
 
-	local packDef = rollPadPackForPlayer(plot.ownerPlayer)
+	local rewardPackDef, milestoneReward, milestoneRewardPayload = popNextMilestoneSpawnReward(plot.ownerPlayer)
+	local packDef = rewardPackDef or rollPadPackForPlayer(plot.ownerPlayer)
 	if not packDef then
 		return
 	end
@@ -912,9 +1058,27 @@ local function spawnPackForPlot(plot)
 	plot.activePackCracks = crackLines
 	plot.activePackIntegrity = 1
 	plot.activePackShakeUntil = 0
+	plot.activePackMilestoneReward = milestoneReward
+	if milestoneReward and milestoneReward.kind == "guarantee" then
+		plot.activePackMilestoneGuarantee = {
+			minRarity = milestoneReward.minRarity,
+			reward = milestoneReward.reward,
+			label = milestoneReward.label,
+			allowBeyondPackCap = milestoneReward.allowBeyondPackCap == true,
+		}
+	end
 
 	BaseService.SetPlotPadHealth(plot, packDef.displayName, plot.activePackHitsRemaining, plot.activePackMaxHits, packDef.color)
-	sendHint(plot.ownerPlayer, packDef.displayName .. " spawned on your red pad. Crack it with your pitchfork and use Hold E on green slots to swap players.")
+	do
+		local totalPacks = DataService.GetTotalPacksOpened(plot.ownerPlayer)
+		local data = DataService.GetData(plot.ownerPlayer)
+		BaseService.UpdatePackMilestone(plot, totalPacks, data and data.claimedMilestones or {}, getQueuedMilestoneCount(plot.ownerPlayer))
+	end
+	if milestoneRewardPayload then
+		sendHint(plot.ownerPlayer, "Milestone reward spawned: " .. milestoneRewardPayload.reward .. ".")
+	else
+		sendHint(plot.ownerPlayer, packDef.displayName .. " spawned on your red pad. Crack it with your pitchfork and use Hold E on green slots to swap players.")
+	end
 end
 
 -- Reusable function so we can wire up prompt handlers for slots added after startup
@@ -1124,6 +1288,7 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	local openCallOk, ok, result = pcall(PackService.OpenPack, player, openedPackId, {
 		ignoreCost = true,
 		source = "pitchfork",
+		milestoneGuarantee = plot.activePackMilestoneGuarantee,
 	})
 
 	if not openCallOk then
@@ -1171,17 +1336,22 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 		})
 
 		local totalPacks = DataService.GetTotalPacksOpened(player)
-		checkAndGrantMilestones(player, totalPacks)
+		local triggeredMilestones = checkAndGrantMilestones(player, totalPacks)
 		local milestoneData = DataService.GetData(player)
 		local claimed = milestoneData and milestoneData.claimedMilestones or {}
-		local milestoneOk, milestoneErr = pcall(BaseService.UpdatePackMilestone, plot, totalPacks, claimed)
+		local milestoneOk, milestoneErr = pcall(BaseService.UpdatePackMilestone, plot, totalPacks, claimed, getQueuedMilestoneCount(player))
 		if not milestoneOk then
 			warn("[UnboxAFootballer] Pack milestone update failed:", milestoneErr)
 		end
+		fireMilestoneRewards(player, triggeredMilestones)
 
 		if pulledCard then
 			if result.pityInfo then
-				sendHint(player, "Pack milestone hit: " .. (result.pityInfo.reward or "guarantee") .. " upgraded this pull.")
+				sendHint(player, "Milestone guarantee used: " .. (result.pityInfo.reward or "guarantee") .. ".")
+			end
+			if #triggeredMilestones > 0 then
+				local rewardInfo = serializeMilestoneReward(triggeredMilestones[1])
+				sendHint(player, "Milestone reached: " .. (rewardInfo and rewardInfo.reward or "reward queued") .. ".")
 			end
 			if storageResult.storedInInventory then
 				sendHint(player, pulledCard.name .. " went to inventory because your display slots are full.")
@@ -1270,7 +1440,7 @@ local function handlePlayerAdded(player)
 
 	if plot then
 		refreshPlotDisplayState(player, plot)
-		do local _tp = DataService.GetTotalPacksOpened(player); local _d = DataService.GetData(player); BaseService.UpdatePackMilestone(plot, _tp, _d and _d.claimedMilestones or {}) end
+		do local _tp = DataService.GetTotalPacksOpened(player); local _d = DataService.GetData(player); BaseService.UpdatePackMilestone(plot, _tp, _d and _d.claimedMilestones or {}, getQueuedMilestoneCount(player)) end
 		spawnPackForPlot(plot)
 	end
 
@@ -1760,15 +1930,20 @@ ClaimFreePackFn.OnServerInvoke = function(player)
 
 	local passiveIncome = getCardIncome(player, pulledCard)
 	local totalPacks = DataService.GetTotalPacksOpened(player)
-	checkAndGrantMilestones(player, totalPacks)
+	local triggeredMilestones = checkAndGrantMilestones(player, totalPacks)
 	if plot then
 		do
 			local _d = DataService.GetData(player)
-			BaseService.UpdatePackMilestone(plot, totalPacks, _d and _d.claimedMilestones or {})
+			BaseService.UpdatePackMilestone(plot, totalPacks, _d and _d.claimedMilestones or {}, getQueuedMilestoneCount(player))
 		end
 	end
+	fireMilestoneRewards(player, triggeredMilestones)
 	if result.pityInfo then
-		sendHint(player, "Pack milestone hit: " .. (result.pityInfo.reward or "guarantee") .. " upgraded this pull.")
+		sendHint(player, "Milestone guarantee used: " .. (result.pityInfo.reward or "guarantee") .. ".")
+	end
+	if #triggeredMilestones > 0 then
+		local rewardInfo = serializeMilestoneReward(triggeredMilestones[1])
+		sendHint(player, "Milestone reached: " .. (rewardInfo and rewardInfo.reward or "reward queued") .. ".")
 	end
 
 	PackOpenedEvent:FireClient(player, {
@@ -1835,7 +2010,7 @@ RequestRebirthFn.OnServerInvoke = function(player)
 	local plot = BaseService.GetPlot(player)
 	if plot then
 		BaseService.ClearPlotDisplays(plot)
-		do local _tp = DataService.GetTotalPacksOpened(player); local _d = DataService.GetData(player); BaseService.UpdatePackMilestone(plot, _tp, _d and _d.claimedMilestones or {}) end
+		do local _tp = DataService.GetTotalPacksOpened(player); local _d = DataService.GetData(player); BaseService.UpdatePackMilestone(plot, _tp, _d and _d.claimedMilestones or {}, getQueuedMilestoneCount(player)) end
 		refreshPlotDisplayState(player, plot)
 		local newData = DataService.GetData(player)
 		if newData then

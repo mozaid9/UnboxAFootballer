@@ -24,6 +24,7 @@ local PackOpenedEvent = Remotes:WaitForChild("PackOpened")
 local PackOpenFailedEvent = Remotes:WaitForChild("PackOpenFailed")
 local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
 local PackHitFeedbackEvent = Remotes:WaitForChild("PackHitFeedback")
+local MilestoneRewardEvent = Remotes:WaitForChild("MilestoneReward")
 
 local UI = Constants.UI
 
@@ -98,6 +99,13 @@ local cardFlipSound = make("Sound", {
 	SoundId = "rbxasset://sounds/electronicpingshort.wav",
 	Volume = 0.28,
 	PlaybackSpeed = 1.52,
+}, screenGui)
+
+local milestoneSound = make("Sound", {
+	Name = "MilestoneRewardSound",
+	SoundId = "rbxasset://sounds/electronicpingshort.wav",
+	Volume = 0.46,
+	PlaybackSpeed = 0.92,
 }, screenGui)
 
 local watchedPlots = {}
@@ -939,6 +947,144 @@ local function playPackHitFeedback(payload)
 	end
 end
 
+local function showMilestoneRewardPopup(payload)
+	if not payload then
+		return
+	end
+
+	local rewards = payload.rewards or (payload.reward and { payload.reward }) or {}
+	local reward = rewards[1]
+	if not reward then
+		return
+	end
+
+	local color = reward.color or UI.Gold
+	local extraCount = math.max(0, #rewards - 1)
+	local queueLength = tonumber(payload.queueLength) or #rewards
+	local rewardText = string.upper(reward.reward or reward.packName or "REWARD QUEUED")
+
+	milestoneSound.PlaybackSpeed = extraCount > 0 and 0.82 or 0.92
+	milestoneSound:Play()
+	showImpactFlash(color, true)
+	spawnParticleBurst(color, extraCount > 0 and 38 or 26, nil, 0.78)
+	shakeCamera(extraCount > 0 and 0.12 or 0.08, 0.18, 7)
+
+	local popup = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		BackgroundColor3 = Color3.fromRGB(7, 10, 18),
+		BackgroundTransparency = 0.03,
+		BorderSizePixel = 0,
+		Position = UDim2.fromScale(0.5, -0.22),
+		Size = UDim2.fromOffset(430, 138),
+		ZIndex = 240,
+	}, screenGui)
+	addCorner(popup, 20)
+	addStroke(popup, color, 3, 0.04)
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, color:Lerp(Color3.fromRGB(0, 0, 0), 0.45)),
+			ColorSequenceKeypoint.new(0.48, Color3.fromRGB(7, 10, 18)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(3, 5, 10)),
+		}),
+		Rotation = 145,
+	}, popup)
+
+	local glow = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = color,
+		BackgroundTransparency = 0.76,
+		BorderSizePixel = 0,
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, 26, 1, 26),
+		ZIndex = 239,
+	}, popup)
+	addCorner(glow, 24)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromScale(0.06, 0.10),
+		Size = UDim2.fromScale(0.88, 0.24),
+		Text = "\u{2605} MILESTONE REACHED!",
+		TextColor3 = Color3.fromRGB(255, 255, 245),
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		ZIndex = 242,
+	}, popup)
+
+	local rewardLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromScale(0.06, 0.39),
+		Size = UDim2.fromScale(0.88, 0.30),
+		Text = rewardText,
+		TextColor3 = color,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextWrapped = true,
+		ZIndex = 242,
+	}, popup)
+	make("UITextSizeConstraint", { MinTextSize = 13, MaxTextSize = 32 }, rewardLabel)
+	addStroke(rewardLabel, Color3.fromRGB(0, 0, 0), 1.2, 0.18)
+
+	local queueText = "NEXT REWARD PACK WILL SPAWN FIRST"
+	if reward.kind == "guarantee" then
+		queueText = "NEXT PACK GETS THIS GUARANTEE"
+	end
+	if extraCount > 0 then
+		queueText = queueText .. "  |  +" .. tostring(extraCount) .. " MORE"
+	elseif queueLength > 1 then
+		queueText = queueText .. "  |  " .. tostring(queueLength) .. " QUEUED"
+	end
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromScale(0.08, 0.73),
+		Size = UDim2.fromScale(0.84, 0.16),
+		Text = queueText,
+		TextColor3 = Color3.fromRGB(255, 246, 210),
+		TextScaled = true,
+		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		ZIndex = 242,
+	}, popup)
+
+	local popupScale = make("UIScale", { Scale = 0.86 }, popup)
+	TweenService:Create(popup, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = UDim2.fromScale(0.5, 0.08),
+	}):Play()
+	TweenService:Create(popupScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1,
+	}):Play()
+
+	task.delay(0.36, function()
+		if glow.Parent then
+			TweenService:Create(glow, TweenInfo.new(0.50, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+				BackgroundTransparency = 0.90,
+				Size = UDim2.new(1, 46, 1, 46),
+			}):Play()
+		end
+	end)
+
+	task.delay(3.15, function()
+		if not popup.Parent then
+			return
+		end
+		TweenService:Create(popup, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Position = UDim2.fromScale(0.5, -0.22),
+			BackgroundTransparency = 1,
+		}):Play()
+		TweenService:Create(popupScale, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Scale = 0.92,
+		}):Play()
+		task.delay(0.25, function()
+			if popup.Parent then
+				popup:Destroy()
+			end
+		end)
+	end)
+end
+
 -- ── Shimmer sweep helper ──────────────────────────────────────────────────────
 -- Slides a bright diagonal stripe across `panel` once (card reveal shine).
 local function sweepShimmer(panel, color)
@@ -1614,6 +1760,13 @@ PackHitFeedbackEvent.OnClientEvent:Connect(function(payload)
 	local ok, err = pcall(playPackHitFeedback, payload)
 	if not ok then
 		warn("[UnboxAFootballer] Pack hit feedback failed:", err)
+	end
+end)
+
+MilestoneRewardEvent.OnClientEvent:Connect(function(payload)
+	local ok, err = pcall(showMilestoneRewardPopup, payload)
+	if not ok then
+		warn("[UnboxAFootballer] Milestone popup failed:", err)
 	end
 end)
 

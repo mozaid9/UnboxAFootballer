@@ -382,7 +382,7 @@ function PackConfig.GetMilestoneGuarantee(packCount, milestones)
 	local best
 	for _, milestone in ipairs(milestones or {}) do
 		local threshold = tonumber(milestone.threshold)
-		if threshold and threshold > 0 and packCount % threshold == 0 then
+		if threshold and threshold > 0 and milestone.minRarity and packCount % threshold == 0 then
 			local rank = PackConfig.RarityRank[milestone.minRarity] or 0
 			local bestRank = best and (PackConfig.RarityRank[best.minRarity] or 0) or -1
 			if rank > bestRank or (rank == bestRank and threshold > (best.threshold or 0)) then

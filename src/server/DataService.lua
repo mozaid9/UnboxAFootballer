@@ -33,12 +33,13 @@ local DEFAULT_DATA = {
 		PadLuck = 0,
 		MoveSpeed = 0,
 	},
-	totalCardsOpened = 0,
-	totalPacksOpened = 0,
-	totalRebirths = 0,
-	collectionRewards = {},
-	claimedMilestones = {},  -- keys are tostring(threshold), value true when claimed
-}
+		totalCardsOpened = 0,
+		totalPacksOpened = 0,
+		totalRebirths = 0,
+		collectionRewards = {},
+		claimedMilestones = {},  -- keys are milestone ids, values are repeat counts earned
+		queuedMilestoneRewards = {},
+	}
 
 local cache = {}
 local dirtyPlayers = {}
@@ -543,6 +544,63 @@ function DataService.GetTotalPacksOpened(player)
 	return data and (data.totalPacksOpened or data.totalCardsOpened or 0) or 0
 end
 
+local function getMilestoneRewardQueue(data)
+	if not data then
+		return {}
+	end
+	if type(data.queuedMilestoneRewards) ~= "table" then
+		data.queuedMilestoneRewards = {}
+	end
+	return data.queuedMilestoneRewards
+end
+
+function DataService.GetMilestoneRewardQueue(player)
+	return getMilestoneRewardQueue(cache[player])
+end
+
+function DataService.GetMilestoneRewardQueueLength(player)
+	local queue = getMilestoneRewardQueue(cache[player])
+	return #queue
+end
+
+function DataService.EnqueueMilestoneReward(player, reward)
+	local data = cache[player]
+	if not data or type(reward) ~= "table" then
+		return false
+	end
+
+	table.insert(getMilestoneRewardQueue(data), Utils.DeepCopy(reward))
+	DataService.MarkDirty(player)
+	return true
+end
+
+function DataService.PopMilestoneReward(player)
+	local data = cache[player]
+	if not data then
+		return nil
+	end
+
+	local queue = getMilestoneRewardQueue(data)
+	if #queue == 0 then
+		return nil
+	end
+
+	local reward = table.remove(queue, 1)
+	DataService.MarkDirty(player)
+	return reward
+end
+
+function DataService.ClearMilestoneRewardQueue(player)
+	local data = cache[player]
+	if not data then
+		return false
+	end
+
+	data.queuedMilestoneRewards = {}
+	DataService.MarkDirty(player)
+	return true
+end
+
 function DataService.ResetForRebirth(player, startingFans)
 	local data = cache[player]
 	if not data then
@@ -560,12 +618,13 @@ function DataService.ResetForRebirth(player, startingFans)
 		PadLuck = 0,
 		MoveSpeed = 0,
 	}
-	data.totalCardsOpened = 0
-	data.totalPacksOpened = 0
-	data.claimedMilestones = {}
-	DataService.MarkDirty(player)
-	return true
-end
+		data.totalCardsOpened = 0
+		data.totalPacksOpened = 0
+		data.claimedMilestones = {}
+		data.queuedMilestoneRewards = {}
+		DataService.MarkDirty(player)
+		return true
+	end
 
 -- ── Dev-only full reset ───────────────────────────────────────
 -- Wipes all progress back to DEFAULT_DATA and saves immediately.

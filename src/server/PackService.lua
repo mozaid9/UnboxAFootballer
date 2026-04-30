@@ -66,9 +66,12 @@ local function getCardPullLuckLevel(data)
 	return upgrades.CardPullLuck or 1
 end
 
-local function getPityInfoForNextPack(data)
+local function getPityInfoForNextPack(data, options)
 	local nextPackCount = (data.totalPacksOpened or data.totalCardsOpened or 0) + 1
-	return PackConfig.GetMilestoneGuarantee(nextPackCount, Constants.PackMilestones), nextPackCount
+	if options and options.milestoneGuarantee then
+		return options.milestoneGuarantee, nextPackCount
+	end
+	return nil, nextPackCount
 end
 
 -- ── Public API ────────────────────────────────────────────────
@@ -117,7 +120,7 @@ function PackService.OpenPack(player, packId, options)
 		end
 	end
 
-	local pityInfo, nextPackCount = getPityInfoForNextPack(data)
+	local pityInfo, nextPackCount = getPityInfoForNextPack(data, options)
 	local cardPullLuckLevel = getCardPullLuckLevel(data)
 	local rarity = PackService.ChooseCardRarity(packId, cardPullLuckLevel, pityInfo)
 	local card = PackService.ChooseCardVariant(rarity)

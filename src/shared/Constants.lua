@@ -137,15 +137,16 @@ Constants.FanZone = {
 	},
 }
 
--- Pack pity milestones. These repeat independently: every 50th pack gives
--- Rare Gold+, every 150th Premium Gold+, every 500th Talisman+, and every
--- 1000th pack can break normal pack caps for a special high-tier pull.
-Constants.PackMilestones = {
-	{ threshold = 50,   minRarity = "Rare Gold",    reward = "Rare Gold+ Guarantee",     label = "RARE+",     color = Color3.fromRGB(255, 170, 48)  },
-	{ threshold = 150,  minRarity = "Premium Gold", reward = "Premium Gold+ Guarantee",  label = "PREM+",     color = Color3.fromRGB(255, 226, 112) },
-	{ threshold = 500,  minRarity = "Talisman",     reward = "Talisman+ Guarantee",      label = "TALISMAN",  color = Color3.fromRGB(235, 56, 43)   },
-	{ threshold = 1000, minRarity = "Maestro",      reward = "Special High-Tier Reward", label = "SPECIAL",   color = Color3.fromRGB(157, 80, 255), allowBeyondPackCap = true },
-}
+	-- Pack milestone cycles. These repeat independently forever and queue a
+	-- reward for after the current pack finishes, before the next random spawn.
+	Constants.PackMilestones = {
+		{ id = "cycle_25_rare",        threshold = 25,   rewardKind = "pack",      rewardPackId = "RarePack",    reward = "Rare Pack Queued",          label = "RARE",      color = Color3.fromRGB(255, 170, 48)  },
+		{ id = "cycle_50_premium",     threshold = 50,   rewardKind = "pack",      rewardPackId = "PremiumPack", reward = "Premium Pack Queued",       label = "PREM",      color = Color3.fromRGB(255, 226, 112) },
+		{ id = "cycle_100_deluxe",     threshold = 100,  rewardKind = "pack",      rewardPackId = "DeluxePack",  reward = "Deluxe Pack Queued",        label = "DELUXE",    color = Color3.fromRGB(255, 110, 64)  },
+		{ id = "cycle_250_mythic",     threshold = 250,  rewardKind = "pack",      rewardPackId = "MythicPack",  reward = "Mythic Pack Queued",        label = "MYTHIC",    color = Color3.fromRGB(157, 80, 255)  },
+		{ id = "cycle_500_god",        threshold = 500,  rewardKind = "pack",      rewardPackId = "GodPack",     reward = "God Pack Queued",           label = "GOD",       color = Color3.fromRGB(255, 246, 160) },
+		{ id = "cycle_1000_talisman",  threshold = 1000, rewardKind = "guarantee", minRarity = "Talisman",       reward = "Guaranteed Talisman+ Queued", label = "TALISMAN+", color = Color3.fromRGB(235, 56, 43), allowBeyondPackCap = true },
+	}
 
 Constants.CollectionRewards = {
 	{ id = "10",  requiredCards = 10,  label = "10 cards",  reward = "+5,000 Fans",    fans = 5000 },
