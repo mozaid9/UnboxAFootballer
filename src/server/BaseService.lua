@@ -203,9 +203,9 @@ end
 local function updatePadHealth(plot, title, currentValue, maxValue, color)
 	local ratio = maxValue > 0 and math.clamp(currentValue / maxValue, 0, 1) or 0
 	plot.padTitleLabel.Text = title
-	-- Show percentage remaining instead of raw hit numbers
+	-- Show pack integrity instead of raw hit numbers.
 	local pct = math.ceil(ratio * 100)
-	plot.padSubtitleLabel.Text = pct .. "% remaining"
+	plot.padSubtitleLabel.Text = "Integrity: " .. pct .. "%"
 	plot.padAccent.BackgroundColor3 = color
 	plot.padBarBack.Visible = true
 	-- Bar colour shifts green → yellow → red as health drops

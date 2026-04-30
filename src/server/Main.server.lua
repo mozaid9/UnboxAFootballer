@@ -58,6 +58,7 @@ local PackOpenedEvent = makeEvent("PackOpened")
 local PackOpenFailedEvent = makeEvent("PackOpenFailed")
 local PromptPackShopEvent = makeEvent("PromptPackShop")
 local RequestPitchforkHitEvent = makeEvent("RequestPitchforkHit")
+local PackHitFeedbackEvent = makeEvent("PackHitFeedback")
 local OpenSlotPickerEvent = makeEvent("OpenSlotPicker")
 
 local GetPlayerDataFn = makeFunction("GetPlayerData")
@@ -344,6 +345,88 @@ local function createSurfaceLabel(face, title, subtitle, color, parent)
 	stripeGradient.Parent = stripes
 end
 
+local CRACK_LAYOUTS = {
+	{ pos = UDim2.fromScale(0.38, 0.22), size = UDim2.fromScale(0.018, 0.30), rotation = -32 },
+	{ pos = UDim2.fromScale(0.52, 0.31), size = UDim2.fromScale(0.016, 0.24), rotation = 38 },
+	{ pos = UDim2.fromScale(0.30, 0.50), size = UDim2.fromScale(0.016, 0.26), rotation = 24 },
+	{ pos = UDim2.fromScale(0.62, 0.50), size = UDim2.fromScale(0.018, 0.32), rotation = -25 },
+	{ pos = UDim2.fromScale(0.46, 0.63), size = UDim2.fromScale(0.016, 0.28), rotation = 67 },
+	{ pos = UDim2.fromScale(0.70, 0.34), size = UDim2.fromScale(0.014, 0.21), rotation = 18 },
+}
+
+local function createPackCrackOverlay(parent, color)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 80
+	gui.LightInfluence = 0
+	gui.Parent = parent
+
+	local frame = Instance.new("Frame")
+	frame.BackgroundTransparency = 1
+	frame.Size = UDim2.fromScale(1, 1)
+	frame.Parent = gui
+
+	local cracks = {}
+	for index, spec in ipairs(CRACK_LAYOUTS) do
+		local crack = Instance.new("Frame")
+		crack.AnchorPoint = Vector2.new(0.5, 0.5)
+		crack.BackgroundColor3 = color:Lerp(Color3.fromRGB(255, 255, 255), 0.72)
+		crack.BackgroundTransparency = 0.15
+		crack.BorderSizePixel = 0
+		crack.Position = spec.pos
+		crack.Rotation = spec.rotation
+		crack.Size = spec.size
+		crack.Visible = false
+		crack.ZIndex = 5 + index
+		crack.Parent = frame
+
+		local branch = Instance.new("Frame")
+		branch.AnchorPoint = Vector2.new(0.5, 0.5)
+		branch.BackgroundColor3 = crack.BackgroundColor3
+		branch.BackgroundTransparency = 0.22
+		branch.BorderSizePixel = 0
+		branch.Position = UDim2.fromScale(0.5, 0.28)
+		branch.Rotation = index % 2 == 0 and -58 or 52
+		branch.Size = UDim2.fromScale(0.78, 0.18)
+		branch.Parent = crack
+
+		table.insert(cracks, crack)
+	end
+
+	return cracks
+end
+
+local function updatePackDamageVisuals(plot, integrityRatio)
+	local cracks = plot and plot.activePackCracks
+	if not cracks then
+		return
+	end
+
+	local integrity = math.clamp(integrityRatio or 1, 0, 1)
+	local visibleCount = 0
+	if integrity <= 0.70 then
+		visibleCount = 2
+	end
+	if integrity <= 0.40 then
+		visibleCount = 4
+	end
+	if integrity <= 0.10 then
+		visibleCount = #cracks
+	end
+
+	for index, crack in ipairs(cracks) do
+		if crack and crack.Parent then
+			crack.Visible = index <= visibleCount
+			crack.BackgroundTransparency = integrity <= 0.10 and 0.02 or 0.15
+		end
+	end
+
+	if plot.activePackLight then
+		plot.activePackLight.Range = 12 + ((1 - integrity) * 10)
+	end
+end
+
 local function pulseLight(light, baseBrightness, peakBrightness, duration)
 	if not light or not light.Parent then
 		return
@@ -620,6 +703,7 @@ local function clearPlotPack(plot)
 	plot.activePackHitEmitter = nil
 	plot.activePackHighlight = nil
 	plot.activePackImpactParts = nil
+	plot.activePackCracks = nil
 	plot.isOpeningPack = nil
 end
 
@@ -717,6 +801,7 @@ local function spawnPackForPlot(plot)
 
 	createSurfaceLabel(Enum.NormalId.Front, "1 CARD", packDef.displayName, packDef.color, cardBody)
 	createSurfaceLabel(Enum.NormalId.Back, "1 CARD", packDef.displayName, packDef.color, cardBody)
+	local crackLines = createPackCrackOverlay(cardBody, packDef.color)
 
 	-- (pack health is shown in the padGui billboard — no floating bar needed)
 
@@ -751,6 +836,7 @@ local function spawnPackForPlot(plot)
 	plot.activePackHitEmitter = hitEmitter
 	plot.activePackHighlight = hitHighlight
 	plot.activePackImpactParts = { cardBody, topCap, bottomCap }
+	plot.activePackCracks = crackLines
 
 	BaseService.SetPlotPadHealth(plot, packDef.displayName, plot.activePackHitsRemaining, plot.activePackMaxHits, packDef.color)
 	sendHint(plot.ownerPlayer, packDef.displayName .. " spawned on your red pad. Crack it with your pitchfork and use Hold E on green slots to swap players.")
@@ -886,6 +972,9 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 
 	local damage = getPitchforkDamage(player)
 	plot.activePackHitsRemaining = math.max(0, (plot.activePackHitsRemaining or plot.activePackMaxHits or 1) - damage)
+	local integrityRatio = (plot.activePackMaxHits or 1) > 0
+		and math.clamp(plot.activePackHitsRemaining / plot.activePackMaxHits, 0, 1)
+		or 0
 	local newBrightness = nil
 
 	if plot.activePackLight then
@@ -893,7 +982,20 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 		plot.activePackLight.Brightness = newBrightness
 	end
 
+	updatePackDamageVisuals(plot, integrityRatio)
 	playPackHitEffect(plot, newBrightness)
+
+	PackHitFeedbackEvent:FireClient(player, {
+		packId = plot.activePackDef.id,
+		packName = plot.activePackDef.displayName,
+		color = plot.activePackDef.color,
+		remaining = plot.activePackHitsRemaining,
+		maxHits = plot.activePackMaxHits,
+		damage = damage,
+		integrity = integrityRatio,
+		isFinal = plot.activePackHitsRemaining <= 0,
+		packWorldPosition = plot.activePackBody.Position + Vector3.new(0, 2.2, 0),
+	})
 
 	if plot.activePackHitsRemaining > 0 then
 		BaseService.SetPlotPadHealth(plot, plot.activePackDef.displayName, plot.activePackHitsRemaining, plot.activePackMaxHits, plot.activePackDef.color)
@@ -901,7 +1003,8 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	end
 
 	plot.isOpeningPack = true
-	BaseService.SetPlotPadStatus(plot, "Pack Cracked", "Claiming your player", plot.activePackDef.color)
+	BaseService.SetPlotPadStatus(plot, "Pack Cracked", "Breaking open...", plot.activePackDef.color)
+	task.wait(0.34)
 
 	-- ── Pack crack burst animation ────────────────────────────────────
 	-- Fire before the card pull so players see the pack explode open.

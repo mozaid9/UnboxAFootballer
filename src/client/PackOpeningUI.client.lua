@@ -23,6 +23,7 @@ local UpdateCoinsEvent = Remotes:WaitForChild("UpdateCoins")
 local PackOpenedEvent = Remotes:WaitForChild("PackOpened")
 local PackOpenFailedEvent = Remotes:WaitForChild("PackOpenFailed")
 local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
+local PackHitFeedbackEvent = Remotes:WaitForChild("PackHitFeedback")
 
 local UI = Constants.UI
 
@@ -63,6 +64,27 @@ local screenGui = make("ScreenGui", {
 	DisplayOrder = 8,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, playerGui)
+
+local hitSound = make("Sound", {
+	Name = "PackHitSound",
+	SoundId = "rbxasset://sounds/electronicpingshort.wav",
+	Volume = 0.32,
+	PlaybackSpeed = 0.86,
+}, screenGui)
+
+local finalBreakSound = make("Sound", {
+	Name = "PackFinalBreakSound",
+	SoundId = "rbxasset://sounds/electronicpingshort.wav",
+	Volume = 0.48,
+	PlaybackSpeed = 0.78,
+}, screenGui)
+
+local revealSound = make("Sound", {
+	Name = "CardRevealSound",
+	SoundId = "rbxasset://sounds/electronicpingshort.wav",
+	Volume = 0.36,
+	PlaybackSpeed = 1.18,
+}, screenGui)
 
 local watchedPlots = {}
 
@@ -320,6 +342,82 @@ end
 
 local fansLabel, addFansButton = createWalletRow(walletDock, 1, "Fans", "F", UI.Gold)
 local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "Gem", Color3.fromRGB(69, 207, 255))
+
+local breakHud = make("Frame", {
+	Name = "PackBreakHud",
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.fromScale(0.5, 0.105),
+	Size = UDim2.fromOffset(310, 78),
+	BackgroundColor3 = Color3.fromRGB(7, 10, 19),
+	BackgroundTransparency = 0.08,
+	Visible = false,
+	ZIndex = 170,
+}, screenGui)
+addCorner(breakHud, 14)
+addStroke(breakHud, UI.Gold, 1.5, 0.42)
+
+local breakHudScale = make("UIScale", {
+	Scale = 0.96,
+}, breakHud)
+
+local breakTitle = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.fromOffset(14, 8),
+	Size = UDim2.new(1, -28, 0, 18),
+	Text = "Breaking...",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 14,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+	ZIndex = 171,
+}, breakHud)
+
+local breakStageLabel = make("TextLabel", {
+	BackgroundTransparency = 1,
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -14, 0, 8),
+	Size = UDim2.fromOffset(112, 18),
+	Text = "INTACT",
+	TextColor3 = UI.Gold,
+	TextScaled = false,
+	TextSize = 10,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Right,
+	ZIndex = 171,
+}, breakHud)
+
+local breakBarBack = make("Frame", {
+	Position = UDim2.fromOffset(14, 34),
+	Size = UDim2.new(1, -28, 0, 14),
+	BackgroundColor3 = Color3.fromRGB(18, 23, 39),
+	BorderSizePixel = 0,
+	ZIndex = 171,
+}, breakHud)
+addCorner(breakBarBack, 9)
+addStroke(breakBarBack, Color3.fromRGB(255, 255, 255), 1, 0.84)
+
+local breakBarFill = make("Frame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(72, 224, 95),
+	BorderSizePixel = 0,
+	ZIndex = 172,
+}, breakBarBack)
+addCorner(breakBarFill, 9)
+
+local breakSubtitle = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.fromOffset(14, 54),
+	Size = UDim2.new(1, -28, 0, 14),
+	Text = "Integrity: 100%",
+	TextColor3 = UI.Muted,
+	TextScaled = false,
+	TextSize = 11,
+	Font = Enum.Font.GothamBold,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 171,
+}, breakHud)
 
 local function makeIconLine(parent, position, size, color, rotation)
 	return make("Frame", {
@@ -773,15 +871,73 @@ local function getWorldScreenTarget(worldPosition, fallback)
 	return UDim2.fromOffset(screenPoint.X, screenPoint.Y)
 end
 
+local cameraShakeToken = 0
+local cameraShakeRestoreType
+
+local function shakeCamera(intensity, duration, steps)
+	local camera = Workspace.CurrentCamera
+	if not camera then
+		return
+	end
+
+	cameraShakeToken += 1
+	local token = cameraShakeToken
+	cameraShakeRestoreType = cameraShakeRestoreType or camera.CameraType
+	local baseCFrame = camera.CFrame
+	local totalSteps = steps or 5
+	camera.CameraType = Enum.CameraType.Scriptable
+
+	task.spawn(function()
+		for index = 1, totalSteps do
+			if token ~= cameraShakeToken or not camera.Parent then
+				return
+			end
+			local falloff = 1 - ((index - 1) / totalSteps)
+			local amount = intensity * falloff
+			camera.CFrame = baseCFrame * CFrame.new(
+				(math.random() - 0.5) * 2 * amount,
+				(math.random() - 0.5) * 2 * amount,
+				0
+			)
+			task.wait((duration or 0.12) / totalSteps)
+		end
+
+		if token == cameraShakeToken and camera.Parent then
+			camera.CFrame = baseCFrame
+			camera.CameraType = cameraShakeRestoreType or Enum.CameraType.Custom
+			cameraShakeRestoreType = nil
+		end
+	end)
+end
+
+local function getWorldScreenPoint(worldPosition)
+	if typeof(worldPosition) ~= "Vector3" then
+		return nil
+	end
+
+	local camera = Workspace.CurrentCamera
+	if not camera then
+		return nil
+	end
+
+	local screenPoint, onScreen = camera:WorldToViewportPoint(worldPosition)
+	if not onScreen or screenPoint.Z <= 0 then
+		return nil
+	end
+
+	return Vector2.new(screenPoint.X, screenPoint.Y)
+end
+
 -- ── Particle burst helper ─────────────────────────────────────────────────────
--- Spawns `count` small coloured dots that fly outward from screen centre.
-local function spawnParticleBurst(color, count)
+-- Spawns `count` small coloured dots that fly outward from the pack or centre.
+local function spawnParticleBurst(color, count, worldPosition, distanceScale)
 	local camera = Workspace.CurrentCamera
 	local vp     = camera and camera.ViewportSize or Vector2.new(1024, 768)
-	local cx, cy = vp.X / 2, vp.Y * 0.44
+	local origin = getWorldScreenPoint(worldPosition) or Vector2.new(vp.X / 2, vp.Y * 0.44)
+	local cx, cy = origin.X, origin.Y
 	for i = 1, count do
 		local angle    = (i / count) * (math.pi * 2) + (math.random() - 0.5) * 0.9
-		local dist     = 80 + math.random(20, 110)
+		local dist     = (distanceScale or 1) * (80 + math.random(20, 110))
 		local sz       = math.random(5, 14)
 		local lifetime = 0.28 + math.random() * 0.28
 		local px = make("Frame", {
@@ -800,6 +956,109 @@ local function spawnParticleBurst(color, count)
 		task.delay(lifetime + 0.06, function()
 			if px.Parent then px:Destroy() end
 		end)
+	end
+end
+
+local breakHudHideToken = 0
+
+local function integrityColor(ratio)
+	if ratio <= 0.12 then
+		return Color3.fromRGB(255, 66, 48)
+	elseif ratio <= 0.42 then
+		return Color3.fromRGB(255, 174, 42)
+	end
+	return Color3.fromRGB(72, 224, 95)
+end
+
+local function integrityStage(ratio)
+	if ratio <= 0.10 then
+		return "CRITICAL"
+	elseif ratio <= 0.40 then
+		return "HEAVY CRACKS"
+	elseif ratio <= 0.70 then
+		return "CRACKING"
+	end
+	return "BREAKING"
+end
+
+local function showImpactFlash(color, isFinal)
+	local flash = make("Frame", {
+		BackgroundColor3 = isFinal and color:Lerp(Color3.fromRGB(255, 255, 255), 0.62) or Color3.fromRGB(255, 246, 204),
+		BackgroundTransparency = isFinal and 0.32 or 0.64,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+		ZIndex = isFinal and 184 or 176,
+	}, screenGui)
+
+	TweenService:Create(flash, TweenInfo.new(isFinal and 0.34 or 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 1,
+	}):Play()
+	task.delay(isFinal and 0.38 or 0.18, function()
+		if flash.Parent then
+			flash:Destroy()
+		end
+	end)
+end
+
+local function updateBreakHud(payload)
+	local color = payload.color or UI.Gold
+	local integrity = math.clamp(payload.integrity or 1, 0, 1)
+	local pct = math.ceil(integrity * 100)
+
+	breakHud.Visible = true
+	breakTitle.Text = payload.isFinal and "Breaking open..." or (payload.packName or "Breaking...")
+	breakStageLabel.Text = payload.isFinal and "OPENING" or integrityStage(integrity)
+	breakStageLabel.TextColor3 = color
+	breakSubtitle.Text = "Integrity: " .. tostring(pct) .. "%"
+	breakBarFill.BackgroundColor3 = integrityColor(integrity):Lerp(color, payload.isFinal and 0.45 or 0.12)
+
+	TweenService:Create(breakHudScale, TweenInfo.new(0.10, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = payload.isFinal and 1.06 or 1.025,
+	}):Play()
+	task.delay(0.12, function()
+		if breakHudScale.Parent then
+			TweenService:Create(breakHudScale, TweenInfo.new(0.16, Enum.EasingStyle.Quad), {
+				Scale = 1,
+			}):Play()
+		end
+	end)
+
+	TweenService:Create(breakBarFill, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = UDim2.fromScale(integrity, 1),
+	}):Play()
+
+	breakHudHideToken += 1
+	local token = breakHudHideToken
+	if not payload.isFinal then
+		task.delay(1.2, function()
+			if token == breakHudHideToken then
+				breakHud.Visible = false
+			end
+		end)
+	end
+end
+
+local function playPackHitFeedback(payload)
+	if not payload then
+		return
+	end
+
+	local color = payload.color or UI.Gold
+	local isFinal = payload.isFinal == true
+	updateBreakHud(payload)
+	showImpactFlash(color, isFinal)
+	spawnParticleBurst(color, isFinal and 34 or 10, payload.packWorldPosition, isFinal and 1.18 or 0.42)
+	shakeCamera(isFinal and 0.18 or 0.045, isFinal and 0.24 or 0.10, isFinal and 8 or 4)
+
+	if isFinal then
+		finalBreakSound:Play()
+		task.delay(0.36, function()
+			showImpactFlash(color, true)
+			spawnParticleBurst(color:Lerp(Color3.fromRGB(255, 255, 255), 0.35), 44, payload.packWorldPosition, 1.35)
+		end)
+	else
+		hitSound.PlaybackSpeed = 0.92 + ((1 - math.clamp(payload.integrity or 1, 0, 1)) * 0.25)
+		hitSound:Play()
 	end
 end
 
@@ -835,6 +1094,16 @@ local REVEAL_TIERS = {
 	["Maestro"]            = 2,
 	["Immortal"]           = 3,
 	["Player of the Year"] = 3,
+}
+
+local REVEAL_DELAYS = {
+	["Gold"] = 0.02,
+	["Rare Gold"] = 0.08,
+	["Premium Gold"] = 0.18,
+	["Talisman"] = 0.30,
+	["Maestro"] = 0.42,
+	["Immortal"] = 0.54,
+	["Player of the Year"] = 0.58,
 }
 
 local function playRevealEffect(rarity)
@@ -979,16 +1248,24 @@ end
 --   2. BUILD UP  — particles burst outward
 --   3. FLASH     — card animates up from below with scale bounce
 --   4. REVEAL    — shimmer sweep + rarity aura pulse
---   5. RESULT    — result stats shown, card flies to slot/inventory
+--   5. RESULT    — clean card face, then it flies to slot/inventory
 local function showCardReveal(payload)
 	local card = payload.card
 	if not card then return end
+
+	breakHud.Visible = false
 
 	-- Phase 1 + 2: flash & particles — wait for pre-delay before card appears
 	local revealPreDelay = playRevealEffect(card.rarity)
 	if revealPreDelay > 0 then
 		task.wait(revealPreDelay)
 	end
+	local rarityDelay = REVEAL_DELAYS[card.rarity] or 0.08
+	if rarityDelay > 0 then
+		task.wait(rarityDelay)
+	end
+	revealSound.PlaybackSpeed = 1.08 + ((REVEAL_TIERS[card.rarity] or 0) * 0.06)
+	revealSound:Play()
 
 	local style         = Utils.GetRarityStyle(card.rarity)
 	local rarityColor   = style.primary
@@ -996,22 +1273,23 @@ local function showCardReveal(payload)
 	local darkColor     = style.dark or Color3.fromRGB(10, 5, 2)
 	local trimColor     = style.trim or rarityColor
 	local textColor     = style.text or Color3.fromRGB(255, 255, 255)
-	local income        = payload.coinsPerSecond or 0
 	local toInventory   = payload.storedInInventory == true
 	local tier          = REVEAL_TIERS[card.rarity] or 0
 
-	-- Card is 180 × 290 px — taller than before to fit the result stats row
-	local CARD_W, CARD_H = 180, 290
+	-- Card stays clean: name, rarity, position, nation.
+	local CARD_W, CARD_H = 180, 252
 	local revealPos = UDim2.new(0.5, 0, 0.46, 0)
+	local startPos = getWorldScreenTarget(payload.packWorldPosition, UDim2.new(0.5, 0, 0.78, 0))
 
 	-- ── Phase 3: REVEAL — card panel ─────────────────────────────────
-	-- Starts small and below-centre; slides up with a bounce pop-in.
+	-- Starts near the broken pack, tilted, then rises into place.
 	local cardPanel = make("Frame", {
 		Name             = "CardReveal",
 		AnchorPoint      = Vector2.new(0.5, 0.5),
-		Position         = UDim2.new(0.5, 0, 0.78, 0),   -- below screen centre
+		Position         = startPos,
 		Size             = UDim2.fromOffset(CARD_W, CARD_H),
 		BackgroundColor3 = darkColor,
+		Rotation         = -12,
 		ZIndex           = 200,
 	}, screenGui)
 	addCorner(cardPanel, 16)
@@ -1091,44 +1369,6 @@ local function showCardReveal(payload)
 	}, rarityBand)
 	addStroke(rarityLabel, Color3.fromRGB(6, 3, 1), 1, 0.35)
 
-	-- ── Position badge (top-left) ─────────────────────────────────────
-	local positionBadge = make("Frame", {
-		Position         = UDim2.fromOffset(14, 47),
-		Size             = UDim2.fromOffset(46, 24),
-		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
-		BackgroundTransparency = 0.08,
-		BorderSizePixel  = 0,
-		ZIndex           = 202,
-	}, cardPanel)
-	addCorner(positionBadge, 8)
-	addStroke(positionBadge, trimColor, 1, 0.35)
-
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Size       = UDim2.fromScale(1, 1),
-		Text       = card.position or "--",
-		TextColor3 = textColor,
-		TextScaled = false,
-		TextSize   = 12,
-		Font       = Enum.Font.GothamBlack,
-		ZIndex     = 203,
-	}, positionBadge)
-
-	-- ── Nation (top-right) ────────────────────────────────────────────
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		AnchorPoint    = Vector2.new(1, 0),
-		Position       = UDim2.new(1, -12, 0, 51),
-		Size           = UDim2.fromOffset(92, 16),
-		Text           = card.nation or "Unknown",
-		TextColor3     = textColor,
-		TextScaled     = false,
-		TextSize       = 11,
-		Font           = Enum.Font.GothamBold,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		ZIndex         = 202,
-	}, cardPanel)
-
 	-- ── Divider ───────────────────────────────────────────────────────
 	make("Frame", {
 		AnchorPoint      = Vector2.new(0.5, 0),
@@ -1167,7 +1407,7 @@ local function showCardReveal(payload)
 	local nameLabel = make("TextLabel", {
 		BackgroundTransparency = 1,
 		AnchorPoint    = Vector2.new(0.5, 0),
-		Position       = UDim2.new(0.5, 0, 0, 178),
+		Position       = UDim2.new(0.5, 0, 0, 176),
 		Size           = UDim2.new(0.90, 0, 0, 38),
 		Text           = string.upper(card.name),
 		TextColor3     = Color3.fromRGB(255, 255, 255),
@@ -1180,67 +1420,34 @@ local function showCardReveal(payload)
 	make("UITextSizeConstraint", { MinTextSize = 9, MaxTextSize = 22 }, nameLabel)
 	addStroke(nameLabel, Color3.fromRGB(6, 3, 1), 1.2, 0.20)
 
-	-- ── Phase 5: RESULT stats panel ───────────────────────────────────
-	-- Shows destination + income/s on row 1, total fans on row 2.
-	local destStr    = toInventory
-		and ("→ Inventory   +" .. Utils.FormatNumber(income) .. "/s")
-		or  ("→ Slot " .. tostring(payload.slotIndex) .. "   +" .. Utils.FormatNumber(income) .. "/s")
-	local pillAccent = toInventory and Color3.fromRGB(110, 130, 210) or Color3.fromRGB(74, 185, 98)
-	local pillBg     = toInventory and Color3.fromRGB(14, 20, 44)    or Color3.fromRGB(10, 32, 18)
-
-	local resultPanel = make("Frame", {
+	local metaPanel = make("Frame", {
 		AnchorPoint      = Vector2.new(0.5, 0),
-		Position         = UDim2.new(0.5, 0, 0, 224),   -- 8 px below name
-		Size             = UDim2.fromOffset(162, 52),
-		BackgroundColor3 = pillBg,
+		Position         = UDim2.new(0.5, 0, 0, 220),
+		Size             = UDim2.fromOffset(150, 22),
+		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
+		BackgroundTransparency = 0.12,
 		ZIndex           = 202,
 	}, cardPanel)
-	addCorner(resultPanel, 12)
-	addStroke(resultPanel, pillAccent, 1.5, 0.22)
+	addCorner(metaPanel, 11)
+	addStroke(metaPanel, trimColor, 1.2, 0.3)
 
-	-- Row 1: destination + income/s
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Position       = UDim2.new(0, 10, 0, 5),
-		Size           = UDim2.new(1, -20, 0, 18),
-		Text           = destStr,
-		TextColor3     = pillAccent,
-		TextScaled     = false,
-		TextSize       = 11,
-		Font           = Enum.Font.GothamBold,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex         = 203,
-	}, resultPanel)
-
-	-- Thin divider between rows
-	make("Frame", {
-		Position         = UDim2.new(0, 10, 0, 25),
-		Size             = UDim2.new(1, -20, 0, 1),
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-		BackgroundTransparency = 0.78,
-		BorderSizePixel  = 0,
-		ZIndex           = 203,
-	}, resultPanel)
-
-	-- Row 2: total fans
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Position       = UDim2.new(0, 10, 0, 28),
-		Size           = UDim2.new(1, -20, 0, 18),
-		Text           = "\u{2605}  " .. Utils.FormatNumber(payload.newCoins or 0) .. " total fans",
-		TextColor3     = UI.Gold,
+		Size           = UDim2.fromScale(1, 1),
+		Text           = (card.position or "--") .. "  |  " .. (card.nation or "Unknown"),
+		TextColor3     = textColor,
 		TextScaled     = false,
 		TextSize       = 11,
 		Font           = Enum.Font.GothamBlack,
-		TextXAlignment = Enum.TextXAlignment.Left,
+		TextXAlignment = Enum.TextXAlignment.Center,
 		ZIndex         = 203,
-	}, resultPanel)
+	}, metaPanel)
 
 	-- ── Pop-in: slide up from below + scale bounce ────────────────────
 	task.wait(0.04)
 	TweenService:Create(cardPanel,
 		TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Position = revealPos }
+		{ Position = revealPos, Rotation = 0 }
 	):Play()
 	TweenService:Create(cardScale,
 		TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
@@ -1277,6 +1484,13 @@ local function showCardReveal(payload)
 	end)
 end
 
+PackHitFeedbackEvent.OnClientEvent:Connect(function(payload)
+	local ok, err = pcall(playPackHitFeedback, payload)
+	if not ok then
+		warn("[UnboxAFootballer] Pack hit feedback failed:", err)
+	end
+end)
+
 PackOpenedEvent.OnClientEvent:Connect(function(payload)
 	if not payload or not payload.success then
 		return
@@ -1299,6 +1513,7 @@ PackOpenFailedEvent.OnClientEvent:Connect(function(payload)
 		return
 	end
 
+	breakHud.Visible = false
 	showToast(payload.error or "Pack could not be opened.", UI.Danger)
 end)
 
