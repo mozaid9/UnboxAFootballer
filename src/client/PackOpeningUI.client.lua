@@ -343,82 +343,6 @@ end
 local fansLabel, addFansButton = createWalletRow(walletDock, 1, "Fans", "F", UI.Gold)
 local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "Gem", Color3.fromRGB(69, 207, 255))
 
-local breakHud = make("Frame", {
-	Name = "PackBreakHud",
-	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.fromScale(0.5, 0.16),
-	Size = UDim2.fromOffset(236, 54),
-	BackgroundColor3 = Color3.fromRGB(7, 10, 19),
-	BackgroundTransparency = 0.22,
-	Visible = false,
-	ZIndex = 170,
-}, screenGui)
-addCorner(breakHud, 12)
-addStroke(breakHud, UI.Gold, 1.2, 0.52)
-
-local breakHudScale = make("UIScale", {
-	Scale = 0.96,
-}, breakHud)
-
-local breakTitle = make("TextLabel", {
-	BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(10, 5),
-	Size = UDim2.new(1, -74, 0, 15),
-	Text = "Breaking...",
-	TextColor3 = UI.Text,
-	TextScaled = false,
-	TextSize = 11,
-	Font = Enum.Font.GothamBlack,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	TextTruncate = Enum.TextTruncate.AtEnd,
-	ZIndex = 171,
-}, breakHud)
-
-local breakStageLabel = make("TextLabel", {
-	BackgroundTransparency = 1,
-	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -10, 0, 5),
-	Size = UDim2.fromOffset(58, 15),
-	Text = "100%",
-	TextColor3 = UI.Gold,
-	TextScaled = false,
-	TextSize = 10,
-	Font = Enum.Font.GothamBlack,
-	TextXAlignment = Enum.TextXAlignment.Right,
-	ZIndex = 171,
-}, breakHud)
-
-local breakBarBack = make("Frame", {
-	Position = UDim2.fromOffset(10, 24),
-	Size = UDim2.new(1, -20, 0, 8),
-	BackgroundColor3 = Color3.fromRGB(18, 23, 39),
-	BorderSizePixel = 0,
-	ZIndex = 171,
-}, breakHud)
-addCorner(breakBarBack, 6)
-addStroke(breakBarBack, Color3.fromRGB(255, 255, 255), 1, 0.84)
-
-local breakBarFill = make("Frame", {
-	Size = UDim2.fromScale(1, 1),
-	BackgroundColor3 = Color3.fromRGB(72, 224, 95),
-	BorderSizePixel = 0,
-	ZIndex = 172,
-}, breakBarBack)
-addCorner(breakBarFill, 6)
-
-local breakSubtitle = make("TextLabel", {
-	BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(10, 35),
-	Size = UDim2.new(1, -20, 0, 12),
-	Text = "BREAKING",
-	TextColor3 = UI.Muted,
-	TextScaled = false,
-	TextSize = 9,
-	Font = Enum.Font.GothamBold,
-	TextXAlignment = Enum.TextXAlignment.Center,
-	ZIndex = 171,
-}, breakHud)
-
 local function makeIconLine(parent, position, size, color, rotation)
 	return make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -959,28 +883,6 @@ local function spawnParticleBurst(color, count, worldPosition, distanceScale)
 	end
 end
 
-local breakHudHideToken = 0
-
-local function integrityColor(ratio)
-	if ratio <= 0.12 then
-		return Color3.fromRGB(255, 66, 48)
-	elseif ratio <= 0.42 then
-		return Color3.fromRGB(255, 174, 42)
-	end
-	return Color3.fromRGB(72, 224, 95)
-end
-
-local function integrityStage(ratio)
-	if ratio <= 0.10 then
-		return "CRITICAL"
-	elseif ratio <= 0.40 then
-		return "HEAVY CRACKS"
-	elseif ratio <= 0.70 then
-		return "CRACKING"
-	end
-	return "BREAKING"
-end
-
 local function showImpactFlash(color, isFinal)
 	local flash = make("Frame", {
 		BackgroundColor3 = isFinal and color:Lerp(Color3.fromRGB(255, 255, 255), 0.62) or Color3.fromRGB(255, 246, 204),
@@ -1000,54 +902,6 @@ local function showImpactFlash(color, isFinal)
 	end)
 end
 
-local function updateBreakHud(payload)
-	local color = payload.color or UI.Gold
-	local integrity = math.clamp(payload.integrity or 1, 0, 1)
-	local pct = math.ceil(integrity * 100)
-	local screenPoint = getWorldScreenPoint(payload.packWorldPosition)
-	local camera = Workspace.CurrentCamera
-	if screenPoint and camera then
-		local viewport = camera.ViewportSize
-		local targetX = math.clamp(screenPoint.X, 150, viewport.X - 150)
-		local targetY = math.clamp(screenPoint.Y - (payload.isFinal and 126 or 92), 78, viewport.Y - 120)
-		breakHud.Position = UDim2.fromOffset(targetX, targetY)
-	else
-		breakHud.Position = UDim2.fromScale(0.5, payload.isFinal and 0.12 or 0.16)
-	end
-
-	breakHud.Visible = true
-	breakTitle.Text = payload.isFinal and "Breaking open..." or (payload.packName or "Pack")
-	breakStageLabel.Text = tostring(pct) .. "%"
-	breakStageLabel.TextColor3 = color
-	breakSubtitle.Text = payload.isFinal and "FINAL BREAK" or integrityStage(integrity)
-	breakBarFill.BackgroundColor3 = integrityColor(integrity):Lerp(color, payload.isFinal and 0.45 or 0.12)
-
-	TweenService:Create(breakHudScale, TweenInfo.new(0.10, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Scale = payload.isFinal and 1.06 or 1.025,
-	}):Play()
-	task.delay(0.12, function()
-		if breakHudScale.Parent then
-			TweenService:Create(breakHudScale, TweenInfo.new(0.16, Enum.EasingStyle.Quad), {
-				Scale = 1,
-			}):Play()
-		end
-	end)
-
-	TweenService:Create(breakBarFill, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Size = UDim2.fromScale(integrity, 1),
-	}):Play()
-
-	breakHudHideToken += 1
-	local token = breakHudHideToken
-	if not payload.isFinal then
-		task.delay(0.72, function()
-			if token == breakHudHideToken then
-				breakHud.Visible = false
-			end
-		end)
-	end
-end
-
 local function playPackHitFeedback(payload)
 	if not payload then
 		return
@@ -1055,7 +909,6 @@ local function playPackHitFeedback(payload)
 
 	local color = payload.color or UI.Gold
 	local isFinal = payload.isFinal == true
-	updateBreakHud(payload)
 	showImpactFlash(color, isFinal)
 	spawnParticleBurst(color, isFinal and 34 or 10, payload.packWorldPosition, isFinal and 1.18 or 0.42)
 	shakeCamera(isFinal and 0.18 or 0.045, isFinal and 0.24 or 0.10, isFinal and 8 or 4)
@@ -1262,8 +1115,6 @@ end
 local function showCardReveal(payload)
 	local card = payload.card
 	if not card then return end
-
-	breakHud.Visible = false
 
 	-- Phase 1 + 2: flash & particles — wait for pre-delay before card appears
 	local revealPreDelay = playRevealEffect(card.rarity)
@@ -1523,7 +1374,6 @@ PackOpenFailedEvent.OnClientEvent:Connect(function(payload)
 		return
 	end
 
-	breakHud.Visible = false
 	showToast(payload.error or "Pack could not be opened.", UI.Danger)
 end)
 

@@ -398,32 +398,41 @@ local function createPackCrackOverlay(parent, color)
 end
 
 local function updatePackDamageVisuals(plot, integrityRatio)
-	local cracks = plot and plot.activePackCracks
-	if not cracks then
+	if not plot then
 		return
 	end
 
 	local integrity = math.clamp(integrityRatio or 1, 0, 1)
-	local visibleCount = 0
-	if integrity <= 0.70 then
-		visibleCount = 2
-	end
-	if integrity <= 0.40 then
-		visibleCount = 4
-	end
-	if integrity <= 0.10 then
-		visibleCount = #cracks
-	end
+	plot.activePackIntegrity = integrity
 
-	for index, crack in ipairs(cracks) do
-		if crack and crack.Parent then
-			crack.Visible = index <= visibleCount
-			crack.BackgroundTransparency = integrity <= 0.10 and 0.02 or 0.15
+	local cracks = plot.activePackCracks
+	if cracks then
+		local visibleCount = 0
+		if integrity <= 0.70 then
+			visibleCount = 2
+		end
+		if integrity <= 0.40 then
+			visibleCount = 4
+		end
+		if integrity <= 0.10 then
+			visibleCount = #cracks
+		end
+
+		for index, crack in ipairs(cracks) do
+			if crack and crack.Parent then
+				crack.Visible = index <= visibleCount
+				crack.BackgroundTransparency = integrity <= 0.10 and 0.02 or 0.15
+			end
 		end
 	end
 
 	if plot.activePackLight then
-		plot.activePackLight.Range = 12 + ((1 - integrity) * 10)
+		plot.activePackLight.Range = 12 + ((1 - integrity) * 14)
+	end
+
+	if plot.activePackLeakEmitter then
+		plot.activePackLeakEmitter.Enabled = integrity <= 0.30 and integrity > 0
+		plot.activePackLeakEmitter.Rate = integrity <= 0.10 and 28 or 10
 	end
 end
 
@@ -445,8 +454,16 @@ local function playPackHitEffect(plot, settleBrightness)
 		return
 	end
 
+	local integrity = plot.activePackIntegrity or 1
+	plot.activePackShakeUntil = os.clock() + (integrity <= 0.30 and 0.26 or 0.16)
+
 	if plot.activePackHitEmitter then
-		plot.activePackHitEmitter:Emit(14)
+		local burstCount = integrity <= 0.30 and 24 or (integrity <= 0.60 and 18 or 14)
+		plot.activePackHitEmitter:Emit(burstCount)
+	end
+
+	if plot.activePackLeakEmitter and integrity <= 0.40 then
+		plot.activePackLeakEmitter:Emit(6)
 	end
 
 	if plot.activePackHighlight then
@@ -617,6 +634,19 @@ local function getDisplaySlotByIndex(plot, slotIndex)
 	return nil
 end
 
+local SLOT_FLOOR_Y_TOLERANCE = 7
+
+local function isPlayerOnDisplaySlotFloor(player, slot)
+	local character = player and player.Character
+	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+	local slotPart = slot and (slot.top or slot.base)
+	if not rootPart or not slotPart then
+		return false
+	end
+
+	return math.abs(rootPart.Position.Y - slotPart.Position.Y) <= SLOT_FLOOR_Y_TOLERANCE
+end
+
 local function placeCardOnDisplay(player, plot, slot, cardId)
 	local card = getCardById(cardId)
 	if not card or not slot then
@@ -701,9 +731,12 @@ local function clearPlotPack(plot)
 	plot.activePackHitsRemaining = nil
 	plot.activePackMaxHits = nil
 	plot.activePackHitEmitter = nil
+	plot.activePackLeakEmitter = nil
 	plot.activePackHighlight = nil
 	plot.activePackImpactParts = nil
 	plot.activePackCracks = nil
+	plot.activePackIntegrity = nil
+	plot.activePackShakeUntil = nil
 	plot.isOpeningPack = nil
 end
 
@@ -791,6 +824,33 @@ local function spawnPackForPlot(plot)
 	})
 	hitEmitter.Parent = hitAttachment
 
+	local leakEmitter = Instance.new("ParticleEmitter")
+	leakEmitter.Name = "CrackLeak"
+	leakEmitter.Enabled = false
+	leakEmitter.Rate = 10
+	leakEmitter.Lifetime = NumberRange.new(0.26, 0.54)
+	leakEmitter.Speed = NumberRange.new(0.45, 1.6)
+	leakEmitter.SpreadAngle = Vector2.new(72, 72)
+	leakEmitter.Drag = 2
+	leakEmitter.LightEmission = 1
+	leakEmitter.LightInfluence = 0
+	leakEmitter.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(0.45, packDef.color:Lerp(Color3.fromRGB(255, 255, 255), 0.2)),
+		ColorSequenceKeypoint.new(1, packDef.color),
+	})
+	leakEmitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.18),
+		NumberSequenceKeypoint.new(0.45, 0.36),
+		NumberSequenceKeypoint.new(1, 0.02),
+	})
+	leakEmitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.12),
+		NumberSequenceKeypoint.new(0.65, 0.25),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	leakEmitter.Parent = hitAttachment
+
 	local hitHighlight = Instance.new("Highlight")
 	hitHighlight.DepthMode = Enum.HighlightDepthMode.Occluded
 	hitHighlight.FillColor = packDef.color
@@ -813,10 +873,22 @@ local function spawnPackForPlot(plot)
 	local packSpinAngle = 0
 	task.spawn(function()
 		while model.Parent do
-			packSpinAngle = packSpinAngle + math.rad(34) / 30 -- ≈ 34°/s slow spin
-			local floatY = packOriginY + math.sin(os.clock() * 1.3) * 0.30
-			local baseCF = CFrame.new(packOriginX, floatY, packOriginZ)
-				* CFrame.Angles(0, packSpinAngle, 0)
+			local now = os.clock()
+			local integrity = plot.activePackIntegrity or 1
+			local stress = 1 - integrity
+			local spinSpeed = 34 + (stress * 54) + (integrity <= 0.30 and 28 or 0)
+			packSpinAngle = packSpinAngle + math.rad(spinSpeed) / 30
+
+			local floatY = packOriginY + math.sin(now * (1.3 + stress * 1.4)) * (0.30 + stress * 0.16)
+			local hitShake = now < (plot.activePackShakeUntil or 0) and (0.12 + stress * 0.24) or 0
+			local criticalShake = integrity <= 0.10 and 0.10 or 0
+			local shake = hitShake + criticalShake
+			local shakeX = math.sin(now * 42) * shake * plot.facingDirection
+			local shakeZ = math.cos(now * 37) * shake
+			local leanX = math.sin(now * 17) * math.rad(stress * 4)
+			local leanZ = math.cos(now * 19) * math.rad(stress * 3)
+			local baseCF = CFrame.new(packOriginX + shakeX, floatY, packOriginZ + shakeZ)
+				* CFrame.Angles(leanX, packSpinAngle, leanZ)
 			if model.Parent then
 				cardBody.CFrame = baseCF
 				topCap.CFrame = baseCF * CFrame.new(0, 4.65, 0) * CFrame.Angles(0, 0, math.rad(180))
@@ -834,9 +906,12 @@ local function spawnPackForPlot(plot)
 	plot.activePackMaxHits = packDef.hitsRequired or 3
 	plot.activePackHitsRemaining = plot.activePackMaxHits
 	plot.activePackHitEmitter = hitEmitter
+	plot.activePackLeakEmitter = leakEmitter
 	plot.activePackHighlight = hitHighlight
 	plot.activePackImpactParts = { cardBody, topCap, bottomCap }
 	plot.activePackCracks = crackLines
+	plot.activePackIntegrity = 1
+	plot.activePackShakeUntil = 0
 
 	BaseService.SetPlotPadHealth(plot, packDef.displayName, plot.activePackHitsRemaining, plot.activePackMaxHits, packDef.color)
 	sendHint(plot.ownerPlayer, packDef.displayName .. " spawned on your red pad. Crack it with your pitchfork and use Hold E on green slots to swap players.")
@@ -849,6 +924,13 @@ local function connectSlotPrompt(plot, slot)
 		if plot.ownerPlayer ~= player then
 			PackOpenFailedEvent:FireClient(player, {
 				error = (plot.ownerPlayer and plot.ownerPlayer.DisplayName or "Another player") .. "'s display slot is on this base.",
+			})
+			return
+		end
+
+		if not isPlayerOnDisplaySlotFloor(player, slot) then
+			PackOpenFailedEvent:FireClient(player, {
+				error = "Go to that floor to use this display slot.",
 			})
 			return
 		end
@@ -978,7 +1060,7 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	local newBrightness = nil
 
 	if plot.activePackLight then
-		newBrightness = 1.15 + ((plot.activePackMaxHits - plot.activePackHitsRemaining) * 0.28)
+		newBrightness = 1.15 + ((1 - integrityRatio) * 2.8)
 		plot.activePackLight.Brightness = newBrightness
 	end
 
@@ -1010,6 +1092,10 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	-- Fire before the card pull so players see the pack explode open.
 	if plot.activePackHitEmitter then
 		plot.activePackHitEmitter:Emit(44)
+	end
+	if plot.activePackLeakEmitter then
+		plot.activePackLeakEmitter.Enabled = false
+		plot.activePackLeakEmitter:Emit(34)
 	end
 	if plot.activePackLight then
 		plot.activePackLight.Brightness = 4.8
@@ -1472,6 +1558,10 @@ PlaceInventoryCardInSlotFn.OnServerInvoke = function(player, slotIndex, cardId)
 	local slot = getDisplaySlotByIndex(plot, slotIndex)
 	if not slot then
 		return { success = false, error = "That display slot does not exist." }
+	end
+
+	if not isPlayerOnDisplaySlotFloor(player, slot) then
+		return { success = false, error = "Go to that floor to use this display slot." }
 	end
 
 	local ok, cardOrError = addInventoryCardToDisplay(player, plot, slot, cardId)

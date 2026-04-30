@@ -2107,7 +2107,7 @@ local function createDisplaySlot(parent, index, cframe, lookDirection)
 		ObjectText = "Inventory Empty",
 		KeyboardKeyCode = Enum.KeyCode.E,
 		HoldDuration = 0.65,
-		MaxActivationDistance = index > 6 and 28 or 10,
+		MaxActivationDistance = 10,
 		RequiresLineOfSight = false,
 		Enabled = false,
 	}, base)
