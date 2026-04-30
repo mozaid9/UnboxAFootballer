@@ -42,7 +42,10 @@ local RARITY_BAR_COLORS = {
 	Color3.fromRGB(255, 208, 76),
 }
 
+local LIMITED_DEAL_DURATION = (4 * 60) + 32
+
 local dailyRewardStreak = 0
+local limitedDealRemaining = LIMITED_DEAL_DURATION
 
 local function make(className, props, parent)
 	props = props or {}
@@ -121,6 +124,12 @@ local function formatClock(seconds)
 		return string.format("%dh %02dm", hours, minutes)
 	end
 	return string.format("%d:%02d", minutes, secs)
+end
+
+local function formatNumber(numberValue)
+	local source = tostring(math.floor(tonumber(numberValue) or 0))
+	local result = source:reverse():gsub("(%d%d%d)", "%1,"):reverse()
+	return result:match("^,(.+)$") or result
 end
 
 local function packDisplayName(packId)
@@ -304,11 +313,12 @@ local freeCard = make("Frame", {
 	LayoutOrder = 2,
 	Size = UDim2.new(1, 0, 0, 124),
 	BackgroundColor3 = Color3.fromRGB(12, 21, 30),
+	ClipsDescendants = true,
 	ZIndex = 11,
 }, content)
 addCorner(freeCard, 18)
 local freeStroke = addStroke(freeCard, UI.Success, 2, 0.56)
-addHoverScale(freeCard, 1.01)
+local freeCardScale = addHoverScale(freeCard, 1.01)
 
 local freeGradient = make("UIGradient", {
 	Color = ColorSequence.new({
@@ -317,6 +327,25 @@ local freeGradient = make("UIGradient", {
 	}),
 	Rotation = 15,
 }, freeCard)
+
+local freeShine = make("Frame", {
+	Position = UDim2.new(-0.24, 0, -0.16, 0),
+	Size = UDim2.new(0, 72, 1.32, 0),
+	Rotation = 12,
+	BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+	BackgroundTransparency = 0.7,
+	BorderSizePixel = 0,
+	Visible = false,
+	ZIndex = 12,
+}, freeCard)
+make("UIGradient", {
+	Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.5, 0.35),
+		NumberSequenceKeypoint.new(1, 1),
+	}),
+	Rotation = 0,
+}, freeShine)
 
 local freeIcon = make("Frame", {
 	Position = UDim2.new(0, 18, 0, 22),
@@ -376,7 +405,7 @@ local freeProgressFill = make("Frame", {
 	Size = UDim2.new(0, 0, 1, 0),
 	BackgroundColor3 = Color3.fromRGB(76, 220, 105),
 	BorderSizePixel = 0,
-	ZIndex = 13,
+	ZIndex = 14,
 }, freeProgressBack)
 addCorner(freeProgressFill, 6)
 
@@ -478,13 +507,15 @@ make("TextLabel", {
 local dailySubLabel = make("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.new(0, 94, 0, 49),
-	Size = UDim2.new(1, -266, 0, 22),
+	Size = UDim2.new(1, -282, 0, 38),
 	Text = "Claim to queue your next reward pack",
 	TextColor3 = UI.Muted,
 	TextScaled = false,
 	TextSize = 13,
 	Font = Enum.Font.GothamMedium,
 	TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top,
+	TextWrapped = true,
 	ZIndex = 12,
 }, dailyCard)
 
@@ -530,6 +561,7 @@ for index, reward in ipairs(DAILY_REWARDS) do
 	}, dailyRewardRow)
 	addCorner(cell, 12)
 	local stroke = addStroke(cell, color, 1.5, 0.72)
+	local scale = make("UIScale", { Scale = 1 }, cell)
 
 	local dayLabel = make("TextLabel", {
 		BackgroundTransparency = 1,
@@ -560,6 +592,7 @@ for index, reward in ipairs(DAILY_REWARDS) do
 	dailyCells[index] = {
 		frame = cell,
 		stroke = stroke,
+		scale = scale,
 		dayLabel = dayLabel,
 		packLabel = packLabel,
 		color = color,
@@ -616,11 +649,24 @@ make("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.new(0, 18, 0, 64),
 	Size = UDim2.new(1, -210, 0, 16),
-	Text = "+10% Luck for 5 min",
+	Text = "+10% Pack Luck (5 min)",
 	TextColor3 = UI.Muted,
 	TextScaled = false,
 	TextSize = 11,
 	Font = Enum.Font.GothamMedium,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 12,
+}, limitedCard)
+
+local limitedUrgencyLabel = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 118, 0, 14),
+	Size = UDim2.fromOffset(90, 22),
+	Text = "ENDS SOON",
+	TextColor3 = Color3.fromRGB(255, 206, 113),
+	TextScaled = false,
+	TextSize = 10,
+	Font = Enum.Font.GothamBlack,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ZIndex = 12,
 }, limitedCard)
@@ -658,10 +704,11 @@ local limitedBtn = make("TextButton", {
 	Position = UDim2.new(1, -20, 0, 45),
 	Size = UDim2.fromOffset(132, 34),
 	BackgroundColor3 = Color3.fromRGB(49, 38, 69),
-	Text = "REBIRTH 1 REQUIRED",
+	Text = "REBIRTH 1 REQUIRED\nUnlock powerful deals",
 	TextColor3 = Color3.fromRGB(190, 174, 210),
 	TextScaled = false,
-	TextSize = 10,
+	TextSize = 9,
+	TextWrapped = true,
 	Font = Enum.Font.GothamBlack,
 	AutoButtonColor = false,
 	Active = false,
@@ -673,14 +720,14 @@ sectionLabel("PACKS", 6)
 
 local packGrid = make("Frame", {
 	LayoutOrder = 7,
-	Size = UDim2.new(1, 0, 0, 182),
+	Size = UDim2.new(1, 0, 0, 222),
 	BackgroundTransparency = 1,
 	ZIndex = 11,
 }, content)
 
 local gridLayout = make("UIGridLayout", {
 	CellPadding = UDim2.fromOffset(10, 10),
-	CellSize = UDim2.new(0.5, -5, 0, 86),
+	CellSize = UDim2.new(0.5, -5, 0, 106),
 	FillDirectionMaxCells = 2,
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, packGrid)
@@ -721,7 +768,7 @@ for index, packId in ipairs(PACK_INFO) do
 	make("TextLabel", {
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 56, 0, 10),
-		Size = UDim2.new(1, -66, 0, 18),
+		Size = UDim2.new(1, -132, 0, 18),
 		Text = packDef and packDef.displayName or packId,
 		TextColor3 = UI.Text,
 		TextScaled = false,
@@ -732,9 +779,23 @@ for index, packId in ipairs(PACK_INFO) do
 	}, card)
 
 	make("TextLabel", {
+		AnchorPoint = Vector2.new(1, 0),
+		BackgroundTransparency = 1,
+		Position = UDim2.new(1, -10, 0, 10),
+		Size = UDim2.fromOffset(72, 18),
+		Text = tostring(formatNumber(packDef and packDef.futureCost or 0)) .. " Fans",
+		TextColor3 = color,
+		TextScaled = false,
+		TextSize = 10,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		ZIndex = 12,
+	}, card)
+
+	make("TextLabel", {
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 56, 0, 31),
-		Size = UDim2.new(1, -66, 0, 28),
+		Size = UDim2.new(1, -66, 0, 26),
 		Text = packDef and packDef.description or "Pack odds improve by tier.",
 		TextColor3 = UI.Muted,
 		TextScaled = false,
@@ -747,7 +808,7 @@ for index, packId in ipairs(PACK_INFO) do
 	}, card)
 
 	local rarityBar = make("Frame", {
-		Position = UDim2.new(0, 56, 1, -15),
+		Position = UDim2.new(0, 56, 1, -30),
 		Size = UDim2.new(1, -66, 0, 6),
 		BackgroundColor3 = Color3.fromRGB(7, 10, 18),
 		BorderSizePixel = 0,
@@ -779,13 +840,26 @@ for index, packId in ipairs(PACK_INFO) do
 			end
 		end
 	end
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 56, 1, -21),
+		Size = UDim2.new(1, -66, 0, 12),
+		Text = "Gold   Rare   Elite",
+		TextColor3 = Color3.fromRGB(160, 152, 126),
+		TextScaled = false,
+		TextSize = 9,
+		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 12,
+	}, card)
 end
 
 local packHint = make("TextLabel", {
 	LayoutOrder = 8,
 	Size = UDim2.new(1, 0, 0, 30),
 	BackgroundColor3 = Color3.fromRGB(12, 16, 27),
-	Text = "Better packs arrive through spawn luck, daily streaks, milestones, and rebirth progress.",
+	Text = "Higher packs unlock stronger players and faster income. Fan prices are for future direct buys.",
 	TextColor3 = Color3.fromRGB(192, 186, 165),
 	TextScaled = false,
 	TextSize = 11,
@@ -852,6 +926,8 @@ end
 
 local freeReadyGlowTween
 local freeReadyBounceTween
+local freeCardPulseTween
+local freeShineTween
 local freeReadyPulseOn = false
 
 local function stopTween(tween)
@@ -868,11 +944,19 @@ local function setFreeReadyPulse(enabled)
 
 	stopTween(freeReadyGlowTween)
 	stopTween(freeReadyBounceTween)
+	stopTween(freeCardPulseTween)
+	stopTween(freeShineTween)
 	freeReadyGlowTween = nil
 	freeReadyBounceTween = nil
+	freeCardPulseTween = nil
+	freeShineTween = nil
 	freeReadyPulseScale.Scale = 1
+	freeCardScale.Scale = 1
+	freeShine.Visible = false
+	freeShine.Position = UDim2.new(-0.24, 0, -0.16, 0)
 
 	if enabled then
+		freeShine.Visible = true
 		freeReadyGlowTween = TweenService:Create(
 			freeStroke,
 			TweenInfo.new(0.58, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
@@ -883,8 +967,20 @@ local function setFreeReadyPulse(enabled)
 			TweenInfo.new(0.54, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
 			{ Scale = 1.035 }
 		)
+		freeCardPulseTween = TweenService:Create(
+			freeCardScale,
+			TweenInfo.new(0.82, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ Scale = 1.015 }
+		)
+		freeShineTween = TweenService:Create(
+			freeShine,
+			TweenInfo.new(1.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, false, 0.25),
+			{ Position = UDim2.new(1.14, 0, -0.16, 0) }
+		)
 		freeReadyGlowTween:Play()
 		freeReadyBounceTween:Play()
+		freeCardPulseTween:Play()
+		freeShineTween:Play()
 	end
 end
 
@@ -899,6 +995,27 @@ TweenService:Create(
 	TweenInfo.new(0.65, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
 	{ TextColor3 = Color3.fromRGB(255, 246, 190) }
 ):Play()
+
+local function updateLimitedDeal()
+	limitedTimer.Text = formatClock(limitedDealRemaining) .. " LEFT"
+
+	if limitedDealRemaining <= 60 then
+		limitedStroke.Color = Color3.fromRGB(255, 84, 105)
+		limitedTimer.TextColor3 = Color3.fromRGB(255, 112, 128)
+		limitedUrgencyLabel.Text = "ENDS NOW"
+		limitedUrgencyLabel.TextColor3 = Color3.fromRGB(255, 112, 128)
+	elseif limitedDealRemaining <= 180 then
+		limitedStroke.Color = Color3.fromRGB(255, 182, 96)
+		limitedTimer.TextColor3 = Color3.fromRGB(255, 226, 150)
+		limitedUrgencyLabel.Text = "ENDS SOON"
+		limitedUrgencyLabel.TextColor3 = Color3.fromRGB(255, 206, 113)
+	else
+		limitedStroke.Color = Color3.fromRGB(190, 112, 255)
+		limitedTimer.TextColor3 = Color3.fromRGB(255, 221, 130)
+		limitedUrgencyLabel.Text = "FLASH DEAL"
+		limitedUrgencyLabel.TextColor3 = Color3.fromRGB(220, 180, 255)
+	end
+end
 
 local function updateFreePackBtn()
 	local progress = 1 - (math.clamp(freePackRemaining, 0, Constants.FreePackCooldown) / Constants.FreePackCooldown)
@@ -915,6 +1032,7 @@ local function updateFreePackBtn()
 			ColorSequenceKeypoint.new(1, Color3.fromRGB(9, 19, 28)),
 		})
 		freeStroke.Color = Color3.fromRGB(108, 255, 137)
+		freeProgressFill.BackgroundColor3 = Color3.fromRGB(110, 255, 139)
 		freeClaimBtn.Text = "CLAIM FREE PACK"
 		freeClaimBtn.BackgroundColor3 = Color3.fromRGB(35, 185, 78)
 		freeClaimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -936,17 +1054,18 @@ local function updateFreePackBtn()
 			ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 17, 31)),
 		})
 		freeStroke.Color = Color3.fromRGB(216, 255, 140)
+		freeProgressFill.BackgroundColor3 = Color3.fromRGB(216, 255, 140)
 		freeClaimBtn.Text = "READY IN " .. formatClock(freePackRemaining)
 		freeClaimBtn.BackgroundColor3 = Color3.fromRGB(41, 53, 38)
 		freeClaimBtn.TextColor3 = Color3.fromRGB(222, 255, 218)
 		freeClaimBtn.Active = false
-		freeSubLabel.Text = "Free every 4 hours"
+		freeSubLabel.Text = "1 free pack every 4 hours"
 		freeSubLabel.TextColor3 = Color3.fromRGB(216, 255, 190)
 		freeStatusLabel.Text = "FINAL MINUTE"
 		freeStatusLabel.TextColor3 = Color3.fromRGB(216, 255, 190)
 		freeStroke.Transparency = 0.25
 		returnHookLabel.Text = "Almost ready"
-		footerHookLabel.Text = "Next Free Pack in " .. formatClock(freePackRemaining)
+		footerHookLabel.Text = "Free pack almost ready..."
 	elseif freePackRemaining <= 600 then
 		setFreeReadyPulse(false)
 		freeCard.BackgroundColor3 = Color3.fromRGB(24, 24, 18)
@@ -955,11 +1074,12 @@ local function updateFreePackBtn()
 			ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 17, 31)),
 		})
 		freeStroke.Color = Color3.fromRGB(255, 222, 106)
+		freeProgressFill.BackgroundColor3 = Color3.fromRGB(255, 222, 106)
 		freeClaimBtn.Text = "READY IN " .. formatClock(freePackRemaining)
 		freeClaimBtn.BackgroundColor3 = Color3.fromRGB(44, 40, 26)
 		freeClaimBtn.TextColor3 = Color3.fromRGB(255, 231, 139)
 		freeClaimBtn.Active = false
-		freeSubLabel.Text = "Free every 4 hours"
+		freeSubLabel.Text = "1 free pack every 4 hours"
 		freeSubLabel.TextColor3 = Color3.fromRGB(221, 202, 132)
 		freeStatusLabel.Text = "UNDER 10 MIN"
 		freeStatusLabel.TextColor3 = Color3.fromRGB(255, 231, 139)
@@ -974,17 +1094,23 @@ local function updateFreePackBtn()
 			ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 17, 31)),
 		})
 		freeStroke.Color = UI.Success
+		freeProgressFill.BackgroundColor3 = Color3.fromRGB(76, 220, 105)
 		freeClaimBtn.Text = "READY IN " .. formatClock(freePackRemaining)
 		freeClaimBtn.BackgroundColor3 = Color3.fromRGB(28, 34, 52)
 		freeClaimBtn.TextColor3 = UI.Muted
 		freeClaimBtn.Active = false
-		freeSubLabel.Text = "Free every 4 hours"
+		freeSubLabel.Text = "1 free pack every 4 hours"
 		freeSubLabel.TextColor3 = UI.Muted
-		freeStatusLabel.Text = math.floor(progress * 100) .. "% filled"
+		freeStatusLabel.Text = ""
 		freeStatusLabel.TextColor3 = UI.Muted
 		freeStroke.Transparency = 0.56
-		returnHookLabel.Text = "Next Free Pack in " .. formatClock(freePackRemaining)
-		footerHookLabel.Text = "Next Free Pack in " .. formatClock(freePackRemaining)
+		if freePackRemaining <= 1800 then
+			returnHookLabel.Text = "Next Free Pack in " .. formatClock(freePackRemaining)
+			footerHookLabel.Text = "Next Free Pack in " .. formatClock(freePackRemaining)
+		else
+			returnHookLabel.Text = ""
+			footerHookLabel.Text = ""
+		end
 	end
 end
 
@@ -993,26 +1119,31 @@ local function updateDailyCells(nextIndex)
 	if not canClaimDaily and cycleProgress == 0 and dailyRewardStreak > 0 then
 		cycleProgress = #DAILY_REWARDS
 	end
+	local todayIndex = canClaimDaily and nextIndex or math.max(1, cycleProgress)
 
 	for index, cell in ipairs(dailyCells) do
 		local claimed = index <= cycleProgress
 		local isNext = index == nextIndex and canClaimDaily
+		local isToday = index == todayIndex
 
 		if claimed then
 			cell.frame.BackgroundColor3 = cell.color:Lerp(Color3.fromRGB(0, 0, 0), 0.62)
-			cell.stroke.Transparency = 0.28
-			cell.dayLabel.Text = "DAY " .. tostring(index) .. " CLAIMED"
+			cell.stroke.Transparency = isToday and 0.08 or 0.28
+			cell.dayLabel.Text = isToday and "TODAY CLAIMED" or ("DAY " .. tostring(index) .. " CLAIMED")
 			cell.packLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			cell.scale.Scale = isToday and 1.04 or 1
 		elseif isNext then
 			cell.frame.BackgroundColor3 = cell.color:Lerp(Color3.fromRGB(14, 18, 31), 0.48)
 			cell.stroke.Transparency = 0.05
-			cell.dayLabel.Text = "DAY " .. tostring(index) .. " READY"
+			cell.dayLabel.Text = "TODAY"
 			cell.packLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			cell.scale.Scale = 1.04
 		else
 			cell.frame.BackgroundColor3 = Color3.fromRGB(12, 15, 25)
 			cell.stroke.Transparency = 0.84
 			cell.dayLabel.Text = "DAY " .. tostring(index)
 			cell.packLabel.TextColor3 = Color3.fromRGB(112, 108, 98)
+			cell.scale.Scale = 1
 		end
 	end
 end
@@ -1020,6 +1151,17 @@ end
 local function updateDailyBtn()
 	local reward, nextIndex = getNextDailyReward()
 	local rewardName = reward and (reward.label or packDisplayName(reward.packId)) or "Reward Pack"
+	local todayRewardName = rewardName
+	if not canClaimDaily and #DAILY_REWARDS > 0 then
+		local currentIndex = dailyRewardStreak % #DAILY_REWARDS
+		if currentIndex == 0 and dailyRewardStreak > 0 then
+			currentIndex = #DAILY_REWARDS
+		elseif currentIndex == 0 then
+			currentIndex = nextIndex
+		end
+		local todayReward = DAILY_REWARDS[currentIndex]
+		todayRewardName = todayReward and (todayReward.label or packDisplayName(todayReward.packId)) or rewardName
+	end
 
 	updateDailyCells(nextIndex)
 
@@ -1028,7 +1170,7 @@ local function updateDailyBtn()
 		dailyClaimBtn.BackgroundColor3 = Color3.fromRGB(151, 108, 9)
 		dailyClaimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 		dailyClaimBtn.Active = true
-		dailySubLabel.Text = "Reward: " .. rewardName .. " queued for your next spawn"
+		dailySubLabel.Text = "STREAK: " .. tostring(dailyRewardStreak) .. " DAYS\nTODAY: " .. rewardName
 		dailySubLabel.TextColor3 = UI.Gold
 		dailyStroke.Transparency = 0.18
 	else
@@ -1036,7 +1178,7 @@ local function updateDailyBtn()
 		dailyClaimBtn.BackgroundColor3 = Color3.fromRGB(28, 34, 52)
 		dailyClaimBtn.TextColor3 = UI.Muted
 		dailyClaimBtn.Active = false
-		dailySubLabel.Text = "STREAK: " .. tostring(dailyRewardStreak) .. " DAYS  |  Next: " .. rewardName
+		dailySubLabel.Text = "STREAK: " .. tostring(dailyRewardStreak) .. " DAYS\nTODAY: " .. todayRewardName .. "  |  NEXT: " .. rewardName
 		dailySubLabel.TextColor3 = UI.Muted
 		dailyStroke.Transparency = 0.58
 	end
@@ -1080,6 +1222,12 @@ local function runCountdown()
 			end
 		end
 
+		limitedDealRemaining = math.max(0, limitedDealRemaining - 1)
+		if limitedDealRemaining <= 0 then
+			limitedDealRemaining = LIMITED_DEAL_DURATION
+		end
+
+		updateLimitedDeal()
 		updateFreePackBtn()
 		updateDailyBtn()
 	end
@@ -1199,3 +1347,4 @@ end)
 
 updateFreePackBtn()
 updateDailyBtn()
+updateLimitedDeal()
