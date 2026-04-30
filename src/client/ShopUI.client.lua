@@ -32,6 +32,16 @@ local PACK_INFO = {
 	"DeluxePack",
 }
 
+local RARITY_BAR_COLORS = {
+	Color3.fromRGB(255, 216, 48),
+	Color3.fromRGB(255, 152, 38),
+	Color3.fromRGB(255, 239, 148),
+	Color3.fromRGB(225, 54, 67),
+	Color3.fromRGB(166, 86, 255),
+	Color3.fromRGB(226, 248, 255),
+	Color3.fromRGB(255, 208, 76),
+}
+
 local dailyRewardStreak = 0
 
 local function make(className, props, parent)
@@ -97,6 +107,8 @@ local function addHoverScale(guiObject, hoverScale)
 			}):Play()
 		end)
 	end
+
+	return scale
 end
 
 local function formatClock(seconds)
@@ -298,7 +310,7 @@ addCorner(freeCard, 18)
 local freeStroke = addStroke(freeCard, UI.Success, 2, 0.56)
 addHoverScale(freeCard, 1.01)
 
-make("UIGradient", {
+local freeGradient = make("UIGradient", {
 	Color = ColorSequence.new({
 		ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 31, 23)),
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 17, 31)),
@@ -383,6 +395,7 @@ local freeClaimBtn = make("TextButton", {
 }, freeCard)
 addCorner(freeClaimBtn, 14)
 addHoverScale(freeClaimBtn, 1.045)
+local freeReadyPulseScale = make("UIScale", { Scale = 1 }, freeClaimBtn)
 
 local freeStatusLabel = make("TextLabel", {
 	BackgroundTransparency = 1,
@@ -395,6 +408,20 @@ local freeStatusLabel = make("TextLabel", {
 	TextSize = 11,
 	Font = Enum.Font.GothamBold,
 	TextXAlignment = Enum.TextXAlignment.Center,
+	ZIndex = 12,
+}, freeCard)
+
+local returnHookLabel = make("TextLabel", {
+	BackgroundTransparency = 1,
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -20, 0, 101),
+	Size = UDim2.fromOffset(250, 16),
+	Text = "",
+	TextColor3 = Color3.fromRGB(152, 246, 172),
+	TextScaled = false,
+	TextSize = 10,
+	Font = Enum.Font.GothamBold,
+	TextXAlignment = Enum.TextXAlignment.Right,
 	ZIndex = 12,
 }, freeCard)
 
@@ -464,12 +491,12 @@ local dailySubLabel = make("TextLabel", {
 local dailyClaimBtn = make("TextButton", {
 	AnchorPoint = Vector2.new(1, 0),
 	Position = UDim2.new(1, -18, 0, 24),
-	Size = UDim2.fromOffset(150, 48),
+	Size = UDim2.fromOffset(164, 48),
 	BackgroundColor3 = Color3.fromRGB(140, 102, 8),
 	Text = "CLAIM",
 	TextColor3 = Color3.fromRGB(255, 255, 255),
 	TextScaled = false,
-	TextSize = 14,
+	TextSize = 11,
 	Font = Enum.Font.GothamBlack,
 	AutoButtonColor = false,
 	ZIndex = 12,
@@ -548,7 +575,7 @@ local limitedCard = make("Frame", {
 	ZIndex = 11,
 }, content)
 addCorner(limitedCard, 16)
-addStroke(limitedCard, Color3.fromRGB(180, 92, 255), 1.5, 0.48)
+local limitedStroke = addStroke(limitedCard, Color3.fromRGB(190, 112, 255), 2, 0.34)
 addHoverScale(limitedCard, 1.01)
 
 make("UIGradient", {
@@ -562,7 +589,7 @@ make("UIGradient", {
 make("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.new(0, 18, 0, 14),
-	Size = UDim2.new(1, -210, 0, 22),
+	Size = UDim2.new(1, -300, 0, 22),
 	Text = "LIMITED DEAL",
 	TextColor3 = Color3.fromRGB(220, 180, 255),
 	TextScaled = false,
@@ -576,7 +603,7 @@ make("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.new(0, 18, 0, 37),
 	Size = UDim2.new(1, -210, 0, 24),
-	Text = "Premium Pack x3 + 10% Luck",
+	Text = "Premium Pack x3",
 	TextColor3 = UI.Text,
 	TextScaled = false,
 	TextSize = 17,
@@ -589,7 +616,7 @@ make("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.new(0, 18, 0, 64),
 	Size = UDim2.new(1, -210, 0, 16),
-	Text = "Unlocks after first rebirth",
+	Text = "+10% Luck for 5 min",
 	TextColor3 = UI.Muted,
 	TextScaled = false,
 	TextSize = 11,
@@ -603,7 +630,7 @@ local limitedTimer = make("TextLabel", {
 	Position = UDim2.new(1, -20, 0, 15),
 	Size = UDim2.fromOffset(132, 24),
 	BackgroundTransparency = 1,
-	Text = "04:32 left",
+	Text = "04:32 LEFT",
 	TextColor3 = Color3.fromRGB(255, 221, 130),
 	TextScaled = false,
 	TextSize = 14,
@@ -611,17 +638,30 @@ local limitedTimer = make("TextLabel", {
 	TextXAlignment = Enum.TextXAlignment.Right,
 	ZIndex = 12,
 }, limitedCard)
-_ = limitedTimer
+
+local bestValueBadge = make("TextLabel", {
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -158, 0, 14),
+	Size = UDim2.fromOffset(96, 24),
+	BackgroundColor3 = Color3.fromRGB(255, 213, 91),
+	Text = "BEST VALUE",
+	TextColor3 = Color3.fromRGB(31, 22, 8),
+	TextScaled = false,
+	TextSize = 10,
+	Font = Enum.Font.GothamBlack,
+	ZIndex = 12,
+}, limitedCard)
+addCorner(bestValueBadge, 10)
 
 local limitedBtn = make("TextButton", {
 	AnchorPoint = Vector2.new(1, 0),
 	Position = UDim2.new(1, -20, 0, 45),
 	Size = UDim2.fromOffset(132, 34),
 	BackgroundColor3 = Color3.fromRGB(49, 38, 69),
-	Text = "LOCKED",
+	Text = "REBIRTH 1 REQUIRED",
 	TextColor3 = Color3.fromRGB(190, 174, 210),
 	TextScaled = false,
-	TextSize = 12,
+	TextSize = 10,
 	Font = Enum.Font.GothamBlack,
 	AutoButtonColor = false,
 	Active = false,
@@ -633,14 +673,14 @@ sectionLabel("PACKS", 6)
 
 local packGrid = make("Frame", {
 	LayoutOrder = 7,
-	Size = UDim2.new(1, 0, 0, 158),
+	Size = UDim2.new(1, 0, 0, 182),
 	BackgroundTransparency = 1,
 	ZIndex = 11,
 }, content)
 
 local gridLayout = make("UIGridLayout", {
 	CellPadding = UDim2.fromOffset(10, 10),
-	CellSize = UDim2.new(0.5, -5, 0, 74),
+	CellSize = UDim2.new(0.5, -5, 0, 86),
 	FillDirectionMaxCells = 2,
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, packGrid)
@@ -694,7 +734,7 @@ for index, packId in ipairs(PACK_INFO) do
 	make("TextLabel", {
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 56, 0, 31),
-		Size = UDim2.new(1, -66, 0, 30),
+		Size = UDim2.new(1, -66, 0, 28),
 		Text = packDef and packDef.description or "Pack odds improve by tier.",
 		TextColor3 = UI.Muted,
 		TextScaled = false,
@@ -705,10 +745,59 @@ for index, packId in ipairs(PACK_INFO) do
 		TextYAlignment = Enum.TextYAlignment.Top,
 		ZIndex = 12,
 	}, card)
+
+	local rarityBar = make("Frame", {
+		Position = UDim2.new(0, 56, 1, -15),
+		Size = UDim2.new(1, -66, 0, 6),
+		BackgroundColor3 = Color3.fromRGB(7, 10, 18),
+		BorderSizePixel = 0,
+		ClipsDescendants = true,
+		ZIndex = 12,
+	}, card)
+	addCorner(rarityBar, 3)
+
+	make("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = Enum.HorizontalAlignment.Left,
+		VerticalAlignment = Enum.VerticalAlignment.Center,
+		Padding = UDim.new(0, 0),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, rarityBar)
+
+	local weights = packDef and packDef.tierWeights or {}
+	for rarityIndex, weight in ipairs(weights) do
+		if weight > 0 then
+			local segment = make("Frame", {
+				LayoutOrder = rarityIndex,
+				Size = UDim2.new(math.max(weight / 100, 0.012), 0, 1, 0),
+				BackgroundColor3 = RARITY_BAR_COLORS[rarityIndex] or color,
+				BorderSizePixel = 0,
+				ZIndex = 13,
+			}, rarityBar)
+			if rarityIndex == 1 then
+				addCorner(segment, 3)
+			end
+		end
+	end
 end
 
-local futureCard = make("Frame", {
+local packHint = make("TextLabel", {
 	LayoutOrder = 8,
+	Size = UDim2.new(1, 0, 0, 30),
+	BackgroundColor3 = Color3.fromRGB(12, 16, 27),
+	Text = "Better packs arrive through spawn luck, daily streaks, milestones, and rebirth progress.",
+	TextColor3 = Color3.fromRGB(192, 186, 165),
+	TextScaled = false,
+	TextSize = 11,
+	Font = Enum.Font.GothamBold,
+	TextWrapped = true,
+	ZIndex = 11,
+}, content)
+addCorner(packHint, 10)
+addStroke(packHint, UI.Gold, 1, 0.88)
+
+local futureCard = make("Frame", {
+	LayoutOrder = 9,
 	Size = UDim2.new(1, 0, 0, 58),
 	BackgroundColor3 = UI.PanelAlt,
 	ZIndex = 11,
@@ -742,12 +831,74 @@ make("TextLabel", {
 	ZIndex = 12,
 }, futureCard)
 
+local footerHookLabel = make("TextLabel", {
+	LayoutOrder = 10,
+	Size = UDim2.new(1, 0, 0, 28),
+	BackgroundTransparency = 1,
+	Text = "",
+	TextColor3 = Color3.fromRGB(146, 236, 164),
+	TextScaled = false,
+	TextSize = 11,
+	Font = Enum.Font.GothamBlack,
+	ZIndex = 11,
+}, content)
+
 local function setProgress(fill, percent)
 	local target = UDim2.new(math.clamp(percent, 0, 1), 0, 1, 0)
 	TweenService:Create(fill, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		Size = target,
 	}):Play()
 end
+
+local freeReadyGlowTween
+local freeReadyBounceTween
+local freeReadyPulseOn = false
+
+local function stopTween(tween)
+	if tween then
+		tween:Cancel()
+	end
+end
+
+local function setFreeReadyPulse(enabled)
+	if freeReadyPulseOn == enabled then
+		return
+	end
+	freeReadyPulseOn = enabled
+
+	stopTween(freeReadyGlowTween)
+	stopTween(freeReadyBounceTween)
+	freeReadyGlowTween = nil
+	freeReadyBounceTween = nil
+	freeReadyPulseScale.Scale = 1
+
+	if enabled then
+		freeReadyGlowTween = TweenService:Create(
+			freeStroke,
+			TweenInfo.new(0.58, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ Transparency = 0.02 }
+		)
+		freeReadyBounceTween = TweenService:Create(
+			freeReadyPulseScale,
+			TweenInfo.new(0.54, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ Scale = 1.035 }
+		)
+		freeReadyGlowTween:Play()
+		freeReadyBounceTween:Play()
+	end
+end
+
+TweenService:Create(
+	limitedStroke,
+	TweenInfo.new(0.85, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+	{ Transparency = 0.12 }
+):Play()
+
+TweenService:Create(
+	limitedTimer,
+	TweenInfo.new(0.65, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+	{ TextColor3 = Color3.fromRGB(255, 246, 190) }
+):Play()
 
 local function updateFreePackBtn()
 	local progress = 1 - (math.clamp(freePackRemaining, 0, Constants.FreePackCooldown) / Constants.FreePackCooldown)
@@ -757,35 +908,83 @@ local function updateFreePackBtn()
 	setProgress(freeProgressFill, progress)
 
 	if canClaimFree then
+		setFreeReadyPulse(true)
+		freeCard.BackgroundColor3 = Color3.fromRGB(9, 40, 23)
+		freeGradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(21, 92, 42)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(9, 19, 28)),
+		})
+		freeStroke.Color = Color3.fromRGB(108, 255, 137)
 		freeClaimBtn.Text = "CLAIM FREE PACK"
-		freeClaimBtn.BackgroundColor3 = Color3.fromRGB(34, 155, 70)
+		freeClaimBtn.BackgroundColor3 = Color3.fromRGB(35, 185, 78)
 		freeClaimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 		freeClaimBtn.Active = true
-		freeSubLabel.Text = "Ready now - opens a Gold Pack"
+		freeSubLabel.Text = "Tap to open your free reward"
 		freeSubLabel.TextColor3 = Color3.fromRGB(97, 238, 125)
-		freeStatusLabel.Text = "READY"
+		freeStatusLabel.Text = "CLAIM NOW"
 		freeStatusLabel.TextColor3 = Color3.fromRGB(97, 238, 125)
-		freeStroke.Transparency = 0.18
+		if not freeReadyPulseOn then
+			freeStroke.Transparency = 0.18
+		end
+		returnHookLabel.Text = "Free Pack is ready"
+		footerHookLabel.Text = "Free Pack ready - claim before opening more packs."
 	elseif freePackRemaining <= 60 then
+		setFreeReadyPulse(false)
+		freeCard.BackgroundColor3 = Color3.fromRGB(24, 30, 19)
+		freeGradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(68, 63, 20)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 17, 31)),
+		})
+		freeStroke.Color = Color3.fromRGB(216, 255, 140)
 		freeClaimBtn.Text = "READY IN " .. formatClock(freePackRemaining)
 		freeClaimBtn.BackgroundColor3 = Color3.fromRGB(41, 53, 38)
 		freeClaimBtn.TextColor3 = Color3.fromRGB(222, 255, 218)
 		freeClaimBtn.Active = false
-		freeSubLabel.Text = "Nearly ready"
+		freeSubLabel.Text = "Free every 4 hours"
 		freeSubLabel.TextColor3 = Color3.fromRGB(216, 255, 190)
-		freeStatusLabel.Text = "UNDER 1 MIN"
+		freeStatusLabel.Text = "FINAL MINUTE"
 		freeStatusLabel.TextColor3 = Color3.fromRGB(216, 255, 190)
 		freeStroke.Transparency = 0.25
+		returnHookLabel.Text = "Almost ready"
+		footerHookLabel.Text = "Next Free Pack in " .. formatClock(freePackRemaining)
+	elseif freePackRemaining <= 600 then
+		setFreeReadyPulse(false)
+		freeCard.BackgroundColor3 = Color3.fromRGB(24, 24, 18)
+		freeGradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(54, 43, 13)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 17, 31)),
+		})
+		freeStroke.Color = Color3.fromRGB(255, 222, 106)
+		freeClaimBtn.Text = "READY IN " .. formatClock(freePackRemaining)
+		freeClaimBtn.BackgroundColor3 = Color3.fromRGB(44, 40, 26)
+		freeClaimBtn.TextColor3 = Color3.fromRGB(255, 231, 139)
+		freeClaimBtn.Active = false
+		freeSubLabel.Text = "Free every 4 hours"
+		freeSubLabel.TextColor3 = Color3.fromRGB(221, 202, 132)
+		freeStatusLabel.Text = "UNDER 10 MIN"
+		freeStatusLabel.TextColor3 = Color3.fromRGB(255, 231, 139)
+		freeStroke.Transparency = 0.32
+		returnHookLabel.Text = "Nearly ready"
+		footerHookLabel.Text = "Next Free Pack in " .. formatClock(freePackRemaining)
 	else
+		setFreeReadyPulse(false)
+		freeCard.BackgroundColor3 = Color3.fromRGB(12, 21, 30)
+		freeGradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 31, 23)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 17, 31)),
+		})
+		freeStroke.Color = UI.Success
 		freeClaimBtn.Text = "READY IN " .. formatClock(freePackRemaining)
 		freeClaimBtn.BackgroundColor3 = Color3.fromRGB(28, 34, 52)
 		freeClaimBtn.TextColor3 = UI.Muted
 		freeClaimBtn.Active = false
-		freeSubLabel.Text = "One free pull every 4 hours"
+		freeSubLabel.Text = "Free every 4 hours"
 		freeSubLabel.TextColor3 = UI.Muted
 		freeStatusLabel.Text = math.floor(progress * 100) .. "% filled"
 		freeStatusLabel.TextColor3 = UI.Muted
 		freeStroke.Transparency = 0.56
+		returnHookLabel.Text = "Next Free Pack in " .. formatClock(freePackRemaining)
+		footerHookLabel.Text = "Next Free Pack in " .. formatClock(freePackRemaining)
 	end
 end
 
@@ -801,19 +1000,19 @@ local function updateDailyCells(nextIndex)
 
 		if claimed then
 			cell.frame.BackgroundColor3 = cell.color:Lerp(Color3.fromRGB(0, 0, 0), 0.62)
-			cell.stroke.Transparency = 0.2
-			cell.dayLabel.Text = "DAY " .. tostring(index) .. " DONE"
+			cell.stroke.Transparency = 0.28
+			cell.dayLabel.Text = "DAY " .. tostring(index) .. " CLAIMED"
 			cell.packLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 		elseif isNext then
 			cell.frame.BackgroundColor3 = cell.color:Lerp(Color3.fromRGB(14, 18, 31), 0.48)
 			cell.stroke.Transparency = 0.05
-			cell.dayLabel.Text = "DAY " .. tostring(index) .. " NEXT"
+			cell.dayLabel.Text = "DAY " .. tostring(index) .. " READY"
 			cell.packLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 		else
-			cell.frame.BackgroundColor3 = Color3.fromRGB(19, 24, 39)
-			cell.stroke.Transparency = 0.72
+			cell.frame.BackgroundColor3 = Color3.fromRGB(12, 15, 25)
+			cell.stroke.Transparency = 0.84
 			cell.dayLabel.Text = "DAY " .. tostring(index)
-			cell.packLabel.TextColor3 = UI.Muted
+			cell.packLabel.TextColor3 = Color3.fromRGB(112, 108, 98)
 		end
 	end
 end
@@ -825,11 +1024,11 @@ local function updateDailyBtn()
 	updateDailyCells(nextIndex)
 
 	if canClaimDaily then
-		dailyClaimBtn.Text = "CLAIM DAY " .. tostring(nextIndex)
+		dailyClaimBtn.Text = "CLAIM DAY " .. tostring(nextIndex) .. " REWARD"
 		dailyClaimBtn.BackgroundColor3 = Color3.fromRGB(151, 108, 9)
 		dailyClaimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 		dailyClaimBtn.Active = true
-		dailySubLabel.Text = "Queues " .. rewardName .. " for your next pack spawn"
+		dailySubLabel.Text = "Reward: " .. rewardName .. " queued for your next spawn"
 		dailySubLabel.TextColor3 = UI.Gold
 		dailyStroke.Transparency = 0.18
 	else
@@ -837,7 +1036,7 @@ local function updateDailyBtn()
 		dailyClaimBtn.BackgroundColor3 = Color3.fromRGB(28, 34, 52)
 		dailyClaimBtn.TextColor3 = UI.Muted
 		dailyClaimBtn.Active = false
-		dailySubLabel.Text = "Come back tomorrow for Day " .. tostring(nextIndex) .. ": " .. rewardName
+		dailySubLabel.Text = "STREAK: " .. tostring(dailyRewardStreak) .. " DAYS  |  Next: " .. rewardName
 		dailySubLabel.TextColor3 = UI.Muted
 		dailyStroke.Transparency = 0.58
 	end
