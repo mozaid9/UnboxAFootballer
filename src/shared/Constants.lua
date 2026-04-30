@@ -4,6 +4,12 @@ Constants.StartingCoins = 5000
 Constants.DailyRewardCoins = 1000
 Constants.FreePackCooldown = 4 * 60 * 60
 Constants.DailyRewardCooldown = 24 * 60 * 60
+Constants.DailyStreakRewards = {
+	{ day = 1, packId = "GoldPack", label = "Gold Pack" },
+	{ day = 2, packId = "RarePack", label = "Rare Pack" },
+	{ day = 3, packId = "PremiumPack", label = "Premium Pack" },
+	{ day = 4, packId = "DeluxePack", label = "Deluxe Pack" },
+}
 
 Constants.BaseRebirthCoinCost = 50000
 Constants.RebirthCostMultiplier = 1.5

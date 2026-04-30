@@ -43,18 +43,48 @@ function EconomyService.CanClaimDailyReward(player)
 	return os.time() - (data.lastDailyReward or 0) >= Constants.DailyRewardCooldown
 end
 
+function EconomyService.GetDailyRewardRemaining(player)
+	local data = getData(player)
+	if not data then
+		return Constants.DailyRewardCooldown
+	end
+	return math.max(0, Constants.DailyRewardCooldown - (os.time() - (data.lastDailyReward or 0)))
+end
+
+local function getDailyStreakReward(streak)
+	local rewards = Constants.DailyStreakRewards or {}
+	if #rewards == 0 then
+		return nil, 0
+	end
+
+	local index = ((math.max(0, tonumber(streak) or 0) - 1) % #rewards) + 1
+	return rewards[index], index
+end
+
 function EconomyService.TryGrantDailyReward(player)
 	local data = getData(player)
 	if not data then
-		return false
+		return false, "Your data is still loading."
 	end
-	if EconomyService.CanClaimDailyReward(player) then
-		data.lastDailyReward = os.time()
-		DataService.AddCoins(player, Constants.DailyRewardCoins)
-		DataService.MarkDirty(player)
-		return true
+	if not EconomyService.CanClaimDailyReward(player) then
+		return false, "Daily reward ready in " .. math.ceil(EconomyService.GetDailyRewardRemaining(player) / 60) .. "m."
 	end
-	return false
+
+	local now = os.time()
+	local lastClaim = data.lastDailyReward or 0
+	local currentStreak = tonumber(data.dailyRewardStreak) or 0
+	if lastClaim > 0 and (now - lastClaim) <= (Constants.DailyRewardCooldown * 2) then
+		currentStreak += 1
+	else
+		currentStreak = 1
+	end
+
+	data.dailyRewardStreak = currentStreak
+	data.lastDailyReward = now
+	DataService.MarkDirty(player)
+
+	local reward = getDailyStreakReward(currentStreak)
+	return true, reward, currentStreak
 end
 
 function EconomyService.CanClaimFreePack(player)

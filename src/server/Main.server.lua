@@ -1398,7 +1398,6 @@ local function handlePlayerAdded(player)
 		end
 	end
 	EconomyService.EnsureStarterCoins(player)
-	EconomyService.TryGrantDailyReward(player)
 	ensurePitchfork(player)
 
 	player.CharacterAdded:Connect(function(character)
@@ -1545,10 +1544,9 @@ GetPlayerDataFn.OnServerInvoke = function(player)
 		canClaimFreePack = EconomyService.CanClaimFreePack(player),
 		freePackRemaining = EconomyService.GetFreePackRemaining(player),
 		canClaimDailyReward = EconomyService.CanClaimDailyReward(player),
-		dailyRewardRemaining = math.max(
-			0,
-			Constants.DailyRewardCooldown - (os.time() - (data.lastDailyReward or 0))
-		),
+		dailyRewardRemaining = EconomyService.GetDailyRewardRemaining(player),
+		dailyRewardStreak = data.dailyRewardStreak or 0,
+		queuedRewardCount = getQueuedMilestoneCount(player),
 		inventoryCounts = data.inventory,
 	}
 end
@@ -1967,29 +1965,57 @@ ClaimFreePackFn.OnServerInvoke = function(player)
 end
 
 -- ── Daily Reward claim ────────────────────────────────────────────────────────
--- Normally granted automatically on login, but players can also claim through
--- the Shop if 24 h have elapsed while they're still in the session.
+-- Daily streak rewards are queued packs. They spawn before the next natural pad
+-- pack, using the same queue system as pack milestones.
 ClaimDailyRewardFn.OnServerInvoke = function(player)
-	local granted = EconomyService.TryGrantDailyReward(player)
+	local granted, rewardOrErr, streak = EconomyService.TryGrantDailyReward(player)
 	if not granted then
-		local data = DataService.GetData(player)
-		local remaining = data
-				and math.max(0, Constants.DailyRewardCooldown - (os.time() - (data.lastDailyReward or 0)))
-			or Constants.DailyRewardCooldown
 		return {
 			success = false,
-			error = "Daily reward not ready yet.",
-			dailyRewardRemaining = remaining,
+			error = rewardOrErr or "Daily reward not ready yet.",
+			dailyRewardRemaining = EconomyService.GetDailyRewardRemaining(player),
 		}
 	end
 
-	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+	local queuedReward
+	local reward = type(rewardOrErr) == "table" and rewardOrErr or nil
+	if reward and reward.packId then
+		local packDef = PackConfig.ById[reward.packId]
+		queuedReward = {
+			milestoneId = "daily_streak_" .. tostring(streak or 1),
+			kind = "pack",
+			packId = reward.packId,
+			reward = ((packDef and packDef.displayName) or reward.label or "Daily Pack") .. " Queued",
+			label = "DAILY",
+			threshold = reward.day or 0,
+			repeatCount = streak or 1,
+			earnedAt = DataService.GetTotalPacksOpened(player),
+		}
+
+		if DataService.EnqueueMilestoneReward(player, queuedReward) then
+			fireMilestoneRewards(player, { queuedReward })
+			sendHint(player, ((packDef and packDef.displayName) or reward.label or "Daily pack") .. " queued for your next spawn.")
+		else
+			queuedReward = nil
+		end
+	end
+
+	local plot = BaseService.GetPlot(player)
+	if plot then
+		local totalPacks = DataService.GetTotalPacksOpened(player)
+		local data = DataService.GetData(player)
+		BaseService.UpdatePackMilestone(plot, totalPacks, data and data.claimedMilestones or {}, getQueuedMilestoneCount(player))
+	end
 
 	return {
 		success = true,
-		coinsAwarded = Constants.DailyRewardCoins,
+		rewardQueued = queuedReward ~= nil,
+		dailyRewardStreak = streak or 0,
+		dailyRewardPackId = reward and reward.packId or nil,
+		dailyRewardPackName = reward and (PackConfig.ById[reward.packId] and PackConfig.ById[reward.packId].displayName or reward.label) or nil,
 		newCoins = DataService.GetCoins(player),
 		dailyRewardRemaining = Constants.DailyRewardCooldown,
+		queuedRewardCount = getQueuedMilestoneCount(player),
 	}
 end
 

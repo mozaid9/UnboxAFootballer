@@ -19,6 +19,7 @@ local DEFAULT_DATA = {
 	rebirthTier = 0,
 	rebirthTokens = 0,
 	lastDailyReward = 0,
+	dailyRewardStreak = 0,
 	lastFreePack = 0,
 	baseLayoutData = {
 		displayedCards = {},
