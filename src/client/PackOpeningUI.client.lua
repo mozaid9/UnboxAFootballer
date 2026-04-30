@@ -346,15 +346,15 @@ local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "Gem", C
 local breakHud = make("Frame", {
 	Name = "PackBreakHud",
 	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.fromScale(0.5, 0.105),
-	Size = UDim2.fromOffset(310, 78),
+	Position = UDim2.fromScale(0.5, 0.16),
+	Size = UDim2.fromOffset(236, 54),
 	BackgroundColor3 = Color3.fromRGB(7, 10, 19),
-	BackgroundTransparency = 0.08,
+	BackgroundTransparency = 0.22,
 	Visible = false,
 	ZIndex = 170,
 }, screenGui)
-addCorner(breakHud, 14)
-addStroke(breakHud, UI.Gold, 1.5, 0.42)
+addCorner(breakHud, 12)
+addStroke(breakHud, UI.Gold, 1.2, 0.52)
 
 local breakHudScale = make("UIScale", {
 	Scale = 0.96,
@@ -362,12 +362,12 @@ local breakHudScale = make("UIScale", {
 
 local breakTitle = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(14, 8),
-	Size = UDim2.new(1, -28, 0, 18),
+	Position = UDim2.fromOffset(10, 5),
+	Size = UDim2.new(1, -74, 0, 15),
 	Text = "Breaking...",
 	TextColor3 = UI.Text,
 	TextScaled = false,
-	TextSize = 14,
+	TextSize = 11,
 	Font = Enum.Font.GothamBlack,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	TextTruncate = Enum.TextTruncate.AtEnd,
@@ -377,9 +377,9 @@ local breakTitle = make("TextLabel", {
 local breakStageLabel = make("TextLabel", {
 	BackgroundTransparency = 1,
 	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -14, 0, 8),
-	Size = UDim2.fromOffset(112, 18),
-	Text = "INTACT",
+	Position = UDim2.new(1, -10, 0, 5),
+	Size = UDim2.fromOffset(58, 15),
+	Text = "100%",
 	TextColor3 = UI.Gold,
 	TextScaled = false,
 	TextSize = 10,
@@ -389,13 +389,13 @@ local breakStageLabel = make("TextLabel", {
 }, breakHud)
 
 local breakBarBack = make("Frame", {
-	Position = UDim2.fromOffset(14, 34),
-	Size = UDim2.new(1, -28, 0, 14),
+	Position = UDim2.fromOffset(10, 24),
+	Size = UDim2.new(1, -20, 0, 8),
 	BackgroundColor3 = Color3.fromRGB(18, 23, 39),
 	BorderSizePixel = 0,
 	ZIndex = 171,
 }, breakHud)
-addCorner(breakBarBack, 9)
+addCorner(breakBarBack, 6)
 addStroke(breakBarBack, Color3.fromRGB(255, 255, 255), 1, 0.84)
 
 local breakBarFill = make("Frame", {
@@ -404,18 +404,18 @@ local breakBarFill = make("Frame", {
 	BorderSizePixel = 0,
 	ZIndex = 172,
 }, breakBarBack)
-addCorner(breakBarFill, 9)
+addCorner(breakBarFill, 6)
 
 local breakSubtitle = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(14, 54),
-	Size = UDim2.new(1, -28, 0, 14),
-	Text = "Integrity: 100%",
+	Position = UDim2.fromOffset(10, 35),
+	Size = UDim2.new(1, -20, 0, 12),
+	Text = "BREAKING",
 	TextColor3 = UI.Muted,
 	TextScaled = false,
-	TextSize = 11,
+	TextSize = 9,
 	Font = Enum.Font.GothamBold,
-	TextXAlignment = Enum.TextXAlignment.Left,
+	TextXAlignment = Enum.TextXAlignment.Center,
 	ZIndex = 171,
 }, breakHud)
 
@@ -1004,12 +1004,22 @@ local function updateBreakHud(payload)
 	local color = payload.color or UI.Gold
 	local integrity = math.clamp(payload.integrity or 1, 0, 1)
 	local pct = math.ceil(integrity * 100)
+	local screenPoint = getWorldScreenPoint(payload.packWorldPosition)
+	local camera = Workspace.CurrentCamera
+	if screenPoint and camera then
+		local viewport = camera.ViewportSize
+		local targetX = math.clamp(screenPoint.X, 150, viewport.X - 150)
+		local targetY = math.clamp(screenPoint.Y - (payload.isFinal and 126 or 92), 78, viewport.Y - 120)
+		breakHud.Position = UDim2.fromOffset(targetX, targetY)
+	else
+		breakHud.Position = UDim2.fromScale(0.5, payload.isFinal and 0.12 or 0.16)
+	end
 
 	breakHud.Visible = true
-	breakTitle.Text = payload.isFinal and "Breaking open..." or (payload.packName or "Breaking...")
-	breakStageLabel.Text = payload.isFinal and "OPENING" or integrityStage(integrity)
+	breakTitle.Text = payload.isFinal and "Breaking open..." or (payload.packName or "Pack")
+	breakStageLabel.Text = tostring(pct) .. "%"
 	breakStageLabel.TextColor3 = color
-	breakSubtitle.Text = "Integrity: " .. tostring(pct) .. "%"
+	breakSubtitle.Text = payload.isFinal and "FINAL BREAK" or integrityStage(integrity)
 	breakBarFill.BackgroundColor3 = integrityColor(integrity):Lerp(color, payload.isFinal and 0.45 or 0.12)
 
 	TweenService:Create(breakHudScale, TweenInfo.new(0.10, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
@@ -1030,7 +1040,7 @@ local function updateBreakHud(payload)
 	breakHudHideToken += 1
 	local token = breakHudHideToken
 	if not payload.isFinal then
-		task.delay(1.2, function()
+		task.delay(0.72, function()
 			if token == breakHudHideToken then
 				breakHud.Visible = false
 			end
