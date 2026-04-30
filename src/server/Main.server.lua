@@ -75,6 +75,7 @@ local PurchaseUpgradeFn = makeFunction("PurchaseUpgrade")
 local PlaceInventoryCardInSlotFn = makeFunction("PlaceInventoryCardInSlot")
 local ClaimFreePackFn = makeFunction("ClaimFreePack")
 local ClaimDailyRewardFn = makeFunction("ClaimDailyReward")
+local PurchasePackFn = makeFunction("PurchasePack")
 local GetRebirthStatusFn = makeFunction("GetRebirthStatus")
 local RequestRebirthFn = makeFunction("RequestRebirth")
 local OpenRebirthUIEvent = makeEvent("OpenRebirthUI")
@@ -601,6 +602,43 @@ local function fireMilestoneRewards(player, rewards)
 		rewards = serializedRewards,
 		queueLength = getQueuedMilestoneCount(player),
 	})
+end
+
+local function refreshPackQueueBoard(player)
+	local plot = BaseService.GetPlot(player)
+	if not plot then
+		return
+	end
+
+	local totalPacks = DataService.GetTotalPacksOpened(player)
+	local data = DataService.GetData(player)
+	BaseService.UpdatePackMilestone(plot, totalPacks, data and data.claimedMilestones or {}, getQueuedMilestoneCount(player))
+end
+
+local function queuePackRewardForPad(player, packId, label, rewardText)
+	local packDef = PackConfig.ById[packId]
+	if not player or not packDef then
+		return nil
+	end
+
+	local queuedReward = {
+		milestoneId = string.lower(label or "shop") .. "_" .. tostring(packId) .. "_" .. tostring(os.time()) .. "_" .. tostring(math.random(1000, 9999)),
+		kind = "pack",
+		packId = packId,
+		reward = rewardText or (packDef.displayName .. " Queued"),
+		label = label or "SHOP",
+		threshold = 0,
+		repeatCount = 1,
+		earnedAt = DataService.GetTotalPacksOpened(player),
+	}
+
+	if not DataService.EnqueueMilestoneReward(player, queuedReward) then
+		return nil
+	end
+
+	fireMilestoneRewards(player, { queuedReward })
+	refreshPackQueueBoard(player)
+	return queuedReward
 end
 
 local function getCardById(cardId)
@@ -1893,6 +1931,62 @@ PurchaseUpgradeFn.OnServerInvoke = function(player, upgradeKey)
 	payload.purchasedKey = upgradeKey
 	payload.coinsSpent = cost
 	return payload
+end
+
+PurchasePackFn.OnServerInvoke = function(player, packId)
+	if type(packId) ~= "string" then
+		return { success = false, error = "Choose a pack first." }
+	end
+
+	local data = DataService.GetData(player)
+	if not data then
+		return { success = false, error = "Your data is still loading." }
+	end
+
+	local packDef = PackConfig.ById[packId]
+	if not packDef or not PackConfig.IsShopBuyable(packId) then
+		return { success = false, error = "That pack is not for sale." }
+	end
+
+	local cost = PackConfig.GetShopCost(packDef)
+	if cost <= 0 then
+		return { success = false, error = "That pack is not for sale." }
+	end
+
+	local ok, err = DataService.SpendCoins(player, cost)
+	if not ok then
+		return {
+			success = false,
+			error = err or "Not enough Fans.",
+			newCoins = DataService.GetCoins(player),
+			queuedRewardCount = getQueuedMilestoneCount(player),
+		}
+	end
+
+	local queuedReward = queuePackRewardForPad(player, packId, "SHOP", packDef.displayName .. " Queued")
+	if not queuedReward then
+		EconomyService.AddCoins(player, cost)
+		UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+		return {
+			success = false,
+			error = "Pack could not be queued. Try again.",
+			newCoins = DataService.GetCoins(player),
+			queuedRewardCount = getQueuedMilestoneCount(player),
+		}
+	end
+
+	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+	sendHint(player, packDef.displayName .. " bought and queued for your red pad.")
+
+	return {
+		success = true,
+		packId = packId,
+		packName = packDef.displayName,
+		coinsSpent = cost,
+		newCoins = DataService.GetCoins(player),
+		queuedRewardCount = getQueuedMilestoneCount(player),
+		rewardQueued = true,
+	}
 end
 
 -- ── Free Pack claim ───────────────────────────────────────────────────────────

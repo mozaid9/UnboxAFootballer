@@ -97,6 +97,7 @@ PackConfig.ShopOrder = {
 		description = "Starter pack: mostly Gold, with tiny upgrades possible.",
 		cost = 0,
 		futureCost = 3000,
+		shopBuyable = true,
 		cardCount = 1,
 		hitsRequired = 8,
 		padWeight = 55,
@@ -110,6 +111,7 @@ PackConfig.ShopOrder = {
 		description = "Better odds, but still mostly Gold and Rare Gold.",
 		cost = 0,
 		futureCost = 7500,
+		shopBuyable = true,
 		cardCount = 1,
 		hitsRequired = 12,
 		padWeight = 28,
@@ -123,6 +125,7 @@ PackConfig.ShopOrder = {
 		description = "Mid-game pack with a real Premium Gold target.",
 		cost = 0,
 		futureCost = 15000,
+		shopBuyable = true,
 		cardCount = 1,
 		hitsRequired = 18,
 		padWeight = 12,
@@ -149,6 +152,7 @@ PackConfig.ShopOrder = {
 		description = "Late natural pack with tiny Immortal odds.",
 		cost = 0,
 		futureCost = 75000,
+		shopBuyable = true,
 		cardCount = 1,
 		hitsRequired = 35,
 		padWeight = 1,
@@ -187,6 +191,16 @@ PackConfig.ShopOrder = {
 PackConfig.ById = {}
 for _, pack in ipairs(PackConfig.ShopOrder) do
 	PackConfig.ById[pack.id] = pack
+end
+
+function PackConfig.GetShopCost(packOrId)
+	local pack = type(packOrId) == "table" and packOrId or PackConfig.ById[packOrId]
+	return math.max(0, math.floor(tonumber(pack and (pack.shopCost or pack.futureCost)) or 0))
+end
+
+function PackConfig.IsShopBuyable(packId)
+	local pack = PackConfig.ById[packId]
+	return pack ~= nil and pack.shopBuyable == true and PackConfig.GetShopCost(pack) > 0
 end
 
 PackConfig.PadSpawnOrder = {}

@@ -12,9 +12,11 @@ local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local Constants = require(Shared:WaitForChild("Constants"))
 local PackConfig = require(Shared:WaitForChild("PackConfig"))
 
+local UpdateCoinsEvent = Remotes:WaitForChild("UpdateCoins")
 local GetPlayerDataFn = Remotes:WaitForChild("GetPlayerData")
 local ClaimFreePackFn = Remotes:WaitForChild("ClaimFreePack")
 local ClaimDailyRewardFn = Remotes:WaitForChild("ClaimDailyReward")
+local PurchasePackFn = Remotes:WaitForChild("PurchasePack")
 
 local UI = Constants.UI
 
@@ -142,6 +144,13 @@ local function packColor(packId)
 	return packDef and packDef.color or UI.Gold
 end
 
+local function getShopCost(packDef)
+	if type(PackConfig.GetShopCost) == "function" then
+		return PackConfig.GetShopCost(packDef)
+	end
+	return math.max(0, math.floor(tonumber(packDef and (packDef.shopCost or packDef.futureCost)) or 0))
+end
+
 local function getNextDailyReward()
 	if #DAILY_REWARDS == 0 then
 		return nil, 0
@@ -174,7 +183,10 @@ local canClaimFree = false
 local canClaimDaily = false
 local claimingFree = false
 local claimingDaily = false
+local currentFans = 0
 local queuedRewardCount = 0
+local buyingPackId = nil
+local packBuyControls = {}
 
 local overlay = make("Frame", {
 	Name = "Overlay",
@@ -716,18 +728,60 @@ local limitedBtn = make("TextButton", {
 }, limitedCard)
 addCorner(limitedBtn, 10)
 
+local packHint
+local purchasePack
+
+local function updatePackBuyButtons()
+	for packId, control in pairs(packBuyControls) do
+		local button = control.button
+		if not button or not button.Parent then
+			continue
+		end
+
+		local cost = control.cost or 0
+		local buyable = control.buyable == true and cost > 0
+		local enoughFans = currentFans >= cost
+		local color = control.color or UI.Gold
+
+		button.Active = buyable and buyingPackId == nil
+		button.AutoButtonColor = buyable and enoughFans and buyingPackId == nil
+
+		if buyingPackId == packId then
+			button.Text = "QUEUING..."
+			button.BackgroundColor3 = color:Lerp(Color3.fromRGB(20, 28, 42), 0.35)
+			button.TextColor3 = Color3.fromRGB(255, 255, 255)
+		elseif buyingPackId ~= nil then
+			button.Text = "WAIT"
+			button.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
+			button.TextColor3 = Color3.fromRGB(175, 180, 190)
+		elseif not buyable then
+			button.Text = "LOCKED"
+			button.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
+			button.TextColor3 = Color3.fromRGB(175, 180, 190)
+		elseif enoughFans then
+			button.Text = "BUY"
+			button.BackgroundColor3 = color:Lerp(Color3.fromRGB(22, 124, 62), 0.36)
+			button.TextColor3 = Color3.fromRGB(255, 255, 255)
+		else
+			button.Text = "NEED " .. formatNumber(cost - currentFans)
+			button.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
+			button.TextColor3 = Color3.fromRGB(190, 194, 204)
+		end
+	end
+end
+
 sectionLabel("PACKS", 6)
 
 local packGrid = make("Frame", {
 	LayoutOrder = 7,
-	Size = UDim2.new(1, 0, 0, 222),
+	Size = UDim2.new(1, 0, 0, 250),
 	BackgroundTransparency = 1,
 	ZIndex = 11,
 }, content)
 
 local gridLayout = make("UIGridLayout", {
 	CellPadding = UDim2.fromOffset(10, 10),
-	CellSize = UDim2.new(0.5, -5, 0, 106),
+	CellSize = UDim2.new(0.5, -5, 0, 120),
 	FillDirectionMaxCells = 2,
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, packGrid)
@@ -768,7 +822,7 @@ for index, packId in ipairs(PACK_INFO) do
 	make("TextLabel", {
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 56, 0, 10),
-		Size = UDim2.new(1, -132, 0, 18),
+		Size = UDim2.new(1, -142, 0, 18),
 		Text = packDef and packDef.displayName or packId,
 		TextColor3 = UI.Text,
 		TextScaled = false,
@@ -783,7 +837,7 @@ for index, packId in ipairs(PACK_INFO) do
 		BackgroundTransparency = 1,
 		Position = UDim2.new(1, -10, 0, 10),
 		Size = UDim2.fromOffset(72, 18),
-		Text = tostring(formatNumber(packDef and packDef.futureCost or 0)) .. " Fans",
+		Text = tostring(formatNumber(getShopCost(packDef))) .. " Fans",
 		TextColor3 = color,
 		TextScaled = false,
 		TextSize = 10,
@@ -795,7 +849,7 @@ for index, packId in ipairs(PACK_INFO) do
 	make("TextLabel", {
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 56, 0, 31),
-		Size = UDim2.new(1, -66, 0, 26),
+		Size = UDim2.new(1, -66, 0, 28),
 		Text = packDef and packDef.description or "Pack odds improve by tier.",
 		TextColor3 = UI.Muted,
 		TextScaled = false,
@@ -807,8 +861,35 @@ for index, packId in ipairs(PACK_INFO) do
 		ZIndex = 12,
 	}, card)
 
+	local packCost = getShopCost(packDef)
+	local buyButton = make("TextButton", {
+		Position = UDim2.new(0, 56, 0, 66),
+		Size = UDim2.new(1, -66, 0, 24),
+		BackgroundColor3 = color:Lerp(Color3.fromRGB(22, 124, 62), 0.36),
+		Text = "BUY",
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextScaled = false,
+		TextSize = 10,
+		Font = Enum.Font.GothamBlack,
+		AutoButtonColor = false,
+		ZIndex = 12,
+	}, card)
+	addCorner(buyButton, 8)
+	addHoverScale(buyButton, 1.035)
+	packBuyControls[packId] = {
+		button = buyButton,
+		cost = packCost,
+		color = color,
+		buyable = packDef and packDef.shopBuyable == true,
+	}
+	buyButton.MouseButton1Click:Connect(function()
+		if purchasePack then
+			purchasePack(packId)
+		end
+	end)
+
 	local rarityBar = make("Frame", {
-		Position = UDim2.new(0, 56, 1, -30),
+		Position = UDim2.new(0, 56, 1, -23),
 		Size = UDim2.new(1, -66, 0, 6),
 		BackgroundColor3 = Color3.fromRGB(7, 10, 18),
 		BorderSizePixel = 0,
@@ -843,7 +924,7 @@ for index, packId in ipairs(PACK_INFO) do
 
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 56, 1, -21),
+		Position = UDim2.new(0, 56, 1, -14),
 		Size = UDim2.new(1, -66, 0, 12),
 		Text = "Gold   Rare   Elite",
 		TextColor3 = Color3.fromRGB(160, 152, 126),
@@ -855,11 +936,11 @@ for index, packId in ipairs(PACK_INFO) do
 	}, card)
 end
 
-local packHint = make("TextLabel", {
+packHint = make("TextLabel", {
 	LayoutOrder = 8,
 	Size = UDim2.new(1, 0, 0, 30),
 	BackgroundColor3 = Color3.fromRGB(12, 16, 27),
-	Text = "Higher packs unlock stronger players and faster income. Fan prices are for future direct buys.",
+	Text = "Bought packs queue on your red pad after the current pack.",
 	TextColor3 = Color3.fromRGB(192, 186, 165),
 	TextScaled = false,
 	TextSize = 11,
@@ -869,6 +950,48 @@ local packHint = make("TextLabel", {
 }, content)
 addCorner(packHint, 10)
 addStroke(packHint, UI.Gold, 1, 0.88)
+
+purchasePack = function(packId)
+	if buyingPackId ~= nil then
+		return
+	end
+
+	local control = packBuyControls[packId]
+	if not control or control.buyable ~= true then
+		return
+	end
+
+	local cost = control.cost or 0
+	local packName = packDisplayName(packId)
+	if currentFans < cost then
+		packHint.Text = "Earn " .. formatNumber(cost - currentFans) .. " more Fans for " .. packName .. "."
+		updatePackBuyButtons()
+		return
+	end
+
+	buyingPackId = packId
+	packHint.Text = "Queuing " .. packName .. "..."
+	updatePackBuyButtons()
+
+	local ok, result = pcall(function()
+		return PurchasePackFn:InvokeServer(packId)
+	end)
+	if not ok then
+		result = { success = false, error = "Purchase failed. Try again." }
+	end
+
+	buyingPackId = nil
+	if result and result.success then
+		currentFans = result.newCoins or math.max(0, currentFans - cost)
+		queuedRewardCount = result.queuedRewardCount or queuedRewardCount
+		packHint.Text = (result.packName or packName) .. " queued on your red pad."
+	else
+		currentFans = result and result.newCoins or currentFans
+		packHint.Text = result and result.error or "Purchase failed. Try again."
+	end
+
+	updatePackBuyButtons()
+end
 
 local futureCard = make("Frame", {
 	LayoutOrder = 9,
@@ -1191,6 +1314,7 @@ local function applyData(data)
 
 	freePackRemaining = data.freePackRemaining or Constants.FreePackCooldown
 	canClaimFree = data.canClaimFreePack == true
+	currentFans = data.coins or currentFans
 
 	dailyRemaining = data.dailyRewardRemaining or Constants.DailyRewardCooldown
 	canClaimDaily = data.canClaimDailyReward == true
@@ -1199,6 +1323,7 @@ local function applyData(data)
 
 	updateFreePackBtn()
 	updateDailyBtn()
+	updatePackBuyButtons()
 end
 
 local function runCountdown()
@@ -1345,6 +1470,12 @@ dailyClaimBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
+UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
+	currentFans = coins or currentFans
+	updatePackBuyButtons()
+end)
+
 updateFreePackBtn()
 updateDailyBtn()
 updateLimitedDeal()
+updatePackBuyButtons()
