@@ -67,6 +67,7 @@ local SellAllCardsFn = makeFunction("SellAllCards")
 local GetInventoryFn = makeFunction("GetInventory")
 local GetCollectionFn = makeFunction("GetCollection")
 local ClaimCollectionRewardFn = makeFunction("ClaimCollectionReward")
+local MarkCollectionCardViewedFn = makeFunction("MarkCollectionCardViewed")
 local GetUpgradesFn = makeFunction("GetUpgrades")
 local PurchaseUpgradeFn = makeFunction("PurchaseUpgrade")
 local PlaceInventoryCardInSlotFn = makeFunction("PlaceInventoryCardInSlot")
@@ -1263,21 +1264,24 @@ local function buildCollectionPayload(player)
 	for _, reward in ipairs(Constants.CollectionRewards or {}) do
 		local id = tostring(reward.id)
 		local claimed = claimedRewards[id] == true
+		local requiredCards = reward.requiredCards or math.huge
 		if claimed then
 			claimedCount += 1
 		end
 		table.insert(rewards, {
 			id = id,
 			label = reward.label,
-			requiredCards = reward.requiredCards,
+			requiredCards = requiredCards,
+			progress = math.min(unlockedCount, requiredCards),
 			reward = reward.reward,
 			claimed = claimed,
-			canClaim = (not claimed) and unlockedCount >= (reward.requiredCards or math.huge),
+			canClaim = (not claimed) and unlockedCount >= requiredCards,
 		})
 	end
 
 	return {
 		counts = collection,
+		viewed = DataService.GetCollectionViewed(player),
 		unlockedCount = unlockedCount,
 		totalCards = #CardData.Pool,
 		claimedRewards = claimedRewards,
@@ -1332,6 +1336,22 @@ ClaimCollectionRewardFn.OnServerInvoke = function(player, rewardId)
 		success = true,
 		reward = rewardSpec.reward,
 		coins = DataService.GetCoins(player),
+		collection = buildCollectionPayload(player),
+	}
+end
+
+MarkCollectionCardViewedFn.OnServerInvoke = function(player, cardId)
+	if type(cardId) ~= "number" then
+		return { success = false, error = "Invalid card." }
+	end
+
+	local ok = DataService.MarkCollectionCardViewed(player, cardId)
+	if not ok then
+		return { success = false, error = "Card is not collected.", collection = buildCollectionPayload(player) }
+	end
+
+	return {
+		success = true,
 		collection = buildCollectionPayload(player),
 	}
 end

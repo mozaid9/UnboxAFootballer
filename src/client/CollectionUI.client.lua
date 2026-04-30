@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
@@ -14,6 +15,7 @@ local Utils = require(Shared:WaitForChild("Utils"))
 
 local GetCollectionFn = Remotes:WaitForChild("GetCollection")
 local ClaimCollectionRewardFn = Remotes:WaitForChild("ClaimCollectionReward")
+local MarkCollectionCardViewedFn = Remotes:WaitForChild("MarkCollectionCardViewed")
 local PackOpenedEvent = Remotes:WaitForChild("PackOpened")
 
 local UI = Constants.UI
@@ -114,9 +116,25 @@ local summaryLabel = make("TextLabel", {
 	TextXAlignment = Enum.TextXAlignment.Left,
 }, panel)
 
+local completionBarBack = make("Frame", {
+	BackgroundColor3 = UI.PanelAlt,
+	BorderSizePixel = 0,
+	Position = UDim2.fromOffset(16, 76),
+	Size = UDim2.new(1, -32, 0, 8),
+}, panel)
+addCorner(completionBarBack, 6)
+addStroke(completionBarBack, UI.Gold, 1, 0.78)
+
+local completionBarFill = make("Frame", {
+	BackgroundColor3 = UI.Gold,
+	BorderSizePixel = 0,
+	Size = UDim2.fromScale(0, 1),
+}, completionBarBack)
+addCorner(completionBarFill, 6)
+
 local filterBar = make("Frame", {
 	BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(16, 80),
+	Position = UDim2.fromOffset(16, 96),
 	Size = UDim2.new(1, -32, 0, 28),
 }, panel)
 
@@ -129,7 +147,7 @@ make("UIListLayout", {
 }, filterBar)
 
 local searchBox = make("TextBox", {
-	Position = UDim2.fromOffset(16, 116),
+	Position = UDim2.fromOffset(16, 132),
 	Size = UDim2.new(1, -32, 0, 32),
 	BackgroundColor3 = UI.PanelAlt,
 	PlaceholderText = "Search player...",
@@ -152,22 +170,23 @@ make("UIPadding", {
 local gridFrame = make("ScrollingFrame", {
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
-	Position = UDim2.fromOffset(16, 160),
-	Size = UDim2.new(1, -244, 1, -176),
+	Position = UDim2.fromOffset(16, 174),
+	Size = UDim2.new(1, -244, 1, -190),
 	CanvasSize = UDim2.new(),
+	ScrollingDirection = Enum.ScrollingDirection.Y,
 	ScrollBarThickness = 6,
 }, panel)
 
 local gridLayout = make("UIGridLayout", {
-	CellSize = UDim2.fromOffset(124, 164),
+	CellSize = UDim2.fromOffset(124, 148),
 	CellPadding = UDim2.fromOffset(10, 10),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, gridFrame)
 
 local rewardsFrame = make("Frame", {
 	BackgroundColor3 = UI.PanelAlt,
-	Position = UDim2.new(1, -212, 0, 160),
-	Size = UDim2.new(0, 196, 1, -176),
+	Position = UDim2.new(1, -212, 0, 174),
+	Size = UDim2.new(0, 196, 1, -190),
 }, panel)
 addCorner(rewardsFrame, 12)
 addStroke(rewardsFrame, UI.Gold, 1, 0.58)
@@ -198,6 +217,49 @@ local rewardsLayout = make("UIListLayout", {
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, rewardsList)
 
+local gridTopFade = make("Frame", {
+	BackgroundColor3 = UI.Panel,
+	BackgroundTransparency = 0.24,
+	BorderSizePixel = 0,
+	Position = UDim2.fromOffset(16, 174),
+	Size = UDim2.new(1, -244, 0, 18),
+	ZIndex = 5,
+}, panel)
+make("UIGradient", {
+	Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	}),
+	Rotation = 90,
+}, gridTopFade)
+
+local gridBottomFade = make("Frame", {
+	AnchorPoint = Vector2.new(0, 1),
+	BackgroundColor3 = UI.Panel,
+	BackgroundTransparency = 0.18,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 16, 1, -16),
+	Size = UDim2.new(1, -244, 0, 24),
+	ZIndex = 5,
+}, panel)
+make("UIGradient", {
+	Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(1, 0),
+	}),
+	Rotation = 90,
+}, gridBottomFade)
+
+local function updateGridFades()
+	local maxScroll = math.max(0, gridFrame.AbsoluteCanvasSize.Y - gridFrame.AbsoluteSize.Y)
+	gridTopFade.Visible = maxScroll > 2 and gridFrame.CanvasPosition.Y > 2
+	gridBottomFade.Visible = maxScroll > 2 and gridFrame.CanvasPosition.Y < maxScroll - 2
+end
+
+gridFrame:GetPropertyChangedSignal("CanvasPosition"):Connect(updateGridFades)
+gridFrame:GetPropertyChangedSignal("AbsoluteCanvasSize"):Connect(updateGridFades)
+gridFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateGridFades)
+
 local rarityFilters = {
 	{ label = "All", mode = "All" },
 	{ label = "Gold", mode = "Gold" },
@@ -224,21 +286,62 @@ local RARITY_RANK = {
 	["Player of the Year"] = 7,
 }
 
+local LOCKED_STYLES = {
+	["Gold"] = {
+		hint = "Found in Gold Packs",
+		bgA = Color3.fromRGB(38, 26, 10),
+		bgB = Color3.fromRGB(86, 57, 14),
+		trim = Color3.fromRGB(150, 116, 42),
+		text = Color3.fromRGB(178, 156, 108),
+	},
+	["Rare Gold"] = {
+		hint = "Found in Rare Packs+",
+		bgA = Color3.fromRGB(42, 14, 6),
+		bgB = Color3.fromRGB(96, 38, 8),
+		trim = Color3.fromRGB(178, 114, 34),
+		text = Color3.fromRGB(204, 146, 80),
+	},
+	["Premium Gold"] = {
+		hint = "Premium-tier player",
+		bgA = Color3.fromRGB(3, 3, 5),
+		bgB = Color3.fromRGB(30, 24, 10),
+		trim = Color3.fromRGB(196, 166, 72),
+		text = Color3.fromRGB(222, 196, 116),
+	},
+	["Talisman"] = {
+		hint = "Star player",
+		bgA = Color3.fromRGB(34, 4, 8),
+		bgB = Color3.fromRGB(84, 12, 14),
+		trim = Color3.fromRGB(184, 62, 48),
+		text = Color3.fromRGB(218, 128, 116),
+	},
+	["Maestro"] = {
+		hint = "Legendary playmaker",
+		bgA = Color3.fromRGB(18, 8, 42),
+		bgB = Color3.fromRGB(56, 22, 104),
+		trim = Color3.fromRGB(150, 96, 222),
+		text = Color3.fromRGB(196, 158, 236),
+	},
+	["Immortal"] = {
+		hint = "Extremely rare",
+		bgA = Color3.fromRGB(20, 28, 42),
+		bgB = Color3.fromRGB(72, 102, 130),
+		trim = Color3.fromRGB(178, 218, 235),
+		text = Color3.fromRGB(198, 228, 238),
+	},
+	["Player of the Year"] = {
+		hint = "Seasonal special",
+		bgA = Color3.fromRGB(3, 3, 4),
+		bgB = Color3.fromRGB(58, 44, 10),
+		trim = Color3.fromRGB(220, 184, 64),
+		text = Color3.fromRGB(228, 204, 112),
+	},
+}
+
 local function getRarityHint(rarity)
-	if rarity == "Gold" then
-		return "Found in Gold Pack+"
-	elseif rarity == "Rare Gold" then
-		return "Found in Gold/Rare Pack+"
-	elseif rarity == "Premium Gold" then
-		return "Found in Premium Pack+"
-	elseif rarity == "Talisman" then
-		return "Rare in stronger packs"
-	elseif rarity == "Maestro" then
-		return "Tiny chance in Premium+"
-	elseif rarity == "Immortal" then
-		return "Tiny chance in Deluxe+"
-	elseif rarity == "Player of the Year" then
-		return "Special/event tier"
+	local lockedStyle = LOCKED_STYLES[rarity]
+	if lockedStyle then
+		return lockedStyle.hint
 	end
 	return "Open packs to unlock"
 end
@@ -296,7 +399,8 @@ end
 local function renderSummary(payload)
 	local total = payload.totalCards or #CardData.Pool
 	local unlocked = payload.unlockedCount or 0
-	local completion = total > 0 and math.floor((unlocked / total) * 100 + 0.5) or 0
+	local completionRatio = total > 0 and math.clamp(unlocked / total, 0, 1) or 0
+	local completion = math.floor(completionRatio * 100 + 0.5)
 	summaryLabel.Text = string.format(
 		"Progress: %d/%d cards | Completion: %d%% | Rewards claimed: %d/%d",
 		unlocked,
@@ -305,16 +409,22 @@ local function renderSummary(payload)
 		payload.claimedRewardCount or 0,
 		payload.totalRewardCount or 0
 	)
+	TweenService:Create(completionBarFill, TweenInfo.new(0.22, Enum.EasingStyle.Quad), {
+		Size = UDim2.fromScale(completionRatio, 1),
+	}):Play()
 end
 
 local function renderRewards(payload)
 	clearRewards()
 
 	for index, reward in ipairs(payload.rewards or {}) do
+		local requiredCards = math.max(1, reward.requiredCards or 1)
+		local progress = math.clamp(reward.progress or payload.unlockedCount or 0, 0, requiredCards)
+		local progressRatio = progress / requiredCards
 		local row = make("Frame", {
 			LayoutOrder = index,
 			BackgroundColor3 = UI.Panel,
-			Size = UDim2.new(1, 0, 0, 62),
+			Size = UDim2.new(1, 0, 0, 74),
 		}, rewardsList)
 		addCorner(row, 10)
 		addStroke(row, reward.canClaim and UI.Gold or UI.Muted, 1, reward.canClaim and 0.3 or 0.7)
@@ -332,11 +442,38 @@ local function renderRewards(payload)
 			TextTruncate = Enum.TextTruncate.AtEnd,
 		}, row)
 
+		local progressBack = make("Frame", {
+			BackgroundColor3 = UI.PanelAlt,
+			BorderSizePixel = 0,
+			Position = UDim2.fromOffset(8, 26),
+			Size = UDim2.new(1, -16, 0, 10),
+		}, row)
+		addCorner(progressBack, 8)
+
+		local progressFill = make("Frame", {
+			BackgroundColor3 = reward.claimed and UI.Success or (reward.canClaim and UI.Gold or UI.Muted),
+			BorderSizePixel = 0,
+			Size = UDim2.fromScale(progressRatio, 1),
+		}, progressBack)
+		addCorner(progressFill, 8)
+
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(8, 37),
+			Size = UDim2.new(1, -16, 0, 12),
+			Text = tostring(progress) .. "/" .. tostring(requiredCards) .. " cards",
+			TextColor3 = UI.Muted,
+			TextScaled = false,
+			TextSize = 9,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
+		}, row)
+
 		local stateText = reward.claimed and "CLAIMED" or (reward.canClaim and "CLAIM" or "LOCKED")
 		local stateColor = reward.claimed and UI.Success or (reward.canClaim and UI.Gold or UI.Muted)
 		local button = make("TextButton", {
-			Position = UDim2.fromOffset(8, 30),
-			Size = UDim2.new(1, -16, 0, 24),
+			Position = UDim2.fromOffset(8, 50),
+			Size = UDim2.new(1, -16, 0, 20),
 			BackgroundColor3 = reward.canClaim and UI.Gold or UI.PanelAlt,
 			Text = stateText,
 			TextColor3 = reward.canClaim and Color3.fromRGB(18, 12, 6) or stateColor,
@@ -367,24 +504,30 @@ local function renderRewards(payload)
 	end)
 end
 
-local function makeCardTile(card, packedCount, index)
+local function makeCardTile(card, packedCount, index, payload)
 	local unlocked = packedCount > 0
 	local style = Utils.GetRarityStyle(card.rarity)
+	local lockedStyle = LOCKED_STYLES[card.rarity] or LOCKED_STYLES.Gold
 	local trim = style.trim or style.primary or UI.Gold
 	local dark = style.dark or UI.PanelAlt
 	local textColor = style.text or UI.Text
+	local viewed = payload and payload.viewed or {}
+	local isNew = unlocked and viewed[tostring(card.id)] ~= true
+	local tileTrim = unlocked and trim or (lockedStyle.trim or UI.Muted)
+	local tileText = unlocked and textColor or (lockedStyle.text or UI.Muted)
 
 	local tile = make("Frame", {
 		LayoutOrder = index,
-		BackgroundColor3 = unlocked and dark or Color3.fromRGB(10, 12, 20),
+		Active = true,
+		BackgroundColor3 = unlocked and dark or (lockedStyle.bgA or Color3.fromRGB(10, 12, 20)),
 	}, gridFrame)
 	addCorner(tile, 12)
-	addStroke(tile, unlocked and trim or UI.Muted, unlocked and 1.4 or 1, unlocked and 0.28 or 0.72)
+	local stroke = addStroke(tile, tileTrim, unlocked and 1.2 or 1, isNew and 0.12 or (unlocked and 0.34 or 0.62))
 
 	make("UIGradient", {
 		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, unlocked and (style.secondary or dark) or Color3.fromRGB(18, 21, 34)),
-			ColorSequenceKeypoint.new(1, unlocked and dark or Color3.fromRGB(6, 8, 14)),
+			ColorSequenceKeypoint.new(0, unlocked and (style.secondary or dark) or (lockedStyle.bgB or Color3.fromRGB(18, 21, 34))),
+			ColorSequenceKeypoint.new(1, unlocked and dark or (lockedStyle.bgA or Color3.fromRGB(6, 8, 14))),
 		}),
 		Rotation = 35,
 	}, tile)
@@ -392,34 +535,41 @@ local function makeCardTile(card, packedCount, index)
 	make("TextLabel", {
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(8, 7),
-		Size = UDim2.new(1, -34, 0, 16),
-		Text = unlocked and string.upper(style.label or card.rarity) or "???",
-		TextColor3 = unlocked and textColor or UI.Muted,
+		Size = UDim2.new(1, -72, 0, 14),
+		Text = unlocked and string.upper(style.label or card.rarity) or string.upper(style.label or card.rarity),
+		TextColor3 = tileText,
 		TextScaled = false,
-		TextSize = 9,
+		TextSize = 8,
 		Font = Enum.Font.GothamBlack,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	}, tile)
 
-	make("TextLabel", {
-		BackgroundTransparency = 1,
+	local statusPill = make("Frame", {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -8, 0, 6),
-		Size = UDim2.fromOffset(22, 18),
-		Text = unlocked and "OK" or "--",
-		TextColor3 = unlocked and UI.Success or UI.Muted,
-		TextScaled = false,
-		TextSize = 9,
-		Font = Enum.Font.GothamBlack,
+		Size = UDim2.fromOffset(isNew and 34 or 54, 17),
+		BackgroundColor3 = isNew and UI.Gold or (unlocked and Color3.fromRGB(26, 58, 38) or UI.PanelAlt),
 	}, tile)
+	addCorner(statusPill, 7)
+	addStroke(statusPill, isNew and (style.glow or trim) or tileTrim, 1, isNew and 0.25 or 0.68)
 
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(8, 32),
-		Size = UDim2.new(1, -16, 0, 44),
-		Text = unlocked and card.name or "Unknown Player",
-		TextColor3 = unlocked and textColor or UI.Muted,
+		Size = UDim2.fromScale(1, 1),
+		Text = isNew and "NEW" or (unlocked and "Collected" or "Locked"),
+		TextColor3 = isNew and Color3.fromRGB(18, 12, 6) or (unlocked and UI.Success or UI.Muted),
+		TextScaled = false,
+		TextSize = 8,
+		Font = Enum.Font.GothamBlack,
+	}, statusPill)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(8, 31),
+		Size = UDim2.new(1, -16, 0, 36),
+		Text = unlocked and card.name or ("Mystery " .. (style.label or card.rarity)),
+		TextColor3 = tileText,
 		TextScaled = true,
 		TextWrapped = true,
 		Font = Enum.Font.GothamBlack,
@@ -427,12 +577,24 @@ local function makeCardTile(card, packedCount, index)
 
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(8, 82),
-		Size = UDim2.new(1, -16, 0, 16),
+		Position = UDim2.fromOffset(8, 72),
+		Size = UDim2.new(1, -16, 0, 20),
+		Text = unlocked and (Utils.FormatNumber(Utils.CalculateFansPerSecond(card)) .. " fans/s") or "???",
+		TextColor3 = unlocked and (style.glow or trim) or tileText,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+	}, tile)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(8, 96),
+		Size = UDim2.new(1, -16, 0, 14),
 		Text = unlocked and (card.position .. " | " .. card.nation) or getRarityHint(card.rarity),
-		TextColor3 = unlocked and (style.glow or trim) or UI.Muted,
+		TextColor3 = unlocked and UI.Muted or tileText,
 		TextScaled = false,
-		TextSize = 10,
+		TextSize = 9,
 		Font = Enum.Font.GothamBold,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextTruncate = Enum.TextTruncate.AtEnd,
@@ -440,35 +602,57 @@ local function makeCardTile(card, packedCount, index)
 
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(8, 104),
-		Size = UDim2.new(1, -16, 0, 32),
-		Text = unlocked
-			and ("Packed: " .. tostring(packedCount) .. " times\nBest: " .. Utils.FormatNumber(Utils.CalculateFansPerSecond(card)) .. " fans/s")
-			or "Silhouette locked",
+		Position = UDim2.fromOffset(8, 116),
+		Size = UDim2.new(1, -16, 0, 20),
+		Text = unlocked and ("Packed " .. tostring(packedCount) .. "x") or "Keep opening packs",
 		TextColor3 = unlocked and UI.Text or UI.Muted,
 		TextScaled = false,
 		TextSize = 10,
 		TextWrapped = true,
 		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Center,
 	}, tile)
 
-	local viewButton = make("TextButton", {
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -8),
-		Size = UDim2.new(0.82, 0, 0, 22),
-		BackgroundColor3 = unlocked and trim or UI.PanelAlt,
-		Text = unlocked and "View" or "Locked",
-		TextColor3 = unlocked and Color3.fromRGB(18, 12, 6) or UI.Muted,
-		TextScaled = false,
-		TextSize = 10,
-		Font = Enum.Font.GothamBlack,
-		AutoButtonColor = unlocked,
-	}, tile)
-	addCorner(viewButton, 8)
+	if isNew then
+		TweenService:Create(stroke, TweenInfo.new(0.72, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+			Transparency = 0.04,
+			Thickness = 1.8,
+		}):Play()
+	end
 
-	viewButton.MouseButton1Click:Connect(function()
+	tile.MouseEnter:Connect(function()
+		TweenService:Create(stroke, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {
+			Transparency = unlocked and 0.08 or 0.34,
+			Thickness = unlocked and 1.6 or 1.3,
+		}):Play()
+	end)
+
+	tile.MouseLeave:Connect(function()
+		if isNew then
+			return
+		end
+		TweenService:Create(stroke, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {
+			Transparency = unlocked and 0.34 or 0.62,
+			Thickness = unlocked and 1.2 or 1,
+		}):Play()
+	end)
+
+	tile.InputBegan:Connect(function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+
 		if unlocked then
 			summaryLabel.Text = card.name .. " | " .. card.rarity .. " | Packed " .. tostring(packedCount) .. " times"
+			if isNew then
+				local result = MarkCollectionCardViewedFn:InvokeServer(card.id)
+				if result and result.success and result.collection then
+					currentPayload = result.collection
+					refreshCollection(false)
+				end
+			end
+		else
+			summaryLabel.Text = (style.label or card.rarity) .. " | " .. getRarityHint(card.rarity)
 		end
 	end)
 end
@@ -505,11 +689,12 @@ local function renderCards(payload)
 	end)
 
 	for index, card in ipairs(cards) do
-		makeCardTile(card, tonumber(counts[tostring(card.id)]) or 0, index)
+		makeCardTile(card, tonumber(counts[tostring(card.id)]) or 0, index, payload)
 	end
 
 	task.defer(function()
 		gridFrame.CanvasSize = UDim2.new(0, 0, 0, gridLayout.AbsoluteContentSize.Y + 12)
+		updateGridFades()
 	end)
 end
 

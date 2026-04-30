@@ -15,6 +15,7 @@ local DEFAULT_DATA = {
 	starterGrantClaimed = false,
 	inventory = {},
 	collection = {},
+	collectionViewed = {},
 	rebirthTier = 0,
 	rebirthTokens = 0,
 	lastDailyReward = 0,
@@ -138,8 +139,12 @@ local function normalizeCollectionData(data)
 	if type(data.collectionRewards) ~= "table" then
 		data.collectionRewards = {}
 	end
+	if type(data.collectionViewed) ~= "table" then
+		data.collectionViewed = {}
+	end
 
 	local normalized = {}
+	local viewed = {}
 	local changed = false
 
 	for key, amount in pairs(data.collection) do
@@ -201,6 +206,36 @@ local function normalizeCollectionData(data)
 
 	if changed then
 		data.collection = normalized
+	end
+
+	for key, value in pairs(data.collectionViewed) do
+		local cardId = tonumber(key)
+		if cardId and value == true then
+			local normalizedKey = tostring(math.floor(cardId))
+			if normalized[normalizedKey] then
+				viewed[normalizedKey] = true
+			end
+		else
+			changed = true
+		end
+	end
+
+	for key, value in pairs(viewed) do
+		if data.collectionViewed[key] ~= value then
+			changed = true
+			break
+		end
+	end
+
+	for key in pairs(data.collectionViewed) do
+		if viewed[key] == nil then
+			changed = true
+			break
+		end
+	end
+
+	if changed then
+		data.collectionViewed = viewed
 	end
 
 	return changed
@@ -436,6 +471,36 @@ function DataService.GetCollection(player)
 		DataService.MarkDirty(player)
 	end
 	return data.collection
+end
+
+function DataService.GetCollectionViewed(player)
+	local data = cache[player]
+	if not data then
+		return {}
+	end
+	if normalizeCollectionData(data) then
+		DataService.MarkDirty(player)
+	end
+	return data.collectionViewed
+end
+
+function DataService.MarkCollectionCardViewed(player, cardId)
+	local data = cache[player]
+	if not data then
+		return false
+	end
+	if normalizeCollectionData(data) then
+		DataService.MarkDirty(player)
+	end
+
+	local key = tostring(cardId)
+	if (data.collection[key] or 0) <= 0 then
+		return false
+	end
+
+	data.collectionViewed[key] = true
+	DataService.MarkDirty(player)
+	return true
 end
 
 function DataService.GetDisplayedCards(player)
