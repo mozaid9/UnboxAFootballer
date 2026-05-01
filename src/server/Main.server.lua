@@ -76,6 +76,7 @@ local PlaceInventoryCardInSlotFn = makeFunction("PlaceInventoryCardInSlot")
 local ClaimFreePackFn = makeFunction("ClaimFreePack")
 local ClaimDailyRewardFn = makeFunction("ClaimDailyReward")
 local PurchasePackFn = makeFunction("PurchasePack")
+local ChoosePlayerPickFn = makeFunction("ChoosePlayerPick")
 local GetRebirthStatusFn = makeFunction("GetRebirthStatus")
 local RequestRebirthFn = makeFunction("RequestRebirth")
 local OpenRebirthUIEvent = makeEvent("OpenRebirthUI")
@@ -107,6 +108,8 @@ end
 local swingCooldowns = {}
 local initializedPlayers = {}
 local packPurchaseLocks = {}
+local pendingPlayerPicks = {}
+local playerPickLocks = {}
 
 local function makeToolPart(name, size, color, cframe, parent)
 	local part = Instance.new("Part")
@@ -1075,8 +1078,9 @@ local function spawnPackForPlot(plot)
 	hitHighlight.OutlineTransparency = 0.82
 	hitHighlight.Parent = model
 
-	createSurfaceLabel(Enum.NormalId.Front, "1 CARD", packDef.displayName, packDef.color, cardBody)
-	createSurfaceLabel(Enum.NormalId.Back, "1 CARD", packDef.displayName, packDef.color, cardBody)
+	local packTypeLabel = type(packDef.playerPick) == "table" and "PLAYER PICK" or "1 CARD"
+	createSurfaceLabel(Enum.NormalId.Front, packTypeLabel, packDef.displayName, packDef.color, cardBody)
+	createSurfaceLabel(Enum.NormalId.Back, packTypeLabel, packDef.displayName, packDef.color, cardBody)
 	local crackLines = createPackCrackOverlay(cardBody, packDef.color)
 
 	-- (pack health is shown in the padGui billboard — no floating bar needed)
@@ -1149,6 +1153,132 @@ local function spawnPackForPlot(plot)
 	else
 		sendHint(plot.ownerPlayer, packDef.displayName .. " spawned on your red pad. Crack it with your pitchfork and use Hold E on green slots to swap players.")
 	end
+end
+
+local function recordPlayerPickCard(player, card)
+	local data = DataService.GetData(player)
+	if not data or not card then
+		return false
+	end
+
+	data.totalCardsOpened = (data.totalCardsOpened or 0) + 1
+	if type(DataService.RecordCardPacked) == "function" then
+		DataService.RecordCardPacked(player, card.id)
+	end
+	DataService.MarkDirty(player)
+	return true
+end
+
+local function getBestPendingPickCard(pendingPick)
+	local bestCard = nil
+	local bestIncome = -math.huge
+	for _, option in ipairs(pendingPick and pendingPick.pickOptions or {}) do
+		local card = getCardById(option and option.id)
+		local income = card and Utils.CalculateFansPerSecond(card) or -math.huge
+		if card and income > bestIncome then
+			bestCard = card
+			bestIncome = income
+		end
+	end
+	return bestCard
+end
+
+local function claimPendingPlayerPickToInventory(player)
+	local pendingPick = pendingPlayerPicks[player]
+	if not pendingPick then
+		return false
+	end
+
+	local card = getBestPendingPickCard(pendingPick)
+	pendingPlayerPicks[player] = nil
+	playerPickLocks[player] = nil
+	if not card then
+		return false
+	end
+
+	recordPlayerPickCard(player, card)
+	DataService.AddCard(player, card.id)
+	return true
+end
+
+local function awardPendingPlayerPick(player, optionIndex)
+	local pendingPick = pendingPlayerPicks[player]
+	if not pendingPick then
+		return false, { error = "No player pick is waiting." }
+	end
+
+	local chosenIndex = math.floor(tonumber(optionIndex) or 0)
+	local option = pendingPick.pickOptions and pendingPick.pickOptions[chosenIndex]
+	local card = getCardById(option and option.id)
+	if not card then
+		return false, { error = "Choose one of the shown players." }
+	end
+
+	pendingPlayerPicks[player] = nil
+	recordPlayerPickCard(player, card)
+
+	local plot = BaseService.GetPlot(player)
+	local storageResult
+	if plot and plot.ownerPlayer == player then
+		local storageOk, storageOrError = pcall(autoStorePulledCard, player, plot, card)
+		if storageOk then
+			storageResult = storageOrError
+		else
+			warn("[UnboxAFootballer] Player pick auto-store failed; falling back to inventory:", storageOrError)
+			DataService.AddCard(player, card.id)
+			refreshPlotDisplayState(player, plot)
+			storageResult = {
+				storedInInventory = true,
+				slotIndex = nil,
+				slotWorldPosition = nil,
+			}
+		end
+	else
+		DataService.AddCard(player, card.id)
+		storageResult = {
+			storedInInventory = true,
+			slotIndex = nil,
+			slotWorldPosition = nil,
+		}
+	end
+
+	local serializedCard = serializeCardForClient(card)
+	local passiveIncome = getCardIncome(player, card)
+	PackOpenedEvent:FireClient(player, {
+		success = true,
+		packId = pendingPick.packId,
+		packName = pendingPick.packName,
+		newCoins = DataService.GetCoins(player),
+		card = serializedCard,
+		storedInInventory = storageResult.storedInInventory,
+		slotIndex = storageResult.slotIndex,
+		slotWorldPosition = storageResult.slotWorldPosition,
+		packWorldPosition = pendingPick.packWorldPosition,
+		coinsPerSecond = passiveIncome,
+		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
+	})
+
+	if storageResult.storedInInventory then
+		sendHint(player, card.name .. " went to inventory from your player pick.")
+	else
+		sendHint(player, card.name .. " is now earning +" .. tostring(passiveIncome) .. "/s on display slot " .. tostring(storageResult.slotIndex) .. ".")
+	end
+
+	if plot and plot.ownerPlayer == player then
+		BaseService.SetPlotPadStatus(plot, "Rolling Next Pack", "Another free pack is spawning", pendingPick.packColor)
+		local respawnDelay = computeSpawnDelay(getUpgradeLevel(player, "PackSpawnRate"))
+		task.delay(respawnDelay, function()
+			if plot.ownerPlayer == player then
+				spawnPackForPlot(plot)
+			end
+		end)
+	end
+
+	return true, {
+		success = true,
+		selectedCardId = card.id,
+		newCoins = DataService.GetCoins(player),
+	}
 end
 
 -- Reusable function so we can wire up prompt handlers for slots added after startup
@@ -1368,6 +1498,57 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	end
 
 	if ok then
+		if result.playerPick == true then
+			local pickOptions = result.pickOptions
+			if type(pickOptions) ~= "table" or #pickOptions == 0 then
+				plot.isOpeningPack = nil
+				plot.activePackHitsRemaining = math.max(1, plot.activePackHitsRemaining or 1)
+				BaseService.SetPlotPadHealth(plot, plot.activePackDef.displayName, plot.activePackHitsRemaining, plot.activePackMaxHits, plot.activePackDef.color)
+				PackOpenFailedEvent:FireClient(player, { error = "Player pick failed. Please try again." })
+				return
+			end
+
+			local totalPacks = DataService.GetTotalPacksOpened(player)
+			local triggeredMilestones = checkAndGrantMilestones(player, totalPacks)
+			local milestoneData = DataService.GetData(player)
+			local claimed = milestoneData and milestoneData.claimedMilestones or {}
+			local milestoneOk, milestoneErr = pcall(BaseService.UpdatePackMilestone, plot, totalPacks, claimed, getQueuedMilestoneCount(player))
+			if not milestoneOk then
+				warn("[UnboxAFootballer] Pack milestone update failed:", milestoneErr)
+			end
+			fireMilestoneRewards(player, triggeredMilestones)
+
+			pendingPlayerPicks[player] = {
+				packId = result.packId,
+				packName = result.packName,
+				packColor = openedPackColor,
+				packWorldPosition = openedPackWorldPosition,
+				pickOptions = pickOptions,
+				createdAt = os.time(),
+			}
+
+			PackOpenedEvent:FireClient(player, {
+				success = true,
+				playerPick = true,
+				packId = result.packId,
+				packName = result.packName,
+				newCoins = result.newCoins,
+				pickOptions = pickOptions,
+				packWorldPosition = openedPackWorldPosition,
+			})
+
+			if #triggeredMilestones > 0 then
+				local rewardInfo = serializeMilestoneReward(triggeredMilestones[1])
+				sendHint(player, "Milestone reached: " .. (rewardInfo and rewardInfo.reward or "reward queued") .. ".")
+			else
+				sendHint(player, "Choose one player from your " .. tostring(result.packName or "Player Pick") .. ".")
+			end
+
+			clearPlotPack(plot)
+			BaseService.SetPlotPadStatus(plot, "Player Pick", "Choose one reward player", openedPackColor)
+			return
+		end
+
 		local pulledCard = result.card or (result.cards and result.cards[1]) or nil
 		if not pulledCard then
 			plot.isOpeningPack = nil
@@ -1546,9 +1727,11 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 
 Players.PlayerRemoving:Connect(function(player)
+	claimPendingPlayerPickToInventory(player)
 	initializedPlayers[player] = nil
 	swingCooldowns[player] = nil
 	packPurchaseLocks[player] = nil
+	playerPickLocks[player] = nil
 	DataService.SavePlayer(player)
 	DataService.UnloadPlayer(player)
 	BaseService.ReleasePlot(player)
@@ -1561,6 +1744,7 @@ game:BindToClose(function()
 	local threads = {}
 	for _, player in ipairs(Players:GetPlayers()) do
 		local t = task.spawn(function()
+			claimPendingPlayerPickToInventory(player)
 			DataService.SavePlayer(player)
 		end)
 		table.insert(threads, t)
@@ -1824,6 +2008,24 @@ OpenPackFn.OnServerInvoke = function(player, packId)
 		success = false,
 		error = "Use your pitchfork on the pack at your red pad.",
 	}
+end
+
+ChoosePlayerPickFn.OnServerInvoke = function(player, optionIndex)
+	if playerPickLocks[player] then
+		return { success = false, error = "Player pick already processing." }
+	end
+
+	playerPickLocks[player] = true
+	local callOk, ok, payload = pcall(awardPendingPlayerPick, player, optionIndex)
+	playerPickLocks[player] = nil
+	if not callOk then
+		warn("[UnboxAFootballer] Player pick award failed:", ok)
+		return { success = false, error = "Player pick failed. Try again." }
+	end
+	if not ok then
+		return payload or { success = false, error = "Player pick failed." }
+	end
+	return payload
 end
 
 SellCardFn.OnServerInvoke = function(player, cardId)

@@ -25,6 +25,7 @@ local PackOpenFailedEvent = Remotes:WaitForChild("PackOpenFailed")
 local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
 local PackHitFeedbackEvent = Remotes:WaitForChild("PackHitFeedback")
 local MilestoneRewardEvent = Remotes:WaitForChild("MilestoneReward")
+local ChoosePlayerPickFn = Remotes:WaitForChild("ChoosePlayerPick")
 
 local UI = Constants.UI
 
@@ -1765,6 +1766,240 @@ local function showCardReveal(payload)
 	end)
 end
 
+local activePlayerPickOverlay
+
+local function closePlayerPickOverlay()
+	if activePlayerPickOverlay and activePlayerPickOverlay.Parent then
+		activePlayerPickOverlay:Destroy()
+	end
+	activePlayerPickOverlay = nil
+end
+
+local function showPlayerPick(payload)
+	local options = payload and payload.pickOptions or {}
+	if type(options) ~= "table" or #options == 0 then
+		showToast("Player pick failed. Try again.", UI.Danger)
+		return
+	end
+
+	closePlayerPickOverlay()
+	local overlay = make("Frame", {
+		Name = "PlayerPickOverlay",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+		BackgroundTransparency = 0.24,
+		ZIndex = 230,
+	}, screenGui)
+	activePlayerPickOverlay = overlay
+
+	local panel = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.52),
+		Size = UDim2.new(0.90, 0, 0, 344),
+		BackgroundColor3 = Color3.fromRGB(7, 10, 18),
+		BorderSizePixel = 0,
+		ZIndex = 231,
+	}, overlay)
+	addCorner(panel, 18)
+	addStroke(panel, UI.Gold, 2, 0.22)
+	make("UISizeConstraint", {
+		MaxSize = Vector2.new(850, 360),
+		MinSize = Vector2.new(360, 320),
+	}, panel)
+
+	local title = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 22, 0, 14),
+		Size = UDim2.new(1, -44, 0, 34),
+		Text = string.upper(payload.packName or "Player Pick"),
+		TextColor3 = UI.Text,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 232,
+	}, panel)
+	make("UITextSizeConstraint", { MinTextSize = 18, MaxTextSize = 30 }, title)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 22, 0, 48),
+		Size = UDim2.new(1, -44, 0, 20),
+		Text = "Pick one player",
+		TextColor3 = Color3.fromRGB(198, 190, 164),
+		TextScaled = false,
+		TextSize = 13,
+		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 232,
+	}, panel)
+
+	local row = make("Frame", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 18, 0, 82),
+		Size = UDim2.new(1, -36, 1, -102),
+		ZIndex = 232,
+	}, panel)
+	make("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		VerticalAlignment = Enum.VerticalAlignment.Center,
+		Padding = UDim.new(0, 10),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, row)
+
+	local choosing = false
+	local buttons = {}
+	for index, card in ipairs(options) do
+		local style = Utils.GetRarityStyle(card.rarity)
+		local primary = style.primary
+		local secondary = style.secondary or primary
+		local dark = style.dark or Color3.fromRGB(12, 14, 22)
+		local textColor = style.text or UI.Text
+
+		local button = make("TextButton", {
+			LayoutOrder = index,
+			Size = UDim2.new(1 / #options, -8, 1, 0),
+			BackgroundColor3 = dark,
+			BorderSizePixel = 0,
+			Text = "",
+			AutoButtonColor = true,
+			ZIndex = 233,
+		}, row)
+		table.insert(buttons, button)
+		addCorner(button, 12)
+		addStroke(button, primary, 2, 0.18)
+		make("UIGradient", {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, dark),
+				ColorSequenceKeypoint.new(0.55, secondary),
+				ColorSequenceKeypoint.new(1, dark),
+			}),
+			Rotation = 145,
+		}, button)
+
+		make("TextLabel", {
+			BackgroundColor3 = Color3.fromRGB(6, 8, 13),
+			BackgroundTransparency = 0.06,
+			Position = UDim2.new(0, 12, 0, 12),
+			Size = UDim2.new(1, -24, 0, 24),
+			Text = string.upper(style.label or card.rarity or "CARD"),
+			TextColor3 = textColor,
+			TextScaled = false,
+			TextSize = 10,
+			Font = Enum.Font.GothamBlack,
+			ZIndex = 234,
+		}, button)
+
+		local badge = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 58),
+			Size = UDim2.fromOffset(62, 62),
+			Rotation = 45,
+			BackgroundColor3 = Color3.fromRGB(8, 10, 18),
+			BorderSizePixel = 0,
+			ZIndex = 234,
+		}, button)
+		addCorner(badge, 10)
+		addStroke(badge, primary, 2, 0.16)
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 1),
+			Rotation = -45,
+			Text = string.upper(string.sub(card.name or "P", 1, 1)),
+			TextColor3 = textColor,
+			TextScaled = true,
+			Font = Enum.Font.GothamBlack,
+			ZIndex = 235,
+		}, badge)
+
+		local nameLabel = make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0, 10, 0, 134),
+			Size = UDim2.new(1, -20, 0, 42),
+			Text = string.upper(card.name or "Player"),
+			TextColor3 = textColor,
+			TextScaled = true,
+			TextWrapped = true,
+			Font = Enum.Font.GothamBlack,
+			ZIndex = 234,
+		}, button)
+		make("UITextSizeConstraint", { MinTextSize = 9, MaxTextSize = 20 }, nameLabel)
+
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0, 10, 0, 180),
+			Size = UDim2.new(1, -20, 0, 18),
+			Text = (card.position or "--") .. "  |  " .. (card.nation or "Unknown"),
+			TextColor3 = textColor,
+			TextScaled = false,
+			TextSize = 10,
+			Font = Enum.Font.GothamBlack,
+			ZIndex = 234,
+		}, button)
+
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0, 10, 0, 202),
+			Size = UDim2.new(1, -20, 0, 18),
+			Text = "+" .. Utils.FormatNumber(card.fansPerSecond or 0) .. " fans/s",
+			TextColor3 = Color3.fromRGB(168, 244, 184),
+			TextScaled = false,
+			TextSize = 10,
+			Font = Enum.Font.GothamBlack,
+			ZIndex = 234,
+		}, button)
+
+		local pickLabel = make("TextLabel", {
+			AnchorPoint = Vector2.new(0.5, 1),
+			BackgroundColor3 = primary:Lerp(Color3.fromRGB(22, 124, 62), 0.36),
+			Position = UDim2.new(0.5, 0, 1, -12),
+			Size = UDim2.new(1, -24, 0, 26),
+			Text = "PICK",
+			TextColor3 = Color3.fromRGB(255, 255, 255),
+			TextScaled = false,
+			TextSize = 11,
+			Font = Enum.Font.GothamBlack,
+			ZIndex = 235,
+		}, button)
+		addCorner(pickLabel, 8)
+
+		button.MouseButton1Click:Connect(function()
+			if choosing then
+				return
+			end
+			choosing = true
+			for _, otherButton in ipairs(buttons) do
+				otherButton.Active = false
+				otherButton.AutoButtonColor = false
+			end
+			pickLabel.Text = "CLAIMING..."
+			pickLabel.BackgroundColor3 = Color3.fromRGB(35, 140, 65)
+
+			local ok, result = pcall(function()
+				return ChoosePlayerPickFn:InvokeServer(index)
+			end)
+			if ok and result and result.success then
+				closePlayerPickOverlay()
+			else
+				choosing = false
+				for _, otherButton in ipairs(buttons) do
+					otherButton.Active = true
+					otherButton.AutoButtonColor = true
+				end
+				pickLabel.Text = "PICK"
+				pickLabel.BackgroundColor3 = primary:Lerp(Color3.fromRGB(22, 124, 62), 0.36)
+				local errorText = "Player pick failed. Try again."
+				if ok and type(result) == "table" and result.error then
+					errorText = result.error
+				end
+				showToast(errorText, UI.Danger)
+			end
+		end)
+	end
+
+	showImpactFlash(UI.Gold, true)
+end
+
 PackHitFeedbackEvent.OnClientEvent:Connect(function(payload)
 	local ok, err = pcall(playPackHitFeedback, payload)
 	if not ok then
@@ -1785,6 +2020,15 @@ PackOpenedEvent.OnClientEvent:Connect(function(payload)
 	end
 
 	setCoinsDisplay(payload.newCoins)
+
+	if payload.playerPick then
+		local ok, err = pcall(showPlayerPick, payload)
+		if not ok then
+			warn("[UnboxAFootballer] Player pick UI failed:", err)
+			showToast("Player pick is ready, but the UI failed. Rejoin to recover.", UI.Danger)
+		end
+		return
+	end
 
 	if payload.card then
 		local ok, err = pcall(showCardReveal, payload)

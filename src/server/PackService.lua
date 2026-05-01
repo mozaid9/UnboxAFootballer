@@ -26,10 +26,20 @@ local function chooseRandomCard(pool)
 	return pool[math.random(1, #pool)]
 end
 
-local function getCardsForRarity(rarity)
+local function getCardsForRarity(rarity, minPowerScore)
 	local results = {}
 	for _, card in ipairs(CardData.Pool) do
-		if card.rarity == rarity then
+		if card.rarity == rarity and ((tonumber(minPowerScore) or 0) <= 0 or Utils.GetPowerScore(card) >= minPowerScore) then
+			table.insert(results, card)
+		end
+	end
+	return results
+end
+
+local function getCardsAtOrAbovePower(minPowerScore)
+	local results = {}
+	for _, card in ipairs(CardData.Pool) do
+		if Utils.GetPowerScore(card) >= minPowerScore then
 			table.insert(results, card)
 		end
 	end
@@ -58,6 +68,51 @@ local function serializeCard(card)
 		sellValue = Utils.GetSellValue(card),
 		marketFloor = Utils.GetMarketFloor(card),
 	}
+end
+
+local function choosePlayerPickCard(packId, cardPullLuckLevel, minPowerScore)
+	local rarity = PackService.ChooseCardRarity(packId, cardPullLuckLevel)
+	local candidates = getCardsForRarity(rarity, minPowerScore)
+	if #candidates == 0 then
+		candidates = getCardsAtOrAbovePower(minPowerScore)
+	end
+	if #candidates == 0 then
+		candidates = CardData.Pool
+	end
+	return chooseRandomCard(candidates)
+end
+
+function PackService.RollPlayerPickOptions(packId, cardPullLuckLevel)
+	local packDef = PackConfig.ById[packId]
+	local pickConfig = packDef and packDef.playerPick
+	if type(pickConfig) ~= "table" then
+		return {}
+	end
+
+	local optionCount = math.clamp(math.floor(tonumber(pickConfig.optionCount) or 3), 2, 5)
+	local minPowerScore = math.max(0, math.floor(tonumber(pickConfig.minPowerScore) or 0))
+	local options = {}
+	local usedCardIds = {}
+	local attempts = 0
+	local maxAttempts = optionCount * 40
+
+	while #options < optionCount and attempts < maxAttempts do
+		attempts += 1
+		local card = choosePlayerPickCard(packId, cardPullLuckLevel, minPowerScore)
+		if card and not usedCardIds[card.id] then
+			usedCardIds[card.id] = true
+			table.insert(options, serializeCard(card))
+		end
+	end
+
+	if #options == 0 then
+		local fallback = chooseRandomCard(CardData.Pool)
+		if fallback then
+			table.insert(options, serializeCard(fallback))
+		end
+	end
+
+	return options
 end
 
 local function getCardPullLuckLevel(data)
@@ -121,6 +176,33 @@ function PackService.OpenPack(player, packId, options)
 
 	local pityInfo, nextPackCount = getPityInfoForNextPack(data, options)
 	local cardPullLuckLevel = getCardPullLuckLevel(data)
+	if type(packDef.playerPick) == "table" then
+		local pickOptions = PackService.RollPlayerPickOptions(packId, cardPullLuckLevel)
+		if #pickOptions == 0 then
+			return false, { error = "Player pick failed. Please try again." }
+		end
+
+		data.totalPacksOpened = (data.totalPacksOpened or 0) + 1
+		DataService.MarkDirty(player)
+
+		if Remotes and Remotes.UpdateCoins then
+			Remotes.UpdateCoins:FireClient(player, DataService.GetCoins(player))
+		end
+
+		return true, {
+			success = true,
+			playerPick = true,
+			packId = packId,
+			packName = packDef.displayName,
+			isFree = options.ignoreCost == true or packDef.cost == 0,
+			newCoins = DataService.GetCoins(player),
+			pickOptions = pickOptions,
+			cardPullLuckLevel = cardPullLuckLevel,
+			pityInfo = pityInfo,
+			packCount = nextPackCount,
+		}
+	end
+
 	local rarity = PackService.ChooseCardRarity(packId, cardPullLuckLevel, pityInfo)
 	local card = PackService.ChooseCardVariant(rarity)
 	if not card then
