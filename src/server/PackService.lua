@@ -47,7 +47,6 @@ end
 -- ── Serialise ─────────────────────────────────────────────────
 
 local function serializeCard(card)
-	local powerScore = Utils.GetPowerScore(card)
 	return {
 		id = card.id,
 		name = card.name,
@@ -55,9 +54,9 @@ local function serializeCard(card)
 		position = card.position,
 		rarity = card.rarity,
 		club = card.club,
-		fansPerSecond = Utils.CalculateFansPerSecond(powerScore),
+		fansPerSecond = Utils.CalculateFansPerSecond(card),
 		sellValue = Utils.GetSellValue(card),
-		marketFloor = Utils.GetMarketFloor(powerScore),
+		marketFloor = Utils.GetMarketFloor(card),
 	}
 end
 

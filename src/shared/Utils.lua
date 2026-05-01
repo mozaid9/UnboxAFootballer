@@ -85,9 +85,14 @@ function Utils.CalculateFansPerSecond(cardOrScore)
 	local config = Constants.PassiveIncome
 	local powerScore = Utils.GetPowerScore(cardOrScore)
 	local ratingSteps = math.max(0, powerScore - config.BaseRating)
-	-- Exponential curve: base * growthRate^steps
-	-- This makes high-rarity cards dramatically more valuable (Immortals = 1000+/s)
-	return math.floor(config.BasePerSecond * (config.GrowthRate ^ ratingSteps))
+	local baseIncome = config.BasePerSecond * (config.GrowthRate ^ ratingSteps)
+
+	if type(cardOrScore) == "table" then
+		local rarityMultipliers = config.RarityMultipliers or {}
+		baseIncome *= rarityMultipliers[cardOrScore.rarity] or 1
+	end
+
+	return math.floor(baseIncome)
 end
 
 function Utils.GetPassiveIncome(cardOrScore)

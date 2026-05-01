@@ -285,16 +285,17 @@ Constants.PassiveIncome = {
 	BaseRating    = 78,
 	BasePerSecond = 20,    -- fans/sec at powerScore 78
 	GrowthRate    = 1.23,  -- exponential multiplier per powerScore point above BaseRating
-	-- Resulting fan income by key powerScore:
-	--   78 →   20  (base Gold)
-	--   84 →   69  (mid Gold)
-	--   88 →  158  (top Gold)
-	--   91 →  294  (Talisman)
-	--   93 →  446  (Maestro tier)
-	--   95 →  672  (Immortal)
-	--   96 →  826  (Messi Immortal)
-	--   97 → 1021  (Messi / Ronaldo / Mbappe POTY)
-	--   99 → 1545  (top POTY)
+	RarityMultipliers = {
+		["Gold"] = 1.00,
+		["Rare Gold"] = 1.10,
+		["Premium Gold"] = 1.25,
+		["Talisman"] = 1.55,
+		["Maestro"] = 1.90,
+		["Immortal"] = 2.35,
+		["Player of the Year"] = 2.80,
+	},
+	-- Base score sets the floor, rarity sets the tier gap. Rebirth multiplier
+	-- is applied separately by the server when the card is on display.
 }
 
 Constants.UI = {

@@ -718,9 +718,9 @@ local function getBestInventoryCard(player)
 		if amount > 0 then
 			local card = getCardById(key)
 			if card then
-				local powerScore = Utils.GetPowerScore(card)
-				local bestPowerScore = bestCard and Utils.GetPowerScore(bestCard) or -math.huge
-				if not bestCard or powerScore > bestPowerScore or (powerScore == bestPowerScore and card.name < bestCard.name) then
+				local income = Utils.CalculateFansPerSecond(card)
+				local bestIncome = bestCard and Utils.CalculateFansPerSecond(bestCard) or -math.huge
+				if not bestCard or income > bestIncome or (income == bestIncome and card.name < bestCard.name) then
 					bestCard = card
 				end
 			end
