@@ -45,6 +45,7 @@ local RARITY_BAR_COLORS = {
 }
 
 local LIMITED_DEAL_DURATION = (4 * 60) + 32
+local PACK_PURCHASE_CONFIRM_SECONDS = 2.25
 
 local dailyRewardStreak = 0
 local limitedDealRemaining = LIMITED_DEAL_DURATION
@@ -187,6 +188,7 @@ local currentFans = 0
 local queuedRewardCount = 0
 local buyingPackId = nil
 local packBuyControls = {}
+local packQueuedThisVisit = {}
 
 local overlay = make("Frame", {
 	Name = "Overlay",
@@ -742,13 +744,33 @@ local function updatePackBuyButtons()
 		local buyable = control.buyable == true and cost > 0
 		local enoughFans = currentFans >= cost
 		local color = control.color or UI.Gold
+		local queuedThisVisit = packQueuedThisVisit[packId] or 0
+		local confirmingPurchase = (control.confirmUntil or 0) > os.clock()
+		local statusLabel = control.statusLabel
 
-		button.Active = buyable and buyingPackId == nil
-		button.AutoButtonColor = buyable and enoughFans and buyingPackId == nil
+		button.Active = buyable and buyingPackId == nil and not confirmingPurchase
+		button.AutoButtonColor = buyable and enoughFans and buyingPackId == nil and not confirmingPurchase
+
+		if statusLabel then
+			if confirmingPurchase then
+				statusLabel.Text = "Bought - queued on pad"
+				statusLabel.TextColor3 = Color3.fromRGB(139, 244, 165)
+			elseif queuedThisVisit > 0 then
+				statusLabel.Text = queuedThisVisit > 1 and ("Queued x" .. tostring(queuedThisVisit) .. " this visit") or "Queued this visit"
+				statusLabel.TextColor3 = Color3.fromRGB(168, 226, 184)
+			else
+				statusLabel.Text = ""
+				statusLabel.TextColor3 = UI.Muted
+			end
+		end
 
 		if buyingPackId == packId then
 			button.Text = "QUEUING..."
 			button.BackgroundColor3 = color:Lerp(Color3.fromRGB(20, 28, 42), 0.35)
+			button.TextColor3 = Color3.fromRGB(255, 255, 255)
+		elseif confirmingPurchase then
+			button.Text = "QUEUED"
+			button.BackgroundColor3 = Color3.fromRGB(35, 140, 65)
 			button.TextColor3 = Color3.fromRGB(255, 255, 255)
 		elseif buyingPackId ~= nil then
 			button.Text = "WAIT"
@@ -759,7 +781,7 @@ local function updatePackBuyButtons()
 			button.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
 			button.TextColor3 = Color3.fromRGB(175, 180, 190)
 		elseif enoughFans then
-			button.Text = "BUY"
+			button.Text = queuedThisVisit > 0 and "BUY AGAIN" or "BUY"
 			button.BackgroundColor3 = color:Lerp(Color3.fromRGB(22, 124, 62), 0.36)
 			button.TextColor3 = Color3.fromRGB(255, 255, 255)
 		else
@@ -774,14 +796,14 @@ sectionLabel("PACKS", 6)
 
 local packGrid = make("Frame", {
 	LayoutOrder = 7,
-	Size = UDim2.new(1, 0, 0, 250),
+	Size = UDim2.new(1, 0, 0, 274),
 	BackgroundTransparency = 1,
 	ZIndex = 11,
 }, content)
 
 local gridLayout = make("UIGridLayout", {
 	CellPadding = UDim2.fromOffset(10, 10),
-	CellSize = UDim2.new(0.5, -5, 0, 120),
+	CellSize = UDim2.new(0.5, -5, 0, 132),
 	FillDirectionMaxCells = 2,
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, packGrid)
@@ -863,7 +885,7 @@ for index, packId in ipairs(PACK_INFO) do
 
 	local packCost = getShopCost(packDef)
 	local buyButton = make("TextButton", {
-		Position = UDim2.new(0, 56, 0, 66),
+		Position = UDim2.new(0, 56, 0, 68),
 		Size = UDim2.new(1, -66, 0, 24),
 		BackgroundColor3 = color:Lerp(Color3.fromRGB(22, 124, 62), 0.36),
 		Text = "BUY",
@@ -876,8 +898,22 @@ for index, packId in ipairs(PACK_INFO) do
 	}, card)
 	addCorner(buyButton, 8)
 	addHoverScale(buyButton, 1.035)
+
+	local queueStatusLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 56, 0, 95),
+		Size = UDim2.new(1, -66, 0, 12),
+		Text = "",
+		TextColor3 = Color3.fromRGB(139, 244, 165),
+		TextScaled = false,
+		TextSize = 9,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 12,
+	}, card)
 	packBuyControls[packId] = {
 		button = buyButton,
+		statusLabel = queueStatusLabel,
 		cost = packCost,
 		color = color,
 		buyable = packDef and packDef.shopBuyable == true,
@@ -960,6 +996,9 @@ purchasePack = function(packId)
 	if not control or control.buyable ~= true then
 		return
 	end
+	if (control.confirmUntil or 0) > os.clock() then
+		return
+	end
 
 	local cost = control.cost or 0
 	local packName = packDisplayName(packId)
@@ -984,7 +1023,14 @@ purchasePack = function(packId)
 	if result and result.success then
 		currentFans = result.newCoins or math.max(0, currentFans - cost)
 		queuedRewardCount = result.queuedRewardCount or queuedRewardCount
-		packHint.Text = (result.packName or packName) .. " queued on your red pad."
+		packQueuedThisVisit[packId] = (packQueuedThisVisit[packId] or 0) + 1
+		control.confirmUntil = os.clock() + PACK_PURCHASE_CONFIRM_SECONDS
+		packHint.Text = (result.packName or packName) .. " bought. It is queued on your red pad."
+		task.delay(PACK_PURCHASE_CONFIRM_SECONDS, function()
+			if control.confirmUntil and control.confirmUntil <= os.clock() then
+				updatePackBuyButtons()
+			end
+		end)
 	else
 		currentFans = result and result.newCoins or currentFans
 		packHint.Text = result and result.error or "Purchase failed. Try again."
