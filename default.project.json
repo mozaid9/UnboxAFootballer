@@ -75,6 +75,9 @@
         "PackOpeningUI": {
           "$path": "src/client/PackOpeningUI.client.lua"
         },
+        "QuestsUI": {
+          "$path": "src/client/QuestsUI.client.lua"
+        },
         "RebirthUI": {
           "$path": "src/client/RebirthUI.client.lua"
         },

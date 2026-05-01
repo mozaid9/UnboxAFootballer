@@ -22,6 +22,11 @@ local DEFAULT_DATA = {
 	dailyRewardStreak = 0,
 	lastFreePack = 0,
 	limitedPackPurchases = {},
+	questData = {
+		dayKey = 0,
+		progress = {},
+		claimed = {},
+	},
 	baseLayoutData = {
 		displayedCards = {},
 		theme = "Default",

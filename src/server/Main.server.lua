@@ -61,6 +61,7 @@ local RequestPitchforkHitEvent = makeEvent("RequestPitchforkHit")
 local PackHitFeedbackEvent = makeEvent("PackHitFeedback")
 local MilestoneRewardEvent = makeEvent("MilestoneReward")
 local OpenSlotPickerEvent = makeEvent("OpenSlotPicker")
+local QuestUpdatedEvent = makeEvent("QuestUpdated")
 
 local GetPlayerDataFn = makeFunction("GetPlayerData")
 local OpenPackFn = makeFunction("OpenPack")
@@ -77,6 +78,8 @@ local ClaimFreePackFn = makeFunction("ClaimFreePack")
 local ClaimDailyRewardFn = makeFunction("ClaimDailyReward")
 local PurchasePackFn = makeFunction("PurchasePack")
 local ChoosePlayerPickFn = makeFunction("ChoosePlayerPick")
+local GetQuestsFn = makeFunction("GetQuests")
+local ClaimQuestFn = makeFunction("ClaimQuest")
 local GetRebirthStatusFn = makeFunction("GetRebirthStatus")
 local RequestRebirthFn = makeFunction("RequestRebirth")
 local OpenRebirthUIEvent = makeEvent("OpenRebirthUI")
@@ -110,6 +113,7 @@ local initializedPlayers = {}
 local packPurchaseLocks = {}
 local pendingPlayerPicks = {}
 local playerPickLocks = {}
+local questClaimLocks = {}
 
 local function makeToolPart(name, size, color, cframe, parent)
 	local part = Instance.new("Part")
@@ -676,6 +680,193 @@ local function queuePackRewardForPad(player, packId, label, rewardText)
 	return queuedReward
 end
 
+local function getQuestDayKey()
+	local resetSeconds = Constants.QuestResetSeconds or (24 * 60 * 60)
+	return math.floor(os.time() / resetSeconds)
+end
+
+local function getQuestResetRemaining()
+	local resetSeconds = Constants.QuestResetSeconds or (24 * 60 * 60)
+	return resetSeconds - (os.time() % resetSeconds)
+end
+
+local function getQuestDefinition(questId)
+	for _, quest in ipairs(Constants.Quests or {}) do
+		if quest.id == questId then
+			return quest
+		end
+	end
+	return nil
+end
+
+local function getQuestData(player)
+	local data = DataService.GetData(player)
+	if not data then
+		return nil
+	end
+
+	local dayKey = getQuestDayKey()
+	if type(data.questData) ~= "table" or data.questData.dayKey ~= dayKey then
+		data.questData = {
+			dayKey = dayKey,
+			progress = {},
+			claimed = {},
+		}
+		DataService.MarkDirty(player)
+	end
+
+	if type(data.questData.progress) ~= "table" then
+		data.questData.progress = {}
+		DataService.MarkDirty(player)
+	end
+	if type(data.questData.claimed) ~= "table" then
+		data.questData.claimed = {}
+		DataService.MarkDirty(player)
+	end
+
+	return data.questData
+end
+
+local function formatQuestReward(quest)
+	local rewardText = {}
+	if (tonumber(quest.rewardFans) or 0) > 0 then
+		table.insert(rewardText, "+" .. Utils.FormatNumber(quest.rewardFans) .. " Fans")
+	end
+	if quest.rewardPackId then
+		local packDef = PackConfig.ById[quest.rewardPackId]
+		table.insert(rewardText, (packDef and packDef.displayName or "Reward Pack") .. " queued")
+	end
+	return #rewardText > 0 and table.concat(rewardText, " + ") or "Reward"
+end
+
+local function serializeQuest(quest, questData)
+	local target = math.max(1, math.floor(tonumber(quest.target) or 1))
+	local progress = math.clamp(math.floor(tonumber(questData.progress[quest.id]) or 0), 0, target)
+	local claimed = questData.claimed[quest.id] == true
+	local rewardPackDef = quest.rewardPackId and PackConfig.ById[quest.rewardPackId] or nil
+
+	return {
+		id = quest.id,
+		title = quest.title,
+		description = quest.description,
+		progress = progress,
+		target = target,
+		claimed = claimed,
+		claimable = progress >= target and not claimed,
+		rewardFans = quest.rewardFans or 0,
+		rewardPackId = quest.rewardPackId,
+		rewardPackName = rewardPackDef and rewardPackDef.displayName or nil,
+		rewardText = formatQuestReward(quest),
+	}
+end
+
+local function buildQuestPayload(player)
+	local questData = getQuestData(player)
+	local payload = {
+		resetRemaining = getQuestResetRemaining(),
+		quests = {},
+		completedCount = 0,
+		claimableCount = 0,
+	}
+	if not questData then
+		return payload
+	end
+
+	for _, quest in ipairs(Constants.Quests or {}) do
+		local serialized = serializeQuest(quest, questData)
+		if serialized.claimed then
+			payload.completedCount += 1
+		elseif serialized.claimable then
+			payload.claimableCount += 1
+		end
+		table.insert(payload.quests, serialized)
+	end
+
+	return payload
+end
+
+local function pushQuestPayload(player)
+	QuestUpdatedEvent:FireClient(player, buildQuestPayload(player))
+end
+
+local function addQuestProgress(player, action, amount)
+	local questData = getQuestData(player)
+	if not questData or not action then
+		return false
+	end
+
+	local delta = math.max(1, math.floor(tonumber(amount) or 1))
+	local changed = false
+	for _, quest in ipairs(Constants.Quests or {}) do
+		if quest.action == action and questData.claimed[quest.id] ~= true then
+			local target = math.max(1, math.floor(tonumber(quest.target) or 1))
+			local current = math.floor(tonumber(questData.progress[quest.id]) or 0)
+			local nextValue = math.min(target, current + delta)
+			if nextValue ~= current then
+				questData.progress[quest.id] = nextValue
+				changed = true
+			end
+		end
+	end
+
+	if changed then
+		DataService.MarkDirty(player)
+		pushQuestPayload(player)
+	end
+	return changed
+end
+
+local function claimQuestReward(player, questId)
+	local quest = getQuestDefinition(questId)
+	local questData = getQuestData(player)
+	if not quest or not questData then
+		return { success = false, error = "Quest is not available." }
+	end
+
+	if questData.claimed[quest.id] == true then
+		return { success = false, error = "Quest already claimed.", quests = buildQuestPayload(player) }
+	end
+
+	local target = math.max(1, math.floor(tonumber(quest.target) or 1))
+	local progress = math.floor(tonumber(questData.progress[quest.id]) or 0)
+	if progress < target then
+		return { success = false, error = "Quest is not complete yet.", quests = buildQuestPayload(player) }
+	end
+
+	local rewardPackQueued = nil
+	if quest.rewardPackId then
+		local packDef = PackConfig.ById[quest.rewardPackId]
+		if not packDef then
+			return { success = false, error = "Quest reward is not ready." }
+		end
+		rewardPackQueued = queuePackRewardForPad(player, quest.rewardPackId, "QUEST", packDef.displayName .. " Queued")
+		if not rewardPackQueued then
+			return { success = false, error = "Quest reward could not be queued." }
+		end
+	end
+
+	local rewardFans = math.max(0, math.floor(tonumber(quest.rewardFans) or 0))
+	if rewardFans > 0 then
+		EconomyService.AddCoins(player, rewardFans)
+		UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+	end
+
+	questData.claimed[quest.id] = true
+	DataService.MarkDirty(player)
+	pushQuestPayload(player)
+	sendHint(player, "Quest complete: " .. tostring(quest.title or "Reward") .. ".")
+
+	return {
+		success = true,
+		questId = quest.id,
+		rewardFans = rewardFans,
+		rewardPackQueued = rewardPackQueued ~= nil,
+		newCoins = DataService.GetCoins(player),
+		queuedRewardCount = getQueuedMilestoneCount(player),
+		quests = buildQuestPayload(player),
+	}
+end
+
 local function getCardById(cardId)
 	return cardId and CardData.ById[tonumber(cardId)] or nil
 end
@@ -847,6 +1038,7 @@ local function placeCardOnDisplay(player, plot, slot, cardId)
 
 	DataService.SetDisplayedCard(player, slot.slotIndex, card.id)
 	BaseService.UpdateDisplaySlot(slot, card, getCardIncome(player, card))
+	addQuestProgress(player, "placeCard", 1)
 	return true
 end
 
@@ -1165,6 +1357,7 @@ local function recordPlayerPickCard(player, card)
 	if type(DataService.RecordCardPacked) == "function" then
 		DataService.RecordCardPacked(player, card.id)
 	end
+	addQuestProgress(player, "collectCard", 1)
 	DataService.MarkDirty(player)
 	return true
 end
@@ -1498,6 +1691,7 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 	end
 
 	if ok then
+		addQuestProgress(player, "openPack", 1)
 		if result.playerPick == true then
 			local pickOptions = result.pickOptions
 			if type(pickOptions) ~= "table" or #pickOptions == 0 then
@@ -1568,11 +1762,12 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 				slotIndex = nil,
 				slotWorldPosition = nil,
 			}
-		end
+			end
 
-		local passiveIncome = getCardIncome(player, pulledCard)
+			local passiveIncome = getCardIncome(player, pulledCard)
+			addQuestProgress(player, "collectCard", 1)
 
-		PackOpenedEvent:FireClient(player, {
+			PackOpenedEvent:FireClient(player, {
 			success = true,
 			packId = result.packId,
 			packName = result.packName,
@@ -1732,6 +1927,7 @@ Players.PlayerRemoving:Connect(function(player)
 	swingCooldowns[player] = nil
 	packPurchaseLocks[player] = nil
 	playerPickLocks[player] = nil
+	questClaimLocks[player] = nil
 	DataService.SavePlayer(player)
 	DataService.UnloadPlayer(player)
 	BaseService.ReleasePlot(player)
@@ -1778,6 +1974,29 @@ task.spawn(function()
 		end
 	end
 end)
+
+GetQuestsFn.OnServerInvoke = function(player)
+	return buildQuestPayload(player)
+end
+
+ClaimQuestFn.OnServerInvoke = function(player, questId)
+	if questClaimLocks[player] then
+		return { success = false, error = "Quest reward already processing.", quests = buildQuestPayload(player) }
+	end
+
+	if type(questId) ~= "string" then
+		return { success = false, error = "Choose a quest first.", quests = buildQuestPayload(player) }
+	end
+
+	questClaimLocks[player] = true
+	local ok, result = pcall(claimQuestReward, player, questId)
+	questClaimLocks[player] = nil
+	if not ok then
+		warn("[UnboxAFootballer] Quest claim failed:", result)
+		return { success = false, error = "Quest claim failed.", quests = buildQuestPayload(player) }
+	end
+	return result
+end
 
 GetPlayerDataFn.OnServerInvoke = function(player)
 	local data = DataService.GetData(player)
@@ -2044,6 +2263,7 @@ SellCardFn.OnServerInvoke = function(player, cardId)
 
 	local earned = Utils.GetSellValue(card)
 	EconomyService.AddCoins(player, earned)
+	addQuestProgress(player, "sellCard", 1)
 	refreshPlotDisplayState(player, BaseService.GetPlot(player))
 	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
 
@@ -2060,17 +2280,20 @@ SellAllCardsFn.OnServerInvoke = function(player, cardIds)
 	end
 
 	local total = 0
+	local soldCount = 0
 	for _, cardId in ipairs(cardIds) do
 		if type(cardId) == "number" then
 			local card = CardData.ById[cardId]
 			if card and DataService.RemoveCard(player, cardId) then
 				total += Utils.GetSellValue(card)
+				soldCount += 1
 			end
 		end
 	end
 
 	if total > 0 then
 		EconomyService.AddCoins(player, total)
+		addQuestProgress(player, "sellCard", soldCount)
 		UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
 	end
 	refreshPlotDisplayState(player, BaseService.GetPlot(player))
@@ -2251,6 +2474,7 @@ PurchasePackFn.OnServerInvoke = function(player, packId)
 	end
 
 	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+	addQuestProgress(player, "buyPack", 1)
 	sendHint(player, packDef.displayName .. " bought and queued for your red pad.")
 
 	return finish({
@@ -2282,6 +2506,8 @@ ClaimFreePackFn.OnServerInvoke = function(player)
 		-- ride — player can retry on next cooldown.
 		return { success = false, error = result and result.error or "Pack failed. Try again." }
 	end
+	addQuestProgress(player, "openPack", 1)
+	addQuestProgress(player, "claimFreePack", 1)
 
 	local pulledCard = result.card or (result.cards and result.cards[1]) or nil
 	local plot = BaseService.GetPlot(player)
@@ -2297,6 +2523,9 @@ ClaimFreePackFn.OnServerInvoke = function(player)
 	end
 
 	local passiveIncome = getCardIncome(player, pulledCard)
+	if pulledCard then
+		addQuestProgress(player, "collectCard", 1)
+	end
 	local totalPacks = DataService.GetTotalPacksOpened(player)
 	local triggeredMilestones = checkAndGrantMilestones(player, totalPacks)
 	if plot then
@@ -2346,6 +2575,7 @@ ClaimDailyRewardFn.OnServerInvoke = function(player)
 			dailyRewardRemaining = EconomyService.GetDailyRewardRemaining(player),
 		}
 	end
+	addQuestProgress(player, "claimDailyReward", 1)
 
 	local queuedReward
 	local reward = type(rewardOrErr) == "table" and rewardOrErr or nil

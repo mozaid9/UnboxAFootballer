@@ -765,7 +765,9 @@ upgradesButton.MouseButton1Click:Connect(function()
 end)
 
 questsButton.MouseButton1Click:Connect(function()
-	showToast("Quests are coming soon. This button is ready for the next system.", Color3.fromRGB(110, 130, 255))
+	if not fireGuiToggle("QuestsUI") then
+		showToast("Quests are still loading. Try again in a second.", Color3.fromRGB(205, 88, 255))
+	end
 end)
 
 shopButton.MouseButton1Click:Connect(function()
@@ -972,6 +974,9 @@ local function showMilestoneRewardPopup(payload)
 		queueText = "QUEUED FOR YOUR RED PAD"
 	elseif rewardSource == "DAILY" then
 		titleText = "DAILY REWARD!"
+		queueText = "QUEUED FOR YOUR RED PAD"
+	elseif rewardSource == "QUEST" then
+		titleText = "QUEST COMPLETE!"
 		queueText = "QUEUED FOR YOUR RED PAD"
 	elseif reward.kind == "guarantee" then
 		queueText = "NEXT PACK GETS THIS GUARANTEE"

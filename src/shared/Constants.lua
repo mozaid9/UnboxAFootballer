@@ -10,6 +10,49 @@ Constants.DailyStreakRewards = {
 	{ day = 3, packId = "PremiumPack", label = "Premium Pack" },
 	{ day = 4, packId = "DeluxePack", label = "Deluxe Pack" },
 }
+Constants.QuestResetSeconds = 24 * 60 * 60
+Constants.Quests = {
+	{
+		id = "open_3_packs",
+		title = "Crack 3 Packs",
+		description = "Open packs from your red pad.",
+		action = "openPack",
+		target = 3,
+		rewardFans = 7500,
+	},
+	{
+		id = "collect_5_players",
+		title = "Sign 5 Players",
+		description = "Add players from packs or picks.",
+		action = "collectCard",
+		target = 5,
+		rewardFans = 10000,
+	},
+	{
+		id = "display_2_players",
+		title = "Build The Display",
+		description = "Put players onto green slots.",
+		action = "placeCard",
+		target = 2,
+		rewardFans = 12500,
+	},
+	{
+		id = "sell_3_players",
+		title = "Clear The Bench",
+		description = "Sell stored players for Fans.",
+		action = "sellCard",
+		target = 3,
+		rewardFans = 15000,
+	},
+	{
+		id = "buy_1_shop_pack",
+		title = "Shop Signing",
+		description = "Buy any pack from the shop.",
+		action = "buyPack",
+		target = 1,
+		rewardPackId = "RarePack",
+	},
+}
 
 Constants.BaseRebirthCoinCost = 50000
 Constants.RebirthCostMultiplier = 1.5
