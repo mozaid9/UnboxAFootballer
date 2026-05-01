@@ -962,6 +962,19 @@ local function showMilestoneRewardPopup(payload)
 	local extraCount = math.max(0, #rewards - 1)
 	local queueLength = tonumber(payload.queueLength) or #rewards
 	local rewardText = string.upper(reward.reward or reward.packName or "REWARD QUEUED")
+	local rewardSource = string.upper(tostring(reward.label or ""))
+	local titleText = "\u{2605} MILESTONE REACHED!"
+	local queueText = "NEXT REWARD PACK WILL SPAWN FIRST"
+
+	if rewardSource == "SHOP" then
+		titleText = "PACK BOUGHT!"
+		queueText = "QUEUED FOR YOUR RED PAD"
+	elseif rewardSource == "DAILY" then
+		titleText = "DAILY REWARD!"
+		queueText = "QUEUED FOR YOUR RED PAD"
+	elseif reward.kind == "guarantee" then
+		queueText = "NEXT PACK GETS THIS GUARANTEE"
+	end
 
 	milestoneSound.PlaybackSpeed = extraCount > 0 and 0.82 or 0.92
 	milestoneSound:Play()
@@ -1004,7 +1017,7 @@ local function showMilestoneRewardPopup(payload)
 		BackgroundTransparency = 1,
 		Position = UDim2.fromScale(0.06, 0.10),
 		Size = UDim2.fromScale(0.88, 0.24),
-		Text = "\u{2605} MILESTONE REACHED!",
+		Text = titleText,
 		TextColor3 = Color3.fromRGB(255, 255, 245),
 		TextScaled = true,
 		Font = Enum.Font.GothamBlack,
@@ -1027,10 +1040,6 @@ local function showMilestoneRewardPopup(payload)
 	make("UITextSizeConstraint", { MinTextSize = 13, MaxTextSize = 32 }, rewardLabel)
 	addStroke(rewardLabel, Color3.fromRGB(0, 0, 0), 1.2, 0.18)
 
-	local queueText = "NEXT REWARD PACK WILL SPAWN FIRST"
-	if reward.kind == "guarantee" then
-		queueText = "NEXT PACK GETS THIS GUARANTEE"
-	end
 	if extraCount > 0 then
 		queueText = queueText .. "  |  +" .. tostring(extraCount) .. " MORE"
 	elseif queueLength > 1 then
