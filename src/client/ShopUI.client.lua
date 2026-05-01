@@ -27,12 +27,24 @@ local DAILY_REWARDS = Constants.DailyStreakRewards or {
 	{ day = 4, packId = "DeluxePack", label = "Deluxe Pack" },
 }
 
-local PACK_INFO = {
-	"GoldPack",
-	"RarePack",
-	"PremiumPack",
-	"DeluxePack",
-}
+local PACK_INFO = {}
+for _, pack in ipairs(PackConfig.ShopOrder or {}) do
+	if pack.shopBuyable == true then
+		table.insert(PACK_INFO, pack.id)
+	end
+end
+if #PACK_INFO == 0 then
+	PACK_INFO = {
+		"GoldPack",
+		"RarePack",
+		"PremiumPack",
+		"DeluxePack",
+	}
+end
+
+local PACK_GRID_COLUMNS = 2
+local PACK_CARD_HEIGHT = 132
+local PACK_GRID_GAP = 10
 
 local RARITY_BAR_COLORS = {
 	Color3.fromRGB(255, 216, 48),
@@ -46,6 +58,7 @@ local RARITY_BAR_COLORS = {
 
 local LIMITED_DEAL_DURATION = (4 * 60) + 32
 local PACK_PURCHASE_CONFIRM_SECONDS = 2.25
+local PACK_HINT_DEFAULT = "Bought packs queue on your red pad after the current pack."
 
 local dailyRewardStreak = 0
 local limitedDealRemaining = LIMITED_DEAL_DURATION
@@ -158,6 +171,11 @@ local function getNextDailyReward()
 	end
 	local index = ((math.max(0, dailyRewardStreak) % #DAILY_REWARDS) + 1)
 	return DAILY_REWARDS[index], index
+end
+
+local function getPackGridHeight()
+	local rows = math.max(1, math.ceil(#PACK_INFO / PACK_GRID_COLUMNS))
+	return (rows * PACK_CARD_HEIGHT) + ((rows - 1) * PACK_GRID_GAP)
 end
 
 local existingGui = playerGui:FindFirstChild("ShopUI")
@@ -796,15 +814,15 @@ sectionLabel("PACKS", 6)
 
 local packGrid = make("Frame", {
 	LayoutOrder = 7,
-	Size = UDim2.new(1, 0, 0, 274),
+	Size = UDim2.new(1, 0, 0, getPackGridHeight()),
 	BackgroundTransparency = 1,
 	ZIndex = 11,
 }, content)
 
 local gridLayout = make("UIGridLayout", {
-	CellPadding = UDim2.fromOffset(10, 10),
-	CellSize = UDim2.new(0.5, -5, 0, 132),
-	FillDirectionMaxCells = 2,
+	CellPadding = UDim2.fromOffset(PACK_GRID_GAP, PACK_GRID_GAP),
+	CellSize = UDim2.new(1 / PACK_GRID_COLUMNS, -(PACK_GRID_GAP / 2), 0, PACK_CARD_HEIGHT),
+	FillDirectionMaxCells = PACK_GRID_COLUMNS,
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, packGrid)
 _ = gridLayout
@@ -976,7 +994,7 @@ packHint = make("TextLabel", {
 	LayoutOrder = 8,
 	Size = UDim2.new(1, 0, 0, 30),
 	BackgroundColor3 = Color3.fromRGB(12, 16, 27),
-	Text = "Bought packs queue on your red pad after the current pack.",
+	Text = PACK_HINT_DEFAULT,
 	TextColor3 = Color3.fromRGB(192, 186, 165),
 	TextScaled = false,
 	TextSize = 11,
@@ -1023,17 +1041,23 @@ purchasePack = function(packId)
 	if result and result.success then
 		currentFans = result.newCoins or math.max(0, currentFans - cost)
 		queuedRewardCount = result.queuedRewardCount or queuedRewardCount
-		packQueuedThisVisit[packId] = (packQueuedThisVisit[packId] or 0) + 1
-		control.confirmUntil = os.clock() + PACK_PURCHASE_CONFIRM_SECONDS
-		packHint.Text = (result.packName or packName) .. " bought. It is queued on your red pad."
-		task.delay(PACK_PURCHASE_CONFIRM_SECONDS, function()
-			if control.confirmUntil and control.confirmUntil <= os.clock() then
-				updatePackBuyButtons()
-			end
-		end)
+		if isOpen then
+			packQueuedThisVisit[packId] = (packQueuedThisVisit[packId] or 0) + 1
+			control.confirmUntil = os.clock() + PACK_PURCHASE_CONFIRM_SECONDS
+			packHint.Text = (result.packName or packName) .. " bought. It is queued on your red pad."
+			task.delay(PACK_PURCHASE_CONFIRM_SECONDS, function()
+				if control.confirmUntil and control.confirmUntil <= os.clock() then
+					updatePackBuyButtons()
+				end
+			end)
+		else
+			control.confirmUntil = nil
+		end
 	else
 		currentFans = result and result.newCoins or currentFans
-		packHint.Text = result and result.error or "Purchase failed. Try again."
+		if isOpen then
+			packHint.Text = result and result.error or "Purchase failed. Try again."
+		end
 	end
 
 	updatePackBuyButtons()
@@ -1406,6 +1430,18 @@ end
 
 local panelScale = make("UIScale", { Scale = 0.88 }, panel)
 
+local function resetPackPurchaseVisitState()
+	buyingPackId = nil
+	packQueuedThisVisit = {}
+	for _, control in pairs(packBuyControls) do
+		control.confirmUntil = nil
+	end
+	if packHint then
+		packHint.Text = PACK_HINT_DEFAULT
+	end
+	updatePackBuyButtons()
+end
+
 local function openShop()
 	if isOpen then
 		return
@@ -1433,6 +1469,7 @@ local function closeShop()
 		return
 	end
 	isOpen = false
+	resetPackPurchaseVisitState()
 
 	TweenService:Create(panelScale, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 		Scale = 0.88,
