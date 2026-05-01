@@ -142,10 +142,32 @@ local function formatClock(seconds)
 	return string.format("%d:%02d", minutes, secs)
 end
 
+local function formatLongClock(seconds)
+	local value = math.max(0, math.floor(seconds or 0))
+	local days = math.floor(value / 86400)
+	local hours = math.floor((value % 86400) / 3600)
+	if days > 0 then
+		return string.format("%dd %02dh", days, hours)
+	end
+	return formatClock(value)
+end
+
 local function formatNumber(numberValue)
 	local source = tostring(math.floor(tonumber(numberValue) or 0))
 	local result = source:reverse():gsub("(%d%d%d)", "%1,"):reverse()
 	return result:match("^,(.+)$") or result
+end
+
+local function formatCompactNumber(numberValue)
+	local value = math.max(0, math.floor(tonumber(numberValue) or 0))
+	if value >= 1000000 then
+		local millions = value / 1000000
+		if millions >= 100 or math.floor(millions) == millions then
+			return tostring(math.floor(millions + 0.5)) .. "M"
+		end
+		return string.format("%.1fM", millions)
+	end
+	return formatNumber(value)
 end
 
 local function packDisplayName(packId)
@@ -207,6 +229,7 @@ local queuedRewardCount = 0
 local buyingPackId = nil
 local packBuyControls = {}
 local packQueuedThisVisit = {}
+local limitedPackCooldowns = {}
 
 local overlay = make("Frame", {
 	Name = "Overlay",
@@ -751,6 +774,14 @@ addCorner(limitedBtn, 10)
 local packHint
 local purchasePack
 
+local function getPackCooldownRemaining(packId)
+	local cooldownInfo = limitedPackCooldowns[packId]
+	if type(cooldownInfo) ~= "table" then
+		return 0
+	end
+	return math.max(0, math.floor(tonumber(cooldownInfo.remaining) or 0))
+end
+
 local function updatePackBuyButtons()
 	for packId, control in pairs(packBuyControls) do
 		local button = control.button
@@ -764,18 +795,26 @@ local function updatePackBuyButtons()
 		local color = control.color or UI.Gold
 		local queuedThisVisit = packQueuedThisVisit[packId] or 0
 		local confirmingPurchase = (control.confirmUntil or 0) > os.clock()
+		local cooldownRemaining = getPackCooldownRemaining(packId)
+		local coolingDown = cooldownRemaining > 0
 		local statusLabel = control.statusLabel
 
-		button.Active = buyable and buyingPackId == nil and not confirmingPurchase
-		button.AutoButtonColor = buyable and enoughFans and buyingPackId == nil and not confirmingPurchase
+		button.Active = buyable and buyingPackId == nil and not confirmingPurchase and not coolingDown
+		button.AutoButtonColor = buyable and enoughFans and buyingPackId == nil and not confirmingPurchase and not coolingDown
 
 		if statusLabel then
 			if confirmingPurchase then
 				statusLabel.Text = "Bought - queued on pad"
 				statusLabel.TextColor3 = Color3.fromRGB(139, 244, 165)
+			elseif coolingDown then
+				statusLabel.Text = "Ready in " .. formatLongClock(cooldownRemaining)
+				statusLabel.TextColor3 = Color3.fromRGB(255, 218, 117)
 			elseif queuedThisVisit > 0 then
 				statusLabel.Text = queuedThisVisit > 1 and ("Queued x" .. tostring(queuedThisVisit) .. " this visit") or "Queued this visit"
 				statusLabel.TextColor3 = Color3.fromRGB(168, 226, 184)
+			elseif (control.cooldownSeconds or 0) > 0 then
+				statusLabel.Text = "1 every 2 days"
+				statusLabel.TextColor3 = UI.Muted
 			else
 				statusLabel.Text = ""
 				statusLabel.TextColor3 = UI.Muted
@@ -794,6 +833,10 @@ local function updatePackBuyButtons()
 			button.Text = "WAIT"
 			button.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
 			button.TextColor3 = Color3.fromRGB(175, 180, 190)
+		elseif coolingDown then
+			button.Text = "COOLDOWN"
+			button.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
+			button.TextColor3 = Color3.fromRGB(255, 218, 117)
 		elseif not buyable then
 			button.Text = "LOCKED"
 			button.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
@@ -803,7 +846,7 @@ local function updatePackBuyButtons()
 			button.BackgroundColor3 = color:Lerp(Color3.fromRGB(22, 124, 62), 0.36)
 			button.TextColor3 = Color3.fromRGB(255, 255, 255)
 		else
-			button.Text = "NEED " .. formatNumber(cost - currentFans)
+			button.Text = "NEED " .. formatCompactNumber(cost - currentFans)
 			button.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
 			button.TextColor3 = Color3.fromRGB(190, 194, 204)
 		end
@@ -877,7 +920,7 @@ for index, packId in ipairs(PACK_INFO) do
 		BackgroundTransparency = 1,
 		Position = UDim2.new(1, -10, 0, 10),
 		Size = UDim2.fromOffset(72, 18),
-		Text = tostring(formatNumber(getShopCost(packDef))) .. " Fans",
+		Text = tostring(formatCompactNumber(getShopCost(packDef))) .. " Fans",
 		TextColor3 = color,
 		TextScaled = false,
 		TextSize = 10,
@@ -935,6 +978,7 @@ for index, packId in ipairs(PACK_INFO) do
 		cost = packCost,
 		color = color,
 		buyable = packDef and packDef.shopBuyable == true,
+		cooldownSeconds = tonumber(packDef and packDef.purchaseCooldownSeconds) or 0,
 	}
 	buyButton.MouseButton1Click:Connect(function()
 		if purchasePack then
@@ -1020,6 +1064,12 @@ purchasePack = function(packId)
 
 	local cost = control.cost or 0
 	local packName = packDisplayName(packId)
+	local cooldownRemaining = getPackCooldownRemaining(packId)
+	if cooldownRemaining > 0 then
+		packHint.Text = packName .. " ready in " .. formatLongClock(cooldownRemaining) .. "."
+		updatePackBuyButtons()
+		return
+	end
 	if currentFans < cost then
 		packHint.Text = "Earn " .. formatNumber(cost - currentFans) .. " more Fans for " .. packName .. "."
 		updatePackBuyButtons()
@@ -1038,6 +1088,9 @@ purchasePack = function(packId)
 	end
 
 	buyingPackId = nil
+	if result and type(result.limitedPackCooldowns) == "table" then
+		limitedPackCooldowns = result.limitedPackCooldowns
+	end
 	if result and result.success then
 		currentFans = result.newCoins or math.max(0, currentFans - cost)
 		queuedRewardCount = result.queuedRewardCount or queuedRewardCount
@@ -1390,6 +1443,9 @@ local function applyData(data)
 	canClaimDaily = data.canClaimDailyReward == true
 	dailyRewardStreak = data.dailyRewardStreak or dailyRewardStreak or 0
 	queuedRewardCount = data.queuedRewardCount or queuedRewardCount or 0
+	if type(data.limitedPackCooldowns) == "table" then
+		limitedPackCooldowns = data.limitedPackCooldowns
+	end
 
 	updateFreePackBtn()
 	updateDailyBtn()
@@ -1422,9 +1478,16 @@ local function runCountdown()
 			limitedDealRemaining = LIMITED_DEAL_DURATION
 		end
 
+		for _, cooldownInfo in pairs(limitedPackCooldowns) do
+			if type(cooldownInfo) == "table" and (tonumber(cooldownInfo.remaining) or 0) > 0 then
+				cooldownInfo.remaining = math.max(0, (tonumber(cooldownInfo.remaining) or 0) - 1)
+			end
+		end
+
 		updateLimitedDeal()
 		updateFreePackBtn()
 		updateDailyBtn()
+		updatePackBuyButtons()
 	end
 end
 

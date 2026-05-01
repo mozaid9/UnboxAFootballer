@@ -273,6 +273,21 @@ PackConfig.ShopOrder = {
 		tierWeights = { 0, 0, 0, 2, 13, 48, 37 },
 		station = { position = Vector3.new(24, 1.5, 4) },
 	},
+	{
+		id = "TotyVaultPack",
+		displayName = "TOTY Vault Pack",
+		description = "Once every 2 days. Guaranteed Player of the Year.",
+		cost = 0,
+		futureCost = 250000000,
+		shopBuyable = true,
+		purchaseCooldownSeconds = 2 * 24 * 60 * 60,
+		cardCount = 1,
+		hitsRequired = 100,
+		padWeight = 0,
+		color = Color3.fromRGB(255, 232, 96),
+		tierWeights = { 0, 0, 0, 0, 0, 0, 100 },
+		station = { position = Vector3.new(24, 1.5, 4) },
+	},
 }
 
 PackConfig.ById = {}
@@ -433,6 +448,7 @@ PackConfig.CardPullLuckTargets = {
 	ImmortalPack = { 0, 0, 2, 9, 27, 43, 19 },
 	GodPack = { 0, 0, 0, 5, 18, 48, 29 },
 	GoatPack = { 0, 0, 0, 1, 11, 48, 40 },
+	TotyVaultPack = { 0, 0, 0, 0, 0, 0, 100 },
 }
 
 function PackConfig.GetBaseRarityOdds(packType)

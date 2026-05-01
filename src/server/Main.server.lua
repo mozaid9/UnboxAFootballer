@@ -106,6 +106,7 @@ end
 
 local swingCooldowns = {}
 local initializedPlayers = {}
+local packPurchaseLocks = {}
 
 local function makeToolPart(name, size, color, cframe, parent)
 	local part = Instance.new("Part")
@@ -578,6 +579,37 @@ local function getQueuedMilestoneCount(player)
 		return DataService.GetMilestoneRewardQueueLength(player)
 	end
 	return 0
+end
+
+local function getPackPurchaseCooldownRemaining(data, packDef)
+	local cooldown = math.max(0, math.floor(tonumber(packDef and packDef.purchaseCooldownSeconds) or 0))
+	if cooldown <= 0 then
+		return 0, 0
+	end
+
+	local purchaseHistory = type(data and data.limitedPackPurchases) == "table" and data.limitedPackPurchases or {}
+	local lastPurchase = tonumber(purchaseHistory[packDef.id]) or 0
+	return math.max(0, cooldown - (os.time() - lastPurchase)), cooldown
+end
+
+local function buildPackPurchaseCooldownPayload(player)
+	local data = DataService.GetData(player)
+	local cooldowns = {}
+	if not data then
+		return cooldowns
+	end
+
+	for _, packDef in ipairs(PackConfig.ShopOrder or {}) do
+		local remaining, cooldown = getPackPurchaseCooldownRemaining(data, packDef)
+		if cooldown > 0 then
+			cooldowns[packDef.id] = {
+				remaining = remaining,
+				cooldown = cooldown,
+			}
+		end
+	end
+
+	return cooldowns
 end
 
 local function fireMilestoneRewards(player, rewards)
@@ -1516,6 +1548,7 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	initializedPlayers[player] = nil
 	swingCooldowns[player] = nil
+	packPurchaseLocks[player] = nil
 	DataService.SavePlayer(player)
 	DataService.UnloadPlayer(player)
 	BaseService.ReleasePlot(player)
@@ -1585,6 +1618,7 @@ GetPlayerDataFn.OnServerInvoke = function(player)
 		dailyRewardRemaining = EconomyService.GetDailyRewardRemaining(player),
 		dailyRewardStreak = data.dailyRewardStreak or 0,
 		queuedRewardCount = getQueuedMilestoneCount(player),
+		limitedPackCooldowns = buildPackPurchaseCooldownPayload(player),
 		inventoryCounts = data.inventory,
 	}
 end
@@ -1934,51 +1968,90 @@ PurchaseUpgradeFn.OnServerInvoke = function(player, upgradeKey)
 end
 
 PurchasePackFn.OnServerInvoke = function(player, packId)
+	if packPurchaseLocks[player] then
+		return {
+			success = false,
+			error = "Purchase already processing.",
+			newCoins = DataService.GetCoins(player),
+			queuedRewardCount = getQueuedMilestoneCount(player),
+			limitedPackCooldowns = buildPackPurchaseCooldownPayload(player),
+		}
+	end
+
+	packPurchaseLocks[player] = true
+	local function finish(payload)
+		packPurchaseLocks[player] = nil
+		return payload
+	end
+
 	if type(packId) ~= "string" then
-		return { success = false, error = "Choose a pack first." }
+		return finish({ success = false, error = "Choose a pack first." })
 	end
 
 	local data = DataService.GetData(player)
 	if not data then
-		return { success = false, error = "Your data is still loading." }
+		return finish({ success = false, error = "Your data is still loading." })
 	end
 
 	local packDef = PackConfig.ById[packId]
 	if not packDef or not PackConfig.IsShopBuyable(packId) then
-		return { success = false, error = "That pack is not for sale." }
+		return finish({ success = false, error = "That pack is not for sale." })
 	end
 
 	local cost = PackConfig.GetShopCost(packDef)
 	if cost <= 0 then
-		return { success = false, error = "That pack is not for sale." }
+		return finish({ success = false, error = "That pack is not for sale." })
+	end
+
+	local cooldownRemaining, purchaseCooldown = getPackPurchaseCooldownRemaining(data, packDef)
+	if purchaseCooldown > 0 then
+		if type(data.limitedPackPurchases) ~= "table" then
+			data.limitedPackPurchases = {}
+		end
+		if cooldownRemaining > 0 then
+			return finish({
+				success = false,
+				error = packDef.displayName .. " ready in " .. Utils.FormatCountdown(cooldownRemaining) .. ".",
+				newCoins = DataService.GetCoins(player),
+				queuedRewardCount = getQueuedMilestoneCount(player),
+				limitedPackCooldowns = buildPackPurchaseCooldownPayload(player),
+			})
+		end
 	end
 
 	local ok, err = DataService.SpendCoins(player, cost)
 	if not ok then
-		return {
+		return finish({
 			success = false,
 			error = err or "Not enough Fans.",
 			newCoins = DataService.GetCoins(player),
 			queuedRewardCount = getQueuedMilestoneCount(player),
-		}
+			limitedPackCooldowns = buildPackPurchaseCooldownPayload(player),
+		})
 	end
 
 	local queuedReward = queuePackRewardForPad(player, packId, "SHOP", packDef.displayName .. " Queued")
 	if not queuedReward then
 		EconomyService.AddCoins(player, cost)
 		UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
-		return {
+		return finish({
 			success = false,
 			error = "Pack could not be queued. Try again.",
 			newCoins = DataService.GetCoins(player),
 			queuedRewardCount = getQueuedMilestoneCount(player),
-		}
+			limitedPackCooldowns = buildPackPurchaseCooldownPayload(player),
+		})
+	end
+
+	if purchaseCooldown > 0 then
+		data.limitedPackPurchases[packId] = os.time()
+		DataService.MarkDirty(player)
 	end
 
 	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
 	sendHint(player, packDef.displayName .. " bought and queued for your red pad.")
 
-	return {
+	return finish({
 		success = true,
 		packId = packId,
 		packName = packDef.displayName,
@@ -1986,7 +2059,8 @@ PurchasePackFn.OnServerInvoke = function(player, packId)
 		newCoins = DataService.GetCoins(player),
 		queuedRewardCount = getQueuedMilestoneCount(player),
 		rewardQueued = true,
-	}
+		limitedPackCooldowns = buildPackPurchaseCooldownPayload(player),
+	})
 end
 
 -- ── Free Pack claim ───────────────────────────────────────────────────────────
