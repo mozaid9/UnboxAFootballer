@@ -46,14 +46,17 @@ local FOOD_TYPES = {
 	Burger = true,
 	Drink = true,
 }
--- Matches the actual rebirth stand geometry from BaseService:
--- fencePos offset = PlotZ/2 + gap = 22 + 1.5 = 23.5
--- Row N centre offset from plot Z = 23.5 + (N - 0.5) * tierD (tierD = 4.2)
--- Row N surface Y = floorY + N * tierH = 1.0 + N * 3.0   (floorY = 1.0, tierH = 3.0)
-local STAND_TIERS = {
-	{ zOffset = 25.6, surfaceY = 4.0 },  -- rebirth tier 1 (row 1)
-	{ zOffset = 29.8, surfaceY = 7.0 },  -- rebirth tier 2 (row 2)
-	{ zOffset = 34.0, surfaceY = 10.0 }, -- rebirth tier 3+ (row 3)
+-- Back stand geometry (BaseService: fenceOffset = PlotX/2 + gap = 28+1.5 = 29.5,
+-- awayX = -fd, tierD = 4.2, floorY = 1.0, tierH = 3.0)
+-- Row N centre distance from plot X centre = 29.5 + (N-0.5)*4.2
+-- Row N surface Y = floorY + N * tierH
+-- NPCs reach the back stand by walking straight through the entrance (X direction),
+-- crossing the pitch, and doing a short perpendicular clip through the back wall.
+-- This avoids the side-fence clipping that N/S stands cause.
+local BACK_STAND_ROWS = {
+	{ xDist = 31.6, surfaceY = 4.0 },  -- row 1: rebirth tier 1+
+	{ xDist = 35.8, surfaceY = 7.0 },  -- row 2: rebirth tier 2+
+	{ xDist = 40.0, surfaceY = 10.0 }, -- row 3: rebirth tier 3+
 }
 
 -- ── Stall queue system ─────────────────────────────────────────────
@@ -362,14 +365,17 @@ local function getPlotEntrancePoint(plot)
 	return Vector3.new(frontX, STANDING_PIVOT_HEIGHT, floorPosition.Z)
 end
 
-local function getPlotSeatPoint(plot, maxTier)
-	local floorPosition = plot.floor.Position
-	local tier = STAND_TIERS[math.random(1, maxTier or #STAND_TIERS)]
-	local sideZ = math.random(1, 2) == 1 and -1 or 1
-	local xSpread = math.random(-18, 18)
-	local x = floorPosition.X + (xSpread * plot.facingDirection)
-	local z = floorPosition.Z + (sideZ * tier.zOffset)
-	local pivotY = tier.surfaceY + 0.85  -- torso bottom (torso height/2 = 0.825) sits flush on seat
+-- Returns a seat position in the back stand (opposite the entrance).
+-- The NPC walks straight through the entrance in the X direction so there is
+-- only one wall clip (the back wall, perpendicular) and no direction changes.
+-- seatZ is the NPC's lane Z offset so the path aligns with the entrance gap.
+local function getPlotBackSeatPoint(plot, seatZ, maxTier)
+	local floorPos = plot.floor.Position
+	local row = BACK_STAND_ROWS[math.random(1, maxTier or #BACK_STAND_ROWS)]
+	-- Back stand is behind the back wall in the -facingDirection (opposite entrance).
+	local x = floorPos.X + (-plot.facingDirection) * row.xDist
+	local z = floorPos.Z + math.clamp(seatZ or 0, -6, 6)  -- stay within entrance gap
+	local pivotY = row.surfaceY + 0.85
 	return Vector3.new(x, pivotY, z)
 end
 
@@ -499,7 +505,7 @@ local function makeRoute(laneXOffset, laneZOffset)
 	if math.random() < plazaConfig.VisitorRouteChance then
 		local plot = chooseVisitorPlot()
 		if plot then
-			-- Only visit if the plot owner has at least 1 rebirth (otherwise no stands exist)
+			-- Only visit if the owner has rebirth stands (rebirthTier >= 1)
 			local rebirthTier = 0
 			if plot.ownerPlayer and DataService then
 				local ownerData = DataService.GetData(plot.ownerPlayer)
@@ -508,40 +514,25 @@ local function makeRoute(laneXOffset, laneZOffset)
 
 			if rebirthTier >= 1 then
 				local floorPos = plot.floor.Position
-				local maxTier = math.min(rebirthTier, #STAND_TIERS)
-				local seatPos = getPlotSeatPoint(plot, maxTier)
-
-				-- Determine which side (north = -Z, south = +Z) the seat is on
-				local seatSideSign = (seatPos.Z - floorPos.Z) >= 0 and 1 or -1
-
-				-- Approach point in the walkway at the plot's Z level
+				local maxRow = math.min(rebirthTier, #BACK_STAND_ROWS)
+				-- Use this NPC's lane Z offset for the seat Z so the approach path
+				-- stays aligned with the entrance gap (laneZOffset is ≤ ±5 studs).
+				local seatPos = getPlotBackSeatPoint(plot, laneZOffset, maxRow)
+				-- Approach point in the walkway at the plot's Z/lane level
 				local stadiumPathPoint = Vector3.new(laneXOffset, STANDING_PIVOT_HEIGHT, floorPos.Z + laneZOffset)
 
-				-- Two intermediate points inside the plot so the NPC never cuts diagonally
-				-- through the side fence:
-				--   pitchCentre  : NPC crosses the front gate cleanly, walks across the pitch in X
-				--   innerApproach: NPC walks in Z toward the stand while still inside the fence
-				-- The final step from innerApproach → seat is a short perpendicular fence crossing.
-				local pitchCentre = Vector3.new(floorPos.X, STANDING_PIVOT_HEIGHT, floorPos.Z)
-				local innerApproach = Vector3.new(
-					floorPos.X,
-					STANDING_PIVOT_HEIGHT,
-					floorPos.Z + seatSideSign * (layout.PlotSize.Z / 2 - 3)  -- 3 studs inside the fence
-				)
-
+				-- Route: walkway → entrance → straight across pitch → back stand → reverse.
+				-- The NPC walks almost entirely in the X direction, entering cleanly through
+				-- the front gate and doing one short perpendicular clip through the back wall.
 				table.insert(route, { position = stadiumPathPoint })
 				table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.35 })
-				table.insert(route, { position = pitchCentre })
-				table.insert(route, { position = innerApproach })
 				table.insert(route, {
 					position = seatPos,
 					pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),
-					lookAt = floorPos,
+					lookAt = Vector3.new(floorPos.X + plot.facingDirection * 20, STANDING_PIVOT_HEIGHT, floorPos.Z),
 					pose = "seated",
 					clearFood = true,
 				})
-				table.insert(route, { position = innerApproach })
-				table.insert(route, { position = pitchCentre })
 				table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.2 })
 				table.insert(route, { position = stadiumPathPoint })
 			end
