@@ -4388,12 +4388,10 @@ local FOOD_TYPES = {
 	Burger = true,
 	Drink = true,
 }
--- Back stand geometry: fenceOffset = PlotX/2+gap = 29.5, tierD=4.2, floorY=1.0, tierH=3.0
--- Row N centre X distance from plot centre = 29.5 + (N-0.5)*4.2; surface Y = 1.0 + N*3.0
-local BACK_STAND_ROWS = {
-	{ xDist = 31.6, surfaceY = 4.0 },  -- row 1: rebirth tier 1+
-	{ xDist = 35.8, surfaceY = 7.0 },  -- row 2: rebirth tier 2+
-	{ xDist = 40.0, surfaceY = 10.0 }, -- row 3: rebirth tier 3+
+local STAND_TIERS = {
+	{ zOffset = 24.2, surfaceY = 1.9 },
+	{ zOffset = 27.1, surfaceY = 2.8 },
+	{ zOffset = 30.0, surfaceY = 3.7 },
 }
 
 -- ── Stall queue system ─────────────────────────────────────────────
@@ -4695,12 +4693,14 @@ local function getPlotEntrancePoint(plot)
 	return Vector3.new(frontX, STANDING_PIVOT_HEIGHT, floorPosition.Z)
 end
 
-local function getPlotBackSeatPoint(plot, seatZ, maxTier)
-	local floorPos = plot.floor.Position
-	local row = BACK_STAND_ROWS[math.random(1, maxTier or #BACK_STAND_ROWS)]
-	local x = floorPos.X + (-plot.facingDirection) * row.xDist
-	local z = floorPos.Z + math.clamp(seatZ or 0, -6, 6)
-	local pivotY = row.surfaceY + 0.85
+local function getPlotSeatPoint(plot)
+	local floorPosition = plot.floor.Position
+	local tier = STAND_TIERS[math.random(1, #STAND_TIERS)]
+	local sideZ = math.random(1, 2) == 1 and -1 or 1
+	local xSpread = math.random(-18, 18)
+	local x = floorPosition.X + (xSpread * plot.facingDirection)
+	local z = floorPosition.Z + (sideZ * tier.zOffset)
+	local pivotY = tier.surfaceY + 1.25
 	return Vector3.new(x, pivotY, z)
 end
 
@@ -4816,30 +4816,19 @@ local function makeRoute(laneOffset)
 	if math.random() < plazaConfig.VisitorRouteChance then
 		local plot = chooseVisitorPlot()
 		if plot then
-			local rebirthTier = 0
-			if plot.ownerPlayer and DataService then
-				local ownerData = DataService.GetData(plot.ownerPlayer)
-				rebirthTier = (ownerData and ownerData.rebirthTier) or 0
-			end
-
-			if rebirthTier >= 1 then
-				local floorPos = plot.floor.Position
-				local maxRow = math.min(rebirthTier, #BACK_STAND_ROWS)
-				local seatPos = getPlotBackSeatPoint(plot, 0, maxRow)
-				local stadiumPathPoint = Vector3.new(laneOffset, STANDING_PIVOT_HEIGHT, floorPos.Z)
-
-				table.insert(route, { position = stadiumPathPoint })
-				table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.35 })
-				table.insert(route, {
-					position = seatPos,
-					pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),
-					lookAt = Vector3.new(floorPos.X + plot.facingDirection * 20, STANDING_PIVOT_HEIGHT, floorPos.Z),
-					pose = "seated",
-					clearFood = true,
-				})
-				table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.2 })
-				table.insert(route, { position = stadiumPathPoint })
-			end
+			-- Stadium sub-path: use laneOffset on the central-Z approach only
+			local stadiumPathPoint = Vector3.new(laneOffset, STANDING_PIVOT_HEIGHT, plot.floor.Position.Z)
+			table.insert(route, { position = stadiumPathPoint })
+			table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.35 })
+			table.insert(route, {
+				position = getPlotSeatPoint(plot),
+				pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),
+				lookAt = plot.floor.Position,
+				pose = "seated",
+				clearFood = true,   -- drop food prop before sitting
+			})
+			table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.2 })
+			table.insert(route, { position = stadiumPathPoint })
 		end
 	end
 
