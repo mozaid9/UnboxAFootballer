@@ -46,10 +46,14 @@ local FOOD_TYPES = {
 	Burger = true,
 	Drink = true,
 }
+-- Matches the actual rebirth stand geometry from BaseService:
+-- fencePos offset = PlotZ/2 + gap = 22 + 1.5 = 23.5
+-- Row N centre offset from plot Z = 23.5 + (N - 0.5) * tierD (tierD = 4.2)
+-- Row N surface Y = floorY + N * tierH = 1.0 + N * 3.0   (floorY = 1.0, tierH = 3.0)
 local STAND_TIERS = {
-	{ zOffset = 24.2, surfaceY = 1.9 },
-	{ zOffset = 27.1, surfaceY = 2.8 },
-	{ zOffset = 30.0, surfaceY = 3.7 },
+	{ zOffset = 25.6, surfaceY = 4.0 },  -- rebirth tier 1 (row 1)
+	{ zOffset = 29.8, surfaceY = 7.0 },  -- rebirth tier 2 (row 2)
+	{ zOffset = 34.0, surfaceY = 10.0 }, -- rebirth tier 3+ (row 3)
 }
 
 -- ── Stall queue system ─────────────────────────────────────────────
@@ -358,14 +362,14 @@ local function getPlotEntrancePoint(plot)
 	return Vector3.new(frontX, STANDING_PIVOT_HEIGHT, floorPosition.Z)
 end
 
-local function getPlotSeatPoint(plot)
+local function getPlotSeatPoint(plot, maxTier)
 	local floorPosition = plot.floor.Position
-	local tier = STAND_TIERS[math.random(1, #STAND_TIERS)]
+	local tier = STAND_TIERS[math.random(1, maxTier or #STAND_TIERS)]
 	local sideZ = math.random(1, 2) == 1 and -1 or 1
 	local xSpread = math.random(-18, 18)
 	local x = floorPosition.X + (xSpread * plot.facingDirection)
 	local z = floorPosition.Z + (sideZ * tier.zOffset)
-	local pivotY = tier.surfaceY + 1.25
+	local pivotY = tier.surfaceY + 0.85  -- torso bottom (torso height/2 = 0.825) sits flush on seat
 	return Vector3.new(x, pivotY, z)
 end
 
@@ -495,19 +499,52 @@ local function makeRoute(laneXOffset, laneZOffset)
 	if math.random() < plazaConfig.VisitorRouteChance then
 		local plot = chooseVisitorPlot()
 		if plot then
-			-- Stadium sub-path: carry the NPC's 2-D lane offset into the approach point
-			local stadiumPathPoint = Vector3.new(laneXOffset, STANDING_PIVOT_HEIGHT, plot.floor.Position.Z + laneZOffset)
-			table.insert(route, { position = stadiumPathPoint })
-			table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.35 })
-			table.insert(route, {
-				position = getPlotSeatPoint(plot),
-				pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),
-				lookAt = plot.floor.Position,
-				pose = "seated",
-				clearFood = true,   -- drop food prop before sitting
-			})
-			table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.2 })
-			table.insert(route, { position = stadiumPathPoint })
+			-- Only visit if the plot owner has at least 1 rebirth (otherwise no stands exist)
+			local rebirthTier = 0
+			if plot.ownerPlayer and DataService then
+				local ownerData = DataService.GetData(plot.ownerPlayer)
+				rebirthTier = (ownerData and ownerData.rebirthTier) or 0
+			end
+
+			if rebirthTier >= 1 then
+				local floorPos = plot.floor.Position
+				local maxTier = math.min(rebirthTier, #STAND_TIERS)
+				local seatPos = getPlotSeatPoint(plot, maxTier)
+
+				-- Determine which side (north = -Z, south = +Z) the seat is on
+				local seatSideSign = (seatPos.Z - floorPos.Z) >= 0 and 1 or -1
+
+				-- Approach point in the walkway at the plot's Z level
+				local stadiumPathPoint = Vector3.new(laneXOffset, STANDING_PIVOT_HEIGHT, floorPos.Z + laneZOffset)
+
+				-- Two intermediate points inside the plot so the NPC never cuts diagonally
+				-- through the side fence:
+				--   pitchCentre  : NPC crosses the front gate cleanly, walks across the pitch in X
+				--   innerApproach: NPC walks in Z toward the stand while still inside the fence
+				-- The final step from innerApproach → seat is a short perpendicular fence crossing.
+				local pitchCentre = Vector3.new(floorPos.X, STANDING_PIVOT_HEIGHT, floorPos.Z)
+				local innerApproach = Vector3.new(
+					floorPos.X,
+					STANDING_PIVOT_HEIGHT,
+					floorPos.Z + seatSideSign * (layout.PlotSize.Z / 2 - 3)  -- 3 studs inside the fence
+				)
+
+				table.insert(route, { position = stadiumPathPoint })
+				table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.35 })
+				table.insert(route, { position = pitchCentre })
+				table.insert(route, { position = innerApproach })
+				table.insert(route, {
+					position = seatPos,
+					pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),
+					lookAt = floorPos,
+					pose = "seated",
+					clearFood = true,
+				})
+				table.insert(route, { position = innerApproach })
+				table.insert(route, { position = pitchCentre })
+				table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.2 })
+				table.insert(route, { position = stadiumPathPoint })
+			end
 		end
 	end
 
