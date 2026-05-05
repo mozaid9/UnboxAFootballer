@@ -325,8 +325,8 @@ end
 local function updatePadHealth(plot, title, currentValue, maxValue, color)
 	local ratio = maxValue > 0 and math.clamp(currentValue / maxValue, 0, 1) or 0
 	plot.padTitleLabel.Text = title
-	plot.padSubtitleLabel.Text = ""
-	plot.padSubtitleLabel.Visible = false
+	plot.padSubtitleLabel.Text = "Health: " .. tostring(math.ceil(ratio * 100)) .. "%"
+	plot.padSubtitleLabel.Visible = true
 	plot.padAccent.BackgroundColor3 = color
 	plot.padBarBack.Visible = true
 	-- Bar colour shifts green → yellow → red as health drops
