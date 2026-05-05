@@ -1343,9 +1343,17 @@ local function spawnPackForPlot(plot)
 		BaseService.UpdatePackMilestone(plot, totalPacks, data and data.claimedMilestones or {}, getQueuedMilestoneCount(plot.ownerPlayer))
 	end
 	if milestoneRewardPayload then
-		sendHint(plot.ownerPlayer, "Milestone reward spawned: " .. milestoneRewardPayload.reward .. ".")
-	else
-		sendHint(plot.ownerPlayer, packDef.displayName .. " spawned on your red pad. Crack it with your pitchfork and use Hold E on green slots to swap players.")
+		local sourceLabel = string.upper(tostring(milestoneRewardPayload.label or "REWARD"))
+		local packName = packDef.displayName or "Reward Pack"
+		if sourceLabel == "SHOP" then
+			sendHint(plot.ownerPlayer, "Bought pack spawned: " .. packName .. ".")
+		elseif sourceLabel == "DAILY" then
+			sendHint(plot.ownerPlayer, "Daily pack spawned: " .. packName .. ".")
+		elseif sourceLabel == "QUEST" then
+			sendHint(plot.ownerPlayer, "Quest pack spawned: " .. packName .. ".")
+		else
+			sendHint(plot.ownerPlayer, "Reward pack spawned: " .. packName .. ".")
+		end
 	end
 end
 
