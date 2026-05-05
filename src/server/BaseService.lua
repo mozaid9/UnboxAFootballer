@@ -3575,6 +3575,9 @@ end
 --   Tier 0: no stands
 --   Tier 1+: tiered bleacher stands built from Parts (reliable, no asset loading)
 --            More rows unlock as the player progresses through tiers.
+--   Tier 3+: covered stands
+--   Tier 4+: roof trusses and corner canopy links, so rebirth still feels
+--             visually meaningful once the red seat rows reach their cap.
 function BaseService.UpdateStadiumTier(plot, tier)
 	if not plot or not plot.stadiumExtrasFolder then return end
 	tier = tier or 0
@@ -3618,6 +3621,11 @@ function BaseService.UpdateStadiumTier(plot, tier)
 	local backAisleX = pitchPos.X - fd * (PlotX / 2 + gap * 0.52)
 	local northAisleZ = pitchPos.Z - (PlotZ / 2 + gap * 0.52)
 	local southAisleZ = pitchPos.Z + (PlotZ / 2 + gap * 0.52)
+	local standDepthTotal = rowCount * tierD
+	local roofHeight = floorY + (rowCount * tierH) + 5.4
+	local roofColor = Color3.fromRGB(9, 13, 23)
+	local roofTrimColor = Color3.fromRGB(255, 211, 58)
+	local roofSupportColor = Color3.fromRGB(15, 20, 32)
 
 	local function createFanAisle(name, size, cframe)
 		make("Part", {
@@ -3707,6 +3715,125 @@ function BaseService.UpdateStadiumTier(plot, tier)
 			seatIndex = seatIndex,
 			routePoints = routePoints,
 		})
+	end
+
+	local function createRoofPanel(name, size, cframe)
+		local panel = configureCollisionPart(make("Part", {
+			Name = name,
+			Anchored = true,
+			CanCollide = true,
+			CanTouch = true,
+			CanQuery = true,
+			Material = Enum.Material.SmoothPlastic,
+			Color = roofColor,
+			Size = size,
+			CFrame = cframe,
+		}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
+
+		make("Part", {
+			Name = name .. "GoldLip",
+			Anchored = true,
+			CanCollide = false,
+			CanTouch = false,
+			CanQuery = false,
+			Material = Enum.Material.Neon,
+			Color = roofTrimColor,
+			Transparency = 0.25,
+			Size = Vector3.new(size.X + 0.35, 0.16, 0.22),
+			CFrame = cframe * CFrame.new(0, -size.Y / 2 - 0.03, -size.Z / 2),
+		}, parent)
+
+		return panel
+	end
+
+	local function createRoofSupport(name, position, height)
+		configureCollisionPart(make("Part", {
+			Name = name,
+			Anchored = true,
+			CanCollide = true,
+			CanTouch = true,
+			CanQuery = true,
+			Material = Enum.Material.Metal,
+			Color = roofSupportColor,
+			Size = Vector3.new(0.65, height, 0.65),
+			CFrame = CFrame.new(position + Vector3.new(0, height / 2, 0)),
+		}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
+	end
+
+	local function createRoofRib(name, cframe, length, alongZ)
+		make("Part", {
+			Name = name,
+			Anchored = true,
+			CanCollide = false,
+			CanTouch = false,
+			CanQuery = false,
+			Material = Enum.Material.Neon,
+			Color = roofTrimColor,
+			Transparency = 0.35,
+			Size = alongZ and Vector3.new(0.24, 0.22, length) or Vector3.new(length, 0.22, 0.24),
+			CFrame = cframe,
+		}, parent)
+	end
+
+	local function createStadiumRoof()
+		if tier < 3 then
+			return
+		end
+
+		local roofDepth = standDepthTotal + 8
+		local sideRoofWidth = sideW + 9
+		local backRoofWidth = backW + 9
+		local sideRoofY = roofHeight
+		local sideRoofCenterZ = PlotZ / 2 + gap + (standDepthTotal / 2)
+		local backRoofCenterX = -fd * (PlotX / 2 + gap + (standDepthTotal / 2))
+
+		createRoofPanel(
+			"CoveredStandNorth",
+			Vector3.new(sideRoofWidth, 0.5, roofDepth),
+			plot.baseCFrame * CFrame.new(0, sideRoofY, -sideRoofCenterZ) * CFrame.Angles(math.rad(-3), 0, 0)
+		)
+		createRoofPanel(
+			"CoveredStandSouth",
+			Vector3.new(sideRoofWidth, 0.5, roofDepth),
+			plot.baseCFrame * CFrame.new(0, sideRoofY, sideRoofCenterZ) * CFrame.Angles(math.rad(3), 0, 0)
+		)
+		createRoofPanel(
+			"CoveredStandBack",
+			Vector3.new(roofDepth, 0.5, backRoofWidth),
+			plot.baseCFrame * CFrame.new(backRoofCenterX, sideRoofY, 0) * CFrame.Angles(0, 0, math.rad(fd * 3))
+		)
+
+		local supportHeight = math.max(6, sideRoofY - floorY)
+		for _, x in ipairs({ -sideRoofWidth / 2 + 3, sideRoofWidth / 2 - 3 }) do
+			createRoofSupport("RoofSupportNorth", (plot.baseCFrame * CFrame.new(x, floorY, -sideRoofCenterZ)).Position, supportHeight)
+			createRoofSupport("RoofSupportSouth", (plot.baseCFrame * CFrame.new(x, floorY, sideRoofCenterZ)).Position, supportHeight)
+		end
+		for _, z in ipairs({ -backRoofWidth / 2 + 3, backRoofWidth / 2 - 3 }) do
+			createRoofSupport("RoofSupportBack", (plot.baseCFrame * CFrame.new(backRoofCenterX, floorY, z)).Position, supportHeight)
+		end
+
+		if tier < 4 then
+			return
+		end
+
+		for _, x in ipairs({ -sideRoofWidth / 2 + 10, 0, sideRoofWidth / 2 - 10 }) do
+			createRoofRib("RoofRibNorth", plot.baseCFrame * CFrame.new(x, sideRoofY + 0.36, -sideRoofCenterZ), roofDepth - 1.5, true)
+			createRoofRib("RoofRibSouth", plot.baseCFrame * CFrame.new(x, sideRoofY + 0.36, sideRoofCenterZ), roofDepth - 1.5, true)
+		end
+		for _, z in ipairs({ -backRoofWidth / 2 + 10, 0, backRoofWidth / 2 - 10 }) do
+			createRoofRib("RoofRibBack", plot.baseCFrame * CFrame.new(backRoofCenterX, sideRoofY + 0.36, z), roofDepth - 1.5, false)
+		end
+
+		createRoofPanel(
+			"RoofCornerNorth",
+			Vector3.new(roofDepth, 0.45, roofDepth),
+			plot.baseCFrame * CFrame.new(backRoofCenterX, sideRoofY + 0.2, -sideRoofCenterZ)
+		)
+		createRoofPanel(
+			"RoofCornerSouth",
+			Vector3.new(roofDepth, 0.45, roofDepth),
+			plot.baseCFrame * CFrame.new(backRoofCenterX, sideRoofY + 0.2, sideRoofCenterZ)
+		)
 	end
 
 	-- Build one bleacher face.
@@ -3810,6 +3937,8 @@ function BaseService.UpdateStadiumTier(plot, tier)
 		Vector3.new(fd, 0, 0),
 		"Z"
 	)
+
+	createStadiumRoof()
 
 	-- Rebirth display slots 7-18 live on this raised terrace. Keeping the
 	-- terrace in StadiumExtras lets it rebuild cleanly whenever the tier changes.
