@@ -40,10 +40,12 @@ local skinColors = {
 }
 
 local STANDING_PIVOT_HEIGHT = 3.1
-local NPC_PERSONAL_SPACE = 4.2
+local NPC_PERSONAL_SPACE = 5.6
 local NPC_STUCK_CHECK_INTERVAL = 2
 local NPC_STUCK_DISTANCE = 1
-local NPC_AVOIDANCE_PAUSE_TIMEOUT = 7
+local NPC_AVOIDANCE_PAUSE_TIMEOUT = 4.5
+
+local WALKWAY_LANE_X_OFFSETS = { -23, -19, -15, -10, -6, 6, 10, 15, 19, 23 }
 
 local FOOD_TYPES = {
 	Popcorn = true,
@@ -443,6 +445,15 @@ local function jitterPosition(position, radius)
 	)
 end
 
+local function chooseCrowdLaneOffsets(npcIndex, routeCycle)
+	local laneCount = #WALKWAY_LANE_X_OFFSETS
+	local laneIndex = ((npcIndex + ((routeCycle or 0) * 3) - 1) % laneCount) + 1
+	local baseX = WALKWAY_LANE_X_OFFSETS[laneIndex]
+	local xJitter = math.random(-16, 16) / 10
+	local zJitter = math.random(-95, 95) / 10
+	return baseX + xJitter, zJitter
+end
+
 -- laneXOffset / laneZOffset: 2-D nudge (studs) so each NPC walks a unique
 -- diagonal track through the plaza rather than converging on the centre line.
 local function makeRoute(laneXOffset, laneZOffset)
@@ -465,20 +476,22 @@ local function makeRoute(laneXOffset, laneZOffset)
 
 	local rawStart = math.random(1, 2) == 1 and northGate or southGate
 	local rawEnd   = rawStart == northGate and southGate or northGate
-	local rawLoop  = math.random(1, 2) == 1 and westLoop or eastLoop
+	local sameSideLoop = laneXOffset < 0 and westLoop or eastLoop
+	local oppositeLoop = laneXOffset < 0 and eastLoop or westLoop
+	local rawLoop = math.random() < 0.78 and sameSideLoop or oppositeLoop
 
 	-- Route: gate → trophy-bypass → loop → gate
 	-- The bypass point is always well clear of the centre trophy on the NPC's
 	-- own side, so even a very large base can't be clipped by a straight line.
-	local TROPHY_CLEAR = 28
+	local TROPHY_CLEAR = 31
 	local side = laneXOffset >= 0 and 1 or -1   -- derive sign locally; laneSign is in runFan scope
 	local bypassX = center.X + side * math.max(TROPHY_CLEAR, math.abs(laneXOffset))
-	local trophyBypass = Vector3.new(bypassX, center.Y, center.Z + laneZOffset)
+	local trophyBypass = Vector3.new(bypassX, center.Y, center.Z + (laneZOffset * 0.55))
 
 	local route = {
 		{ position = lane(rawStart) },
-		{ position = jitterPosition(trophyBypass, 1.25), pause = math.random(0, 2) == 1 and math.random(2, 8) / 10 or nil },
-		{ position = jitterPosition(lane(rawLoop), 1.8), pause = math.random(0, 2) == 1 and math.random(1, 3) or nil },
+		{ position = jitterPosition(trophyBypass, 3.6), pause = math.random(0, 3) == 1 and math.random(2, 8) / 10 or nil },
+		{ position = jitterPosition(lane(rawLoop), 4.4), pause = math.random(0, 3) == 1 and math.random(1, 3) or nil },
 	}
 
 	-- Configured chance: detour to a real food stall counter.
@@ -526,14 +539,14 @@ local function makeRoute(laneXOffset, laneZOffset)
 		if plot then
 			local reservedSeat = type(BaseService.ReserveCrowdSeat) == "function" and BaseService.ReserveCrowdSeat(plot) or nil
 			-- Stadium sub-path: carry the NPC's 2-D lane offset into the approach point
-			local stadiumPathPoint = Vector3.new(laneXOffset, STANDING_PIVOT_HEIGHT, plot.floor.Position.Z + laneZOffset)
-			table.insert(route, { position = jitterPosition(stadiumPathPoint, 1.2) })
-			table.insert(route, { position = jitterPosition(getPlotEntrancePoint(plot), 1.1), pause = 0.35 })
+			local stadiumPathPoint = Vector3.new(laneXOffset, STANDING_PIVOT_HEIGHT, plot.floor.Position.Z + math.clamp(laneZOffset, -5.8, 5.8))
+			table.insert(route, { position = jitterPosition(stadiumPathPoint, 2.8) })
+			table.insert(route, { position = jitterPosition(getPlotEntrancePoint(plot), 2.2), pause = math.random(2, 6) / 10 })
 			if reservedSeat then
 				route.reservedSeat = reservedSeat
 				for _, routePoint in ipairs(reservedSeat.routePoints or {}) do
 					table.insert(route, {
-						position = jitterPosition(routePoint, 0.25),
+						position = jitterPosition(routePoint, 0.55),
 						direct = true,
 						pause = math.random(0, 2) == 1 and 0.15 or nil,
 					})
@@ -560,14 +573,14 @@ local function makeRoute(laneXOffset, laneZOffset)
 				for index = #(reservedSeat.routePoints or {}), 1, -1 do
 					local routePoint = reservedSeat.routePoints[index]
 					table.insert(route, {
-						position = jitterPosition(routePoint, 0.25),
+						position = jitterPosition(routePoint, 0.55),
 						direct = true,
 						pause = math.random(0, 2) == 1 and 0.15 or nil,
 					})
 				end
 			end
-			table.insert(route, { position = jitterPosition(getPlotEntrancePoint(plot), 1.1), pause = 0.2 })
-			table.insert(route, { position = stadiumPathPoint })
+			table.insert(route, { position = jitterPosition(getPlotEntrancePoint(plot), 2.2), pause = 0.2 })
+			table.insert(route, { position = jitterPosition(stadiumPathPoint, 2.2) })
 		end
 	end
 
@@ -600,10 +613,10 @@ local function getNearbyNpcSpacing(model)
 			local distance = delta.Magnitude
 			if distance > 0.05 and distance < NPC_PERSONAL_SPACE then
 				local otherIndex = getNpcIndex(other)
-				if distance < 2.35 and myIndex > otherIndex then
+				if distance < 1.35 and myIndex > otherIndex then
 					shouldPause = true
 				end
-				speedScale = math.min(speedScale, math.clamp((distance - 1.2) / (NPC_PERSONAL_SPACE - 1.2), 0.3, 1))
+				speedScale = math.min(speedScale, math.clamp((distance - 1.0) / (NPC_PERSONAL_SPACE - 1.0), 0.72, 1))
 			end
 		end
 	end
@@ -745,22 +758,16 @@ local function moveModelTo(model, targetPosition, npcSpeed)
 end
 
 local function runFan(model)
-	-- Each NPC gets fixed 2-D lane offsets for its lifetime so it walks a
-	-- unique diagonal through the plaza.
-	-- X: ±8–13 studs left/right so NPCs clear the centre trophy.
-	-- Z: ±0–5 studs front/back so NPCs spread across the full plaza width
-	--    and don't all queue up on the same Z line.
-	-- Speed: 8–14 studs/s so fast NPCs naturally overtake slow ones and
-	--        the crowd looks alive rather than a synchronised march.
-	local laneSign   = math.random(1, 2) == 1 and 1 or -1
-	local laneXOffset = laneSign * (math.random(80, 130) / 10)          -- 8.0 – 13.0 studs
-	local laneZOffset = (math.random(-50, 50) / 10)                      -- ±5.0 studs
-	local mySpeed     = math.random(80, 140) / 10
+	local npcIndex = getNpcIndex(model)
 
 	task.spawn(function()
-		task.wait(math.random() * 7)    -- longer stagger so NPCs don't all depart at once
+		task.wait(math.random() * 12)
 		local hasWorldPosition = false
+		local routeCycle = 0
 		while running and model.Parent do
+			routeCycle += 1
+			local laneXOffset, laneZOffset = chooseCrowdLaneOffsets(npcIndex, routeCycle)
+			local mySpeed = math.random(80, 140) / 10
 			local route = makeRoute(laneXOffset, laneZOffset)
 			if route and #route >= 2 then
 				setFanPose(model, "standing")
@@ -881,6 +888,8 @@ local function runFan(model)
 				end
 				if routeFailed then
 					task.wait(math.random(8, 18) / 10)
+				else
+					task.wait(math.random(6, 28) / 10)
 				end
 			else
 				task.wait(1)
