@@ -355,6 +355,11 @@ function DataService.GetCoins(player)
 	return data and data.coins or 0
 end
 
+function DataService.GetGems(player)
+	local data = cache[player]
+	return data and data.gems or 0
+end
+
 function DataService.AddCoins(player, amount)
 	local data = cache[player]
 	if not data then
@@ -362,6 +367,22 @@ function DataService.AddCoins(player, amount)
 	end
 
 	data.coins += amount
+	DataService.MarkDirty(player)
+	return true
+end
+
+function DataService.AddGems(player, amount)
+	local data = cache[player]
+	if not data then
+		return false
+	end
+
+	local value = math.max(0, math.floor(tonumber(amount) or 0))
+	if value <= 0 then
+		return false
+	end
+
+	data.gems = math.max(0, math.floor(tonumber(data.gems) or 0) + value)
 	DataService.MarkDirty(player)
 	return true
 end

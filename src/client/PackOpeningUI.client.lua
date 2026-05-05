@@ -784,8 +784,11 @@ addGemsButton.MouseButton1Click:Connect(function()
 	showToast("Gems are planned for premium packs and cosmetics later.", Color3.fromRGB(69, 207, 255))
 end)
 
-UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
+UpdateCoinsEvent.OnClientEvent:Connect(function(coins, gems)
 	setCoinsDisplay(coins)
+	if gems ~= nil then
+		setGemsDisplay(gems)
+	end
 end)
 
 local function getGuiCenterTarget(guiObject, fallback)

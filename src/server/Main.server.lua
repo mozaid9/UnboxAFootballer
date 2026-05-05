@@ -731,9 +731,19 @@ end
 
 local function formatQuestReward(quest)
 	local rewardText = {}
-	if (tonumber(quest.rewardFans) or 0) > 0 then
-		table.insert(rewardText, "+" .. Utils.FormatNumber(quest.rewardFans) .. " Fans")
+
+	local function addAmountReward(amount, singular, plural)
+		local value = math.max(0, math.floor(tonumber(amount) or 0))
+		if value <= 0 then
+			return
+		end
+
+		local prefix = #rewardText == 0 and "+" or ""
+		table.insert(rewardText, prefix .. Utils.FormatNumber(value) .. " " .. (value == 1 and singular or plural))
 	end
+
+	addAmountReward(quest.rewardFans, "Fan", "Fans")
+	addAmountReward(quest.rewardGems, "Gem", "Gems")
 	if quest.rewardPackId then
 		local packDef = PackConfig.ById[quest.rewardPackId]
 		table.insert(rewardText, (packDef and packDef.displayName or "Reward Pack") .. " queued")
@@ -756,6 +766,7 @@ local function serializeQuest(quest, questData)
 		claimed = claimed,
 		claimable = progress >= target and not claimed,
 		rewardFans = quest.rewardFans or 0,
+		rewardGems = quest.rewardGems or 0,
 		rewardPackId = quest.rewardPackId,
 		rewardPackName = rewardPackDef and rewardPackDef.displayName or nil,
 		rewardText = formatQuestReward(quest),
@@ -850,7 +861,15 @@ local function claimQuestReward(player, questId)
 	local rewardFans = math.max(0, math.floor(tonumber(quest.rewardFans) or 0))
 	if rewardFans > 0 then
 		EconomyService.AddCoins(player, rewardFans)
-		UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+	end
+
+	local rewardGems = math.max(0, math.floor(tonumber(quest.rewardGems) or 0))
+	if rewardGems > 0 then
+		DataService.AddGems(player, rewardGems)
+	end
+
+	if rewardFans > 0 or rewardGems > 0 then
+		UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player), DataService.GetGems(player))
 	end
 
 	questData.claimed[quest.id] = true
@@ -862,8 +881,10 @@ local function claimQuestReward(player, questId)
 		success = true,
 		questId = quest.id,
 		rewardFans = rewardFans,
+		rewardGems = rewardGems,
 		rewardPackQueued = rewardPackQueued ~= nil,
 		newCoins = DataService.GetCoins(player),
+		newGems = DataService.GetGems(player),
 		queuedRewardCount = getQueuedMilestoneCount(player),
 		quests = buildQuestPayload(player),
 	}

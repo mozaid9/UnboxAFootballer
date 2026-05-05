@@ -135,7 +135,7 @@ local tierSubtitle = makeLabel({
 
 -- Close button
 local closeBtn = make("TextButton", {
-	Text = "✕",
+	Text = "X",
 	Size = UDim2.new(0, 38, 0, 38),
 	Position = UDim2.new(1, -46, 0, 12),
 	BackgroundColor3 = Color3.fromRGB(180, 60, 60),
