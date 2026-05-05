@@ -531,10 +531,15 @@ local function makeRoute(laneXOffset, laneZOffset)
 			if reservedSeat then
 				route.reservedSeat = reservedSeat
 				for _, routePoint in ipairs(reservedSeat.routePoints or {}) do
-					table.insert(route, { position = jitterPosition(routePoint, 0.45), pause = math.random(0, 2) == 1 and 0.15 or nil })
+					table.insert(route, {
+						position = jitterPosition(routePoint, 0.25),
+						direct = true,
+						pause = math.random(0, 2) == 1 and 0.15 or nil,
+					})
 				end
 				table.insert(route, {
 					position = reservedSeat.approachPosition,
+					direct = true,
 					pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),
 					lookAt = reservedSeat.lookAt or plot.floor.Position,
 					pose = "seated",
@@ -553,7 +558,11 @@ local function makeRoute(laneXOffset, laneZOffset)
 			if reservedSeat then
 				for index = #(reservedSeat.routePoints or {}), 1, -1 do
 					local routePoint = reservedSeat.routePoints[index]
-					table.insert(route, { position = jitterPosition(routePoint, 0.45), pause = math.random(0, 2) == 1 and 0.15 or nil })
+					table.insert(route, {
+						position = jitterPosition(routePoint, 0.25),
+						direct = true,
+						pause = math.random(0, 2) == 1 and 0.15 or nil,
+					})
 				end
 			end
 			table.insert(route, { position = jitterPosition(getPlotEntrancePoint(plot), 1.1), pause = 0.2 })
@@ -784,12 +793,13 @@ local function runFan(model)
 				for index = firstStepIndex, #route do
 					local step = route[index]
 					local targetPosition = getStepPosition(step)
+					local useDirectMove = typeof(step) == "table" and step.direct == true
 
 					if typeof(step) ~= "table" or step.pose ~= "seated" then
 						setFanPose(model, "standing")
 					end
 
-					if not moveModelTo(model, targetPosition, mySpeed) then
+					if not (useDirectMove and moveSegment(model, targetPosition, mySpeed) or moveModelTo(model, targetPosition, mySpeed)) then
 						releaseHeldSlot()
 						releaseReservedSeat()
 						routeFailed = true
