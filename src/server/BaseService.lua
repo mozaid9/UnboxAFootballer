@@ -3573,7 +3573,8 @@ function BaseService.UpdateStadiumTier(plot, tier)
 
 	local tierH  = 3.0   -- vertical rise per row
 	local tierD  = 4.2   -- depth per row (away from pitch)
-	local gap    = 1.5   -- clearance from fence centre so stands don't overlap fence
+	local gap    = 7.5   -- fan aisle between the fence and red seating
+	local aisleWidth = 4.8
 
 	-- Width of each stand face (slightly wider than plot for corner coverage)
 	local sideW = PlotX + 2   -- 58 studs east-west
@@ -3584,8 +3585,66 @@ function BaseService.UpdateStadiumTier(plot, tier)
 	local colB = Color3.fromRGB(158, 30, 30)
 	local crowdPivotY = 3.1
 	local seatPointsFolder = make("Folder", { Name = "CrowdSeatPoints" }, parent)
+	local fanAisleY = floorY + 0.07
+	local frontAisleX = pitchPos.X + fd * (PlotX / 2 + gap + 1.5)
+	local backAisleX = pitchPos.X - fd * (PlotX / 2 + gap * 0.52)
+	local northAisleZ = pitchPos.Z - (PlotZ / 2 + gap * 0.52)
+	local southAisleZ = pitchPos.Z + (PlotZ / 2 + gap * 0.52)
 
-	local function createCrowdSeatPoint(standName, row, seatIndex, sitPosition, lookDirection, approachPosition)
+	local function createFanAisle(name, size, cframe)
+		make("Part", {
+			Name = name,
+			Anchored = true,
+			CanCollide = false,
+			CanTouch = false,
+			CanQuery = false,
+			Material = Enum.Material.Slate,
+			Color = Color3.fromRGB(44, 52, 68),
+			Transparency = 0.04,
+			Size = size,
+			CFrame = cframe,
+		}, parent)
+	end
+
+	createFanAisle(
+		"FanAisleNorth",
+		Vector3.new(PlotX + gap * 2, 0.14, aisleWidth),
+		CFrame.new(pitchPos.X, fanAisleY, northAisleZ)
+	)
+	createFanAisle(
+		"FanAisleSouth",
+		Vector3.new(PlotX + gap * 2, 0.14, aisleWidth),
+		CFrame.new(pitchPos.X, fanAisleY, southAisleZ)
+	)
+	createFanAisle(
+		"FanAisleBack",
+		Vector3.new(aisleWidth, 0.14, PlotZ + gap * 2),
+		CFrame.new(backAisleX, fanAisleY, pitchPos.Z)
+	)
+
+	local function makeSeatRoutePoints(standName, seatX, seatZ, approachPosition)
+		local frontPoint = Vector3.new(frontAisleX, crowdPivotY, pitchPos.Z)
+		if standName == "North" or standName == "South" then
+			local sideAisleZ = standName == "North" and northAisleZ or southAisleZ
+			return {
+				frontPoint,
+				Vector3.new(frontAisleX, crowdPivotY, sideAisleZ),
+				Vector3.new(seatX, crowdPivotY, sideAisleZ),
+				approachPosition,
+			}
+		end
+
+		local sideAisleZ = seatZ >= pitchPos.Z and southAisleZ or northAisleZ
+		return {
+			frontPoint,
+			Vector3.new(frontAisleX, crowdPivotY, sideAisleZ),
+			Vector3.new(backAisleX, crowdPivotY, sideAisleZ),
+			Vector3.new(backAisleX, crowdPivotY, seatZ),
+			approachPosition,
+		}
+	end
+
+	local function createCrowdSeatPoint(standName, row, seatIndex, sitPosition, lookDirection, approachPosition, routePoints)
 		local flatLook = Vector3.new(lookDirection.X, 0, lookDirection.Z)
 		if flatLook.Magnitude < 0.05 then
 			flatLook = Vector3.new(fd, 0, 0)
@@ -3620,6 +3679,7 @@ function BaseService.UpdateStadiumTier(plot, tier)
 			standName = standName,
 			row = row,
 			seatIndex = seatIndex,
+			routePoints = routePoints,
 		})
 	end
 
@@ -3653,7 +3713,10 @@ function BaseService.UpdateStadiumTier(plot, tier)
 			)
 
 			local span = spanAxis == "Z" and partSizeZ or partSizeX
-			local seatsInRow = math.clamp(math.floor(span / 7), 4, 8)
+			-- Only the front row is reserved for moving NPCs until the bleachers
+			-- have full internal stair aisles. This prevents fans climbing or
+			-- cutting across higher red rows just to reach a seat.
+			local seatsInRow = row == 1 and math.clamp(math.floor(span / 7), 4, 8) or 0
 			local topY = floorY + rise + tierH
 			for seatIndex = 1, seatsInRow do
 				local lateral = (-span / 2) + ((span / (seatsInRow + 1)) * seatIndex)
@@ -3666,12 +3729,26 @@ function BaseService.UpdateStadiumTier(plot, tier)
 				end
 
 				local sitPosition = Vector3.new(seatX, topY + 1.18, seatZ)
-				local approachPosition = Vector3.new(
-					seatX + lookDirection.X * 2.2,
-					crowdPivotY,
-					seatZ + lookDirection.Z * 2.2
+				local approachX = seatX + lookDirection.X * 2.2
+				local approachZ = seatZ + lookDirection.Z * 2.2
+				if standName == "North" then
+					approachZ = northAisleZ
+				elseif standName == "South" then
+					approachZ = southAisleZ
+				elseif standName == "Back" then
+					approachX = backAisleX
+				end
+
+				local approachPosition = Vector3.new(approachX, crowdPivotY, approachZ)
+				createCrowdSeatPoint(
+					standName,
+					row,
+					seatIndex,
+					sitPosition,
+					lookDirection,
+					approachPosition,
+					makeSeatRoutePoints(standName, seatX, seatZ, approachPosition)
 				)
-				createCrowdSeatPoint(standName, row, seatIndex, sitPosition, lookDirection, approachPosition)
 			end
 		end
 	end

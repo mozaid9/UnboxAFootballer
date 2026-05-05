@@ -529,6 +529,9 @@ local function makeRoute(laneXOffset, laneZOffset)
 			table.insert(route, { position = jitterPosition(getPlotEntrancePoint(plot), 1.1), pause = 0.35 })
 			if reservedSeat then
 				route.reservedSeat = reservedSeat
+				for _, routePoint in ipairs(reservedSeat.routePoints or {}) do
+					table.insert(route, { position = jitterPosition(routePoint, 0.45), pause = math.random(0, 2) == 1 and 0.15 or nil })
+				end
 				table.insert(route, {
 					position = reservedSeat.approachPosition,
 					pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),
@@ -545,6 +548,12 @@ local function makeRoute(laneXOffset, laneZOffset)
 					pose = "seated",
 					clearFood = true,   -- drop food prop before sitting
 				})
+			end
+			if reservedSeat then
+				for index = #(reservedSeat.routePoints or {}), 1, -1 do
+					local routePoint = reservedSeat.routePoints[index]
+					table.insert(route, { position = jitterPosition(routePoint, 0.45), pause = math.random(0, 2) == 1 and 0.15 or nil })
+				end
 			end
 			table.insert(route, { position = jitterPosition(getPlotEntrancePoint(plot), 1.1), pause = 0.2 })
 			table.insert(route, { position = stadiumPathPoint })
@@ -606,9 +615,9 @@ local function computePathWaypoints(startPosition, targetPosition)
 	local path = PathfindingService:CreatePath({
 		AgentRadius = 2.6,
 		AgentHeight = 5.4,
-		AgentCanJump = true,
+		AgentCanJump = false,
 		AgentCanClimb = true,
-		WaypointSpacing = 3.5,
+		WaypointSpacing = 2.5,
 	})
 
 	local ok = pcall(function()
