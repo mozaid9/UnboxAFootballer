@@ -1154,6 +1154,315 @@ local function createFanZoneBench(parent, name, position, facingPos)
 	return model
 end
 
+local function createGroundAccent(parent, name, size, cframe, color, transparency, material)
+	return make("Part", {
+		Name = name,
+		Anchored = true,
+		CanCollide = false,
+		CanTouch = false,
+		CanQuery = false,
+		Material = material or Enum.Material.SmoothPlastic,
+		Color = color,
+		Transparency = transparency or 0,
+		Size = size,
+		CFrame = cframe,
+	}, parent)
+end
+
+local function createGroundChevron(parent, name, position, headingRadians, color, scale)
+	scale = scale or 1
+	local model = make("Model", {
+		Name = name,
+	}, parent)
+	local baseCFrame = CFrame.new(position) * CFrame.Angles(0, headingRadians, 0)
+	local chevronColor = color or Color3.fromRGB(255, 210, 54)
+
+	createGroundAccent(
+		model,
+		"Stem",
+		Vector3.new(0.34 * scale, 0.045, 3.2 * scale),
+		baseCFrame * CFrame.new(0, 0, -0.6 * scale),
+		chevronColor,
+		0.18,
+		Enum.Material.Neon
+	)
+	createGroundAccent(
+		model,
+		"LeftHead",
+		Vector3.new(0.32 * scale, 0.05, 2.0 * scale),
+		baseCFrame * CFrame.new(-0.62 * scale, 0.01, 0.92 * scale) * CFrame.Angles(0, math.rad(35), 0),
+		chevronColor,
+		0.08,
+		Enum.Material.Neon
+	)
+	createGroundAccent(
+		model,
+		"RightHead",
+		Vector3.new(0.32 * scale, 0.05, 2.0 * scale),
+		baseCFrame * CFrame.new(0.62 * scale, 0.01, 0.92 * scale) * CFrame.Angles(0, math.rad(-35), 0),
+		chevronColor,
+		0.08,
+		Enum.Material.Neon
+	)
+
+	return model
+end
+
+local function createFloorLabel(parent, name, position, size, facingRadians, text, textColor)
+	local plate = createGroundAccent(
+		parent,
+		name,
+		Vector3.new(size.X, 0.055, size.Z),
+		CFrame.new(position) * CFrame.Angles(0, facingRadians or 0, 0),
+		Color3.fromRGB(7, 10, 18),
+		0.15,
+		Enum.Material.SmoothPlastic
+	)
+	local gui = make("SurfaceGui", {
+		Face = Enum.NormalId.Top,
+		PixelsPerStud = 60,
+		LightInfluence = 0,
+	}, plate)
+	local label = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = text,
+		TextColor3 = textColor or Color3.fromRGB(255, 219, 72),
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+	}, gui)
+	make("UITextSizeConstraint", {
+		MaxTextSize = 54,
+		MinTextSize = 10,
+	}, label)
+	return plate
+end
+
+local function createStandingTable(parent, name, position, accentColor)
+	local model = make("Model", {
+		Name = name,
+	}, parent)
+	local tableColor = Color3.fromRGB(18, 24, 38)
+	local goldColor = accentColor or Color3.fromRGB(255, 210, 52)
+
+	local cframe = CFrame.new(position)
+	make("Part", {
+		Name = "Top",
+		Anchored = true,
+		CanCollide = true,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.SmoothPlastic,
+		Color = tableColor,
+		Size = Vector3.new(0.32, 4.4, 4.4),
+		CFrame = cframe * CFrame.new(0, 2.2, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, model)
+	make("Part", {
+		Name = "GoldRim",
+		Anchored = true,
+		CanCollide = false,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Neon,
+		Color = goldColor,
+		Transparency = 0.28,
+		Size = Vector3.new(0.12, 4.65, 4.65),
+		CFrame = cframe * CFrame.new(0, 2.4, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, model)
+	make("Part", {
+		Name = "Post",
+		Anchored = true,
+		CanCollide = true,
+		Material = Enum.Material.Metal,
+		Color = Color3.fromRGB(28, 32, 42),
+		Size = Vector3.new(0.48, 2.1, 0.48),
+		CFrame = cframe * CFrame.new(0, 1.1, 0),
+	}, model)
+	make("Part", {
+		Name = "Base",
+		Anchored = true,
+		CanCollide = true,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Metal,
+		Color = Color3.fromRGB(28, 32, 42),
+		Size = Vector3.new(0.18, 2.6, 2.6),
+		CFrame = cframe * CFrame.new(0, 0.14, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, model)
+
+	for index = 1, 3 do
+		local angle = math.rad((index - 1) * 120)
+		local stoolPos = Vector3.new(math.cos(angle) * 3.2, 0, math.sin(angle) * 3.2)
+		make("Part", {
+			Name = "Stool" .. index,
+			Anchored = true,
+			CanCollide = true,
+			Shape = Enum.PartType.Cylinder,
+			Material = Enum.Material.SmoothPlastic,
+			Color = goldColor,
+			Size = Vector3.new(0.26, 1.8, 1.8),
+			CFrame = cframe * CFrame.new(stoolPos + Vector3.new(0, 0.72, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		}, model)
+	end
+
+	assignCollisionGroup(model, COLLISION_GROUPS.Props)
+	createCollisionBlocker(
+		model,
+		"StandingTableCollisionBlocker",
+		Vector3.new(7.2, 2.8, 7.2),
+		cframe * CFrame.new(0, 1.4, 0),
+		COLLISION_GROUPS.Props
+	)
+	return model
+end
+
+local function createTrashBin(parent, name, position, accentColor)
+	local model = make("Model", {
+		Name = name,
+	}, parent)
+	local cframe = CFrame.new(position)
+	local binColor = Color3.fromRGB(13, 18, 28)
+	local trimColor = accentColor or Color3.fromRGB(80, 190, 96)
+
+	make("Part", {
+		Name = "Body",
+		Anchored = true,
+		CanCollide = true,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.SmoothPlastic,
+		Color = binColor,
+		Size = Vector3.new(2.4, 2.1, 2.1),
+		CFrame = cframe * CFrame.new(0, 1.2, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, model)
+	make("Part", {
+		Name = "Trim",
+		Anchored = true,
+		CanCollide = false,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Neon,
+		Color = trimColor,
+		Transparency = 0.2,
+		Size = Vector3.new(0.12, 2.24, 2.24),
+		CFrame = cframe * CFrame.new(0, 2.28, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, model)
+	make("Part", {
+		Name = "Slot",
+		Anchored = true,
+		CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(220, 225, 232),
+		Size = Vector3.new(1.25, 0.16, 0.18),
+		CFrame = cframe * CFrame.new(0, 2.72, -0.95),
+	}, model)
+
+	assignCollisionGroup(model, COLLISION_GROUPS.Props)
+	createCollisionBlocker(
+		model,
+		"TrashBinCollisionBlocker",
+		Vector3.new(2.5, 2.8, 2.5),
+		cframe * CFrame.new(0, 1.4, 0),
+		COLLISION_GROUPS.Props
+	)
+	return model
+end
+
+local function createPennantString(parent, name, z, colorA, colorB)
+	local model = make("Model", {
+		Name = name,
+	}, parent)
+	local postColor = Color3.fromRGB(20, 25, 36)
+	local leftX, rightX = -30, 30
+	local postHeight = 7.2
+
+	for _, x in ipairs({ leftX, rightX }) do
+		make("Part", {
+			Name = "Post",
+			Anchored = true,
+			CanCollide = true,
+			Material = Enum.Material.Metal,
+			Color = postColor,
+			Size = Vector3.new(0.42, postHeight, 0.42),
+			CFrame = CFrame.new(x, postHeight / 2, z),
+		}, model)
+	end
+	make("Part", {
+		Name = "Cable",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.Metal,
+		Color = Color3.fromRGB(48, 52, 64),
+		Size = Vector3.new((rightX - leftX), 0.08, 0.08),
+		CFrame = CFrame.new(0, postHeight, z),
+	}, model)
+
+	for index = 1, 11 do
+		local t = index / 12
+		local x = leftX + ((rightX - leftX) * t)
+		make("Part", {
+			Name = "Pennant" .. index,
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = (index % 2 == 0) and (colorB or Color3.fromRGB(225, 40, 40)) or (colorA or Color3.fromRGB(255, 214, 54)),
+			Size = Vector3.new(1.4, 1.05, 0.08),
+			CFrame = CFrame.new(x, postHeight - 0.55, z),
+		}, model)
+	end
+
+	assignCollisionGroup(model, COLLISION_GROUPS.Props)
+	for _, x in ipairs({ leftX, rightX }) do
+		createCollisionBlocker(
+			model,
+			"PennantPostCollisionBlocker",
+			Vector3.new(1.4, postHeight, 1.4),
+			CFrame.new(x, postHeight / 2, z),
+			COLLISION_GROUPS.Props
+		)
+	end
+	return model
+end
+
+local function createLowQueueRail(parent, name, position, length, alongX, accentColor)
+	local model = make("Model", {
+		Name = name,
+	}, parent)
+	local railColor = accentColor or Color3.fromRGB(255, 210, 54)
+	local railSize = alongX and Vector3.new(length, 0.18, 0.18) or Vector3.new(0.18, 0.18, length)
+	local railCFrame = CFrame.new(position + Vector3.new(0, 1.35, 0))
+
+	make("Part", {
+		Name = "Rail",
+		Anchored = true,
+		CanCollide = false,
+		CanTouch = false,
+		CanQuery = false,
+		Material = Enum.Material.Metal,
+		Color = railColor,
+		Size = railSize,
+		CFrame = railCFrame,
+	}, model)
+
+	local halfLength = length / 2
+	for _, offset in ipairs({ -halfLength, 0, halfLength }) do
+		local postOffset = alongX and Vector3.new(offset, 0, 0) or Vector3.new(0, 0, offset)
+		make("Part", {
+			Name = "Post",
+			Anchored = true,
+			CanCollide = false,
+			CanTouch = false,
+			CanQuery = false,
+			Material = Enum.Material.Metal,
+			Color = Color3.fromRGB(18, 23, 34),
+			Size = Vector3.new(0.28, 1.35, 0.28),
+			CFrame = CFrame.new(position + postOffset + Vector3.new(0, 0.68, 0)),
+		}, model)
+	end
+
+	assignCollisionGroup(model, COLLISION_GROUPS.Props)
+	return model
+end
+
 local function createFanZoneBoard(parent, name, position, facingPos, title, subtitle)
 	local board = make("Part", {
 		Name = name,
@@ -1699,6 +2008,22 @@ local function createFanZone(mapWidth, mapLength)
 		CFrame = CFrame.new(27, 0.38, 0),
 	}, plaza)
 
+	local dashIndex = 0
+	for z = southZ + 26, northZ - 26, 18 do
+		if math.abs(z) > 31 then
+			dashIndex += 1
+			createGroundAccent(
+				plaza,
+				"MainWalkwayDash" .. dashIndex,
+				Vector3.new(0.42, 0.05, 7.4),
+				CFrame.new(0, 0.43, z),
+				Color3.fromRGB(255, 210, 54),
+				0.38,
+				Enum.Material.Neon
+			)
+		end
+	end
+
 	for laneIndex = 1, layout.PlotsPerSide do
 		local laneZ = layout.StartZ + ((laneIndex - 1) * layout.PlotSpacing)
 		make("Part", {
@@ -1730,6 +2055,39 @@ local function createFanZone(mapWidth, mapLength)
 			Size = Vector3.new((layout.SideOffset * 2) - 28, 0.07, 0.08),
 			CFrame = CFrame.new(0, 0.4, laneZ + 6.8),
 		}, plaza)
+		for _, marker in ipairs({
+			{ x = -62, angle = -math.pi / 2, label = "WestFar" },
+			{ x = -43, angle = -math.pi / 2, label = "WestNear" },
+			{ x = 43, angle = math.pi / 2, label = "EastNear" },
+			{ x = 62, angle = math.pi / 2, label = "EastFar" },
+		}) do
+			createGroundChevron(
+				plaza,
+				"StadiumPathChevron" .. laneIndex .. marker.label,
+				Vector3.new(marker.x, 0.48, laneZ),
+				marker.angle,
+				Color3.fromRGB(255, 210, 54),
+				1.05
+			)
+		end
+		createFloorLabel(
+			plaza,
+			"WestSeatsFloorLabel" .. laneIndex,
+			Vector3.new(-73, 0.49, laneZ),
+			Vector3.new(9, 0, 3.2),
+			-math.pi / 2,
+			"SEATS",
+			Color3.fromRGB(255, 221, 78)
+		)
+		createFloorLabel(
+			plaza,
+			"EastSeatsFloorLabel" .. laneIndex,
+			Vector3.new(73, 0.49, laneZ),
+			Vector3.new(9, 0, 3.2),
+			math.pi / 2,
+			"SEATS",
+			Color3.fromRGB(255, 221, 78)
+		)
 	end
 
 	-- ── Pathway lighting ─────────────────────────────────────────────────────
@@ -1831,6 +2189,38 @@ local function createFanZone(mapWidth, mapLength)
 		Size = Vector3.new(0.28, 0.08, 46),
 		CFrame = CFrame.new(27, 0.52, 0),
 	}, plaza)
+
+	createGroundAccent(
+		plaza,
+		"FanZoneDeckWestCarpet",
+		Vector3.new(9.2, 0.055, 36),
+		CFrame.new(-12.5, 0.59, 0),
+		Color3.fromRGB(96, 25, 38),
+		0.1,
+		Enum.Material.SmoothPlastic
+	)
+	createGroundAccent(
+		plaza,
+		"FanZoneDeckEastCarpet",
+		Vector3.new(9.2, 0.055, 36),
+		CFrame.new(12.5, 0.59, 0),
+		Color3.fromRGB(19, 58, 96),
+		0.1,
+		Enum.Material.SmoothPlastic
+	)
+	for _, z in ipairs({ -19, 19 }) do
+		createFloorLabel(
+			plaza,
+			"FoodCourtFloorLabel" .. tostring(z),
+			Vector3.new(0, 0.61, z),
+			Vector3.new(15, 0, 3.4),
+			0,
+			"FAN ZONE",
+			Color3.fromRGB(255, 224, 86)
+		)
+	end
+	createPennantString(plaza, "SouthWalkwayPennants", -56, Color3.fromRGB(255, 214, 58), Color3.fromRGB(218, 38, 48))
+	createPennantString(plaza, "NorthWalkwayPennants", 56, Color3.fromRGB(72, 185, 245), Color3.fromRGB(255, 214, 58))
 
 	-- ── Centre podium: three stepped tiers + elevated spinning football ──────────
 	-- Roblox cylinders have their length along X, so we rotate 90° on Z to stand
@@ -1952,10 +2342,42 @@ local function createFanZone(mapWidth, mapLength)
 	createStallWorker(plaza, "BurgerWorker", Vector3.new(-39.8, 0, 16.6), center0, Color3.fromRGB(198, 106, 34))
 	createStallWorker(plaza, "DrinkWorker", Vector3.new(39.8, 0, 16.6), center0, Color3.fromRGB(44, 150, 218))
 
+	createLowQueueRail(plaza, "PopcornQueueRail", Vector3.new(-28, 0, -10), 10, false, Color3.fromRGB(248, 203, 42))
+	createLowQueueRail(plaza, "HotDogQueueRail", Vector3.new(28, 0, -10), 10, false, Color3.fromRGB(232, 48, 24))
+	createLowQueueRail(plaza, "BurgerQueueRail", Vector3.new(-28, 0, 10), 10, false, Color3.fromRGB(240, 155, 30))
+	createLowQueueRail(plaza, "DrinkQueueRail", Vector3.new(28, 0, 10), 10, false, Color3.fromRGB(60, 200, 228))
+
 	createFanZoneBench(plaza, "BenchSouthWest", Vector3.new(-15, 0.35, -25), center0)
 	createFanZoneBench(plaza, "BenchSouthEast", Vector3.new(15, 0.35, -25), center0)
 	createFanZoneBench(plaza, "BenchNorthWest", Vector3.new(-15, 0.35, 25), center0)
 	createFanZoneBench(plaza, "BenchNorthEast", Vector3.new(15, 0.35, 25), center0)
+
+	createStandingTable(plaza, "TableSouthWest", Vector3.new(-42, 0, -58), Color3.fromRGB(255, 210, 54))
+	createStandingTable(plaza, "TableSouthEast", Vector3.new(42, 0, -58), Color3.fromRGB(72, 185, 245))
+	createStandingTable(plaza, "TableNorthWest", Vector3.new(-42, 0, 58), Color3.fromRGB(218, 38, 48))
+	createStandingTable(plaza, "TableNorthEast", Vector3.new(42, 0, 58), Color3.fromRGB(255, 210, 54))
+	createStandingTable(plaza, "GateTableSouthWest", Vector3.new(-36, 0, southZ + 48), Color3.fromRGB(72, 185, 245))
+	createStandingTable(plaza, "GateTableSouthEast", Vector3.new(36, 0, southZ + 48), Color3.fromRGB(218, 38, 48))
+	createStandingTable(plaza, "GateTableNorthWest", Vector3.new(-36, 0, northZ - 48), Color3.fromRGB(255, 210, 54))
+	createStandingTable(plaza, "GateTableNorthEast", Vector3.new(36, 0, northZ - 48), Color3.fromRGB(72, 185, 245))
+
+	for index, binPosition in ipairs({
+		Vector3.new(-25, 0, -82),
+		Vector3.new(25, 0, -82),
+		Vector3.new(-25, 0, 82),
+		Vector3.new(25, 0, 82),
+		Vector3.new(-23, 0, southZ + 30),
+		Vector3.new(23, 0, southZ + 30),
+		Vector3.new(-23, 0, northZ - 30),
+		Vector3.new(23, 0, northZ - 30),
+	}) do
+		createTrashBin(
+			plaza,
+			"ConcourseTrashBin" .. index,
+			binPosition,
+			(index % 2 == 0) and Color3.fromRGB(72, 185, 245) or Color3.fromRGB(80, 190, 96)
+		)
+	end
 
 	local planterPositions = {
 		Vector3.new(-28, 0, -23),
