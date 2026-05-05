@@ -1854,6 +1854,13 @@ local function createFanZone(mapWidth, mapLength)
 		Size = Vector3.new(2.3, 10, 10),
 		CFrame = CFrame.new(0, 7.3, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
+	createCollisionBlocker(
+		plaza,
+		"TrophyPodiumCollisionBlocker",
+		Vector3.new(32, 9, 32),
+		CFrame.new(0, 4.5, 0),
+		COLLISION_GROUPS.Props
+	)
 	-- ── Planter ring around the podium ────────────────────────────────
 	-- Six smaller planters form a decorative circle at radius 17, just
 	-- outside the Tier1 ring (radius ≈ 12).
@@ -1996,8 +2003,8 @@ local function createFanZone(mapWidth, mapLength)
 	createWaypoint(waypointFolder, "NorthGate", Vector3.new(0, 3.1, northZ - 10))
 	createWaypoint(waypointFolder, "SouthGate", Vector3.new(0, 3.1, southZ + 10))
 	createWaypoint(waypointFolder, "Center", Vector3.new(0, 3.1, 0))
-	createWaypoint(waypointFolder, "WestLoop", Vector3.new(-16, 3.1, 0))
-	createWaypoint(waypointFolder, "EastLoop", Vector3.new(16, 3.1, 0))
+	createWaypoint(waypointFolder, "WestLoop", Vector3.new(-24, 3.1, 0))
+	createWaypoint(waypointFolder, "EastLoop", Vector3.new(24, 3.1, 0))
 	-- Food stand queues: each stall has 4 queue slots running diagonally
 	-- back from the counter toward the centre walkway.  Slot 1 is the
 	-- front of the queue (talking to the worker), slot 4 is the back.
@@ -3630,7 +3637,6 @@ function BaseService.UpdateStadiumTier(plot, tier)
 				frontPoint,
 				Vector3.new(frontAisleX, crowdPivotY, sideAisleZ),
 				Vector3.new(seatX, crowdPivotY, sideAisleZ),
-				approachPosition,
 			}
 		end
 
@@ -3640,7 +3646,6 @@ function BaseService.UpdateStadiumTier(plot, tier)
 			Vector3.new(frontAisleX, crowdPivotY, sideAisleZ),
 			Vector3.new(backAisleX, crowdPivotY, sideAisleZ),
 			Vector3.new(backAisleX, crowdPivotY, seatZ),
-			approachPosition,
 		}
 	end
 

@@ -40,9 +40,10 @@ local skinColors = {
 }
 
 local STANDING_PIVOT_HEIGHT = 3.1
-local NPC_PERSONAL_SPACE = 3.8
+local NPC_PERSONAL_SPACE = 4.2
 local NPC_STUCK_CHECK_INTERVAL = 2
 local NPC_STUCK_DISTANCE = 1
+local NPC_AVOIDANCE_PAUSE_TIMEOUT = 7
 
 local FOOD_TYPES = {
 	Popcorn = true,
@@ -466,9 +467,9 @@ local function makeRoute(laneXOffset, laneZOffset)
 	local rawLoop  = math.random(1, 2) == 1 and westLoop or eastLoop
 
 	-- Route: gate → trophy-bypass → loop → gate
-	-- The bypass point is always ≥18 studs from the centre trophy on the NPC's
+	-- The bypass point is always well clear of the centre trophy on the NPC's
 	-- own side, so even a very large base can't be clipped by a straight line.
-	local TROPHY_CLEAR = 18
+	local TROPHY_CLEAR = 28
 	local side = laneXOffset >= 0 and 1 or -1   -- derive sign locally; laneSign is in runFan scope
 	local bypassX = center.X + side * math.max(TROPHY_CLEAR, math.abs(laneXOffset))
 	local trophyBypass = Vector3.new(bypassX, center.Y, center.Z + laneZOffset)
@@ -665,7 +666,8 @@ local function moveSegment(model, targetPosition, npcSpeed)
 		local spacingScale = getNearbyNpcSpacing(model)
 		if spacingScale <= 0 then
 			pausedSince = pausedSince or os.clock()
-			if os.clock() - pausedSince > NPC_STUCK_CHECK_INTERVAL then
+			setFanPose(model, "standing")
+			if os.clock() - pausedSince > NPC_AVOIDANCE_PAUSE_TIMEOUT then
 				setFanPose(model, "standing")
 				return false
 			end
@@ -747,14 +749,20 @@ local function runFan(model)
 
 	task.spawn(function()
 		task.wait(math.random() * 7)    -- longer stagger so NPCs don't all depart at once
+		local hasWorldPosition = false
 		while running and model.Parent do
 			local route = makeRoute(laneXOffset, laneZOffset)
 			if route and #route >= 2 then
 				setFanPose(model, "standing")
-				local startPoint = getStepPosition(route[1])
-				local nextPoint = getStepPosition(route[2])
-				model:PivotTo(CFrame.lookAt(startPoint, nextPoint))
-				setFanPose(model, "standing")
+				local firstStepIndex = 1
+				if not hasWorldPosition then
+					local startPoint = getStepPosition(route[1])
+					local nextPoint = getStepPosition(route[2])
+					model:PivotTo(CFrame.lookAt(startPoint, nextPoint))
+					setFanPose(model, "standing")
+					hasWorldPosition = true
+					firstStepIndex = 2
+				end
 
 				local hasFood = false
 				local heldStallName, heldStallSlot = nil, nil
@@ -773,7 +781,7 @@ local function runFan(model)
 				end
 
 				local routeFailed = false
-				for index = 2, #route do
+				for index = firstStepIndex, #route do
 					local step = route[index]
 					local targetPosition = getStepPosition(step)
 
