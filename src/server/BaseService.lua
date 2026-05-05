@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local InsertService = game:GetService("InsertService")
+local PhysicsService = game:GetService("PhysicsService")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Utils = require(ReplicatedStorage.Shared.Utils)
@@ -15,8 +16,132 @@ local basesFolder
 local plots = {}
 local assignedPlots = {}
 local animatedTurnstiles = {}
+local collisionGroupsReady = false
+local make
 
-local function make(className, props, parent)
+local COLLISION_GROUPS = {
+	Players = "Players",
+	NPCs = "NPCs",
+	StadiumGeometry = "StadiumGeometry",
+	Seats = "Seats",
+	Props = "Props",
+}
+
+local function setupCollisionGroups()
+	if collisionGroupsReady then
+		return
+	end
+
+	for _, groupName in pairs(COLLISION_GROUPS) do
+		pcall(function()
+			PhysicsService:RegisterCollisionGroup(groupName)
+		end)
+		pcall(function()
+			PhysicsService:CreateCollisionGroup(groupName)
+		end)
+	end
+
+	local function setCollidable(a, b, collidable)
+		pcall(function()
+			PhysicsService:CollisionGroupSetCollidable(a, b, collidable)
+		end)
+	end
+
+	setCollidable(COLLISION_GROUPS.Players, COLLISION_GROUPS.StadiumGeometry, true)
+	setCollidable(COLLISION_GROUPS.Players, COLLISION_GROUPS.Seats, true)
+	setCollidable(COLLISION_GROUPS.Players, COLLISION_GROUPS.Props, true)
+	setCollidable(COLLISION_GROUPS.NPCs, COLLISION_GROUPS.StadiumGeometry, true)
+	setCollidable(COLLISION_GROUPS.NPCs, COLLISION_GROUPS.Seats, true)
+	setCollidable(COLLISION_GROUPS.NPCs, COLLISION_GROUPS.Props, true)
+	setCollidable(COLLISION_GROUPS.NPCs, COLLISION_GROUPS.NPCs, false)
+	setCollidable(COLLISION_GROUPS.Players, COLLISION_GROUPS.NPCs, false)
+
+	collisionGroupsReady = true
+end
+
+local function setPartCollisionGroup(part, groupName)
+	if not part or not part:IsA("BasePart") or not groupName then
+		return
+	end
+
+	setupCollisionGroups()
+	pcall(function()
+		part.CollisionGroup = groupName
+	end)
+	pcall(function()
+		PhysicsService:SetPartCollisionGroup(part, groupName)
+	end)
+end
+
+local function assignCollisionGroup(root, groupName)
+	if not root or not groupName then
+		return
+	end
+
+	if root:IsA("BasePart") then
+		setPartCollisionGroup(root, groupName)
+	end
+
+	for _, descendant in ipairs(root:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			setPartCollisionGroup(descendant, groupName)
+		end
+	end
+end
+
+local function configureCollisionPart(part, groupName, canCollide, canTouch, canQuery)
+	if not part or not part:IsA("BasePart") then
+		return part
+	end
+
+	part.Anchored = true
+	part.CanCollide = canCollide ~= false
+	part.CanTouch = canTouch ~= false
+	part.CanQuery = canQuery ~= false
+	setPartCollisionGroup(part, groupName)
+	return part
+end
+
+local function createCollisionBlocker(parent, name, size, cframe, groupName)
+	local blocker = make("Part", {
+		Name = name or "CollisionBlocker",
+		Anchored = true,
+		CanCollide = true,
+		CanTouch = true,
+		CanQuery = true,
+		Transparency = 1,
+		Material = Enum.Material.SmoothPlastic,
+		Size = size,
+		CFrame = cframe,
+	}, parent)
+	blocker:SetAttribute("CollisionBlocker", true)
+	configureCollisionPart(blocker, groupName or COLLISION_GROUPS.Props, true, true, true)
+	return blocker
+end
+
+local function createModelBoundsBlocker(parent, name, model, groupName, padding, minHeight, maxHeight)
+	if not parent or not model then
+		return nil
+	end
+
+	local boundsCFrame, boundsSize = model:GetBoundingBox()
+	if boundsSize.Magnitude <= 0 then
+		return nil
+	end
+
+	padding = padding or Vector3.new(1.25, 0.2, 1.25)
+	local blockerHeight = math.clamp(boundsSize.Y + padding.Y, minHeight or 2.5, maxHeight or 12)
+	local bottomY = boundsCFrame.Position.Y - (boundsSize.Y / 2)
+	local blockerSize = Vector3.new(
+		math.max(2, boundsSize.X + padding.X),
+		blockerHeight,
+		math.max(2, boundsSize.Z + padding.Z)
+	)
+	local blockerCFrame = boundsCFrame + Vector3.new(0, (bottomY + blockerHeight / 2) - boundsCFrame.Position.Y, 0)
+	return createCollisionBlocker(parent, name, blockerSize, blockerCFrame, groupName or COLLISION_GROUPS.Props)
+end
+
+make = function(className, props, parent)
 	local instance = Instance.new(className)
 	for key, value in pairs(props or {}) do
 		instance[key] = value
@@ -212,36 +337,42 @@ local function updatePadHealth(plot, title, currentValue, maxValue, color)
 end
 
 local function createFence(parent, size, cframe)
-	make("Part", {
+	return configureCollisionPart(make("Part", {
 		Anchored = true,
 		CanCollide = true,
+		CanTouch = true,
+		CanQuery = true,
 		Material = Enum.Material.Concrete,
 		Color = Color3.fromRGB(28, 36, 50),
 		Size = size,
 		CFrame = cframe,
-	}, parent)
+	}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
 end
 
 local function createStadiumTier(parent, size, cframe)
-	make("Part", {
+	return configureCollisionPart(make("Part", {
 		Anchored = true,
 		CanCollide = true,
+		CanTouch = true,
+		CanQuery = true,
 		Material = Enum.Material.Concrete,
 		Color = Color3.fromRGB(112, 124, 148),
 		Size = size,
 		CFrame = cframe,
-	}, parent)
+	}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
 end
 
 local function createStadiumWedge(parent, size, cframe)
-	make("WedgePart", {
+	return configureCollisionPart(make("WedgePart", {
 		Anchored = true,
 		CanCollide = true,
+		CanTouch = true,
+		CanQuery = true,
 		Material = Enum.Material.Concrete,
 		Color = Color3.fromRGB(78, 88, 108),
 		Size = size,
 		CFrame = cframe,
-	}, parent)
+	}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
 end
 
 local function createGlowStrip(parent, name, size, cframe, color, transparency)
@@ -505,15 +636,17 @@ local function createPlanter(parent, position, scale)
 		Name = "Planter",
 	}, parent)
 
-	make("Part", {
+	configureCollisionPart(make("Part", {
 		Name = "Base",
 		Anchored = true,
 		CanCollide = true,
+		CanTouch = true,
+		CanQuery = true,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(18, 23, 34),
 		Size = Vector3.new(4.2, 1.2, 4.2) * scale,
 		CFrame = CFrame.new(position + Vector3.new(0, 0.6 * scale, 0)),
-	}, model)
+	}, model), COLLISION_GROUPS.Props, true, true, true)
 
 	make("Part", {
 		Name = "Bush",
@@ -526,6 +659,14 @@ local function createPlanter(parent, position, scale)
 		CFrame = CFrame.new(position + Vector3.new(0, 2.4 * scale, 0)),
 	}, model)
 
+	createCollisionBlocker(
+		model,
+		"PlanterCollisionBlocker",
+		Vector3.new(4.8, 3.2, 4.8) * scale,
+		CFrame.new(position + Vector3.new(0, 1.6 * scale, 0)),
+		COLLISION_GROUPS.Props
+	)
+
 	return model
 end
 
@@ -536,6 +677,7 @@ local function prepareImportedModel(model)
 			descendant.CanCollide = false
 			descendant.CanTouch = false
 			descendant.CanQuery = false
+			setPartCollisionGroup(descendant, COLLISION_GROUPS.Props)
 		elseif descendant:IsA("Script") or descendant:IsA("LocalScript") then
 			descendant:Destroy()
 		elseif descendant:IsA("PointLight") or descendant:IsA("SpotLight") or descendant:IsA("SurfaceLight") then
@@ -575,6 +717,7 @@ local function tryCreateImportedFloodlight(parent, name, position, targetPositio
 	local boundsCFrame, boundsSize = loaded:GetBoundingBox()
 	local bottomY = boundsCFrame.Position.Y - (boundsSize.Y / 2)
 	loaded:PivotTo(loaded:GetPivot() + Vector3.new(0, position.Y - bottomY, 0))
+	createModelBoundsBlocker(loaded, name .. "CollisionBlocker", loaded, COLLISION_GROUPS.Props, Vector3.new(1.5, 0.4, 1.5), 4, 12)
 
 	return loaded
 end
@@ -609,6 +752,7 @@ local function tryCreateImportedDecor(parent, name, assetId, position, facingPos
 	local boundsCFrame, boundsSize = loaded:GetBoundingBox()
 	local bottomY = boundsCFrame.Position.Y - (boundsSize.Y / 2)
 	loaded:PivotTo(loaded:GetPivot() + Vector3.new(0, position.Y - bottomY, 0))
+	createModelBoundsBlocker(loaded, name .. "CollisionBlocker", loaded, COLLISION_GROUPS.Props, Vector3.new(1.4, 0.3, 1.4), 3, 10)
 
 	return loaded
 end
@@ -648,6 +792,7 @@ local function tryAddStadiumSeats(parent, baseCFrame, facingDirection, assetId)
 		clone:PivotTo(CFrame.lookAt(worldPos, Vector3.new(lookTarget.X, worldPos.Y, lookTarget.Z)))
 		local bc, bs = clone:GetBoundingBox()
 		clone:PivotTo(clone:GetPivot() + Vector3.new(0, floorY - (bc.Position.Y - bs.Y * 0.5), 0))
+		createModelBoundsBlocker(clone, name .. "SeatCollisionBlocker", clone, COLLISION_GROUPS.Seats, Vector3.new(1.2, 0.3, 1.2), 2.5, 8)
 	end
 
 	-- North stand (Z negative): fans face south toward the pitch
@@ -717,6 +862,7 @@ local function createFloodlightRig(parent, name, position, targetPosition, optio
 	createFloodlightBeam(model, "LightAnchor", position, targetPosition, poleHeight, options)
 
 	if imported then
+		assignCollisionGroup(model, COLLISION_GROUPS.Props)
 		return model
 	end
 
@@ -758,6 +904,14 @@ local function createFloodlightRig(parent, name, position, targetPosition, optio
 		end
 	end
 
+	assignCollisionGroup(model, COLLISION_GROUPS.Props)
+	createCollisionBlocker(
+		model,
+		"FloodlightCollisionBlocker",
+		Vector3.new(3.2, math.min(poleHeight, 12), 3.2),
+		CFrame.new(position + Vector3.new(0, math.min(poleHeight, 12) / 2, 0)),
+		COLLISION_GROUPS.Props
+	)
 	return model
 end
 
@@ -819,6 +973,14 @@ local function createLightPost(parent, name, position, targetPosition)
 		Shadows = false,
 	}, head)
 
+	assignCollisionGroup(model, COLLISION_GROUPS.Props)
+	createCollisionBlocker(
+		model,
+		"LightPostCollisionBlocker",
+		Vector3.new(2.4, 7, 2.4),
+		CFrame.new(position + Vector3.new(0, 3.5, 0)),
+		COLLISION_GROUPS.Props
+	)
 	return model
 end
 
@@ -914,6 +1076,14 @@ local function createVerticalBanner(parent, name, position, lookTarget, title)
 
 	createSurfaceText(banner, title, "")
 
+	assignCollisionGroup(model, COLLISION_GROUPS.Props)
+	createCollisionBlocker(
+		model,
+		"BannerCollisionBlocker",
+		Vector3.new(bannerW + 0.8, bannerH + 1, 1.2),
+		bannerCF,
+		COLLISION_GROUPS.Props
+	)
 	return model
 end
 
@@ -965,6 +1135,7 @@ local function createFanZoneBench(parent, name, position, facingPos)
 		}, model)
 	end
 
+	assignCollisionGroup(model, COLLISION_GROUPS.Props)
 	return model
 end
 
@@ -972,12 +1143,15 @@ local function createFanZoneBoard(parent, name, position, facingPos, title, subt
 	local board = make("Part", {
 		Name = name,
 		Anchored = true,
-		CanCollide = false,
+		CanCollide = true,
+		CanTouch = true,
+		CanQuery = true,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(8, 12, 20),
 		Size = Vector3.new(16, 3.2, 0.45),
 		CFrame = CFrame.lookAt(position, Vector3.new(facingPos.X, position.Y, facingPos.Z)),
 	}, parent)
+	configureCollisionPart(board, COLLISION_GROUPS.Props, true, true, true)
 	createSurfaceText(board, title, subtitle or "")
 	return board
 end
@@ -1190,6 +1364,7 @@ local function createFanGate(parent, name, z, facingDirection)
 		createTurnstile(gate, CFrame.new(center + Vector3.new(x, 2.1, -facingDirection * 2)))
 	end
 
+	assignCollisionGroup(gate, COLLISION_GROUPS.StadiumGeometry)
 	return gate
 end
 
@@ -1204,6 +1379,9 @@ local function sanitizeImportedAsset(root)
 		elseif descendant:IsA("BasePart") then
 			descendant.Anchored = true
 			descendant.CanCollide = true
+			descendant.CanTouch = true
+			descendant.CanQuery = true
+			setPartCollisionGroup(descendant, COLLISION_GROUPS.Props)
 		end
 	end
 end
@@ -1259,6 +1437,7 @@ local function tryCreateImportedKiosk(parent, name, position, signText, facingPo
 	local boundsCFrame, boundsSize = model:GetBoundingBox()
 	local bottomY = boundsCFrame.Position.Y - (boundsSize.Y / 2)
 	model:PivotTo(model:GetPivot() + Vector3.new(0, position.Y - bottomY, 0))
+	createModelBoundsBlocker(model, name .. "CollisionBlocker", model, COLLISION_GROUPS.Props, Vector3.new(1.4, 0.3, 1.4), 3, 9)
 
 	local sign = make("Part", {
 		Name = "KioskLoadedSign",
@@ -1284,6 +1463,7 @@ local function tryCreateImportedKiosk(parent, name, position, signText, facingPo
 		Font = Enum.Font.GothamBlack,
 	}, signGui)
 
+	assignCollisionGroup(model, COLLISION_GROUPS.Props)
 	return model
 end
 
@@ -1401,6 +1581,14 @@ local function createFoodKiosk(parent, name, position, kioskIndex, facingPos)
 		Font = Enum.Font.GothamBlack,
 	}, signGui)
 
+	assignCollisionGroup(model, COLLISION_GROUPS.Props)
+	createCollisionBlocker(
+		model,
+		"KioskCollisionBlocker",
+		Vector3.new(8.4, 5.2, 4.8),
+		boothCF * CFrame.new(0, 0.6, 0.35),
+		COLLISION_GROUPS.Props
+	)
 	return model
 end
 
@@ -2189,8 +2377,8 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 		Name = "RebirthTerraceDeck",
 		Anchored = true,
 		CanCollide = true,   -- walkable
-		CanQuery = false,
-		CanTouch = false,
+		CanQuery = true,
+		CanTouch = true,
 		Material = Enum.Material.SmoothPlastic,
 		Color = deckColor,
 		Size = deckSize,
@@ -2212,7 +2400,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	-- Back guard-rail
 	make("Part", {
 		Name = "RebirthTerraceBackRail",
-		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Anchored = true, CanCollide = true, CanQuery = true, CanTouch = true,
 		Material = Enum.Material.SmoothPlastic,
 		Color = railColor,
 		Size = Vector3.new(0.45, 1.25, deckSize.Z),
@@ -2223,7 +2411,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	for _, z in ipairs({ -21.8, 21.8 }) do
 		make("Part", {
 			Name = "RebirthTerraceSideRail",
-			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Anchored = true, CanCollide = true, CanQuery = true, CanTouch = true,
 			Material = Enum.Material.SmoothPlastic,
 			Color = railColor,
 			Size = Vector3.new(deckSize.X, 1.1, 0.35),
@@ -2236,7 +2424,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 		for _, z in ipairs({ -18, 0, 18 }) do
 			make("Part", {
 				Name = "RebirthTerraceSupport",
-				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+				Anchored = true, CanCollide = true, CanQuery = true, CanTouch = true,
 				Material = Enum.Material.SmoothPlastic,
 				Color = supportColor,
 				Size = Vector3.new(0.55, supportHeight, 0.55),
@@ -2269,8 +2457,8 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 				Name = "RebirthTerraceStair",
 				Anchored = true,
 				CanCollide = true,
-				CanQuery = false,
-				CanTouch = false,
+				CanQuery = true,
+				CanTouch = true,
 				Material = Enum.Material.SmoothPlastic,
 				Color = stepColor,
 				Size = Vector3.new(treadD, stepHeight, stairW),
@@ -2316,9 +2504,9 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 			make("Part", {
 				Name = "RebirthTerraceStairRail",
 				Anchored = true,
-				CanCollide = false,
-				CanQuery = false,
-				CanTouch = false,
+				CanCollide = true,
+				CanQuery = true,
+				CanTouch = true,
 				Material = Enum.Material.Neon,
 				Color = gold,
 				Transparency = 0.18,
@@ -2332,9 +2520,9 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 				make("Part", {
 					Name = "RebirthTerraceStairRailPost",
 					Anchored = true,
-					CanCollide = false,
-					CanQuery = false,
-					CanTouch = false,
+					CanCollide = true,
+					CanQuery = true,
+					CanTouch = true,
 					Material = Enum.Material.SmoothPlastic,
 					Color = gold,
 					Size = Vector3.new(0.18, 2, 0.18),
@@ -2349,7 +2537,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	local signLookAt   = signPosition + Vector3.new(facingDirection, 0, 0)
 	local sign = make("Part", {
 		Name = "RebirthTerraceSign",
-		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Anchored = true, CanCollide = true, CanQuery = true, CanTouch = true,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(6, 8, 13),
 		Size = Vector3.new(17, 2.2, 0.35),
@@ -2391,7 +2579,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	for _, z in ipairs({ -19.8, 19.8 }) do
 		make("Part", {
 			Name = "RebirthTerraceLamp",
-			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Anchored = true, CanCollide = true, CanQuery = true, CanTouch = true,
 			Material = Enum.Material.SmoothPlastic,
 			Color = supportColor,
 			Size = Vector3.new(0.45, 2.4, 0.45),
@@ -2410,6 +2598,17 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 			Brightness = 0.45, Range = 15,
 			Color = Color3.fromRGB(255, 226, 160),
 		}, bulb)
+	end
+
+	for _, descendant in ipairs(parent:GetDescendants()) do
+		if descendant:IsA("BasePart") and string.find(descendant.Name, "RebirthTerrace", 1, true) then
+			local isDecorGlow = descendant.Name:find("Glow", 1, true) or descendant.Name:find("GoldLip", 1, true) or descendant.Name:find("Bulb", 1, true)
+			if isDecorGlow then
+				setPartCollisionGroup(descendant, COLLISION_GROUPS.StadiumGeometry)
+			else
+				configureCollisionPart(descendant, COLLISION_GROUPS.StadiumGeometry, true, true, true)
+			end
+		end
 	end
 end
 
@@ -3357,6 +3556,8 @@ function BaseService.UpdateStadiumTier(plot, tier)
 	for _, child in ipairs(plot.stadiumExtrasFolder:GetChildren()) do
 		child:Destroy()
 	end
+	plot.crowdSeatPoints = {}
+	plot.crowdPathHelpers = {}
 
 	if tier < 1 then return end
 
@@ -3381,17 +3582,58 @@ function BaseService.UpdateStadiumTier(plot, tier)
 	-- Alternating seat colours per row
 	local colA = Color3.fromRGB(198, 44, 44)
 	local colB = Color3.fromRGB(158, 30, 30)
+	local crowdPivotY = 3.1
+	local seatPointsFolder = make("Folder", { Name = "CrowdSeatPoints" }, parent)
+
+	local function createCrowdSeatPoint(standName, row, seatIndex, sitPosition, lookDirection, approachPosition)
+		local flatLook = Vector3.new(lookDirection.X, 0, lookDirection.Z)
+		if flatLook.Magnitude < 0.05 then
+			flatLook = Vector3.new(fd, 0, 0)
+		else
+			flatLook = flatLook.Unit
+		end
+
+		local sitCFrame = CFrame.lookAt(sitPosition, sitPosition + flatLook)
+		local point = make("Part", {
+			Name = string.format("SeatPoint_%s_%02d_%02d", standName, row, seatIndex),
+			Anchored = true,
+			CanCollide = false,
+			CanTouch = false,
+			CanQuery = false,
+			Transparency = 1,
+			Size = Vector3.new(1, 1, 1),
+			CFrame = sitCFrame,
+		}, seatPointsFolder)
+
+		point:SetAttribute("Occupied", false)
+		point:SetAttribute("SitPosition", sitPosition)
+		point:SetAttribute("LookDirection", flatLook)
+		point:SetAttribute("ApproachPosition", approachPosition)
+		point:SetAttribute("StandName", standName)
+		point:SetAttribute("SeatRow", row)
+
+		table.insert(plot.crowdSeatPoints, {
+			point = point,
+			sitCFrame = sitCFrame,
+			approachPosition = approachPosition,
+			lookAt = pitchPos,
+			standName = standName,
+			row = row,
+			seatIndex = seatIndex,
+		})
+	end
 
 	-- Build one bleacher face.
 	-- fencePos  : world XZ of the fence line (floor height; this becomes the stand's front face)
 	-- awayX/awayZ: unit step direction going away from the pitch per row
 	-- partSizeX/Z: horizontal dimensions of each tier Part
-	local function buildStand(fencePos, awayX, awayZ, partSizeX, partSizeZ)
+	local function buildStand(standName, fencePos, awayX, awayZ, partSizeX, partSizeZ, lookDirection, spanAxis)
 		for row = 1, rowCount do
 			local setback = (row - 0.5) * tierD         -- depth of row centre from fence
 			local rise    = (row - 1)   * tierH         -- height of row bottom above floor
-			make("Part", {
-				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			local rowPart = configureCollisionPart(make("Part", {
+				Name = string.format("RebirthSeatRow_%s_%02d", standName, row),
+				Anchored = true, CanCollide = true, CanQuery = true, CanTouch = true,
 				Material = Enum.Material.SmoothPlastic,
 				Color    = (row % 2 == 1) and colA or colB,
 				Size     = Vector3.new(partSizeX, tierH, partSizeZ),
@@ -3400,31 +3642,70 @@ function BaseService.UpdateStadiumTier(plot, tier)
 					floorY + rise + tierH / 2,
 					fencePos.Z + awayZ * setback
 				),
-			}, parent)
+			}, parent), COLLISION_GROUPS.Seats, true, true, true)
+
+			createCollisionBlocker(
+				parent,
+				string.format("RebirthSeatRow_%s_%02d_Blocker", standName, row),
+				rowPart.Size + Vector3.new(0.2, 0.15, 0.2),
+				rowPart.CFrame,
+				COLLISION_GROUPS.Seats
+			)
+
+			local span = spanAxis == "Z" and partSizeZ or partSizeX
+			local seatsInRow = math.clamp(math.floor(span / 7), 4, 8)
+			local topY = floorY + rise + tierH
+			for seatIndex = 1, seatsInRow do
+				local lateral = (-span / 2) + ((span / (seatsInRow + 1)) * seatIndex)
+				local seatX = fencePos.X + awayX * setback
+				local seatZ = fencePos.Z + awayZ * setback
+				if spanAxis == "Z" then
+					seatZ += lateral
+				else
+					seatX += lateral
+				end
+
+				local sitPosition = Vector3.new(seatX, topY + 1.18, seatZ)
+				local approachPosition = Vector3.new(
+					seatX + lookDirection.X * 2.2,
+					crowdPivotY,
+					seatZ + lookDirection.Z * 2.2
+				)
+				createCrowdSeatPoint(standName, row, seatIndex, sitPosition, lookDirection, approachPosition)
+			end
 		end
 	end
 
 	-- North stand: outside north fence (−Z side), facing south toward pitch
 	buildStand(
+		"North",
 		Vector3.new(pitchPos.X, 0, pitchPos.Z - (PlotZ / 2 + gap)),
 		0, -1,
-		sideW, tierD
+		sideW, tierD,
+		Vector3.new(0, 0, 1),
+		"X"
 	)
 
 	-- South stand: outside south fence (+Z side), facing north toward pitch
 	buildStand(
+		"South",
 		Vector3.new(pitchPos.X, 0, pitchPos.Z + (PlotZ / 2 + gap)),
 		0, 1,
-		sideW, tierD
+		sideW, tierD,
+		Vector3.new(0, 0, -1),
+		"X"
 	)
 
 	-- Back stand: outside back fence (opposite the entrance), facing inward
 	-- fd=1  → back fence is at X = pitchPos.X − PlotX/2; stand steps in −X
 	-- fd=−1 → back fence is at X = pitchPos.X + PlotX/2; stand steps in +X
 	buildStand(
+		"Back",
 		Vector3.new(pitchPos.X - fd * (PlotX / 2 + gap), 0, pitchPos.Z),
 		-fd, 0,
-		tierD, backW
+		tierD, backW,
+		Vector3.new(fd, 0, 0),
+		"Z"
 	)
 
 	-- Rebirth display slots 7-18 live on this raised terrace. Keeping the
@@ -3432,7 +3713,74 @@ function BaseService.UpdateStadiumTier(plot, tier)
 	createSecondFloorDisplayGallery(parent, plot.baseCFrame, fd)
 end
 
+function BaseService.SetupCollisionGroups()
+	setupCollisionGroups()
+end
+
+function BaseService.SetCollisionGroup(root, groupName)
+	assignCollisionGroup(root, groupName)
+end
+
+function BaseService.GetCollisionGroupName(key)
+	return COLLISION_GROUPS[key]
+end
+
+function BaseService.ConfigurePlayerCharacterCollision(character)
+	if not character then
+		return
+	end
+
+	assignCollisionGroup(character, COLLISION_GROUPS.Players)
+	if character:GetAttribute("CollisionGroupWired") then
+		return
+	end
+
+	character:SetAttribute("CollisionGroupWired", true)
+	character.DescendantAdded:Connect(function(descendant)
+		if descendant:IsA("BasePart") then
+			setPartCollisionGroup(descendant, COLLISION_GROUPS.Players)
+		end
+	end)
+end
+
+function BaseService.ReserveCrowdSeat(plot)
+	if not plot or not plot.crowdSeatPoints or #plot.crowdSeatPoints == 0 then
+		return nil
+	end
+
+	local available = {}
+	for _, seat in ipairs(plot.crowdSeatPoints) do
+		local point = seat.point
+		if point and point.Parent and not seat.reserved and point:GetAttribute("Occupied") ~= true then
+			table.insert(available, seat)
+		end
+	end
+
+	if #available == 0 then
+		return nil
+	end
+
+	local seat = available[math.random(1, #available)]
+	seat.reserved = true
+	if seat.point and seat.point.Parent then
+		seat.point:SetAttribute("Occupied", true)
+	end
+	return seat
+end
+
+function BaseService.ReleaseCrowdSeat(seat)
+	if not seat then
+		return
+	end
+
+	seat.reserved = nil
+	if seat.point and seat.point.Parent then
+		seat.point:SetAttribute("Occupied", false)
+	end
+end
+
 function BaseService.BuildBaseMap()
+	setupCollisionGroups()
 	plots = {}
 	assignedPlots = {}
 	animatedTurnstiles = {}
@@ -3781,6 +4129,7 @@ function BaseService.PlaceCharacterAtPlot(player, character)
 		return false
 	end
 
+	BaseService.ConfigurePlayerCharacterCollision(targetCharacter)
 	local rootPart = targetCharacter:FindFirstChild("HumanoidRootPart") or targetCharacter:WaitForChild("HumanoidRootPart", 5)
 	if not rootPart then
 		warn("[UnboxAFootballer] Could not move player to base; HumanoidRootPart missing for " .. player.Name)

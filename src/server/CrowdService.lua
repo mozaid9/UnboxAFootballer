@@ -1,5 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
+local PathfindingService = game:GetService("PathfindingService")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
@@ -10,6 +10,7 @@ local BaseService
 local DataService
 local fanFolder
 local running = false
+local activeNpcs = {}
 
 local plazaConfig = Constants.FanZone
 local layout = Constants.BaseLayout
@@ -39,6 +40,9 @@ local skinColors = {
 }
 
 local STANDING_PIVOT_HEIGHT = 3.1
+local NPC_PERSONAL_SPACE = 3.8
+local NPC_STUCK_CHECK_INTERVAL = 2
+local NPC_STUCK_DISTANCE = 1
 
 local FOOD_TYPES = {
 	Popcorn = true,
@@ -251,6 +255,15 @@ local function createFanNpc(index)
 		CFrame = CFrame.new(0.5, 1.48, 0),
 	}, model)
 
+	model:SetAttribute("CrowdIndex", index)
+	activeNpcs[model] = true
+	if BaseService and type(BaseService.SetCollisionGroup) == "function" then
+		BaseService.SetCollisionGroup(model, "NPCs")
+	end
+	model.Destroying:Connect(function()
+		activeNpcs[model] = nil
+	end)
+
 	return model
 end
 
@@ -414,6 +427,20 @@ local function chooseVisitorPlot()
 	return weightedPlots[#weightedPlots].plot
 end
 
+local function jitterPosition(position, radius)
+	if not position or not radius or radius <= 0 then
+		return position
+	end
+
+	local angle = math.random() * math.pi * 2
+	local distance = math.random() * radius
+	return Vector3.new(
+		position.X + math.cos(angle) * distance,
+		position.Y,
+		position.Z + math.sin(angle) * distance
+	)
+end
+
 -- laneXOffset / laneZOffset: 2-D nudge (studs) so each NPC walks a unique
 -- diagonal track through the plaza rather than converging on the centre line.
 local function makeRoute(laneXOffset, laneZOffset)
@@ -448,8 +475,8 @@ local function makeRoute(laneXOffset, laneZOffset)
 
 	local route = {
 		{ position = lane(rawStart) },
-		{ position = trophyBypass },
-		{ position = lane(rawLoop) },
+		{ position = jitterPosition(trophyBypass, 1.25), pause = math.random(0, 2) == 1 and math.random(2, 8) / 10 or nil },
+		{ position = jitterPosition(lane(rawLoop), 1.8), pause = math.random(0, 2) == 1 and math.random(1, 3) or nil },
 	}
 
 	-- Configured chance: detour to a real food stall counter.
@@ -495,18 +522,31 @@ local function makeRoute(laneXOffset, laneZOffset)
 	if math.random() < plazaConfig.VisitorRouteChance then
 		local plot = chooseVisitorPlot()
 		if plot then
+			local reservedSeat = type(BaseService.ReserveCrowdSeat) == "function" and BaseService.ReserveCrowdSeat(plot) or nil
 			-- Stadium sub-path: carry the NPC's 2-D lane offset into the approach point
 			local stadiumPathPoint = Vector3.new(laneXOffset, STANDING_PIVOT_HEIGHT, plot.floor.Position.Z + laneZOffset)
-			table.insert(route, { position = stadiumPathPoint })
-			table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.35 })
-			table.insert(route, {
-				position = getPlotSeatPoint(plot),
-				pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),
-				lookAt = plot.floor.Position,
-				pose = "seated",
-				clearFood = true,   -- drop food prop before sitting
-			})
-			table.insert(route, { position = getPlotEntrancePoint(plot), pause = 0.2 })
+			table.insert(route, { position = jitterPosition(stadiumPathPoint, 1.2) })
+			table.insert(route, { position = jitterPosition(getPlotEntrancePoint(plot), 1.1), pause = 0.35 })
+			if reservedSeat then
+				route.reservedSeat = reservedSeat
+				table.insert(route, {
+					position = reservedSeat.approachPosition,
+					pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),
+					lookAt = reservedSeat.lookAt or plot.floor.Position,
+					pose = "seated",
+					clearFood = true,
+					seatReservation = reservedSeat,
+				})
+			else
+				table.insert(route, {
+					position = jitterPosition(getPlotSeatPoint(plot), 1.5),
+					pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),
+					lookAt = plot.floor.Position,
+					pose = "seated",
+					clearFood = true,   -- drop food prop before sitting
+				})
+			end
+			table.insert(route, { position = jitterPosition(getPlotEntrancePoint(plot), 1.1), pause = 0.2 })
 			table.insert(route, { position = stadiumPathPoint })
 		end
 	end
@@ -519,67 +559,166 @@ local function getStepPosition(step)
 	return typeof(step) == "Vector3" and step or step.position
 end
 
+local function getNpcIndex(model)
+	return tonumber(model and model:GetAttribute("CrowdIndex")) or 0
+end
+
+local function getNearbyNpcSpacing(model)
+	if not model or not model.Parent then
+		return 1
+	end
+
+	local pivot = model:GetPivot()
+	local myIndex = getNpcIndex(model)
+	local speedScale = 1
+	local shouldPause = false
+
+	for other in pairs(activeNpcs) do
+		if other ~= model and other.Parent and other.PrimaryPart then
+			local otherPosition = other:GetPivot().Position
+			local delta = Vector3.new(pivot.Position.X - otherPosition.X, 0, pivot.Position.Z - otherPosition.Z)
+			local distance = delta.Magnitude
+			if distance > 0.05 and distance < NPC_PERSONAL_SPACE then
+				local otherIndex = getNpcIndex(other)
+				if distance < 2.35 and myIndex > otherIndex then
+					shouldPause = true
+				end
+				speedScale = math.min(speedScale, math.clamp((distance - 1.2) / (NPC_PERSONAL_SPACE - 1.2), 0.3, 1))
+			end
+		end
+	end
+
+	if shouldPause then
+		return 0
+	end
+	return speedScale
+end
+
+local function applyWalkFrame(model, t)
+	local swing = math.sin(t * math.pi * 4.5) * math.rad(28)
+	setPartLocal(model, "Left Arm",  CFrame.new(-1.5,  0,     0) * CFrame.Angles( swing,       0, 0))
+	setPartLocal(model, "Right Arm", CFrame.new( 1.5,  0,     0) * CFrame.Angles(-swing,       0, 0))
+	setPartLocal(model, "Left Leg",  CFrame.new(-0.5, -1.62,  0) * CFrame.Angles(-swing * 0.75, 0, 0))
+	setPartLocal(model, "Right Leg", CFrame.new( 0.5, -1.62,  0) * CFrame.Angles( swing * 0.75, 0, 0))
+end
+
+local function computePathWaypoints(startPosition, targetPosition)
+	local path = PathfindingService:CreatePath({
+		AgentRadius = 2.6,
+		AgentHeight = 5.4,
+		AgentCanJump = true,
+		AgentCanClimb = true,
+		WaypointSpacing = 3.5,
+	})
+
+	local ok = pcall(function()
+		path:ComputeAsync(startPosition, targetPosition)
+	end)
+
+	if not ok or path.Status ~= Enum.PathStatus.Success then
+		return nil
+	end
+
+	local waypoints = path:GetWaypoints()
+	if not waypoints or #waypoints == 0 then
+		return nil
+	end
+
+	return waypoints
+end
+
+local function moveSegment(model, targetPosition, npcSpeed)
+	if not model.Parent or not model.PrimaryPart then
+		return false
+	end
+
+	local startPosition = model:GetPivot().Position
+	local distance = (targetPosition - startPosition).Magnitude
+	if distance < 0.08 then
+		return true
+	end
+
+	local horizontalDirection = Vector3.new(targetPosition.X - startPosition.X, 0, targetPosition.Z - startPosition.Z)
+	local faceDirection = horizontalDirection.Magnitude > 0.05 and horizontalDirection.Unit or model:GetPivot().LookVector
+	local duration = math.max(0.18, distance / math.max(1, npcSpeed or plazaConfig.NpcWalkSpeed))
+	local elapsed = 0
+	local walkClock = 0
+	local lastCheckAt = os.clock()
+	local lastCheckPosition = startPosition
+	local pausedSince = nil
+
+	while elapsed < duration do
+		if not running or not model.Parent then
+			return false
+		end
+
+		local dt = task.wait(0.04)
+		local spacingScale = getNearbyNpcSpacing(model)
+		if spacingScale <= 0 then
+			pausedSince = pausedSince or os.clock()
+			if os.clock() - pausedSince > NPC_STUCK_CHECK_INTERVAL then
+				setFanPose(model, "standing")
+				return false
+			end
+		else
+			pausedSince = nil
+			elapsed = math.min(duration, elapsed + dt * spacingScale)
+			walkClock += dt * math.max(0.45, spacingScale)
+			local alpha = math.clamp(elapsed / duration, 0, 1)
+			local currentPosition = startPosition:Lerp(targetPosition, alpha)
+			model:PivotTo(CFrame.lookAt(currentPosition, currentPosition + faceDirection))
+			applyWalkFrame(model, walkClock)
+		end
+
+		if os.clock() - lastCheckAt >= NPC_STUCK_CHECK_INTERVAL then
+			local nowPosition = model:GetPivot().Position
+			if (nowPosition - lastCheckPosition).Magnitude < NPC_STUCK_DISTANCE then
+				setFanPose(model, "standing")
+				return false
+			end
+			lastCheckAt = os.clock()
+			lastCheckPosition = nowPosition
+		end
+	end
+
+	setFanPose(model, "standing")
+	return model.Parent ~= nil
+end
+
 local function moveModelTo(model, targetPosition, npcSpeed)
 	if not model.Parent or not model.PrimaryPart then
 		return false
 	end
 
-	local currentCFrame = model:GetPivot()
-	local currentPosition = currentCFrame.Position
+	local currentPosition = model:GetPivot().Position
 	local distance = (targetPosition - currentPosition).Magnitude
 	if distance < 0.05 then
 		return true
 	end
 
-	local direction = targetPosition - currentPosition
-	local horizontalDirection = Vector3.new(direction.X, 0, direction.Z)
-	local startCFrame, targetCFrame
-	if horizontalDirection.Magnitude > 0.05 then
-		-- Snap facing direction immediately so the NPC never slides sideways
-		startCFrame  = CFrame.lookAt(currentPosition, currentPosition + horizontalDirection.Unit)
-		targetCFrame = CFrame.lookAt(targetPosition,  targetPosition  + horizontalDirection.Unit)
-		model:PivotTo(startCFrame)
-	else
-		startCFrame  = currentCFrame
-		targetCFrame = CFrame.new(targetPosition) * (currentCFrame - currentPosition)
+	local waypoints = computePathWaypoints(currentPosition, targetPosition)
+	if not waypoints then
+		local retryTarget = jitterPosition(targetPosition, 4)
+		waypoints = computePathWaypoints(currentPosition, retryTarget)
+		if not waypoints then
+			return false
+		end
 	end
 
-	local duration = math.max(0.35, distance / (npcSpeed or plazaConfig.NpcWalkSpeed))
-
-	-- Walk animation: swing arms and legs for the full duration of movement
-	local walkActive = true
-	task.spawn(function()
-		local t = 0
-		while walkActive and model.Parent do
-			t += task.wait(0.04)
-			if not walkActive or not model.Parent then
-				break
-			end
-			-- Natural gait: left arm forward ↔ right leg forward, right arm forward ↔ left leg forward
-			local swing = math.sin(t * math.pi * 4.5) * math.rad(28)
-			setPartLocal(model, "Left Arm",  CFrame.new(-1.5,  0,     0) * CFrame.Angles( swing,       0, 0))
-			setPartLocal(model, "Right Arm", CFrame.new( 1.5,  0,     0) * CFrame.Angles(-swing,       0, 0))
-			setPartLocal(model, "Left Leg",  CFrame.new(-0.5, -1.62,  0) * CFrame.Angles(-swing * 0.75, 0, 0))
-			setPartLocal(model, "Right Leg", CFrame.new( 0.5, -1.62,  0) * CFrame.Angles( swing * 0.75, 0, 0))
+	for _, waypoint in ipairs(waypoints) do
+		local waypointY = targetPosition.Y
+		if waypoint.Action == Enum.PathWaypointAction.Jump then
+			waypointY += 0.2
 		end
-	end)
-
-	local cframeValue = Instance.new("CFrameValue")
-	cframeValue.Value = startCFrame
-	local connection = cframeValue:GetPropertyChangedSignal("Value"):Connect(function()
-		if model.Parent then
-			model:PivotTo(cframeValue.Value)
+		local waypointPosition = Vector3.new(waypoint.Position.X, waypointY, waypoint.Position.Z)
+		if not moveSegment(model, waypointPosition, npcSpeed) then
+			return false
 		end
-	end)
+	end
 
-	local tween = TweenService:Create(cframeValue, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-		Value = targetCFrame,
-	})
-	tween:Play()
-	tween.Completed:Wait()
-	connection:Disconnect()
-	cframeValue:Destroy()
-	walkActive = false
+	if (model:GetPivot().Position - targetPosition).Magnitude > 0.75 then
+		return moveSegment(model, targetPosition, npcSpeed)
+	end
 
 	return model.Parent ~= nil
 end
@@ -590,12 +729,12 @@ local function runFan(model)
 	-- X: ±8–13 studs left/right so NPCs clear the centre trophy.
 	-- Z: ±0–5 studs front/back so NPCs spread across the full plaza width
 	--    and don't all queue up on the same Z line.
-	-- Speed: ±18 % variation so fast NPCs naturally overtake slow ones and
+	-- Speed: 8–14 studs/s so fast NPCs naturally overtake slow ones and
 	--        the crowd looks alive rather than a synchronised march.
 	local laneSign   = math.random(1, 2) == 1 and 1 or -1
 	local laneXOffset = laneSign * (math.random(80, 130) / 10)          -- 8.0 – 13.0 studs
 	local laneZOffset = (math.random(-50, 50) / 10)                      -- ±5.0 studs
-	local mySpeed     = plazaConfig.NpcWalkSpeed * (0.82 + math.random() * 0.36)  -- ×0.82 – ×1.18
+	local mySpeed     = math.random(80, 140) / 10
 
 	task.spawn(function()
 		task.wait(math.random() * 7)    -- longer stagger so NPCs don't all depart at once
@@ -610,13 +749,21 @@ local function runFan(model)
 
 				local hasFood = false
 				local heldStallName, heldStallSlot = nil, nil
+				local reservedSeat = route.reservedSeat
 				local function releaseHeldSlot()
 					if heldStallName and heldStallSlot then
 						releaseStallSlot(heldStallName, heldStallSlot)
 						heldStallName, heldStallSlot = nil, nil
 					end
 				end
+				local function releaseReservedSeat()
+					if reservedSeat and BaseService and type(BaseService.ReleaseCrowdSeat) == "function" then
+						BaseService.ReleaseCrowdSeat(reservedSeat)
+					end
+					reservedSeat = nil
+				end
 
+				local routeFailed = false
 				for index = 2, #route do
 					local step = route[index]
 					local targetPosition = getStepPosition(step)
@@ -627,7 +774,9 @@ local function runFan(model)
 
 					if not moveModelTo(model, targetPosition, mySpeed) then
 						releaseHeldSlot()
-						return
+						releaseReservedSeat()
+						routeFailed = true
+						break
 					end
 
 					-- Face look-at target before pause (e.g. seated fans face the pitch)
@@ -642,6 +791,9 @@ local function runFan(model)
 
 					-- Seated pose
 					if typeof(step) == "table" and step.pose == "seated" then
+						if step.seatReservation and step.seatReservation.point and step.seatReservation.point.Parent then
+							model:PivotTo(step.seatReservation.sitCFrame or step.seatReservation.point.CFrame)
+						end
 						setFanPose(model, "seated")
 					end
 
@@ -670,6 +822,20 @@ local function runFan(model)
 						task.wait(step.pause)
 					end
 
+					if typeof(step) == "table" and step.seatReservation then
+						setFanPose(model, "standing")
+						if step.seatReservation.approachPosition and model.Parent then
+							local exitPosition = step.seatReservation.approachPosition
+							local lookAt = step.lookAt or (exitPosition + Vector3.new(0, 0, 1))
+							local flatLookAt = Vector3.new(lookAt.X, exitPosition.Y, lookAt.Z)
+							if (flatLookAt - exitPosition).Magnitude < 0.25 then
+								flatLookAt = exitPosition + Vector3.new(0, 0, 1)
+							end
+							model:PivotTo(CFrame.lookAt(exitPosition, flatLookAt))
+						end
+						releaseReservedSeat()
+					end
+
 					-- NPC has finished their stall stop — free the queue slot
 					-- so the next fan can move up.
 					releaseHeldSlot()
@@ -679,10 +845,14 @@ local function runFan(model)
 
 				-- Safety: route loop exited normally — make sure no slot is left held.
 				releaseHeldSlot()
+				releaseReservedSeat()
 
 				-- Clear prop at end of route
 				if hasFood then
 					setFoodProp(model, false)
+				end
+				if routeFailed then
+					task.wait(math.random(8, 18) / 10)
 				end
 			else
 				task.wait(1)
@@ -699,6 +869,9 @@ function CrowdService.Init(baseService, dataService)
 	BaseService = baseService
 	DataService = dataService
 	running = true
+	if BaseService and type(BaseService.SetupCollisionGroups) == "function" then
+		BaseService.SetupCollisionGroups()
+	end
 
 	task.spawn(function()
 		local basesFolder = Workspace:WaitForChild("PlayerBases", 10)
@@ -709,6 +882,7 @@ function CrowdService.Init(baseService, dataService)
 		if fanFolder and fanFolder.Parent then
 			fanFolder:Destroy()
 		end
+		activeNpcs = {}
 
 		fanFolder = make("Folder", {
 			Name = "FanCrowd",
@@ -723,6 +897,7 @@ end
 
 function CrowdService.Stop()
 	running = false
+	activeNpcs = {}
 	if fanFolder then
 		fanFolder:Destroy()
 		fanFolder = nil
