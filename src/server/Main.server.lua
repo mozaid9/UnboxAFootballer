@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 if ServerScriptService:GetAttribute("UnboxMainBooted") then
 	warn("[UnboxAFootballer] Duplicate Main detected, skipping older copy")
@@ -114,6 +115,7 @@ local packPurchaseLocks = {}
 local pendingPlayerPicks = {}
 local playerPickLocks = {}
 local questClaimLocks = {}
+local serverPackState = nil
 
 local function makeToolPart(name, size, color, cframe, parent)
 	local part = Instance.new("Part")
@@ -1551,6 +1553,546 @@ local function syncDisplaySlotsForPlayer(player, plot)
 	refreshPlotDisplayState(player, plot)
 end
 
+local function broadcastServerPackMessage(message, accent)
+	for _, player in ipairs(Players:GetPlayers()) do
+		sendHint(player, message, {
+			accent = accent or (Constants.ServerPack and Constants.ServerPack.Color) or Color3.fromRGB(96, 220, 255),
+		})
+	end
+end
+
+local function getServerPackParent()
+	local bases = Workspace:FindFirstChild("Bases")
+	local fanZone = bases and bases:FindFirstChild("FanZone")
+	return fanZone or Workspace
+end
+
+local function countServerPackQualified(state)
+	local minHits = math.max(1, math.floor(tonumber(Constants.ServerPack.MinimumHitsForReward) or 3))
+	local count = 0
+	for _, entry in pairs(state and state.participants or {}) do
+		if entry.player and entry.player.Parent and (entry.hits or 0) >= minHits then
+			count += 1
+		end
+	end
+	return count
+end
+
+local function updateServerPackBillboard(state)
+	if not state or not state.healthText or not state.progressFill then
+		return
+	end
+
+	local maxHealth = math.max(1, tonumber(state.maxHealth) or 1)
+	local health = math.max(0, tonumber(state.health) or 0)
+	local ratio = math.clamp(health / maxHealth, 0, 1)
+	local minHits = math.max(1, math.floor(tonumber(Constants.ServerPack.MinimumHitsForReward) or 3))
+	local qualified = countServerPackQualified(state)
+
+	state.healthText.Text = "HEALTH " .. Utils.FormatNumber(math.ceil(health)) .. " / " .. Utils.FormatNumber(maxHealth)
+	state.progressFill.Size = UDim2.fromScale(ratio, 1)
+	if state.helperText then
+		state.helperText.Text = tostring(minHits) .. " HITS TO CLAIM  |  " .. tostring(qualified) .. " QUALIFIED"
+	end
+end
+
+local function createServerPackBillboard(state, body, packDef, color)
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "ServerPackBillboard"
+	billboard.AlwaysOnTop = true
+	billboard.LightInfluence = 0
+	billboard.MaxDistance = 230
+	billboard.Size = UDim2.fromOffset(360, 128)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, 8.6, 0)
+	billboard.Parent = body
+
+	local frame = Instance.new("Frame")
+	frame.BackgroundColor3 = Color3.fromRGB(6, 10, 20)
+	frame.BackgroundTransparency = 0.05
+	frame.BorderSizePixel = 0
+	frame.Size = UDim2.fromScale(1, 1)
+	frame.Parent = billboard
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 16)
+	corner.Parent = frame
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color
+	stroke.Thickness = 3
+	stroke.Transparency = 0.08
+	stroke.Parent = frame
+
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(0.9, 0, 0.26, 0)
+	title.Position = UDim2.new(0.05, 0, 0.08, 0)
+	title.Text = string.upper(packDef.displayName or "SERVER PACK")
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.TextScaled = true
+	title.Font = Enum.Font.GothamBlack
+	title.Parent = frame
+
+	local healthText = Instance.new("TextLabel")
+	healthText.BackgroundTransparency = 1
+	healthText.Size = UDim2.new(0.9, 0, 0.19, 0)
+	healthText.Position = UDim2.new(0.05, 0, 0.38, 0)
+	healthText.TextColor3 = Color3.fromRGB(214, 232, 255)
+	healthText.TextScaled = true
+	healthText.Font = Enum.Font.GothamBold
+	healthText.Parent = frame
+
+	local progressBack = Instance.new("Frame")
+	progressBack.BackgroundColor3 = Color3.fromRGB(16, 21, 34)
+	progressBack.BorderSizePixel = 0
+	progressBack.Size = UDim2.new(0.84, 0, 0.12, 0)
+	progressBack.Position = UDim2.new(0.08, 0, 0.62, 0)
+	progressBack.Parent = frame
+	Instance.new("UICorner", progressBack).CornerRadius = UDim.new(1, 0)
+
+	local progressFill = Instance.new("Frame")
+	progressFill.BackgroundColor3 = color
+	progressFill.BorderSizePixel = 0
+	progressFill.Size = UDim2.fromScale(1, 1)
+	progressFill.Parent = progressBack
+	Instance.new("UICorner", progressFill).CornerRadius = UDim.new(1, 0)
+
+	local helperText = Instance.new("TextLabel")
+	helperText.BackgroundTransparency = 1
+	helperText.Size = UDim2.new(0.9, 0, 0.18, 0)
+	helperText.Position = UDim2.new(0.05, 0, 0.78, 0)
+	helperText.TextColor3 = Color3.fromRGB(255, 225, 96)
+	helperText.TextScaled = true
+	helperText.Font = Enum.Font.GothamBlack
+	helperText.Parent = frame
+
+	state.healthText = healthText
+	state.progressFill = progressFill
+	state.helperText = helperText
+	updateServerPackBillboard(state)
+end
+
+local function createServerPackModel(state)
+	local config = Constants.ServerPack or {}
+	local packDef = PackConfig.ById.ServerPack
+	if not packDef then
+		return nil
+	end
+
+	local color = config.Color or packDef.color or Color3.fromRGB(96, 220, 255)
+	local parent = getServerPackParent()
+	local model = Instance.new("Model")
+	model.Name = "ServerPackEvent"
+	model.Parent = parent
+
+	local groundPosition = config.Position or Vector3.new(0, 0, -82)
+	local centerPosition = Vector3.new(groundPosition.X, 7.2, groundPosition.Z)
+	local rootCFrame = CFrame.new(centerPosition) * CFrame.Angles(0, math.rad(180), 0)
+
+	local plinth = Instance.new("Part")
+	plinth.Name = "ServerPackEventPad"
+	plinth.Anchored = true
+	plinth.CanCollide = false
+	plinth.CanTouch = false
+	plinth.CanQuery = false
+	plinth.Shape = Enum.PartType.Cylinder
+	plinth.Material = Enum.Material.Neon
+	plinth.Color = color
+	plinth.Transparency = 0.45
+	plinth.Size = Vector3.new(0.18, 15, 15)
+	plinth.CFrame = CFrame.new(groundPosition + Vector3.new(0, 0.36, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	plinth.Parent = model
+
+	local body = Instance.new("Part")
+	body.Name = "ServerPackBody"
+	body.Anchored = true
+	body.CanCollide = false
+	body.CanTouch = false
+	body.CanQuery = true
+	body.Material = Enum.Material.SmoothPlastic
+	body.Color = Color3.fromRGB(8, 15, 28)
+	body.Size = Vector3.new(7.4, 10.8, 0.54)
+	body.CFrame = rootCFrame
+	body.Parent = model
+
+	local topCap = Instance.new("WedgePart")
+	topCap.Name = "TopCap"
+	topCap.Anchored = true
+	topCap.CanCollide = false
+	topCap.CanTouch = false
+	topCap.CanQuery = false
+	topCap.Material = Enum.Material.SmoothPlastic
+	topCap.Color = Color3.fromRGB(9, 20, 36)
+	topCap.Size = Vector3.new(7.4, 1.8, 0.54)
+	topCap.CFrame = body.CFrame * CFrame.new(0, 6.25, 0) * CFrame.Angles(0, 0, math.rad(180))
+	topCap.Parent = model
+
+	local bottomCap = Instance.new("WedgePart")
+	bottomCap.Name = "BottomCap"
+	bottomCap.Anchored = true
+	bottomCap.CanCollide = false
+	bottomCap.CanTouch = false
+	bottomCap.CanQuery = false
+	bottomCap.Material = Enum.Material.SmoothPlastic
+	bottomCap.Color = Color3.fromRGB(4, 9, 18)
+	bottomCap.Size = Vector3.new(7.4, 1.9, 0.54)
+	bottomCap.CFrame = body.CFrame * CFrame.new(0, -6.35, 0)
+	bottomCap.Parent = model
+
+	local glow = Instance.new("PointLight")
+	glow.Color = color
+	glow.Range = 30
+	glow.Brightness = 2.2
+	glow.Parent = body
+
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "ServerPackHitAttachment"
+	attachment.Parent = body
+
+	local hitEmitter = Instance.new("ParticleEmitter")
+	hitEmitter.Name = "ServerPackHitBurst"
+	hitEmitter.Enabled = false
+	hitEmitter.Rate = 0
+	hitEmitter.Lifetime = NumberRange.new(0.22, 0.42)
+	hitEmitter.Speed = NumberRange.new(4, 9)
+	hitEmitter.SpreadAngle = Vector2.new(70, 70)
+	hitEmitter.Drag = 3
+	hitEmitter.LightEmission = 1
+	hitEmitter.LightInfluence = 0
+	hitEmitter.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(0.45, color),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 230, 94)),
+	})
+	hitEmitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.34),
+		NumberSequenceKeypoint.new(0.4, 0.64),
+		NumberSequenceKeypoint.new(1, 0.04),
+	})
+	hitEmitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.04),
+		NumberSequenceKeypoint.new(0.7, 0.25),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	hitEmitter.Parent = attachment
+
+	local leakEmitter = Instance.new("ParticleEmitter")
+	leakEmitter.Name = "ServerPackCrackLeak"
+	leakEmitter.Enabled = false
+	leakEmitter.Rate = 18
+	leakEmitter.Lifetime = NumberRange.new(0.35, 0.68)
+	leakEmitter.Speed = NumberRange.new(1.0, 2.8)
+	leakEmitter.SpreadAngle = Vector2.new(90, 90)
+	leakEmitter.Drag = 2
+	leakEmitter.LightEmission = 1
+	leakEmitter.LightInfluence = 0
+	leakEmitter.Color = ColorSequence.new(color)
+	leakEmitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.22),
+		NumberSequenceKeypoint.new(0.42, 0.52),
+		NumberSequenceKeypoint.new(1, 0.03),
+	})
+	leakEmitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.08),
+		NumberSequenceKeypoint.new(0.7, 0.28),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	leakEmitter.Parent = attachment
+
+	local highlight = Instance.new("Highlight")
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.FillColor = color
+	highlight.FillTransparency = 0.9
+	highlight.OutlineColor = Color3.fromRGB(255, 247, 186)
+	highlight.OutlineTransparency = 0.25
+	highlight.Parent = model
+
+	createSurfaceLabel(Enum.NormalId.Front, "SERVER PACK", "BOOSTED LUCK", color, body)
+	createSurfaceLabel(Enum.NormalId.Back, "SERVER PACK", "BOOSTED LUCK", color, body)
+	local crackLines = createPackCrackOverlay(body, color)
+
+	state.model = model
+	state.activePackBody = body
+	state.activePackLight = glow
+	state.activePackBaseBrightness = glow.Brightness
+	state.activePackMaxHits = state.maxHealth
+	state.activePackHitsRemaining = state.health
+	state.activePackHitEmitter = hitEmitter
+	state.activePackLeakEmitter = leakEmitter
+	state.activePackHighlight = highlight
+	state.activePackImpactParts = { body, topCap, bottomCap }
+	state.activePackCracks = crackLines
+	state.activePackIntegrity = 1
+	state.activePackShakeUntil = 0
+
+	createServerPackBillboard(state, body, packDef, color)
+
+	local spinAngle = 0
+	task.spawn(function()
+		while state.active and model.Parent do
+			local now = os.clock()
+			local integrity = state.activePackIntegrity or 1
+			local stress = 1 - integrity
+			spinAngle += math.rad(18 + (stress * 58)) / 30
+			local floatY = centerPosition.Y + math.sin(now * (0.92 + stress * 1.4)) * (0.28 + stress * 0.18)
+			local hitShake = now < (state.activePackShakeUntil or 0) and (0.16 + stress * 0.34) or 0
+			local shakeX = math.sin(now * 44) * hitShake
+			local shakeZ = math.cos(now * 39) * hitShake
+			local baseCF = CFrame.new(centerPosition.X + shakeX, floatY, centerPosition.Z + shakeZ)
+				* CFrame.Angles(math.rad(math.sin(now * 1.2) * 2), spinAngle, math.rad(math.cos(now * 1.1) * 2))
+			body.CFrame = baseCF
+			topCap.CFrame = baseCF * CFrame.new(0, 6.25, 0) * CFrame.Angles(0, 0, math.rad(180))
+			bottomCap.CFrame = baseCF * CFrame.new(0, -6.35, 0)
+			task.wait(1 / 30)
+		end
+	end)
+
+	return model
+end
+
+local function awardServerPackPlayer(player, packWorldPosition)
+	if not player or not player.Parent then
+		return
+	end
+
+	local ok, result = PackService.OpenPack(player, "ServerPack", {
+		ignoreCost = true,
+		source = "serverPack",
+		cardPullLuckBonus = Constants.ServerPack.CardPullLuckBonus,
+	})
+
+	if not ok then
+		PackOpenFailedEvent:FireClient(player, {
+			error = result and result.error or "Server Pack reward failed.",
+		})
+		return
+	end
+
+	addQuestProgress(player, "openPack", 1)
+	local pulledCard = result.card or (result.cards and result.cards[1])
+	if not pulledCard then
+		PackOpenFailedEvent:FireClient(player, { error = "Server Pack reward failed." })
+		return
+	end
+
+	local plot = BaseService.GetPlot(player)
+	local storageResult
+	if plot and plot.ownerPlayer == player then
+		local storageOk, stored = pcall(autoStorePulledCard, player, plot, pulledCard)
+		if storageOk then
+			storageResult = stored
+		else
+			warn("[UnboxAFootballer] Server Pack auto-store failed:", stored)
+			DataService.AddCard(player, pulledCard.id)
+			refreshPlotDisplayState(player, plot)
+			storageResult = { storedInInventory = true, slotIndex = nil, slotWorldPosition = nil }
+		end
+	else
+		DataService.AddCard(player, pulledCard.id)
+		storageResult = { storedInInventory = true, slotIndex = nil, slotWorldPosition = nil }
+	end
+
+	addQuestProgress(player, "collectCard", 1)
+	local passiveIncome = getCardIncome(player, pulledCard)
+	PackOpenedEvent:FireClient(player, {
+		success = true,
+		packId = result.packId,
+		packName = result.packName,
+		newCoins = result.newCoins,
+		card = pulledCard,
+		storedInInventory = storageResult.storedInInventory,
+		slotIndex = storageResult.slotIndex,
+		slotWorldPosition = storageResult.slotWorldPosition,
+		packWorldPosition = packWorldPosition,
+		coinsPerSecond = passiveIncome,
+		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
+	})
+
+	local totalPacks = DataService.GetTotalPacksOpened(player)
+	local triggeredMilestones = checkAndGrantMilestones(player, totalPacks)
+	if plot then
+		local milestoneData = DataService.GetData(player)
+		BaseService.UpdatePackMilestone(plot, totalPacks, milestoneData and milestoneData.claimedMilestones or {}, getQueuedMilestoneCount(player))
+	end
+	fireMilestoneRewards(player, triggeredMilestones)
+
+	if storageResult.storedInInventory then
+		sendHint(player, pulledCard.name .. " went to inventory from the Server Pack.")
+	else
+		sendHint(player, pulledCard.name .. " is now earning +" .. tostring(passiveIncome) .. "/s from the Server Pack.")
+	end
+end
+
+local function resolveServerPack()
+	local state = serverPackState
+	if not state or state.breaking ~= true then
+		return
+	end
+
+	local packWorldPosition = state.activePackBody and (state.activePackBody.Position + Vector3.new(0, 3.2, 0)) or nil
+	if state.activePackHitEmitter then
+		state.activePackHitEmitter:Emit(80)
+	end
+	if state.activePackLeakEmitter then
+		state.activePackLeakEmitter.Enabled = false
+		state.activePackLeakEmitter:Emit(60)
+	end
+	if state.activePackLight then
+		state.activePackLight.Brightness = 7
+		state.activePackLight.Range = 42
+	end
+	if state.activePackHighlight then
+		state.activePackHighlight.FillTransparency = 0
+		state.activePackHighlight.FillColor = Color3.fromRGB(255, 255, 255)
+	end
+	for _, part in ipairs(state.activePackImpactParts or {}) do
+		if part and part.Parent then
+			TweenService:Create(part, TweenInfo.new(0.38, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Size = part.Size * 1.85,
+				Transparency = 1,
+			}):Play()
+		end
+	end
+
+	local minHits = math.max(1, math.floor(tonumber(Constants.ServerPack.MinimumHitsForReward) or 3))
+	local eligible = {}
+	local underQualified = {}
+	for _, entry in pairs(state.participants or {}) do
+		if entry.player and entry.player.Parent then
+			if (entry.hits or 0) >= minHits then
+				table.insert(eligible, entry.player)
+			else
+				table.insert(underQualified, entry.player)
+			end
+		end
+	end
+
+	broadcastServerPackMessage("Server Pack cracked! " .. tostring(#eligible) .. " helper" .. (#eligible == 1 and "" or "s") .. " earned a boosted card.", Constants.ServerPack.Color)
+	task.wait(0.45)
+	for _, player in ipairs(eligible) do
+		awardServerPackPlayer(player, packWorldPosition)
+	end
+	for _, player in ipairs(underQualified) do
+		sendHint(player, "Server Pack needs " .. tostring(minHits) .. " hits to claim next time.")
+	end
+
+	task.wait(0.35)
+	if state.model and state.model.Parent then
+		state.model:Destroy()
+	end
+	state.active = false
+	serverPackState = nil
+end
+
+local function spawnServerPack()
+	local config = Constants.ServerPack or {}
+	if config.Enabled == false or serverPackState then
+		return false
+	end
+
+	local packDef = PackConfig.ById.ServerPack
+	if not packDef then
+		warn("[UnboxAFootballer] ServerPack pack config missing.")
+		return false
+	end
+
+	local health = math.max(1, math.floor(tonumber(config.Health) or tonumber(packDef.hitsRequired) or 600))
+	local state = {
+		active = true,
+		breaking = false,
+		health = health,
+		maxHealth = health,
+		participants = {},
+		spawnedAt = os.time(),
+	}
+	serverPackState = state
+	createServerPackModel(state)
+	updateServerPackBillboard(state)
+	broadcastServerPackMessage("Server Pack spawned in the fan zone. Land 3 hits to claim a boosted card.", config.Color)
+	return true
+end
+
+local function isFacingPosition(rootPart, targetPosition, minDot)
+	local delta = targetPosition - rootPart.Position
+	local flatDelta = Vector3.new(delta.X, 0, delta.Z)
+	local flatLookVector = Vector3.new(rootPart.CFrame.LookVector.X, 0, rootPart.CFrame.LookVector.Z)
+	if flatDelta.Magnitude <= 0.1 or flatLookVector.Magnitude <= 0.1 then
+		return true
+	end
+	return flatLookVector.Unit:Dot(flatDelta.Unit) >= (minDot or Constants.Pitchfork.HitFacingDot or 0.5)
+end
+
+local function tryHitServerPack(player, rootPart)
+	local state = serverPackState
+	if not state or not state.active or state.breaking or not state.activePackBody then
+		return false
+	end
+
+	local packDelta = state.activePackBody.Position - rootPart.Position
+	local hitRange = tonumber(Constants.ServerPack.HitRange) or (Constants.Pitchfork.HitRange + 4)
+	if packDelta.Magnitude > hitRange then
+		return false
+	end
+
+	if not isFacingPosition(rootPart, state.activePackBody.Position, Constants.Pitchfork.HitFacingDot or 0.35) then
+		PackOpenFailedEvent:FireClient(player, {
+			error = "Face the Server Pack before swinging.",
+		})
+		return true
+	end
+
+	local damage = getPitchforkDamage(player)
+	state.health = math.max(0, (state.health or state.maxHealth or 1) - damage)
+	state.activePackHitsRemaining = state.health
+	local integrityRatio = (state.maxHealth or 1) > 0 and math.clamp(state.health / state.maxHealth, 0, 1) or 0
+	local newBrightness = nil
+	if state.activePackLight then
+		newBrightness = 2.2 + ((1 - integrityRatio) * 4)
+		state.activePackLight.Brightness = newBrightness
+	end
+
+	local userId = player.UserId
+	local entry = state.participants[userId]
+	if not entry then
+		entry = {
+			player = player,
+			hits = 0,
+			damage = 0,
+		}
+		state.participants[userId] = entry
+	end
+	entry.hits += 1
+	entry.damage += damage
+
+	updatePackDamageVisuals(state, integrityRatio)
+	playPackHitEffect(state, newBrightness)
+	updateServerPackBillboard(state)
+
+	PackHitFeedbackEvent:FireClient(player, {
+		packId = "ServerPack",
+		packName = "Server Pack",
+		color = Constants.ServerPack.Color,
+		remaining = state.health,
+		maxHits = state.maxHealth,
+		damage = damage,
+		integrity = integrityRatio,
+		isFinal = state.health <= 0,
+		packWorldPosition = state.activePackBody.Position + Vector3.new(0, 3.2, 0),
+	})
+
+	local minHits = math.max(1, math.floor(tonumber(Constants.ServerPack.MinimumHitsForReward) or 3))
+	if entry.hits == minHits then
+		sendHint(player, "You qualified for the Server Pack reward.")
+	end
+
+	if state.health <= 0 then
+		state.breaking = true
+		task.spawn(resolveServerPack)
+	end
+
+	return true
+end
+
 for _, plot in ipairs(BaseService.GetPlots()) do
 	BaseService.SetPlotPadStatus(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
 	for _, slot in ipairs(BaseService.GetDisplaySlots(plot)) do
@@ -1574,6 +2116,10 @@ RequestPitchforkHitEvent.OnServerEvent:Connect(function(player)
 		PackOpenFailedEvent:FireClient(player, {
 			error = "Equip your pitchfork first.",
 		})
+		return
+	end
+
+	if tryHitServerPack(player, rootPart) then
 		return
 	end
 
@@ -1905,6 +2451,30 @@ for _, player in ipairs(Players:GetPlayers()) do
 	task.spawn(handlePlayerAdded, player)
 end
 
+task.spawn(function()
+	local config = Constants.ServerPack or {}
+	if config.Enabled == false then
+		return
+	end
+
+	task.wait(math.max(5, math.floor(tonumber(config.FirstSpawnDelaySeconds) or 90)))
+	while true do
+		while #Players:GetPlayers() == 0 do
+			task.wait(5)
+		end
+
+		if not serverPackState then
+			spawnServerPack()
+		end
+
+		while serverPackState do
+			task.wait(2)
+		end
+
+		task.wait(math.max(60, math.floor(tonumber(config.SpawnIntervalSeconds) or (75 * 60))))
+	end
+end)
+
 -- ── Dev reset command ("/resetdata" in chat) ─────────────────
 -- Wipes ALL progress and kicks the player so they rejoin fresh.
 -- Remove this block before going to production.
@@ -1928,6 +2498,10 @@ Players.PlayerRemoving:Connect(function(player)
 	packPurchaseLocks[player] = nil
 	playerPickLocks[player] = nil
 	questClaimLocks[player] = nil
+	if serverPackState and serverPackState.participants then
+		serverPackState.participants[player.UserId] = nil
+		updateServerPackBillboard(serverPackState)
+	end
 	DataService.SavePlayer(player)
 	DataService.UnloadPlayer(player)
 	BaseService.ReleasePlot(player)

@@ -243,6 +243,18 @@ Constants.Pitchfork = {
 	HitFacingDot = 0.35, -- ~70° cone; needs to face pack but not perfectly
 }
 
+Constants.ServerPack = {
+	Enabled = true,
+	FirstSpawnDelaySeconds = 90,
+	SpawnIntervalSeconds = 75 * 60,
+	Health = 600,
+	MinimumHitsForReward = 3,
+	CardPullLuckBonus = 12,
+	HitRange = 24,
+	Position = Vector3.new(0, 0, -82),
+	Color = Color3.fromRGB(96, 220, 255),
+}
+
 -- ── Upgrade specs ─────────────────────────────────────────────
 -- Each upgrade has levels 0..maxLevel. Power-cost upgrades use
 -- floor(baseCost * nextLevel^costExponent) for intentionally slow scaling.

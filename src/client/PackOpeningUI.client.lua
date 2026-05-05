@@ -2061,6 +2061,9 @@ PromptPackShopEvent.OnClientEvent:Connect(function(payload)
 	if payload.coins ~= nil then
 		setCoinsDisplay(payload.coins)
 	end
+	if payload.message then
+		showToast(payload.message, payload.accent or UI.Gold)
+	end
 end)
 
 task.spawn(function()

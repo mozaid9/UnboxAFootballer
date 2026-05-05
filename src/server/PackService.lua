@@ -175,7 +175,7 @@ function PackService.OpenPack(player, packId, options)
 	end
 
 	local pityInfo, nextPackCount = getPityInfoForNextPack(data, options)
-	local cardPullLuckLevel = getCardPullLuckLevel(data)
+	local cardPullLuckLevel = math.clamp(getCardPullLuckLevel(data) + math.floor(tonumber(options.cardPullLuckBonus) or 0), 1, 50)
 	if type(packDef.playerPick) == "table" then
 		local pickOptions = PackService.RollPlayerPickOptions(packId, cardPullLuckLevel)
 		if #pickOptions == 0 then

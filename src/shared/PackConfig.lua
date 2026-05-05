@@ -342,6 +342,20 @@ PackConfig.ShopOrder = {
 		tierWeights = { 0, 0, 0, 0, 0, 0, 100 },
 		station = { position = Vector3.new(24, 1.5, 4) },
 	},
+	{
+		id = "ServerPack",
+		displayName = "Server Pack",
+		description = "Shared event pack with boosted odds for helpers.",
+		cost = 0,
+		futureCost = 0,
+		shopBuyable = false,
+		cardCount = 1,
+		hitsRequired = 600,
+		padWeight = 0,
+		color = Color3.fromRGB(96, 220, 255),
+		tierWeights = { 16, 24, 27, 18, 10, 4, 1 },
+		station = { position = Vector3.new(0, 1.5, -82) },
+	},
 }
 
 PackConfig.ById = {}
@@ -506,6 +520,7 @@ PackConfig.CardPullLuckTargets = {
 	GodPack = { 0, 0, 0, 5, 18, 48, 29 },
 	GoatPack = { 0, 0, 0, 1, 11, 48, 40 },
 	TotyVaultPack = { 0, 0, 0, 0, 0, 0, 100 },
+	ServerPack = { 8, 18, 28, 22, 15, 7, 2 },
 }
 
 function PackConfig.GetBaseRarityOdds(packType)
