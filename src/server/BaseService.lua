@@ -317,6 +317,7 @@ end
 local function updatePadLabel(plot, title, subtitle, color)
 	plot.padTitleLabel.Text = title
 	plot.padSubtitleLabel.Text = subtitle
+	plot.padSubtitleLabel.Visible = true
 	plot.padAccent.BackgroundColor3 = color
 	plot.padBarBack.Visible = false
 end
@@ -324,9 +325,8 @@ end
 local function updatePadHealth(plot, title, currentValue, maxValue, color)
 	local ratio = maxValue > 0 and math.clamp(currentValue / maxValue, 0, 1) or 0
 	plot.padTitleLabel.Text = title
-	-- Show pack integrity instead of raw hit numbers.
-	local pct = math.ceil(ratio * 100)
-	plot.padSubtitleLabel.Text = "Integrity: " .. pct .. "%"
+	plot.padSubtitleLabel.Text = ""
+	plot.padSubtitleLabel.Visible = false
 	plot.padAccent.BackgroundColor3 = color
 	plot.padBarBack.Visible = true
 	-- Bar colour shifts green → yellow → red as health drops
@@ -3842,6 +3842,11 @@ local function createPlot(plotId, side, laneIndex, position)
 	local machineLocalX = frontEdgeX + (facingDirection * 8.5)
 	local machineLocalZ = -(entranceWidth / 2 + 12.5)
 	local machineCF     = baseCFrame * CFrame.new(machineLocalX, 0, machineLocalZ)
+	local machinePos = machineCF.Position
+	local machineFacingCF = CFrame.lookAt(machinePos, machinePos + centerDirection)
+	local rebirthMachine = make("Model", {
+		Name = "RebirthMachine",
+	}, model)
 
 	make("Part", {
 		Name = "RebirthMachinePad",
@@ -3849,92 +3854,299 @@ local function createPlot(plotId, side, laneIndex, position)
 		CanCollide = false,
 		CanQuery = false,
 		CanTouch = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(34, 24, 54),
-		Size = Vector3.new(8.5, 0.22, 8.5),
-		CFrame = machineCF * CFrame.new(0, 0.61, 0),
-	}, model)
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(120, 45, 230),
+		Transparency = 0.48,
+		Size = Vector3.new(0.18, 11.5, 11.5),
+		CFrame = CFrame.new(machinePos + Vector3.new(0, 0.62, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+	}, rebirthMachine)
 
-	-- Pedestal base (sits on floor top → local Y 0.5 + halfHeight 0.7 = 1.2)
 	make("Part", {
-		Name = "RebirthBase", Anchored = true,
+		Name = "RebirthBase",
+		Anchored = true,
+		CanCollide = true,
+		CanQuery = true,
+		CanTouch = true,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(20, 15, 32),
-		Size = Vector3.new(5, 1.4, 5),
-		CFrame = machineCF * CFrame.new(0, 1.2, 0),
-	}, model)
+		Color = Color3.fromRGB(9, 12, 24),
+		Size = Vector3.new(7.4, 1.05, 7.4),
+		CFrame = machineFacingCF * CFrame.new(0, 1.05, 0),
+	}, rebirthMachine)
 
-	-- Body column (base top = 1.9 → body centre = 1.9 + 3.0 = 4.9)
 	make("Part", {
-		Name = "RebirthBody", Anchored = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(22, 16, 36),
-		Size = Vector3.new(3.0, 6.0, 3.0),
-		CFrame = machineCF * CFrame.new(0, 4.9, 0),
-	}, model)
+		Name = "RebirthBaseGoldLip",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 210, 58),
+		Transparency = 0.34,
+		Size = Vector3.new(8.0, 0.18, 8.0),
+		CFrame = machineFacingCF * CFrame.new(0, 1.64, 0),
+	}, rebirthMachine)
 
-	-- Neon purple vertical accent strips at each corner of the body
-	for i = 0, 3 do
-		local angle = (i / 4) * math.pi * 2 + math.pi / 4   -- 45°, 135°, 225°, 315°
-		local r = 1.58
+	make("Part", {
+		Name = "RebirthCore",
+		Anchored = true,
+		CanCollide = true,
+		CanQuery = true,
+		CanTouch = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(16, 14, 34),
+		Size = Vector3.new(3.0, 4.8, 3.0),
+		CFrame = machineFacingCF * CFrame.new(0, 3.95, 0.75),
+	}, rebirthMachine)
+
+	for _, x in ipairs({ -4.05, 4.05 }) do
 		make("Part", {
-			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Name = "RebirthSidePylon",
+			Anchored = true,
+			CanCollide = true,
+			CanQuery = true,
+			CanTouch = true,
+			Material = Enum.Material.SmoothPlastic,
+			Color = Color3.fromRGB(12, 15, 30),
+			Size = Vector3.new(0.85, 6.8, 1.2),
+			CFrame = machineFacingCF * CFrame.new(x, 4.35, 0),
+		}, rebirthMachine)
+		make("Part", {
+			Name = "RebirthPylonGlow",
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
 			Material = Enum.Material.Neon,
-			Color = Color3.fromRGB(130, 52, 255),
-			Transparency = 0.28,
-			Size = Vector3.new(0.26, 5.8, 0.26),
-			CFrame = machineCF * CFrame.new(math.cos(angle) * r, 4.9, math.sin(angle) * r),
-		}, model)
+			Color = Color3.fromRGB(176, 70, 255),
+			Transparency = 0.18,
+			Size = Vector3.new(0.18, 5.6, 1.34),
+			CFrame = machineFacingCF * CFrame.new(x, 4.55, -0.08),
+		}, rebirthMachine)
 	end
 
-	-- Gold neon trim cap at top of body (body top = 7.9)
 	make("Part", {
-		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Name = "RebirthCoreCrown",
+		Anchored = true,
+		CanCollide = true,
+		CanQuery = true,
+		CanTouch = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(24, 21, 48),
+		Size = Vector3.new(4.3, 0.62, 4.3),
+		CFrame = machineFacingCF * CFrame.new(0, 6.68, 0.75),
+	}, rebirthMachine)
+
+	make("Part", {
+		Name = "RebirthCrownGlow",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
 		Material = Enum.Material.Neon,
 		Color = Color3.fromRGB(255, 208, 50),
-		Transparency = 0.36,
-		Size = Vector3.new(3.4, 0.28, 3.4),
-		CFrame = machineCF * CFrame.new(0, 8.1, 0),
-	}, model)
+		Transparency = 0.22,
+		Size = Vector3.new(4.7, 0.18, 4.7),
+		CFrame = machineFacingCF * CFrame.new(0, 7.08, 0.75),
+	}, rebirthMachine)
 
-	-- Portal ring: flat horizontal disc floating above the column.
-	-- Cylinder axis = X by default; rotate 90° around Z to make axis = Y (flat disc).
+	local portalCF = machineFacingCF * CFrame.new(0, 6.45, -0.62)
+	local portalParts = {
+		{ "RebirthPortalLeft", Vector3.new(0.34, 7.1, 0.5), CFrame.new(-3.55, 0, 0) },
+		{ "RebirthPortalRight", Vector3.new(0.34, 7.1, 0.5), CFrame.new(3.55, 0, 0) },
+		{ "RebirthPortalTop", Vector3.new(7.45, 0.34, 0.5), CFrame.new(0, 3.38, 0) },
+		{ "RebirthPortalBottom", Vector3.new(7.45, 0.34, 0.5), CFrame.new(0, -3.38, 0) },
+	}
+	for _, spec in ipairs(portalParts) do
+		make("Part", {
+			Name = spec[1],
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(156, 70, 255),
+			Transparency = 0.08,
+			Size = spec[2],
+			CFrame = portalCF * spec[3],
+		}, rebirthMachine)
+	end
+
 	make("Part", {
-		Name = "RebirthPortalRing", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Name = "RebirthPortalWindow",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
 		Material = Enum.Material.Neon,
-		Color = Color3.fromRGB(148, 68, 255),
-		Transparency = 0.16,
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.42, 8.2, 8.2),
-		CFrame = machineCF * CFrame.new(0, 9.2, 0) * CFrame.Angles(0, 0, math.rad(90)),
-	}, model)
+		Color = Color3.fromRGB(118, 35, 255),
+		Transparency = 0.72,
+		Size = Vector3.new(6.45, 6.45, 0.08),
+		CFrame = portalCF,
+	}, rebirthMachine)
 
-	-- Smaller inner ring for depth
+	local console = make("Part", {
+		Name = "RebirthConsole",
+		Anchored = true,
+		CanCollide = true,
+		CanQuery = true,
+		CanTouch = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(10, 14, 26),
+		Size = Vector3.new(4.6, 1.35, 1.4),
+		CFrame = machineFacingCF * CFrame.new(0, 2.45, -3.1) * CFrame.Angles(math.rad(-10), 0, 0),
+	}, rebirthMachine)
+
 	make("Part", {
-		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Name = "RebirthConsoleScreen",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
 		Material = Enum.Material.Neon,
-		Color = Color3.fromRGB(200, 140, 255),
-		Transparency = 0.52,
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.28, 5.6, 5.6),
-		CFrame = machineCF * CFrame.new(0, 9.2, 0) * CFrame.Angles(0, 0, math.rad(90)),
-	}, model)
+		Color = Color3.fromRGB(255, 218, 70),
+		Transparency = 0.18,
+		Size = Vector3.new(3.65, 0.16, 0.88),
+		CFrame = console.CFrame * CFrame.new(0, 0.72, -0.18),
+	}, rebirthMachine)
 
-	-- Glowing orb at the centre of the portal ring
+	local machineSign = make("Part", {
+		Name = "RebirthMachineSign",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(8, 10, 20),
+		Size = Vector3.new(5.2, 1.35, 0.22),
+		CFrame = machineFacingCF * CFrame.new(0, 7.58, -3.0),
+	}, rebirthMachine)
+	local machineSignGui = make("SurfaceGui", {
+		Face = Enum.NormalId.Front,
+		PixelsPerStud = 90,
+		LightInfluence = 0,
+	}, machineSign)
+	local machineSignFrame = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(8, 10, 20),
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+	}, machineSignGui)
+	make("UIStroke", {
+		Color = Color3.fromRGB(255, 215, 70),
+		Thickness = 2,
+		Transparency = 0.1,
+	}, machineSignFrame)
+	createOwnerSignText("REBIRTH", UDim2.fromScale(0.9, 0.66), UDim2.fromScale(0.05, 0.06), Color3.fromRGB(255, 225, 86), {
+		textScaled = true,
+		minTextSize = 16,
+		maxTextSize = 68,
+		textStrokeTransparency = 0.45,
+		font = Enum.Font.GothamBlack,
+	}, machineSignFrame)
+	createOwnerSignText("RESET FOR MULTIPLIER", UDim2.fromScale(0.82, 0.25), UDim2.fromScale(0.09, 0.68), Color3.fromRGB(218, 188, 255), {
+		textScaled = true,
+		minTextSize = 8,
+		maxTextSize = 26,
+		textStrokeTransparency = 0.7,
+		font = Enum.Font.GothamBold,
+	}, machineSignFrame)
+
 	local rebirthOrb = make("Part", {
-		Name = "RebirthOrb", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Name = "RebirthOrb",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
 		Material = Enum.Material.Neon,
-		Color = Color3.fromRGB(188, 118, 255),
-		Transparency = 0.08,
+		Color = Color3.fromRGB(198, 128, 255),
+		Transparency = 0.04,
 		Shape = Enum.PartType.Ball,
-		Size = Vector3.new(2.4, 2.4, 2.4),
-		CFrame = machineCF * CFrame.new(0, 9.2, 0),
-	}, model)
+		Size = Vector3.new(2.15, 2.15, 2.15),
+		CFrame = portalCF * CFrame.new(0, 0, -0.12),
+	}, rebirthMachine)
 
 	make("PointLight", {
-		Brightness = 2.6, Range = 26,
-		Color = Color3.fromRGB(148, 68, 255),
+		Brightness = 3.5,
+		Range = 28,
+		Color = Color3.fromRGB(160, 76, 255),
 	}, rebirthOrb)
+
+	local orbAttachment = make("Attachment", {
+		Name = "RebirthOrbAttachment",
+	}, rebirthOrb)
+	local orbParticles = make("ParticleEmitter", {
+		Name = "RebirthEnergy",
+		Enabled = true,
+		Rate = 16,
+		Lifetime = NumberRange.new(0.6, 1.15),
+		Speed = NumberRange.new(0.35, 1.2),
+		SpreadAngle = Vector2.new(180, 180),
+		Drag = 1.5,
+		LightEmission = 1,
+		LightInfluence = 0,
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 245, 160)),
+			ColorSequenceKeypoint.new(0.45, Color3.fromRGB(180, 86, 255)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(108, 220, 255)),
+		}),
+		Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.16),
+			NumberSequenceKeypoint.new(0.55, 0.38),
+			NumberSequenceKeypoint.new(1, 0.02),
+		}),
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.08),
+			NumberSequenceKeypoint.new(0.7, 0.28),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+	}, orbAttachment)
+	_ = orbParticles
+
+	local spinBandA = make("Part", {
+		Name = "RebirthSpinBandA",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 218, 70),
+		Transparency = 0.18,
+		Size = Vector3.new(4.4, 0.16, 0.16),
+		CFrame = rebirthOrb.CFrame,
+	}, rebirthMachine)
+	local spinBandB = make("Part", {
+		Name = "RebirthSpinBandB",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(108, 220, 255),
+		Transparency = 0.18,
+		Size = Vector3.new(0.16, 4.4, 0.16),
+		CFrame = rebirthOrb.CFrame,
+	}, rebirthMachine)
+
+	task.spawn(function()
+		local spin = 0
+		while rebirthMachine.Parent do
+			spin += math.rad(2.3)
+			local orbCF = portalCF * CFrame.new(0, math.sin(os.clock() * 1.15) * 0.15, -0.12)
+			rebirthOrb.CFrame = orbCF
+			spinBandA.CFrame = orbCF * CFrame.Angles(0, spin, math.rad(18))
+			spinBandB.CFrame = orbCF * CFrame.Angles(spin * 0.85, 0, math.rad(90))
+			task.wait(0.04)
+		end
+	end)
+
+	assignCollisionGroup(rebirthMachine, COLLISION_GROUPS.Props)
+	createCollisionBlocker(
+		rebirthMachine,
+		"RebirthMachineCollisionBlocker",
+		Vector3.new(8.6, 8.6, 4.2),
+		machineFacingCF * CFrame.new(0, 4.3, -0.25),
+		COLLISION_GROUPS.Props
+	)
 
 	local rebirthPrompt = make("ProximityPrompt", {
 		ActionText            = "Rebirth",
