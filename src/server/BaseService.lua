@@ -375,6 +375,21 @@ local function createStadiumWedge(parent, size, cframe)
 	}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
 end
 
+local function setModelVisibleAndSolid(model, visible)
+	if not model then
+		return
+	end
+
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			descendant.Transparency = visible and (descendant:GetAttribute("OriginalTransparency") or 0) or 1
+			descendant.CanCollide = visible
+			descendant.CanTouch = visible
+			descendant.CanQuery = visible
+		end
+	end
+end
+
 local function createGlowStrip(parent, name, size, cframe, color, transparency)
 	make("Part", {
 		Name = name,
@@ -2709,31 +2724,35 @@ local function createPlot(plotId, side, laneIndex, position)
 		}, model)
 	end
 
+	local starterStadiumFolder = make("Folder", {
+		Name = "StarterStadium",
+	}, model)
+
 	local standRise = 0.9
 	local standDepth = 4.8
 	for step = 1, 3 do
 		local levelOffset = (step - 1) * 2.9
 		local levelY = layout.PlotSize.Y / 2 + (standRise / 2) + ((step - 1) * standRise)
 		local sideZ = (layout.PlotSize.Z / 2) + 2.2 + levelOffset
-		createStadiumTier(model, Vector3.new(layout.PlotSize.X - 10, standRise, standDepth), baseCFrame * CFrame.new(0, levelY, sideZ))
-		createStadiumTier(model, Vector3.new(layout.PlotSize.X - 10, standRise, standDepth), baseCFrame * CFrame.new(0, levelY, -sideZ))
+		createStadiumTier(starterStadiumFolder, Vector3.new(layout.PlotSize.X - 10, standRise, standDepth), baseCFrame * CFrame.new(0, levelY, sideZ))
+		createStadiumTier(starterStadiumFolder, Vector3.new(layout.PlotSize.X - 10, standRise, standDepth), baseCFrame * CFrame.new(0, levelY, -sideZ))
 
 		local backX = backEdgeX - (facingDirection * (2.6 + levelOffset))
-		createStadiumTier(model, Vector3.new(standDepth, standRise, layout.PlotSize.Z + 8), baseCFrame * CFrame.new(backX, levelY, 0))
+		createStadiumTier(starterStadiumFolder, Vector3.new(standDepth, standRise, layout.PlotSize.Z + 8), baseCFrame * CFrame.new(backX, levelY, 0))
 	end
 
 	createStadiumWedge(
-		model,
+		starterStadiumFolder,
 		Vector3.new(4.6, 3.2, layout.PlotSize.Z + 8),
 		baseCFrame * CFrame.new(backEdgeX - (facingDirection * 10.6), 2.1, 0) * CFrame.Angles(0, math.rad(side == "Left" and 180 or 0), math.rad(90))
 	)
 	createStadiumWedge(
-		model,
+		starterStadiumFolder,
 		Vector3.new(layout.PlotSize.X - 10, 3.2, 4.6),
 		baseCFrame * CFrame.new(0, 2.1, (layout.PlotSize.Z / 2) + 10.4) * CFrame.Angles(0, 0, math.rad(180))
 	)
 	createStadiumWedge(
-		model,
+		starterStadiumFolder,
 		Vector3.new(layout.PlotSize.X - 10, 3.2, 4.6),
 		baseCFrame * CFrame.new(0, 2.1, -(layout.PlotSize.Z / 2) - 10.4)
 	)
@@ -3515,6 +3534,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		model = model,
 		baseCFrame = baseCFrame,
 		facingDirection = facingDirection,
+		starterStadiumFolder = starterStadiumFolder,
 		stadiumExtrasFolder = stadiumExtrasFolder,
 		floor = floor,
 		packPad = packPad,
@@ -3565,6 +3585,7 @@ function BaseService.UpdateStadiumTier(plot, tier)
 	end
 	plot.crowdSeatPoints = {}
 	plot.crowdPathHelpers = {}
+	setModelVisibleAndSolid(plot.starterStadiumFolder, tier < 1)
 
 	if tier < 1 then return end
 
@@ -3607,7 +3628,7 @@ function BaseService.UpdateStadiumTier(plot, tier)
 			CanQuery = false,
 			Material = Enum.Material.Slate,
 			Color = Color3.fromRGB(44, 52, 68),
-			Transparency = 0.04,
+			Transparency = 1,
 			Size = size,
 			CFrame = cframe,
 		}, parent)
@@ -4038,6 +4059,7 @@ function BaseService.ReleasePlot(player)
 	BaseService.UpdatePackMilestone(plot, 0)
 	updateOwnerSign(plot, nil, "")
 	BaseService.UpdateRebirthMultiplier(plot, nil)
+	BaseService.UpdateStadiumTier(plot, 0)
 	updatePadLabel(plot, "Pack Pad", "Waiting for owner", Color3.fromRGB(255, 85, 85))
 	if player.RespawnLocation == plot.spawnLocation then
 		player.RespawnLocation = nil

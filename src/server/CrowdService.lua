@@ -390,7 +390,8 @@ local function getPlotWeight(plot)
 
 	local fans = DataService.GetCoins(plot.ownerPlayer)
 	local visibleFromFans = math.floor((fans or 0) / plazaConfig.FansPerVisibleNpc)
-	local capacity = math.min(plazaConfig.MaxStadiumVisitors, plazaConfig.BaseStadiumCapacity + math.floor((fans or 0) / 500000))
+	local visitorStep = plazaConfig.FansPerStadiumVisitor or 10000000
+	local capacity = math.min(plazaConfig.MaxStadiumVisitors, plazaConfig.BaseStadiumCapacity + math.floor((fans or 0) / visitorStep))
 	return math.clamp(visibleFromFans, 0, capacity)
 end
 
@@ -546,7 +547,7 @@ local function makeRoute(laneXOffset, laneZOffset)
 					clearFood = true,
 					seatReservation = reservedSeat,
 				})
-			else
+			elseif not plot.crowdSeatPoints or #plot.crowdSeatPoints == 0 then
 				table.insert(route, {
 					position = jitterPosition(getPlotSeatPoint(plot), 1.5),
 					pause = math.random(plazaConfig.StadiumVisitPauseMin, plazaConfig.StadiumVisitPauseMax),

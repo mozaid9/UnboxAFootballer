@@ -154,7 +154,7 @@ Constants.BaseLayout = {
 }
 
 Constants.FanZone = {
-	CrowdNpcCount = 20,
+	CrowdNpcCount = 48,
 	FloodlightAssetId = 16893178499,
 	ModelAssets = {
 		SoccerPitchLines = 76319198813958,
@@ -171,10 +171,11 @@ Constants.FanZone = {
 		WalkingNpc = 127964771902906,
 	},
 	FansPerVisibleNpc = 75000,
-	BaseStadiumCapacity = 4,
-	MaxStadiumVisitors = 8,
-	VisitorRouteChance = 0.48,
-	FoodStopChance = 0.55,
+	FansPerStadiumVisitor = 10000000,
+	BaseStadiumCapacity = 6,
+	MaxStadiumVisitors = 36,
+	VisitorRouteChance = 0.72,
+	FoodStopChance = 0.35,
 	NpcWalkSpeed = 13,
 	StadiumVisitPauseMin = 30,
 	StadiumVisitPauseMax = 90,
