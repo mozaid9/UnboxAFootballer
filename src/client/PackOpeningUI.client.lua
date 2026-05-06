@@ -1143,23 +1143,42 @@ local function showMilestoneRewardPopup(payload)
 end
 
 -- ── Shimmer sweep helper ──────────────────────────────────────────────────────
--- Slides a bright diagonal stripe across `panel` once (card reveal shine).
+-- Slides a subtle clipped gleam across the card face without spilling over the screen.
 local function sweepShimmer(panel, color)
+	local mask = make("Frame", {
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ClipsDescendants = true,
+		Size = UDim2.fromScale(1, 1),
+		ZIndex = 208,
+	}, panel)
+	addCorner(mask, 18)
+
 	local shine = make("Frame", {
 		AnchorPoint      = Vector2.new(0, 0.5),
-		Position         = UDim2.fromScale(-0.38, 0.5),
-		Size             = UDim2.fromScale(0.38, 1.5),
+		Position         = UDim2.fromScale(-0.20, 0.5),
+		Size             = UDim2.fromScale(0.16, 1.12),
 		BackgroundColor3 = color,
-		BackgroundTransparency = 0.46,
-		Rotation         = -22,
+		BackgroundTransparency = 0.76,
+		Rotation         = -16,
 		BorderSizePixel  = 0,
 		ZIndex           = 209,
-	}, panel)
-	TweenService:Create(shine, TweenInfo.new(0.44, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
-		Position = UDim2.fromScale(1.38, 0.5),
+	}, mask)
+	make("UIGradient", {
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.5, 0.10),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+		Rotation = 0,
+	}, shine)
+	TweenService:Create(shine, TweenInfo.new(0.36, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+		Position = UDim2.fromScale(1.08, 0.5),
 	}):Play()
-	task.delay(0.50, function()
-		if shine.Parent then shine:Destroy() end
+	task.delay(0.42, function()
+		if mask.Parent then
+			mask:Destroy()
+		end
 	end)
 end
 
@@ -1896,7 +1915,7 @@ local function showCardReveal(payload)
 
 	task.delay(0.16, function()
 		if cardPanel.Parent then
-			sweepShimmer(cardPanel, Color3.fromRGB(255, 255, 255))
+			sweepShimmer(cardPanel, glowColor:Lerp(Color3.fromRGB(255, 255, 255), 0.35))
 		end
 	end)
 	if tier >= 2 then
