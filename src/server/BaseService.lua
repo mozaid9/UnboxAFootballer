@@ -2473,6 +2473,10 @@ local function createFanZone(mapWidth, mapLength)
 	return plaza
 end
 
+-- ── Card design feature flag ──────────────────────────────────────────────
+-- Set to false to instantly revert to the original card layouts.
+local USE_NEW_CARD_DESIGN = true
+
 local DISPLAY_CARD_TREATMENTS = {
 	["Gold"] = {
 		tag = "",
@@ -2480,7 +2484,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 4,
 		patternCount = 5,
 		portraitScale = 1,
-		template = "classic",
+		template = USE_NEW_CARD_DESIGN and "v2_gold"         or "classic",
 	},
 	["Rare Gold"] = {
 		tag = "RARE",
@@ -2488,7 +2492,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 5,
 		patternCount = 7,
 		portraitScale = 1.04,
-		template = "diagonal",
+		template = USE_NEW_CARD_DESIGN and "v2_raregold"     or "diagonal",
 	},
 	["Premium Gold"] = {
 		tag = "PREMIUM",
@@ -2496,7 +2500,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 6,
 		patternCount = 9,
 		portraitScale = 1.08,
-		template = "premium",
+		template = USE_NEW_CARD_DESIGN and "v2_premium"      or "premium",
 	},
 	["Talisman"] = {
 		tag = "SPECIAL",
@@ -2504,7 +2508,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 7,
 		patternCount = 11,
 		portraitScale = 1.12,
-		template = "shard",
+		template = USE_NEW_CARD_DESIGN and "v2_talisman"     or "shard",
 	},
 	["Maestro"] = {
 		tag = "ELITE",
@@ -2512,7 +2516,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 8,
 		patternCount = 13,
 		portraitScale = 1.16,
-		template = "orbit",
+		template = USE_NEW_CARD_DESIGN and "v2_maestro"      or "orbit",
 	},
 	["Immortal"] = {
 		tag = "LEGEND",
@@ -2520,7 +2524,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 9,
 		patternCount = 15,
 		portraitScale = 1.20,
-		template = "prism",
+		template = USE_NEW_CARD_DESIGN and "v2_immortal"     or "prism",
 	},
 	["Player of the Year"] = {
 		tag = "BEST",
@@ -2529,7 +2533,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 10,
 		patternCount = 0,
 		portraitScale = 1.22,
-		template = "trophy",
+		template = USE_NEW_CARD_DESIGN and "v2_poty"         or "trophy",
 	},
 }
 
@@ -2574,6 +2578,227 @@ end
 
 local function addDisplayCardTemplate(frame, treatment, tier, rarityColor, secondaryColor, darkColor, trimColor, textColor)
 	local template = treatment.template or "classic"
+
+	-- ════════════════════════════════════════════════════════════════════════
+	-- V2 TEMPLATES  (USE_NEW_CARD_DESIGN = true)
+	-- Each rarity has a visually distinct background treatment so cards are
+	-- instantly recognisable at slot-distance without reading the label.
+	-- ════════════════════════════════════════════════════════════════════════
+
+	if template == "v2_gold" then
+		-- Clean starter card: two slim gold dividers + small corner diamonds
+		for _, y in ipairs({0.27, 0.70}) do
+			make("Frame", {
+				BackgroundColor3 = trimColor, BackgroundTransparency = 0.52,
+				BorderSizePixel = 0, Position = UDim2.fromScale(0.08, y),
+				Size = UDim2.new(0.84, 0, 0, 2), ZIndex = 2,
+			}, frame)
+		end
+		for _, pos in ipairs({ UDim2.fromScale(0.08, 0.038), UDim2.fromScale(0.86, 0.038) }) do
+			make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = trimColor,
+				BackgroundTransparency = 0.28, BorderSizePixel = 0,
+				Position = pos, Rotation = 45, Size = UDim2.fromScale(0.055, 0.030), ZIndex = 2,
+			}, frame)
+		end
+		return
+	end
+
+	if template == "v2_raregold" then
+		-- Orange-red bold right accent stripe makes it clearly hotter than Gold
+		local stripe = make("Frame", {
+			AnchorPoint = Vector2.new(1, 0), BackgroundColor3 = secondaryColor,
+			BackgroundTransparency = 0.12, BorderSizePixel = 0,
+			Position = UDim2.fromScale(1, 0), Size = UDim2.fromScale(0.20, 1), ZIndex = 1,
+		}, frame)
+		make("UIGradient", {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+				ColorSequenceKeypoint.new(1, secondaryColor),
+			}),
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0.72),
+				NumberSequenceKeypoint.new(1, 0.05),
+			}),
+		}, stripe)
+		for _, y in ipairs({0.27, 0.70}) do
+			make("Frame", {
+				BackgroundColor3 = trimColor, BackgroundTransparency = 0.42,
+				BorderSizePixel = 0, Position = UDim2.fromScale(0.07, y),
+				Size = UDim2.new(0.70, 0, 0, 2), ZIndex = 2,
+			}, frame)
+		end
+		return
+	end
+
+	if template == "v2_premium" then
+		-- Near-black inner plate + precise L-bracket corners = premium credit-card feel
+		local plate = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = Color3.fromRGB(3, 4, 7),
+			BackgroundTransparency = 0.05, BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.52), Size = UDim2.fromScale(0.82, 0.70), ZIndex = 1,
+		}, frame)
+		local pc = Instance.new("UICorner"); pc.CornerRadius = UDim.new(0.05, 0); pc.Parent = plate
+		make("UIStroke", { Color = trimColor, Thickness = 1.6, Transparency = 0.20 }, plate)
+		-- L-bracket corners (h-bar + v-bar each)
+		for _, s in ipairs({
+			{x=0.07, y=0.11}, {x=0.86, y=0.11},
+			{x=0.07, y=0.83}, {x=0.86, y=0.83},
+		}) do
+			make("Frame", { -- horizontal
+				BackgroundColor3 = trimColor, BackgroundTransparency = 0.08,
+				BorderSizePixel = 0, Position = UDim2.fromScale(s.x, s.y),
+				Size = UDim2.fromScale(0.07, 0.013), ZIndex = 3,
+			}, frame)
+			make("Frame", { -- vertical
+				BackgroundColor3 = trimColor, BackgroundTransparency = 0.08,
+				BorderSizePixel = 0, Position = UDim2.fromScale(s.x, s.y),
+				Size = UDim2.fromScale(0.013, 0.055), ZIndex = 3,
+			}, frame)
+		end
+		return
+	end
+
+	if template == "v2_talisman" then
+		-- Bold red colour-block in the top ~28% with a sharp diagonal cut
+		local topBlock = make("Frame", {
+			BackgroundColor3 = rarityColor, BackgroundTransparency = 0.06,
+			BorderSizePixel = 0, Position = UDim2.fromScale(0, 0),
+			Size = UDim2.fromScale(1, 0.28), ZIndex = 1,
+		}, frame)
+		make("UIGradient", {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, rarityColor),
+				ColorSequenceKeypoint.new(1, secondaryColor),
+			}),
+			Rotation = 130,
+		}, topBlock)
+		-- Sharp diagonal slash at the bottom of the red block
+		make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = rarityColor,
+			BackgroundTransparency = 0.18, BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.265), Rotation = -3.5,
+			Size = UDim2.new(1.1, 0, 0, 5), ZIndex = 2,
+		}, frame)
+		-- Two small gold diamond accents inside the red block
+		for _, x in ipairs({0.10, 0.88}) do
+			make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = trimColor,
+				BackgroundTransparency = 0.08, BorderSizePixel = 0,
+				Position = UDim2.fromScale(x, 0.14), Rotation = 45,
+				Size = UDim2.fromScale(0.042, 0.024), ZIndex = 3,
+			}, frame)
+		end
+		return
+	end
+
+	if template == "v2_maestro" then
+		-- Wide diagonal gold beam + three thin accent lines = elegant elite card
+		make("Frame", { -- fat beam
+			AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.52, BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.50), Rotation = -26,
+			Size = UDim2.new(1.9, 0, 0, 38), ZIndex = 1,
+		}, frame)
+		make("Frame", { -- bright core
+			AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = 0.68, BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.50), Rotation = -26,
+			Size = UDim2.new(1.9, 0, 0, 7), ZIndex = 1,
+		}, frame)
+		for i = 1, 3 do
+			make("Frame", { -- accent lines
+				AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = rarityColor,
+				BackgroundTransparency = 0.65, BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.28 + i * 0.15), Rotation = -26,
+				Size = UDim2.new(1.7, 0, 0, 2), ZIndex = 1,
+			}, frame)
+		end
+		return
+	end
+
+	if template == "v2_immortal" then
+		-- Bright ice treatment: light card stands out among all dark ones.
+		-- Five vertical shimmer columns + one bold horizontal shimmer bar.
+		for i = 1, 5 do
+			make("Frame", {
+				BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.65,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.08 + (i - 1) * 0.20, 0),
+				Size = UDim2.fromScale(0.07, 1), ZIndex = 1,
+			}, frame)
+		end
+		make("Frame", { -- horizontal shimmer
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.48,
+			BorderSizePixel = 0, Position = UDim2.fromScale(0, 0.205),
+			Size = UDim2.new(1, 0, 0, 6), ZIndex = 2,
+		}, frame)
+		-- Central glow circle behind identity zone
+		local glow = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = 0.46, BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.50), Size = UDim2.fromScale(0.62, 0.50), ZIndex = 1,
+		}, frame)
+		local gc = Instance.new("UICorner"); gc.CornerRadius = UDim.new(1, 0); gc.Parent = glow
+		return
+	end
+
+	if template == "v2_poty" then
+		-- Jet-black luxury. Five stars across the top. Crown. Gold side bars.
+		-- Five stars (two rotated squares each = 8-point star visual)
+		for i = 1, 5 do
+			local starSize  = i == 3 and 0.082 or 0.062
+			local starAlpha = i == 3 and 0.02  or 0.16
+			local sx = 0.17 + (i - 1) * 0.165
+			local star = make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = trimColor,
+				BackgroundTransparency = starAlpha, BorderSizePixel = 0,
+				Position = UDim2.fromScale(sx, 0.055), Rotation = 0,
+				Size = UDim2.fromScale(starSize, starSize * 1.55), ZIndex = 3,
+			}, frame)
+			make("Frame", { -- rotated 45° overlay = 8-point
+				AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = trimColor,
+				BackgroundTransparency = starAlpha, BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.5), Rotation = 45,
+				Size = UDim2.fromScale(1, 1), ZIndex = 3,
+			}, star)
+		end
+		-- Gold luxury bars on left and right edges
+		for _, x in ipairs({0.035, 0.945}) do
+			make("Frame", {
+				BackgroundColor3 = trimColor, BackgroundTransparency = 0.06,
+				BorderSizePixel = 0, Position = UDim2.fromScale(x, 0.18),
+				Size = UDim2.fromScale(0.020, 0.66), ZIndex = 2,
+			}, frame)
+		end
+		-- Crown above identity zone: base bar + 5 spikes
+		local crownY = 0.255
+		make("Frame", { -- crown base
+			AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.10, BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, crownY + 0.062), Size = UDim2.fromScale(0.40, 0.022), ZIndex = 3,
+		}, frame)
+		local spikeH = {0.048, 0.072, 0.100, 0.072, 0.048}
+		for index = 1, 5 do
+			make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 1), BackgroundColor3 = trimColor,
+				BackgroundTransparency = index == 3 and 0.02 or 0.14, BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.30 + (index - 1) * 0.100, crownY + 0.062),
+				Size = UDim2.fromScale(0.028, spikeH[index]), ZIndex = 3,
+			}, frame)
+		end
+		-- Bottom gold accent line
+		make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.25, BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.725), Size = UDim2.fromScale(0.82, 0.009), ZIndex = 2,
+		}, frame)
+		return
+	end
+
+	-- ════════════════════════════════════════════════════════════════════════
+	-- LEGACY TEMPLATES  (USE_NEW_CARD_DESIGN = false)
+	-- ════════════════════════════════════════════════════════════════════════
 
 	if template == "classic" then
 		for _, y in ipairs({0.24, 0.64}) do
@@ -2621,7 +2846,6 @@ local function addDisplayCardTemplate(frame, treatment, tier, rarityColor, secon
 			Thickness = 1.4,
 			Transparency = 0.32,
 		}, centerPlate)
-
 		for _, corner in ipairs({
 			UDim2.fromScale(0.10, 0.18),
 			UDim2.fromScale(0.82, 0.18),
@@ -2712,80 +2936,45 @@ local function addDisplayCardTemplate(frame, treatment, tier, rarityColor, secon
 		local trophyPanelCorner = Instance.new("UICorner")
 		trophyPanelCorner.CornerRadius = UDim.new(0.08, 0)
 		trophyPanelCorner.Parent = trophyPanel
-		make("UIStroke", {
-			Color = trimColor,
-			Thickness = 2,
-			Transparency = 0.42,
-		}, trophyPanel)
-
+		make("UIStroke", { Color = trimColor, Thickness = 2, Transparency = 0.42 }, trophyPanel)
 		for _, x in ipairs({0.07, 0.88}) do
 			make("Frame", {
-				BackgroundColor3 = trimColor,
-				BackgroundTransparency = 0.16,
-				BorderSizePixel = 0,
-				Position = UDim2.fromScale(x, 0.22),
-				Size = UDim2.fromScale(0.05, 0.54),
-				ZIndex = 1,
+				BackgroundColor3 = trimColor, BackgroundTransparency = 0.16,
+				BorderSizePixel = 0, Position = UDim2.fromScale(x, 0.22),
+				Size = UDim2.fromScale(0.05, 0.54), ZIndex = 1,
 			}, frame)
 		end
-
 		local halo = make("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			BackgroundColor3 = trimColor,
-			BackgroundTransparency = 0.70,
-			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.5, 0.48),
-			Size = UDim2.fromScale(0.56, 0.34),
-			ZIndex = 1,
+			AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.70, BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.48), Size = UDim2.fromScale(0.56, 0.34), ZIndex = 1,
 		}, frame)
 		local haloCorner = Instance.new("UICorner")
-		haloCorner.CornerRadius = UDim.new(1, 0)
-		haloCorner.Parent = halo
-		make("UIStroke", {
-			Color = Color3.fromRGB(255, 247, 164),
-			Thickness = 2,
-			Transparency = 0.70,
-		}, halo)
-
+		haloCorner.CornerRadius = UDim.new(1, 0); haloCorner.Parent = halo
+		make("UIStroke", { Color = Color3.fromRGB(255, 247, 164), Thickness = 2, Transparency = 0.70 }, halo)
 		make("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0),
-			BackgroundColor3 = trimColor,
-			BackgroundTransparency = 0.28,
-			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.5, 0.36),
-			Size = UDim2.fromScale(0.34, 0.14),
-			ZIndex = 1,
+			AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.28, BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.36), Size = UDim2.fromScale(0.34, 0.14), ZIndex = 1,
 		}, frame)
 		make("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0),
-			BackgroundColor3 = trimColor,
-			BackgroundTransparency = 0.24,
-			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.5, 0.50),
-			Size = UDim2.fromScale(0.08, 0.16),
-			ZIndex = 1,
+			AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.24, BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.50), Size = UDim2.fromScale(0.08, 0.16), ZIndex = 1,
 		}, frame)
 		make("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0),
-			BackgroundColor3 = trimColor,
-			BackgroundTransparency = 0.20,
-			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.5, 0.64),
-			Size = UDim2.fromScale(0.34, 0.05),
-			ZIndex = 1,
+			AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.20, BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.64), Size = UDim2.fromScale(0.34, 0.05), ZIndex = 1,
 		}, frame)
-
 		local crownBaseY = 0.16
 		for index = 1, 5 do
 			make("Frame", {
-				AnchorPoint = Vector2.new(0.5, 1),
-				BackgroundColor3 = trimColor,
-				BackgroundTransparency = index == 3 and 0.00 or 0.14,
-				BorderSizePixel = 0,
+				AnchorPoint = Vector2.new(0.5, 1), BackgroundColor3 = trimColor,
+				BackgroundTransparency = index == 3 and 0.00 or 0.14, BorderSizePixel = 0,
 				Position = UDim2.fromScale(0.18 + index * 0.105, crownBaseY),
 				Rotation = (index - 3) * 10,
-				Size = UDim2.fromScale(0.07, index == 3 and 0.16 or 0.11),
-				ZIndex = 1,
+				Size = UDim2.fromScale(0.07, index == 3 and 0.16 or 0.11), ZIndex = 1,
 			}, frame)
 		end
 	end
@@ -2800,9 +2989,7 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	local textColor = style.text or Constants.UI.Text
 	local treatment = getDisplayCardTreatment(card.rarity)
 	local tier = treatment.tier or 0
-	local isTrophyCard = treatment.template == "trophy"
 	local displayRarityLabel = string.upper(treatment.displayLabel or style.label or card.rarity or "CARD")
-	local initials = getCardInitials(card.name)
 	local positionAccent = getPositionAccent(card.position, trimColor)
 
 	local gui = make("SurfaceGui", {
@@ -2817,6 +3004,177 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		BackgroundColor3 = darkColor,
 		BorderSizePixel = 0,
 	}, gui)
+
+	-- ── V2 CARD DESIGN ────────────────────────────────────────────────────────
+	if USE_NEW_CARD_DESIGN then
+		local isPOTY = treatment.template == "v2_poty"
+
+		-- Per-rarity background gradient (each rarity has a distinct palette)
+		local gradRotation = 145
+		local gradColors
+		if tier == 6 then           -- POTY: jet black / deep charcoal — luxury
+			gradColors = {
+				ColorSequenceKeypoint.new(0,    Color3.fromRGB(6,  4,  2)),
+				ColorSequenceKeypoint.new(0.45, Color3.fromRGB(18, 12, 4)),
+				ColorSequenceKeypoint.new(1,    Color3.fromRGB(8,  6,  2)),
+			}
+		elseif tier == 5 then       -- Immortal: bright ice blue-white — glowing
+			gradColors = {
+				ColorSequenceKeypoint.new(0,    Color3.fromRGB(225, 242, 255)),
+				ColorSequenceKeypoint.new(0.40, Color3.fromRGB(192, 218, 248)),
+				ColorSequenceKeypoint.new(1,    Color3.fromRGB(158, 188, 228)),
+			}
+		elseif tier == 4 then       -- Maestro: deep navy-charcoal — powerful
+			gradColors = {
+				ColorSequenceKeypoint.new(0,    Color3.fromRGB(10,  8, 24)),
+				ColorSequenceKeypoint.new(0.55, Color3.fromRGB(16, 12, 32)),
+				ColorSequenceKeypoint.new(1,    Color3.fromRGB(6,   5, 14)),
+			}
+		elseif tier == 3 then       -- Talisman: bold red top → near-black — fierce
+			gradColors = {
+				ColorSequenceKeypoint.new(0,    Color3.fromRGB(115, 8,  8)),
+				ColorSequenceKeypoint.new(0.38, Color3.fromRGB(58,  6,  6)),
+				ColorSequenceKeypoint.new(1,    Color3.fromRGB(12,  8,  8)),
+			}
+			gradRotation = 160
+		elseif tier == 2 then       -- Premium: cool dark slate — refined
+			gradColors = {
+				ColorSequenceKeypoint.new(0,    Color3.fromRGB(12, 16, 28)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(20, 24, 40)),
+				ColorSequenceKeypoint.new(1,    Color3.fromRGB(8,  10, 18)),
+			}
+		elseif tier == 1 then       -- Rare Gold: warm bronze gradient
+			gradColors = {
+				ColorSequenceKeypoint.new(0,    rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.20)),
+				ColorSequenceKeypoint.new(0.45, secondaryColor),
+				ColorSequenceKeypoint.new(1,    darkColor),
+			}
+		else                        -- Gold: classic warm amber
+			gradColors = {
+				ColorSequenceKeypoint.new(0,    rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.12)),
+				ColorSequenceKeypoint.new(0.50, secondaryColor),
+				ColorSequenceKeypoint.new(1,    darkColor),
+			}
+		end
+		make("UIGradient", { Color = ColorSequence.new(gradColors), Rotation = gradRotation }, frame)
+
+		-- Decorative overlays: stripes / beams / stars / shimmer (per-rarity)
+		addDisplayCardTemplate(frame, treatment, tier, rarityColor, secondaryColor, darkColor, trimColor, textColor)
+
+		-- Outer border
+		make("UIStroke", { Color = trimColor, Thickness = treatment.edge or 4 }, frame)
+
+		-- Inner border (tier 1+)
+		if tier >= 1 then
+			local ib = make("Frame", {
+				BackgroundTransparency = 1,
+				Size = UDim2.new(1, -(16 + tier * 2), 1, -(16 + tier * 2)),
+				Position = UDim2.fromOffset(8 + tier, 8 + tier),
+			}, frame)
+			make("UIStroke", {
+				Color = tier >= 4 and trimColor or Color3.fromRGB(24, 16, 4),
+				Thickness = tier >= 4 and 2 or 1.5,
+				Transparency = tier >= 4 and 0.20 or 0.50,
+			}, ib)
+		end
+
+		-- Rarity band — full-width pill for POTY, scaled pill for others
+		local bandW = isPOTY and 0.88 or math.min(0.72 + tier * 0.03, 0.88)
+		local bandH = isPOTY and 0.115 or 0.088
+		local rarityBand = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = isPOTY and Color3.fromRGB(4, 2, 0) or Color3.fromRGB(6, 7, 10),
+			BackgroundTransparency = 0.04,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.038),
+			Size = UDim2.fromScale(bandW, bandH),
+		}, frame)
+		make("UICorner", { CornerRadius = UDim.new(1, 0) }, rarityBand)
+		make("UIStroke", { Color = trimColor, Thickness = isPOTY and 1.8 or 1.3, Transparency = 0.15 }, rarityBand)
+		local rarityText = createSignLabel(displayRarityLabel, UDim2.fromScale(0.92, 0.80), UDim2.fromScale(0.04, 0.10), textColor, rarityBand)
+		make("UITextSizeConstraint", { MinTextSize = isPOTY and 5 or 6, MaxTextSize = isPOTY and 12 or 16 }, rarityText)
+
+		-- Position badge (top-left) — clean, no clutter
+		local posBadge = make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(8, 10, 16),
+			BackgroundTransparency = 0.05,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.07, 0.17),
+			Size = UDim2.fromScale(0.22, 0.085),
+		}, frame)
+		make("UICorner", { CornerRadius = UDim.new(0.3, 0) }, posBadge)
+		make("UIStroke", { Color = positionAccent, Thickness = 1.2, Transparency = 0.25 }, posBadge)
+		createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.90, 0.82), UDim2.fromScale(0.05, 0.09), positionAccent, posBadge)
+
+		-- Nation label (top-right, right-aligned)
+		local nationLabel = createSignLabel(card.nation or "Unknown", UDim2.new(0.46, 0, 0.09, 0), UDim2.new(0.46, 0, 0.17, 0), textColor, frame)
+		nationLabel.TextXAlignment = Enum.TextXAlignment.Right
+		make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 13 }, nationLabel)
+
+		-- Identity panel — large position text OR "PLAYER OF THE YEAR" for POTY
+		local identityPanel = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = isPOTY and Color3.fromRGB(6, 4, 0) or Color3.fromRGB(4, 6, 12),
+			BackgroundTransparency = isPOTY and 0.10 or (tier == 5 and 0.58 or (tier >= 3 and 0.28 or 0.44)),
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.32),
+			Size = UDim2.fromScale(0.72, isPOTY and 0.30 or 0.26),
+			ZIndex = 3,
+		}, frame)
+		make("UICorner", { CornerRadius = UDim.new(0.14, 0) }, identityPanel)
+		make("UIStroke", {
+			Color = isPOTY and trimColor or positionAccent,
+			Thickness = isPOTY and 2 or (tier >= 3 and 1.5 or 1),
+			Transparency = isPOTY and 0.10 or (tier >= 3 and 0.28 or 0.48),
+		}, identityPanel)
+
+		if isPOTY then
+			-- "PLAYER OF THE YEAR" is the main identity text — unmistakable at a glance
+			local potyLabel = createSignLabel("PLAYER\nOF THE\nYEAR", UDim2.fromScale(0.90, 0.88), UDim2.fromScale(0.05, 0.06), trimColor, identityPanel)
+			potyLabel.ZIndex = 5
+			potyLabel.TextXAlignment = Enum.TextXAlignment.Center
+			make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 18 }, potyLabel)
+		else
+			-- Big position text (e.g. "ST", "GK") — readable from stadium distance
+			local bigPos = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.88, 0.82), UDim2.fromScale(0.06, 0.09), positionAccent, identityPanel)
+			bigPos.ZIndex = 5
+			bigPos.TextXAlignment = Enum.TextXAlignment.Center
+			make("UITextSizeConstraint", { MinTextSize = 24, MaxTextSize = tier >= 4 and 52 or 42 }, bigPos)
+		end
+
+		-- Divider line
+		make("Frame", {
+			BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.12,
+			BorderSizePixel = 0,
+			Size = UDim2.new(0.74, 0, 0, 2),
+			Position = UDim2.new(0.13, 0, 0.66, 0),
+		}, frame)
+
+		-- Player name
+		local nameLabel = createSignLabel(string.upper(card.name or "Player"), UDim2.new(0.86, 0, 0.12, 0), UDim2.new(0.07, 0, 0.69, 0), textColor, frame)
+		make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 17 }, nameLabel)
+		make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.2, Transparency = 0.30 }, nameLabel)
+
+		-- Income pill (fans/s only — no rating, no powerScore)
+		local incomePill = make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(22, 52, 28),
+			BackgroundTransparency = 0.06,
+			BorderSizePixel = 0,
+			Position = UDim2.new(0.14, 0, 0.84, 0),
+			Size = UDim2.new(0.72, 0, 0.10, 0),
+		}, frame)
+		make("UICorner", { CornerRadius = UDim.new(1, 0) }, incomePill)
+		make("UIStroke", { Color = Color3.fromRGB(120, 210, 136), Thickness = 1.4, Transparency = 0.28 }, incomePill)
+		createSignLabel("+" .. tostring(incomePerSecond) .. " fans/s", UDim2.fromScale(0.90, 0.72), UDim2.fromScale(0.05, 0.14), Color3.fromRGB(226, 255, 218), incomePill)
+
+		return  -- V2 done — skip legacy code below
+	end
+	-- ── END V2 ────────────────────────────────────────────────────────────────
+
+	-- LEGACY BRANCH  (USE_NEW_CARD_DESIGN = false) ─────────────────────────────
+	local isTrophyCard = treatment.template == "trophy"
+	local initials = getCardInitials(card.name)
 
 	make("UIGradient", {
 		Color = ColorSequence.new({
