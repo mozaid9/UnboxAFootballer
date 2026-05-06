@@ -2489,6 +2489,79 @@ local CARD_FRAME_ASSETS = {
 	["Player of the Year"] = "rbxassetid://101208651203316",
 }
 
+local CARD_FRAME_BACKDROPS = {
+	["Gold"] = {
+		top = Color3.fromRGB(92, 54, 11),
+		mid = Color3.fromRGB(210, 143, 32),
+		bottom = Color3.fromRGB(42, 24, 5),
+		panel = Color3.fromRGB(124, 72, 16),
+		accent = Color3.fromRGB(255, 211, 96),
+		text = Color3.fromRGB(255, 244, 214),
+		frameTint = Color3.fromRGB(255, 220, 116),
+		frameTransparency = 0.48,
+	},
+	["Rare Gold"] = {
+		top = Color3.fromRGB(102, 18, 5),
+		mid = Color3.fromRGB(230, 74, 20),
+		bottom = Color3.fromRGB(35, 7, 3),
+		panel = Color3.fromRGB(128, 32, 8),
+		accent = Color3.fromRGB(255, 150, 46),
+		text = Color3.fromRGB(255, 238, 218),
+		frameTint = Color3.fromRGB(255, 122, 42),
+		frameTransparency = 0.58,
+	},
+	["Premium Gold"] = {
+		top = Color3.fromRGB(70, 45, 4),
+		mid = Color3.fromRGB(255, 198, 44),
+		bottom = Color3.fromRGB(9, 7, 3),
+		panel = Color3.fromRGB(132, 82, 8),
+		accent = Color3.fromRGB(255, 238, 130),
+		text = Color3.fromRGB(255, 248, 224),
+		frameTint = Color3.fromRGB(255, 232, 118),
+		frameTransparency = 0.54,
+	},
+	["Talisman"] = {
+		top = Color3.fromRGB(38, 9, 82),
+		mid = Color3.fromRGB(138, 50, 240),
+		bottom = Color3.fromRGB(12, 3, 28),
+		panel = Color3.fromRGB(66, 20, 122),
+		accent = Color3.fromRGB(218, 130, 255),
+		text = Color3.fromRGB(246, 226, 255),
+		frameTint = Color3.fromRGB(198, 82, 255),
+		frameTransparency = 0.62,
+	},
+	["Maestro"] = {
+		top = Color3.fromRGB(5, 18, 76),
+		mid = Color3.fromRGB(32, 88, 218),
+		bottom = Color3.fromRGB(3, 8, 30),
+		panel = Color3.fromRGB(8, 30, 110),
+		accent = Color3.fromRGB(255, 204, 70),
+		text = Color3.fromRGB(236, 244, 255),
+		frameTint = Color3.fromRGB(82, 142, 255),
+		frameTransparency = 0.62,
+	},
+	["Immortal"] = {
+		top = Color3.fromRGB(206, 246, 255),
+		mid = Color3.fromRGB(92, 198, 255),
+		bottom = Color3.fromRGB(12, 66, 104),
+		panel = Color3.fromRGB(28, 118, 166),
+		accent = Color3.fromRGB(238, 255, 255),
+		text = Color3.fromRGB(245, 255, 255),
+		frameTint = Color3.fromRGB(214, 250, 255),
+		frameTransparency = 0.60,
+	},
+	["Player of the Year"] = {
+		top = Color3.fromRGB(8, 7, 4),
+		mid = Color3.fromRGB(84, 64, 12),
+		bottom = Color3.fromRGB(0, 0, 0),
+		panel = Color3.fromRGB(18, 14, 4),
+		accent = Color3.fromRGB(255, 211, 62),
+		text = Color3.fromRGB(255, 238, 150),
+		frameTint = Color3.fromRGB(255, 215, 74),
+		frameTransparency = 0.46,
+	},
+}
+
 local DISPLAY_CARD_TREATMENTS = {
 	["Gold"] = {
 		tag = "",
@@ -3023,51 +3096,105 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		local assetId = USE_CARD_FRAME_ASSETS and CARD_FRAME_ASSETS[card.rarity]
 
 		if assetId then
-			frame.BackgroundTransparency = 1
-			local assetTextColor = tier == 5 and Color3.fromRGB(225, 248, 255)
-				or (tier == 6 and Color3.fromRGB(255, 231, 110) or Color3.fromRGB(255, 248, 226))
+			local backdrop = CARD_FRAME_BACKDROPS[card.rarity] or CARD_FRAME_BACKDROPS["Gold"]
+			frame.BackgroundTransparency = 0
+			frame.BackgroundColor3 = backdrop.bottom
+			make("UIGradient", {
+				Color = ColorSequence.new({
+					ColorSequenceKeypoint.new(0, backdrop.top),
+					ColorSequenceKeypoint.new(0.47, backdrop.mid),
+					ColorSequenceKeypoint.new(1, backdrop.bottom),
+				}),
+				Rotation = 90,
+			}, frame)
+
+			local assetTextColor = backdrop.text
 			local surname = string.upper((card.name or "Player"):match("(%S+)%s*$") or (card.name or "Player"))
+
+			local colorPanel = make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0),
+				BackgroundColor3 = backdrop.panel,
+				BackgroundTransparency = 0.18,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.185),
+				Size = UDim2.fromScale(0.86, 0.53),
+				ZIndex = 1,
+			}, frame)
+			make("UICorner", { CornerRadius = UDim.new(0.08, 0) }, colorPanel)
+			make("UIGradient", {
+				Color = ColorSequence.new({
+					ColorSequenceKeypoint.new(0, backdrop.accent),
+					ColorSequenceKeypoint.new(0.38, backdrop.panel),
+					ColorSequenceKeypoint.new(1, backdrop.bottom),
+				}),
+				Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 0.28),
+					NumberSequenceKeypoint.new(0.50, 0.02),
+					NumberSequenceKeypoint.new(1, 0.14),
+				}),
+				Rotation = 90,
+			}, colorPanel)
+
+			local identityGlow = make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0),
+				BackgroundColor3 = backdrop.accent,
+				BackgroundTransparency = tier >= 3 and 0.24 or 0.34,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.500),
+				Size = UDim2.fromScale(0.78, 0.10),
+				ZIndex = 1,
+			}, frame)
+			make("UICorner", { CornerRadius = UDim.new(0.30, 0) }, identityGlow)
+			make("UIGradient", {
+				Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 0.72),
+					NumberSequenceKeypoint.new(0.50, 0.00),
+					NumberSequenceKeypoint.new(1, 0.72),
+				}),
+			}, identityGlow)
 
 			make("ImageLabel", {
 				BackgroundTransparency = 1,
 				Image = assetId,
+				ImageColor3 = backdrop.frameTint,
+				ImageTransparency = backdrop.frameTransparency,
 				ScaleType = Enum.ScaleType.Stretch,
 				Size = UDim2.fromScale(1, 1),
-				ZIndex = 1,
+				ZIndex = 2,
 			}, frame)
 
 			local rarityText = createSignLabel(displayRarityLabel, UDim2.fromScale(0.78, 0.055), UDim2.fromScale(0.11, 0.043), assetTextColor, frame)
-			rarityText.ZIndex = 3
+			rarityText.ZIndex = 4
 			rarityText.TextXAlignment = Enum.TextXAlignment.Center
 			make("UITextSizeConstraint", { MinTextSize = isPOTY and 5 or 6, MaxTextSize = isPOTY and 12 or 15 }, rarityText)
-			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.2, Transparency = 0.28 }, rarityText)
+			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.4, Transparency = 0.18 }, rarityText)
 
 			local positionLabel = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.40, 0.06), UDim2.fromScale(0.07, 0.126), assetTextColor, frame)
-			positionLabel.ZIndex = 3
+			positionLabel.ZIndex = 4
 			positionLabel.TextXAlignment = Enum.TextXAlignment.Center
 			make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 14 }, positionLabel)
-			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1, Transparency = 0.34 }, positionLabel)
+			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.1, Transparency = 0.22 }, positionLabel)
 
 			local nationLabel = createSignLabel(card.nation or "Unknown", UDim2.fromScale(0.40, 0.06), UDim2.fromScale(0.53, 0.126), assetTextColor, frame)
-			nationLabel.ZIndex = 3
+			nationLabel.ZIndex = 4
 			nationLabel.TextXAlignment = Enum.TextXAlignment.Center
 			make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 13 }, nationLabel)
-			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1, Transparency = 0.38 }, nationLabel)
+			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.1, Transparency = 0.24 }, nationLabel)
 
 			local heroLabel = createSignLabel(surname, UDim2.fromScale(0.82, 0.09), UDim2.fromScale(0.09, 0.515), assetTextColor, frame)
-			heroLabel.ZIndex = 3
+			heroLabel.ZIndex = 4
 			heroLabel.TextXAlignment = Enum.TextXAlignment.Center
 			make("UITextSizeConstraint", { MinTextSize = 12, MaxTextSize = isPOTY and 26 or 30 }, heroLabel)
-			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.8, Transparency = 0.16 }, heroLabel)
+			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 2, Transparency = 0.08 }, heroLabel)
 
 			local nameLabel = createSignLabel(string.upper(card.name or "Player"), UDim2.fromScale(0.86, 0.07), UDim2.fromScale(0.07, 0.742), Color3.fromRGB(255, 255, 245), frame)
-			nameLabel.ZIndex = 3
+			nameLabel.ZIndex = 4
 			nameLabel.TextXAlignment = Enum.TextXAlignment.Center
 			make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 16 }, nameLabel)
-			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.2, Transparency = 0.28 }, nameLabel)
+			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.3, Transparency = 0.20 }, nameLabel)
 
 			local incomeLabel = createSignLabel("+" .. tostring(incomePerSecond) .. " fans/s", UDim2.fromScale(0.82, 0.075), UDim2.fromScale(0.09, 0.858), Color3.fromRGB(184, 255, 196), frame)
-			incomeLabel.ZIndex = 3
+			incomeLabel.ZIndex = 4
 			incomeLabel.TextXAlignment = Enum.TextXAlignment.Center
 			make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 16 }, incomeLabel)
 			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.4, Transparency = 0.18 }, incomeLabel)
