@@ -3027,6 +3027,8 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 			local assetTextColor = tier == 5 and Color3.fromRGB(225, 248, 255)
 				or (tier == 6 and Color3.fromRGB(255, 231, 110) or Color3.fromRGB(255, 248, 226))
 			local surname = string.upper((card.name or "Player"):match("(%S+)%s*$") or (card.name or "Player"))
+			local portraitColor = (tier >= 4 and trimColor or rarityColor):Lerp(Color3.fromRGB(255, 255, 255), tier >= 5 and 0.26 or 0.12)
+			local portraitDark = darkColor:Lerp(Color3.fromRGB(0, 0, 0), 0.32)
 
 			make("ImageLabel", {
 				BackgroundTransparency = 1,
@@ -3036,28 +3038,100 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 				ZIndex = 1,
 			}, frame)
 
+			local colorWash = make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0),
+				BackgroundColor3 = rarityColor,
+				BackgroundTransparency = tier >= 3 and 0.78 or 0.86,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.20),
+				Size = UDim2.fromScale(0.82, 0.50),
+				ZIndex = 2,
+			}, frame)
+			make("UICorner", { CornerRadius = UDim.new(0.08, 0) }, colorWash)
+			make("UIGradient", {
+				Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 0.98),
+					NumberSequenceKeypoint.new(0.42, 0.10),
+					NumberSequenceKeypoint.new(1, 0.92),
+				}),
+				Rotation = 90,
+			}, colorWash)
+
 			local rarityText = createSignLabel(displayRarityLabel, UDim2.fromScale(0.78, 0.055), UDim2.fromScale(0.11, 0.043), assetTextColor, frame)
 			rarityText.ZIndex = 3
 			rarityText.TextXAlignment = Enum.TextXAlignment.Center
 			make("UITextSizeConstraint", { MinTextSize = isPOTY and 5 or 6, MaxTextSize = isPOTY and 12 or 15 }, rarityText)
 			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.2, Transparency = 0.28 }, rarityText)
 
-			local positionLabel = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.38, 0.06), UDim2.fromScale(0.08, 0.126), assetTextColor, frame)
+			local positionLabel = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.40, 0.06), UDim2.fromScale(0.07, 0.126), assetTextColor, frame)
 			positionLabel.ZIndex = 3
-			positionLabel.TextXAlignment = Enum.TextXAlignment.Left
+			positionLabel.TextXAlignment = Enum.TextXAlignment.Center
 			make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 14 }, positionLabel)
 			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1, Transparency = 0.34 }, positionLabel)
 
-			local nationLabel = createSignLabel(card.nation or "Unknown", UDim2.fromScale(0.38, 0.06), UDim2.fromScale(0.54, 0.126), assetTextColor, frame)
+			local nationLabel = createSignLabel(card.nation or "Unknown", UDim2.fromScale(0.40, 0.06), UDim2.fromScale(0.53, 0.126), assetTextColor, frame)
 			nationLabel.ZIndex = 3
-			nationLabel.TextXAlignment = Enum.TextXAlignment.Right
+			nationLabel.TextXAlignment = Enum.TextXAlignment.Center
 			make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 13 }, nationLabel)
 			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1, Transparency = 0.38 }, nationLabel)
 
-			local heroLabel = createSignLabel(surname, UDim2.fromScale(0.82, 0.11), UDim2.fromScale(0.09, 0.47), assetTextColor, frame)
+			local portraitGlow = make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = portraitColor,
+				BackgroundTransparency = tier >= 3 and 0.66 or 0.76,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.405),
+				Size = UDim2.fromScale(0.46, 0.28),
+				ZIndex = 2,
+			}, frame)
+			make("UICorner", { CornerRadius = UDim.new(1, 0) }, portraitGlow)
+
+			local shoulders = make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 1),
+				BackgroundColor3 = portraitDark,
+				BackgroundTransparency = 0.06,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.49),
+				Size = UDim2.fromScale(0.46, 0.14),
+				ZIndex = 3,
+			}, frame)
+			make("UICorner", { CornerRadius = UDim.new(0.45, 0) }, shoulders)
+			make("UIStroke", { Color = portraitColor, Thickness = 1.4, Transparency = tier >= 3 and 0.12 or 0.30 }, shoulders)
+
+			local neck = make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 1),
+				BackgroundColor3 = portraitDark,
+				BackgroundTransparency = 0.02,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.405),
+				Size = UDim2.fromScale(0.11, 0.10),
+				ZIndex = 4,
+			}, frame)
+			make("UICorner", { CornerRadius = UDim.new(0.20, 0) }, neck)
+
+			local head = make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = portraitDark,
+				BackgroundTransparency = 0,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.295),
+				Size = UDim2.fromScale(0.18, 0.13),
+				ZIndex = 4,
+			}, frame)
+			make("UICorner", { CornerRadius = UDim.new(1, 0) }, head)
+			make("UIStroke", { Color = portraitColor, Thickness = 1.4, Transparency = tier >= 3 and 0.16 or 0.32 }, head)
+
+			local initialsText = getCardInitials(card.name)
+			local initialsLabel = createSignLabel(initialsText, UDim2.fromScale(0.34, 0.07), UDim2.fromScale(0.33, 0.385), portraitColor, frame)
+			initialsLabel.ZIndex = 5
+			initialsLabel.TextXAlignment = Enum.TextXAlignment.Center
+			make("UITextSizeConstraint", { MinTextSize = 8, MaxTextSize = 16 }, initialsLabel)
+			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1, Transparency = 0.30 }, initialsLabel)
+
+			local heroLabel = createSignLabel(surname, UDim2.fromScale(0.82, 0.09), UDim2.fromScale(0.09, 0.515), assetTextColor, frame)
 			heroLabel.ZIndex = 3
 			heroLabel.TextXAlignment = Enum.TextXAlignment.Center
-			make("UITextSizeConstraint", { MinTextSize = 14, MaxTextSize = isPOTY and 30 or 34 }, heroLabel)
+			make("UITextSizeConstraint", { MinTextSize = 12, MaxTextSize = isPOTY and 26 or 30 }, heroLabel)
 			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.8, Transparency = 0.16 }, heroLabel)
 
 			local nameLabel = createSignLabel(string.upper(card.name or "Player"), UDim2.fromScale(0.86, 0.07), UDim2.fromScale(0.07, 0.742), Color3.fromRGB(255, 255, 245), frame)
