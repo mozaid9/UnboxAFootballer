@@ -78,30 +78,9 @@ local hitSound = make("Sound", {
 
 local finalBreakSound = make("Sound", {
 	Name = "PackFinalBreakSound",
-	SoundId = "rbxasset://sounds/impact_explosion_03.mp3",
-	Volume = 0.42,
-	PlaybackSpeed = 1.18,
-}, screenGui)
-
-local revealSound = make("Sound", {
-	Name = "CardRevealSound",
-	SoundId = "rbxasset://sounds/electronicpingshort.wav",
-	Volume = 0.36,
-	PlaybackSpeed = 1.18,
-}, screenGui)
-
-local cardRiseSound = make("Sound", {
-	Name = "CardRiseSound",
-	SoundId = "rbxasset://sounds/electronicpingshort.wav",
-	Volume = 0.22,
-	PlaybackSpeed = 0.72,
-}, screenGui)
-
-local cardFlipSound = make("Sound", {
-	Name = "CardFlipSound",
-	SoundId = "rbxasset://sounds/electronicpingshort.wav",
-	Volume = 0.28,
-	PlaybackSpeed = 1.52,
+	SoundId = "rbxasset://sounds/action_jump_land.mp3",
+	Volume = 0.34,
+	PlaybackSpeed = 0.68,
 }, screenGui)
 
 local milestoneSound = make("Sound", {
@@ -1543,10 +1522,6 @@ local function showCardReveal(payload)
 	local startPos = getWorldScreenTarget(payload.packWorldPosition, UDim2.new(0.5, 0, 0.78, 0))
 	local focus = makeRevealFocus(style, tier, revealPos)
 
-	cardRiseSound.PlaybackSpeed = 0.72 + (tier * 0.04)
-	cardRiseSound.Volume = 0.20 + (tier * 0.025)
-	cardRiseSound:Play()
-
 	local cardPanel = make("Frame", {
 		Name = "CardReveal",
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1817,9 +1792,6 @@ local function showCardReveal(payload)
 	}):Play()
 	task.wait(riseTime + (tier >= 3 and 0.24 or (tier >= 2 and 0.12 or 0.04)))
 
-	cardFlipSound.PlaybackSpeed = 1.36 + (tier * 0.04)
-	cardFlipSound.Volume = 0.24 + (tier * 0.025)
-	cardFlipSound:Play()
 	TweenService:Create(cardPanel, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 		Size = UDim2.fromOffset(18, cardHeight),
 		Rotation = 7,
@@ -1841,9 +1813,6 @@ local function showCardReveal(payload)
 	}):Play()
 	task.wait(0.12)
 
-	revealSound.PlaybackSpeed = 1.08 + (tier * 0.05)
-	revealSound.Volume = math.min(0.58, 0.34 + (tier * 0.045))
-	revealSound:Play()
 	showImpactFlash(glowColor, tier >= 2)
 	spawnParticleBurst(glowColor, tier >= 2 and 28 or 12, payload.packWorldPosition, tier >= 2 and 0.86 or 0.45)
 	if tier >= 2 then
@@ -2273,9 +2242,6 @@ local function showPlayerPick(payload)
 				return
 			end
 
-			cardFlipSound.PlaybackSpeed = 1.12 + (index * 0.035)
-			cardFlipSound.Volume = 0.20
-			cardFlipSound:Play()
 			TweenService:Create(entry.scale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 				Scale = 1,
 			}):Play()
