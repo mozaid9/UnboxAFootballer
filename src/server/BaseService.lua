@@ -3043,17 +3043,17 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(20, 24, 40)),
 				ColorSequenceKeypoint.new(1,    Color3.fromRGB(8,  10, 18)),
 			}
-		elseif tier == 1 then       -- Rare Gold: warm bronze gradient
+		elseif tier == 1 then       -- Rare Gold: vivid orange-amber (clearly different from base Gold)
 			gradColors = {
-				ColorSequenceKeypoint.new(0,    rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.20)),
-				ColorSequenceKeypoint.new(0.45, secondaryColor),
-				ColorSequenceKeypoint.new(1,    darkColor),
+				ColorSequenceKeypoint.new(0,    Color3.fromRGB(210, 110, 20)),
+				ColorSequenceKeypoint.new(0.45, Color3.fromRGB(170, 72,  10)),
+				ColorSequenceKeypoint.new(1,    Color3.fromRGB(80,  28,  4)),
 			}
-		else                        -- Gold: classic warm amber
+		else                        -- Gold: bright warm yellow-gold (light, readable, classic)
 			gradColors = {
-				ColorSequenceKeypoint.new(0,    rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.12)),
-				ColorSequenceKeypoint.new(0.50, secondaryColor),
-				ColorSequenceKeypoint.new(1,    darkColor),
+				ColorSequenceKeypoint.new(0,    Color3.fromRGB(220, 175, 30)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(180, 130, 10)),
+				ColorSequenceKeypoint.new(1,    Color3.fromRGB(90,  55,  4)),
 			}
 		end
 		make("UIGradient", { Color = ColorSequence.new(gradColors), Rotation = gradRotation }, frame)
@@ -3111,35 +3111,42 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		nationLabel.TextXAlignment = Enum.TextXAlignment.Right
 		make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 13 }, nationLabel)
 
-		-- Identity panel — large position text OR "PLAYER OF THE YEAR" for POTY
+		-- Surname for big identity text (last word of name, e.g. "Haaland" from "Erling Haaland")
+		local surname = string.upper((card.name or "Player"):match("(%S+)%s*$") or (card.name or "Player"))
+
+		-- Identity panel — big SURNAME so you can tell who the card is from across the pitch
 		local identityPanel = make("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundColor3 = isPOTY and Color3.fromRGB(6, 4, 0) or Color3.fromRGB(4, 6, 12),
-			BackgroundTransparency = isPOTY and 0.10 or (tier == 5 and 0.58 or (tier >= 3 and 0.28 or 0.44)),
+			BackgroundTransparency = isPOTY and 0.08 or (tier == 5 and 0.52 or (tier >= 3 and 0.22 or 0.38)),
 			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.5, 0.32),
-			Size = UDim2.fromScale(0.72, isPOTY and 0.30 or 0.26),
+			Position = UDim2.fromScale(0.5, 0.30),
+			Size = UDim2.fromScale(0.80, 0.30),
 			ZIndex = 3,
 		}, frame)
-		make("UICorner", { CornerRadius = UDim.new(0.14, 0) }, identityPanel)
+		make("UICorner", { CornerRadius = UDim.new(0.12, 0) }, identityPanel)
 		make("UIStroke", {
-			Color = isPOTY and trimColor or positionAccent,
-			Thickness = isPOTY and 2 or (tier >= 3 and 1.5 or 1),
-			Transparency = isPOTY and 0.10 or (tier >= 3 and 0.28 or 0.48),
+			Color = isPOTY and trimColor or trimColor,
+			Thickness = isPOTY and 2.2 or (tier >= 3 and 1.8 or 1.2),
+			Transparency = isPOTY and 0.08 or (tier >= 3 and 0.20 or 0.40),
 		}, identityPanel)
 
 		if isPOTY then
-			-- "PLAYER OF THE YEAR" is the main identity text — unmistakable at a glance
-			local potyLabel = createSignLabel("PLAYER\nOF THE\nYEAR", UDim2.fromScale(0.90, 0.88), UDim2.fromScale(0.05, 0.06), trimColor, identityPanel)
+			-- "PLAYER OF THE YEAR" top line, then surname below it
+			local potyLabel = createSignLabel("PLAYER OF THE YEAR", UDim2.fromScale(0.90, 0.46), UDim2.fromScale(0.05, 0.06), trimColor, identityPanel)
 			potyLabel.ZIndex = 5
 			potyLabel.TextXAlignment = Enum.TextXAlignment.Center
-			make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 18 }, potyLabel)
+			make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 13 }, potyLabel)
+			local potySurname = createSignLabel(surname, UDim2.fromScale(0.90, 0.82), UDim2.fromScale(0.05, 0.52), textColor, identityPanel)
+			potySurname.ZIndex = 5
+			potySurname.TextXAlignment = Enum.TextXAlignment.Center
+			make("UITextSizeConstraint", { MinTextSize = 14, MaxTextSize = 28 }, potySurname)
 		else
-			-- Big position text (e.g. "ST", "GK") — readable from stadium distance
-			local bigPos = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.88, 0.82), UDim2.fromScale(0.06, 0.09), positionAccent, identityPanel)
-			bigPos.ZIndex = 5
-			bigPos.TextXAlignment = Enum.TextXAlignment.Center
-			make("UITextSizeConstraint", { MinTextSize = 24, MaxTextSize = tier >= 4 and 52 or 42 }, bigPos)
+			-- Surname fills the panel — this is what you read from distance
+			local bigName = createSignLabel(surname, UDim2.fromScale(0.92, 0.84), UDim2.fromScale(0.04, 0.08), textColor, identityPanel)
+			bigName.ZIndex = 5
+			bigName.TextXAlignment = Enum.TextXAlignment.Center
+			make("UITextSizeConstraint", { MinTextSize = 14, MaxTextSize = 36 }, bigName)
 		end
 
 		-- Divider line
@@ -3147,13 +3154,13 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 			BackgroundColor3 = trimColor,
 			BackgroundTransparency = 0.12,
 			BorderSizePixel = 0,
-			Size = UDim2.new(0.74, 0, 0, 2),
-			Position = UDim2.new(0.13, 0, 0.66, 0),
+			Size = UDim2.new(0.76, 0, 0, 2),
+			Position = UDim2.new(0.12, 0, 0.65, 0),
 		}, frame)
 
-		-- Player name
-		local nameLabel = createSignLabel(string.upper(card.name or "Player"), UDim2.new(0.86, 0, 0.12, 0), UDim2.new(0.07, 0, 0.69, 0), textColor, frame)
-		make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 17 }, nameLabel)
+		-- Full name beneath panel (smaller — confirms the full name after you've read the surname)
+		local nameLabel = createSignLabel(string.upper(card.name or "Player"), UDim2.new(0.86, 0, 0.10, 0), UDim2.new(0.07, 0, 0.675, 0), textColor, frame)
+		make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 22 }, nameLabel)
 		make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.2, Transparency = 0.30 }, nameLabel)
 
 		-- Income pill (fans/s only — no rating, no powerScore)
