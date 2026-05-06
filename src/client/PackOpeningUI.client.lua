@@ -1412,6 +1412,7 @@ local function makeRevealFocus(style, tier, revealPos)
 		Size = UDim2.fromOffset(560, 560),
 		ZIndex = 196,
 	}, screenGui)
+	local stageScale = make("UIScale", { Scale = tier >= 2 and 0.78 or 0.86 }, stage)
 
 	local haloSize = 300 + (tier * 34)
 	local halo = make("Frame", {
@@ -1454,6 +1455,19 @@ local function makeRevealFocus(style, tier, revealPos)
 		}, ray)
 	end
 
+	TweenService:Create(stageScale, TweenInfo.new(0.48, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1.02 + (math.min(tier, 4) * 0.012),
+	}):Play()
+	TweenService:Create(halo, TweenInfo.new(0.72, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+		BackgroundTransparency = tier >= 3 and 0.48 or 0.60,
+		Size = UDim2.fromOffset(haloSize + 42 + (tier * 8), haloSize + 42 + (tier * 8)),
+	}):Play()
+	if tier >= 2 then
+		TweenService:Create(stage, TweenInfo.new(1.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+			Rotation = tier >= 4 and 10 or 6,
+		}):Play()
+	end
+
 	return {
 		overlay = overlay,
 		stage = stage,
@@ -1479,6 +1493,29 @@ local function clearRevealFocus(focus)
 	if focus.stage and focus.stage.Parent then
 		focus.stage:Destroy()
 	end
+end
+
+local function burstRevealRing(parent, color, tier)
+	local ring = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundTransparency = 1,
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, 18, 1, 18),
+		ZIndex = 199,
+	}, parent)
+	addCorner(ring, 24)
+	local stroke = addStroke(ring, color, tier >= 3 and 5 or 3.5, tier >= 2 and 0.10 or 0.24)
+	TweenService:Create(ring, TweenInfo.new(0.52, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = UDim2.new(1, 74 + (tier * 4), 1, 74 + (tier * 4)),
+	}):Play()
+	TweenService:Create(stroke, TweenInfo.new(0.52, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Transparency = 1,
+	}):Play()
+	task.delay(0.58, function()
+		if ring.Parent then
+			ring:Destroy()
+		end
+	end)
 end
 
 -- ── Card reveal ───────────────────────────────────────────────────────────────
@@ -1815,6 +1852,7 @@ local function showCardReveal(payload)
 
 	showImpactFlash(glowColor, tier >= 2)
 	spawnParticleBurst(glowColor, tier >= 2 and 28 or 12, payload.packWorldPosition, tier >= 2 and 0.86 or 0.45)
+	burstRevealRing(cardPanel, glowColor, tier)
 	if tier >= 2 then
 		shakeCamera(tier >= 3 and 0.11 or 0.06, 0.16, tier >= 3 and 7 or 5)
 	end
