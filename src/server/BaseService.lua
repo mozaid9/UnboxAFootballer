@@ -2589,18 +2589,16 @@ local function addDisplayCardTemplate(frame, treatment, tier, rarityColor, secon
 	end
 
 	if template == "diagonal" then
-		for index = 1, 3 do
-			make("Frame", {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				BackgroundColor3 = index == 2 and trimColor or secondaryColor,
-				BackgroundTransparency = index == 2 and 0.28 or 0.42,
-				BorderSizePixel = 0,
-				Position = UDim2.fromScale(0.20 + index * 0.19, 0.52),
-				Rotation = -24,
-				Size = UDim2.new(0.16, 0, 1.26, 0),
-				ZIndex = 1,
-			}, frame)
-		end
+		make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.66,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.78, 0.48),
+			Rotation = -20,
+			Size = UDim2.new(0.22, 0, 1.15, 0),
+			ZIndex = 1,
+		}, frame)
 		return
 	end
 
@@ -2890,17 +2888,6 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		Color = positionAccent,
 		Thickness = tier >= 3 and 1.6 or 1,
 		Transparency = tier >= 3 and 0.28 or 0.48,
-	}, identityPanel)
-
-	make("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = positionAccent,
-		BackgroundTransparency = 0.18,
-		BorderSizePixel = 0,
-		Position = UDim2.fromScale(0.5, 0.50),
-		Rotation = -18,
-		Size = UDim2.new(1.12, 0, 0, tier >= 3 and 5 or 3),
-		ZIndex = 4,
 	}, identityPanel)
 
 	local initialsLabel = createSignLabel(initials, UDim2.fromScale(0.78, 0.76), UDim2.fromScale(0.11, 0.06), textColor, identityPanel)
