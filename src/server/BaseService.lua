@@ -2476,6 +2476,18 @@ end
 -- ── Card design feature flag ──────────────────────────────────────────────
 -- Set to false to instantly revert to the original card layouts.
 local USE_NEW_CARD_DESIGN = true
+-- Set to false to keep the new code-built layout while disabling uploaded PNG frames.
+local USE_CARD_FRAME_ASSETS = true
+
+local CARD_FRAME_ASSETS = {
+	["Gold"] = "rbxassetid://72910568501147",
+	["Rare Gold"] = "rbxassetid://140015414798474",
+	["Premium Gold"] = "rbxassetid://97865633994923",
+	["Talisman"] = "rbxassetid://137795510427610",
+	["Maestro"] = "rbxassetid://122214911600791",
+	["Immortal"] = "rbxassetid://87765382302526",
+	["Player of the Year"] = "rbxassetid://101208651203316",
+}
 
 local DISPLAY_CARD_TREATMENTS = {
 	["Gold"] = {
@@ -3008,6 +3020,60 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	-- ── V2 CARD DESIGN ────────────────────────────────────────────────────────
 	if USE_NEW_CARD_DESIGN then
 		local isPOTY = treatment.template == "v2_poty"
+		local assetId = USE_CARD_FRAME_ASSETS and CARD_FRAME_ASSETS[card.rarity]
+
+		if assetId then
+			frame.BackgroundTransparency = 1
+			local assetTextColor = tier == 5 and Color3.fromRGB(225, 248, 255)
+				or (tier == 6 and Color3.fromRGB(255, 231, 110) or Color3.fromRGB(255, 248, 226))
+			local surname = string.upper((card.name or "Player"):match("(%S+)%s*$") or (card.name or "Player"))
+
+			make("ImageLabel", {
+				BackgroundTransparency = 1,
+				Image = assetId,
+				ScaleType = Enum.ScaleType.Stretch,
+				Size = UDim2.fromScale(1, 1),
+				ZIndex = 1,
+			}, frame)
+
+			local rarityText = createSignLabel(displayRarityLabel, UDim2.fromScale(0.78, 0.055), UDim2.fromScale(0.11, 0.043), assetTextColor, frame)
+			rarityText.ZIndex = 3
+			rarityText.TextXAlignment = Enum.TextXAlignment.Center
+			make("UITextSizeConstraint", { MinTextSize = isPOTY and 5 or 6, MaxTextSize = isPOTY and 12 or 15 }, rarityText)
+			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.2, Transparency = 0.28 }, rarityText)
+
+			local positionLabel = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.38, 0.06), UDim2.fromScale(0.08, 0.126), assetTextColor, frame)
+			positionLabel.ZIndex = 3
+			positionLabel.TextXAlignment = Enum.TextXAlignment.Left
+			make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 14 }, positionLabel)
+			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1, Transparency = 0.34 }, positionLabel)
+
+			local nationLabel = createSignLabel(card.nation or "Unknown", UDim2.fromScale(0.38, 0.06), UDim2.fromScale(0.54, 0.126), assetTextColor, frame)
+			nationLabel.ZIndex = 3
+			nationLabel.TextXAlignment = Enum.TextXAlignment.Right
+			make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 13 }, nationLabel)
+			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1, Transparency = 0.38 }, nationLabel)
+
+			local heroLabel = createSignLabel(surname, UDim2.fromScale(0.82, 0.11), UDim2.fromScale(0.09, 0.47), assetTextColor, frame)
+			heroLabel.ZIndex = 3
+			heroLabel.TextXAlignment = Enum.TextXAlignment.Center
+			make("UITextSizeConstraint", { MinTextSize = 14, MaxTextSize = isPOTY and 30 or 34 }, heroLabel)
+			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.8, Transparency = 0.16 }, heroLabel)
+
+			local nameLabel = createSignLabel(string.upper(card.name or "Player"), UDim2.fromScale(0.86, 0.07), UDim2.fromScale(0.07, 0.742), Color3.fromRGB(255, 255, 245), frame)
+			nameLabel.ZIndex = 3
+			nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+			make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 16 }, nameLabel)
+			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.2, Transparency = 0.28 }, nameLabel)
+
+			local incomeLabel = createSignLabel("+" .. tostring(incomePerSecond) .. " fans/s", UDim2.fromScale(0.82, 0.075), UDim2.fromScale(0.09, 0.858), Color3.fromRGB(184, 255, 196), frame)
+			incomeLabel.ZIndex = 3
+			incomeLabel.TextXAlignment = Enum.TextXAlignment.Center
+			make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 16 }, incomeLabel)
+			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.4, Transparency = 0.18 }, incomeLabel)
+
+			return
+		end
 
 		-- Per-rarity background gradient (each rarity has a distinct palette)
 		local gradRotation = 145
