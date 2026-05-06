@@ -71,16 +71,16 @@ local screenGui = make("ScreenGui", {
 
 local hitSound = make("Sound", {
 	Name = "PackHitSound",
-	SoundId = "rbxasset://sounds/electronicpingshort.wav",
-	Volume = 0.32,
-	PlaybackSpeed = 0.86,
+	SoundId = "rbxasset://sounds/action_jump_land.mp3",
+	Volume = 0.42,
+	PlaybackSpeed = 0.82,
 }, screenGui)
 
 local finalBreakSound = make("Sound", {
 	Name = "PackFinalBreakSound",
-	SoundId = "rbxasset://sounds/electronicpingshort.wav",
-	Volume = 0.48,
-	PlaybackSpeed = 0.78,
+	SoundId = "rbxasset://sounds/impact_explosion_03.mp3",
+	Volume = 0.42,
+	PlaybackSpeed = 1.18,
 }, screenGui)
 
 local revealSound = make("Sound", {

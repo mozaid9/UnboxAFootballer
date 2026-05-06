@@ -62,13 +62,6 @@ local toggleEvent = Instance.new("BindableEvent")
 toggleEvent.Name = "ToggleEvent"
 toggleEvent.Parent = screenGui
 
-local collectionNewSound = make("Sound", {
-	Name = "CollectionNewCardSound",
-	SoundId = "rbxasset://sounds/electronicpingshort.wav",
-	Volume = 0.28,
-	PlaybackSpeed = 1.12,
-}, screenGui)
-
 local panel = make("Frame", {
 	Visible = false,
 	AnchorPoint = Vector2.new(0.5, 0.5),
@@ -284,7 +277,6 @@ local filterButtons = {}
 local refreshCollection
 local newTileEntries = {}
 local pendingViewedCards = {}
-local lastNewCardSoundAt = 0
 
 local RARITY_RANK = {
 	["Gold"] = 1,
@@ -586,12 +578,6 @@ local function renderRewards(payload)
 end
 
 local function playNewCardFeedback(tileScale)
-	local now = os.clock()
-	if now - lastNewCardSoundAt > 0.35 then
-		lastNewCardSoundAt = now
-		collectionNewSound:Play()
-	end
-
 	if tileScale then
 		TweenService:Create(tileScale, TweenInfo.new(0.14, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Scale = 1.045,
