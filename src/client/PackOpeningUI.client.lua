@@ -183,7 +183,7 @@ end)
 local sidebar = make("Frame", {
 	Name = "Sidebar",
 	AnchorPoint = Vector2.new(0, 1),
-	Size = UDim2.fromOffset(190, 462),
+	Size = UDim2.fromOffset(190, 338),
 	Position = UDim2.new(0, 20, 1, -20),
 	BackgroundColor3 = Color3.fromRGB(5, 8, 15),
 	BackgroundTransparency = 0.18,
@@ -617,8 +617,6 @@ local collectionButton = createMenuButton(2, "Collection", "collection", Color3.
 local upgradesButton  = createMenuButton(3, "Upgrades",  "upgrades",  UI.Gold)
 local questsButton    = createMenuButton(4, "Quests",    "quests",    Color3.fromRGB(205, 88, 255))
 local shopButton      = createMenuButton(5, "Shop",      "shop",      Color3.fromRGB(85, 226, 112))
-local helpButton      = createMenuButton(6, "Help",      "help",      Color3.fromRGB(235, 238, 248))
-local popupMuteButton = createMenuButton(7, "Popups",    "popups",    Color3.fromRGB(255, 156, 82))
 
 local questBadge = make("Frame", {
 	AnchorPoint = Vector2.new(1, 0),
@@ -646,8 +644,8 @@ local questBadgeLabel = make("TextLabel", {
 -- ── Sidebar collapse tab ──────────────────────────────────────────────────────
 local SIDEBAR_OPEN_POS = UDim2.new(0, 20, 1, -20)
 local SIDEBAR_CLOSED_POS = UDim2.new(0, -208, 1, -20)
-local TAB_OPEN_POS = UDim2.new(0, 218, 1, -252)
-local TAB_CLOSED_POS = UDim2.new(0, 10, 1, -252)
+local TAB_OPEN_POS = UDim2.new(0, 218, 1, -190)
+local TAB_CLOSED_POS = UDim2.new(0, 10, 1, -190)
 local SLIDE_INFO = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 local sidebarIsOpen = true
 
@@ -697,7 +695,7 @@ end)
 
 local toastHolder = make("Frame", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(1, -20, 0, 92),
+	Position = UDim2.new(1, -20, 0, 288),
 	AnchorPoint = Vector2.new(1, 0),
 	Size = UDim2.fromOffset(320, 420),
 }, screenGui)
@@ -707,6 +705,92 @@ make("UIListLayout", {
 	VerticalAlignment = Enum.VerticalAlignment.Top,
 	Padding = UDim.new(0, 10),
 }, toastHolder)
+
+local utilityPanelOpen = false
+local utilityButton = make("TextButton", {
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+	BackgroundTransparency = 0.05,
+	Position = UDim2.new(1, -20, 0, 86),
+	Size = UDim2.fromOffset(46, 46),
+	Text = "?",
+	TextColor3 = Color3.fromRGB(235, 238, 248),
+	TextScaled = false,
+	TextSize = 24,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = true,
+	ZIndex = 80,
+}, screenGui)
+addCorner(utilityButton, 14)
+addStroke(utilityButton, Color3.fromRGB(235, 238, 248), 1.5, 0.44)
+
+local utilityPanel = make("Frame", {
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = Color3.fromRGB(7, 10, 18),
+	BackgroundTransparency = 0.04,
+	Position = UDim2.new(1, -20, 0, 138),
+	Size = UDim2.fromOffset(224, 138),
+	Visible = false,
+	ZIndex = 80,
+}, screenGui)
+addCorner(utilityPanel, 16)
+addStroke(utilityPanel, UI.Gold, 1.5, 0.48)
+
+make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 14, 0, 10),
+	Size = UDim2.new(1, -56, 0, 22),
+	Text = "Help",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 16,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 81,
+}, utilityPanel)
+
+local utilityCloseButton = make("TextButton", {
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = Color3.fromRGB(18, 24, 40),
+	Position = UDim2.new(1, -10, 0, 8),
+	Size = UDim2.fromOffset(28, 28),
+	Text = "X",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 13,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = true,
+	ZIndex = 82,
+}, utilityPanel)
+addCorner(utilityCloseButton, 8)
+
+local helpButton = make("TextButton", {
+	BackgroundColor3 = Color3.fromRGB(34, 38, 49),
+	Position = UDim2.new(0, 14, 0, 46),
+	Size = UDim2.new(1, -28, 0, 34),
+	Text = "Replay onboarding",
+	TextColor3 = Color3.fromRGB(245, 246, 255),
+	TextScaled = false,
+	TextSize = 13,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = true,
+	ZIndex = 81,
+}, utilityPanel)
+addCorner(helpButton, 10)
+
+local popupMuteButton = make("TextButton", {
+	BackgroundColor3 = Color3.fromRGB(255, 156, 82),
+	Position = UDim2.new(0, 14, 0, 88),
+	Size = UDim2.new(1, -28, 0, 34),
+	Text = "Popups: On",
+	TextColor3 = Color3.fromRGB(12, 7, 3),
+	TextScaled = false,
+	TextSize = 13,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = true,
+	ZIndex = 81,
+}, utilityPanel)
+addCorner(popupMuteButton, 10)
 
 local popupsMuted = false
 local coachDismissed = false
@@ -818,11 +902,9 @@ local function setGemsDisplay(gems)
 end
 
 local function updatePopupMuteButton()
-	local label = popupMuteButton.Parent and popupMuteButton.Parent:FindFirstChild("MenuLabel")
-	if label then
-		label.Text = popupsMuted and "POPUPS OFF" or "POPUPS"
-		label.TextColor3 = popupsMuted and Color3.fromRGB(255, 126, 98) or Color3.fromRGB(255, 156, 82)
-	end
+	popupMuteButton.Text = popupsMuted and "Popups: Off" or "Popups: On"
+	popupMuteButton.BackgroundColor3 = popupsMuted and Color3.fromRGB(104, 46, 38) or Color3.fromRGB(255, 156, 82)
+	popupMuteButton.TextColor3 = popupsMuted and Color3.fromRGB(255, 226, 216) or Color3.fromRGB(12, 7, 3)
 end
 
 local function showToast(text, accent, force)
@@ -1149,7 +1231,22 @@ shopButton.MouseButton1Click:Connect(function()
 	end
 end)
 
+local function setUtilityPanelOpen(open)
+	utilityPanelOpen = open
+	utilityPanel.Visible = open
+	utilityButton.Text = open and "X" or "?"
+end
+
+utilityButton.MouseButton1Click:Connect(function()
+	setUtilityPanelOpen(not utilityPanelOpen)
+end)
+
+utilityCloseButton.MouseButton1Click:Connect(function()
+	setUtilityPanelOpen(false)
+end)
+
 helpButton.MouseButton1Click:Connect(function()
+	setUtilityPanelOpen(false)
 	showOnboardingReplay(1)
 end)
 
