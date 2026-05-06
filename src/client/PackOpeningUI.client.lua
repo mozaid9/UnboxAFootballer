@@ -671,6 +671,104 @@ make("UIListLayout", {
 	Padding = UDim.new(0, 10),
 }, toastHolder)
 
+local coachDismissed = false
+local coachAction
+local coachCard = make("Frame", {
+	AnchorPoint = Vector2.new(0.5, 0),
+	BackgroundColor3 = Color3.fromRGB(9, 13, 24),
+	BackgroundTransparency = 0.06,
+	Position = UDim2.new(0.5, 0, 0, 86),
+	Size = UDim2.new(0.9, 0, 0, 112),
+	Visible = false,
+	ZIndex = 70,
+}, screenGui)
+addCorner(coachCard, 16)
+addStroke(coachCard, UI.Gold, 1.5, 0.34)
+make("UISizeConstraint", {
+	MaxSize = Vector2.new(420, 112),
+	MinSize = Vector2.new(300, 112),
+}, coachCard)
+
+local coachAccent = make("Frame", {
+	BackgroundColor3 = UI.Gold,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 12, 0, 14),
+	Size = UDim2.new(0, 5, 1, -28),
+	ZIndex = 71,
+}, coachCard)
+addCorner(coachAccent, 4)
+
+local coachStepLabel = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 28, 0, 10),
+	Size = UDim2.new(1, -106, 0, 18),
+	Text = "NEXT STEP",
+	TextColor3 = UI.Gold,
+	TextScaled = false,
+	TextSize = 12,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 71,
+}, coachCard)
+
+local coachTitle = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 28, 0, 30),
+	Size = UDim2.new(1, -154, 0, 24),
+	Text = "",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 19,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 71,
+}, coachCard)
+
+local coachBody = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 28, 0, 58),
+	Size = UDim2.new(1, -154, 0, 42),
+	Text = "",
+	TextColor3 = Color3.fromRGB(218, 213, 194),
+	TextScaled = false,
+	TextSize = 13,
+	TextWrapped = true,
+	Font = Enum.Font.GothamBold,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top,
+	ZIndex = 71,
+}, coachCard)
+
+local coachButton = make("TextButton", {
+	AnchorPoint = Vector2.new(1, 1),
+	BackgroundColor3 = UI.Gold,
+	Position = UDim2.new(1, -14, 1, -14),
+	Size = UDim2.fromOffset(104, 34),
+	Text = "Got it",
+	TextColor3 = Color3.fromRGB(10, 8, 3),
+	TextScaled = false,
+	TextSize = 13,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = true,
+	ZIndex = 72,
+}, coachCard)
+addCorner(coachButton, 10)
+
+local coachClose = make("TextButton", {
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = Color3.fromRGB(19, 25, 41),
+	Position = UDim2.new(1, -14, 0, 12),
+	Size = UDim2.fromOffset(30, 30),
+	Text = "X",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 14,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = true,
+	ZIndex = 72,
+}, coachCard)
+addCorner(coachClose, 9)
+
 local function setCoinsDisplay(coins)
 	fansLabel.Text = Utils.FormatNumber(coins or 0)
 end
@@ -773,6 +871,121 @@ local function fireGuiToggle(guiName)
 	return false
 end
 
+local function countInventoryCards(inventoryCounts)
+	local total = 0
+	if type(inventoryCounts) ~= "table" then
+		return total
+	end
+
+	for _, amount in pairs(inventoryCounts) do
+		total += math.max(0, tonumber(amount) or 0)
+	end
+	return total
+end
+
+local refreshCoachSoon
+
+local function setCoachStep(step)
+	if coachDismissed or not step then
+		coachCard.Visible = false
+		coachAction = nil
+		return
+	end
+
+	coachStepLabel.Text = step.eyebrow or "NEXT STEP"
+	coachTitle.Text = step.title or ""
+	coachBody.Text = step.body or ""
+	coachButton.Text = step.buttonText or "Got it"
+	coachAccent.BackgroundColor3 = step.accent or UI.Gold
+	coachStepLabel.TextColor3 = step.accent or UI.Gold
+	coachButton.BackgroundColor3 = step.accent or UI.Gold
+	coachAction = step.action
+	coachCard.Visible = true
+end
+
+local function updateCoach(data)
+	if coachDismissed or type(data) ~= "table" then
+		return
+	end
+
+	local totalPacks = math.max(0, tonumber(data.totalPacksOpened) or 0)
+	local passiveFans = math.max(0, tonumber(data.passiveCoinsPerSecond) or 0)
+	local storedCount = countInventoryCards(data.inventoryCounts)
+
+	if totalPacks <= 0 then
+		setCoachStep({
+			title = "Crack your first pack",
+			body = "Equip the Pitchfork, stand by the red pad, then hit the pack until it opens.",
+			buttonText = "Got it",
+			action = function()
+				coachDismissed = true
+				coachCard.Visible = false
+			end,
+		})
+	elseif passiveFans <= 0 and storedCount > 0 then
+		setCoachStep({
+			title = "Put a player on display",
+			body = "Hold E on an empty green slot, then choose a stored player to start earning Fans.",
+			buttonText = "Inventory",
+			accent = Color3.fromRGB(78, 170, 255),
+			action = function()
+				fireGuiToggle("InventoryUI")
+				showToast("Green display slots place stored players onto your stadium.", UI.Gold)
+				refreshCoachSoon(0.6)
+			end,
+		})
+	elseif passiveFans <= 0 then
+		setCoachStep({
+			title = "Find a display player",
+			body = "Open another pack, then place the player on a green display slot to earn Fans.",
+			buttonText = "Got it",
+			action = function()
+				coachDismissed = true
+				coachCard.Visible = false
+			end,
+		})
+	elseif totalPacks < 5 then
+		setCoachStep({
+			title = "Spend Fans on upgrades",
+			body = "Fans are coming in. Upgrade sprint speed, pack spawn luck, or card pull luck to progress faster.",
+			buttonText = "Upgrades",
+			action = function()
+				fireGuiToggle("UpgradesUI")
+				refreshCoachSoon(0.6)
+			end,
+		})
+	else
+		setCoachStep(nil)
+	end
+end
+
+local coachRefreshQueued = false
+local lastCoachRefreshAt = 0
+function refreshCoachSoon(delaySeconds)
+	if coachDismissed or coachRefreshQueued then
+		return
+	end
+	if os.clock() - lastCoachRefreshAt < 1.5 then
+		return
+	end
+
+	coachRefreshQueued = true
+	task.delay(delaySeconds or 0.2, function()
+		coachRefreshQueued = false
+		if coachDismissed then
+			return
+		end
+
+		local ok, data = pcall(function()
+			return GetPlayerDataFn:InvokeServer()
+		end)
+		if ok then
+			lastCoachRefreshAt = os.clock()
+			updateCoach(data)
+		end
+	end)
+end
+
 local function refreshStatus()
 	local data = GetPlayerDataFn:InvokeServer()
 	if not data then
@@ -781,12 +994,29 @@ local function refreshStatus()
 
 	setCoinsDisplay(data.coins)
 	setGemsDisplay(data.gems)
+	lastCoachRefreshAt = os.clock()
+	updateCoach(data)
 end
+
+coachButton.MouseButton1Click:Connect(function()
+	if coachAction then
+		coachAction()
+	else
+		coachDismissed = true
+		coachCard.Visible = false
+	end
+end)
+
+coachClose.MouseButton1Click:Connect(function()
+	coachDismissed = true
+	coachCard.Visible = false
+end)
 
 inventoryButton.MouseButton1Click:Connect(function()
 	if not fireGuiToggle("InventoryUI") then
 		showToast("Inventory UI is still loading. Try again in a second.", UI.Gold)
 	end
+	refreshCoachSoon(0.4)
 end)
 
 collectionButton.MouseButton1Click:Connect(function()
@@ -799,6 +1029,7 @@ upgradesButton.MouseButton1Click:Connect(function()
 	if not fireGuiToggle("UpgradesUI") then
 		showToast("Upgrades UI is still loading. Try again in a second.", UI.Gold)
 	end
+	refreshCoachSoon(0.4)
 end)
 
 questsButton.MouseButton1Click:Connect(function()
@@ -828,6 +1059,7 @@ UpdateCoinsEvent.OnClientEvent:Connect(function(coins, gems)
 	if gems ~= nil then
 		setGemsDisplay(gems)
 	end
+	refreshCoachSoon(0.5)
 end)
 
 local function getGuiCenterTarget(guiObject, fallback)
@@ -2352,6 +2584,7 @@ PackOpenedEvent.OnClientEvent:Connect(function(payload)
 	end
 
 	setCoinsDisplay(payload.newCoins)
+	refreshCoachSoon(payload.playerPick and 1.0 or 2.8)
 
 	if payload.playerPick then
 		local ok, err = pcall(showPlayerPick, payload)
@@ -2391,6 +2624,7 @@ PromptPackShopEvent.OnClientEvent:Connect(function(payload)
 	if payload.message then
 		showToast(payload.message, payload.accent or UI.Gold)
 	end
+	refreshCoachSoon(0.6)
 end)
 
 task.spawn(function()
