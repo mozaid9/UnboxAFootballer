@@ -2589,16 +2589,16 @@ local function addDisplayCardTemplate(frame, treatment, tier, rarityColor, secon
 	end
 
 	if template == "diagonal" then
-		make("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			BackgroundColor3 = trimColor,
-			BackgroundTransparency = 0.66,
-			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.78, 0.48),
-			Rotation = -20,
-			Size = UDim2.new(0.22, 0, 1.15, 0),
-			ZIndex = 1,
-		}, frame)
+		for _, y in ipairs({0.28, 0.62}) do
+			make("Frame", {
+				BackgroundColor3 = trimColor,
+				BackgroundTransparency = 0.72,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.16, y),
+				Size = UDim2.new(0.68, 0, 0, 2),
+				ZIndex = 1,
+			}, frame)
+		end
 		return
 	end
 
