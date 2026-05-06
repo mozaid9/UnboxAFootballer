@@ -2480,6 +2480,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 4,
 		patternCount = 5,
 		portraitScale = 1,
+		template = "classic",
 	},
 	["Rare Gold"] = {
 		tag = "RARE",
@@ -2487,6 +2488,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 5,
 		patternCount = 7,
 		portraitScale = 1.04,
+		template = "diagonal",
 	},
 	["Premium Gold"] = {
 		tag = "PREMIUM",
@@ -2494,6 +2496,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 6,
 		patternCount = 9,
 		portraitScale = 1.08,
+		template = "premium",
 	},
 	["Talisman"] = {
 		tag = "SPECIAL",
@@ -2501,6 +2504,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 7,
 		patternCount = 11,
 		portraitScale = 1.12,
+		template = "shard",
 	},
 	["Maestro"] = {
 		tag = "ELITE",
@@ -2508,6 +2512,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 8,
 		patternCount = 13,
 		portraitScale = 1.16,
+		template = "orbit",
 	},
 	["Immortal"] = {
 		tag = "LEGEND",
@@ -2515,6 +2520,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 9,
 		patternCount = 15,
 		portraitScale = 1.20,
+		template = "prism",
 	},
 	["Player of the Year"] = {
 		tag = "BEST",
@@ -2522,6 +2528,7 @@ local DISPLAY_CARD_TREATMENTS = {
 		edge = 10,
 		patternCount = 17,
 		portraitScale = 1.22,
+		template = "trophy",
 	},
 }
 
@@ -2564,6 +2571,161 @@ local function getPositionAccent(position, fallback)
 	return POSITION_ACCENTS[string.upper(position or "")] or fallback
 end
 
+local function addDisplayCardTemplate(frame, treatment, tier, rarityColor, secondaryColor, darkColor, trimColor, textColor)
+	local template = treatment.template or "classic"
+
+	if template == "classic" then
+		for _, y in ipairs({0.24, 0.64}) do
+			make("Frame", {
+				BackgroundColor3 = trimColor,
+				BackgroundTransparency = 0.62,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.12, y),
+				Size = UDim2.new(0.76, 0, 0, 2),
+				ZIndex = 1,
+			}, frame)
+		end
+		return
+	end
+
+	if template == "diagonal" then
+		for index = 1, 3 do
+			make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = index == 2 and trimColor or secondaryColor,
+				BackgroundTransparency = index == 2 and 0.28 or 0.42,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.20 + index * 0.19, 0.52),
+				Rotation = -24,
+				Size = UDim2.new(0.16, 0, 1.26, 0),
+				ZIndex = 1,
+			}, frame)
+		end
+		return
+	end
+
+	if template == "premium" then
+		local centerPlate = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundColor3 = Color3.fromRGB(3, 4, 7),
+			BackgroundTransparency = 0.08,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.52),
+			Size = UDim2.fromScale(0.78, 0.72),
+			ZIndex = 1,
+		}, frame)
+		local plateCorner = Instance.new("UICorner")
+		plateCorner.CornerRadius = UDim.new(0.08, 0)
+		plateCorner.Parent = centerPlate
+		make("UIStroke", {
+			Color = trimColor,
+			Thickness = 1.4,
+			Transparency = 0.32,
+		}, centerPlate)
+
+		for _, corner in ipairs({
+			UDim2.fromScale(0.10, 0.18),
+			UDim2.fromScale(0.82, 0.18),
+			UDim2.fromScale(0.10, 0.74),
+			UDim2.fromScale(0.82, 0.74),
+		}) do
+			make("Frame", {
+				BackgroundColor3 = trimColor,
+				BackgroundTransparency = 0.18,
+				BorderSizePixel = 0,
+				Position = corner,
+				Size = UDim2.fromScale(0.08, 0.08),
+				ZIndex = 1,
+			}, frame)
+		end
+		return
+	end
+
+	if template == "shard" then
+		for index, spec in ipairs({
+			{ x = 0.08, y = 0.38, rot = 16, h = 0.48 },
+			{ x = 0.90, y = 0.42, rot = -18, h = 0.54 },
+			{ x = 0.20, y = 0.70, rot = -28, h = 0.30 },
+		}) do
+			make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = index == 2 and trimColor or rarityColor,
+				BackgroundTransparency = 0.30,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(spec.x, spec.y),
+				Rotation = spec.rot,
+				Size = UDim2.fromScale(0.18, spec.h),
+				ZIndex = 1,
+			}, frame)
+		end
+		return
+	end
+
+	if template == "orbit" then
+		for index = 1, 6 do
+			make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = index % 2 == 0 and trimColor or rarityColor,
+				BackgroundTransparency = 0.54,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.50),
+				Rotation = index * 30,
+				Size = UDim2.new(1.10, 0, 0, 2),
+				ZIndex = 1,
+			}, frame)
+		end
+		return
+	end
+
+	if template == "prism" then
+		for index = 1, 4 do
+			make("Frame", {
+				BackgroundColor3 = index % 2 == 0 and Color3.fromRGB(205, 245, 255) or trimColor,
+				BackgroundTransparency = 0.46,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.14 + index * 0.15, 0),
+				Rotation = 10,
+				Size = UDim2.fromScale(0.08, 1),
+				ZIndex = 1,
+			}, frame)
+		end
+		make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = 0.18,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0, 0.16),
+			Size = UDim2.new(1, 0, 0, 4),
+			ZIndex = 1,
+		}, frame)
+		return
+	end
+
+	if template == "trophy" then
+		local crownBaseY = 0.18
+		for index = 1, 5 do
+			make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 1),
+				BackgroundColor3 = trimColor,
+				BackgroundTransparency = index == 3 and 0.08 or 0.22,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.18 + index * 0.105, crownBaseY),
+				Rotation = (index - 3) * 10,
+				Size = UDim2.fromScale(0.07, index == 3 and 0.16 or 0.11),
+				ZIndex = 1,
+			}, frame)
+		end
+		make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = Color3.fromRGB(3, 3, 4),
+			BackgroundTransparency = 0.02,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.18),
+			Size = UDim2.fromScale(0.72, 0.56),
+			ZIndex = 1,
+		}, frame)
+	end
+end
+
 local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	local style = Utils.GetRarityStyle(card.rarity)
 	local rarityColor = style.primary
@@ -2599,6 +2761,7 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		}),
 		Rotation = 138,
 	}, frame)
+	addDisplayCardTemplate(frame, treatment, tier, rarityColor, secondaryColor, darkColor, trimColor, textColor)
 
 	make("UIStroke", {
 		Color = trimColor,
