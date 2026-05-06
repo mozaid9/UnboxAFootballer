@@ -9,6 +9,9 @@
         "CardData": {
           "$path": "src/shared/CardData.lua"
         },
+        "CardFrames": {
+          "$path": "src/shared/CardFrames.lua"
+        },
         "Constants": {
           "$path": "src/shared/Constants.lua"
         },

@@ -16,6 +16,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local Constants = require(Shared:WaitForChild("Constants"))
+local CardFrames = require(Shared:WaitForChild("CardFrames"))
 local Utils = require(Shared:WaitForChild("Utils"))
 
 local GetPlayerDataFn = Remotes:WaitForChild("GetPlayerData")
@@ -1610,31 +1611,7 @@ local function showCardReveal(payload)
 		}, cardPanel)
 	end
 
-	local topTag
-	if tier >= 2 then
-		topTag = make("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0),
-			BackgroundColor3 = Color3.fromRGB(5, 7, 12),
-			BackgroundTransparency = tier >= 4 and 0.02 or 0.10,
-			BorderSizePixel = 0,
-			Position = UDim2.new(0.5, 0, 0, -12),
-			Size = UDim2.fromOffset(cardWidth - 52, 28),
-			Visible = false,
-			ZIndex = 218,
-		}, cardPanel)
-		addCorner(topTag, 14)
-		addStroke(topTag, glowColor, 1.6, 0.08)
-		make("TextLabel", {
-			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(1, 1),
-			Text = treatment.tag,
-			TextColor3 = textColor,
-			TextScaled = false,
-			TextSize = 12,
-			Font = Enum.Font.GothamBlack,
-			ZIndex = 219,
-		}, topTag)
-	end
+	local topTag = nil
 
 	local innerGlow = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1711,130 +1688,122 @@ local function showCardReveal(payload)
 		ZIndex = 202,
 	}, cardPanel)
 
-	local rarityBand = make("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, tier >= 2 and 17 or 13),
-		Size = UDim2.fromOffset(cardWidth - (tier >= 3 and 30 or 42), tier >= 3 and 30 or 26),
-		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
-		BackgroundTransparency = tier >= 4 and 0.00 or 0.08,
-		BorderSizePixel = 0,
-		ZIndex = 204,
-	}, frontGroup)
-	addCorner(rarityBand, 13)
-	addStroke(rarityBand, trimColor, 1.2, 0.18)
+	local frameAsset = CardFrames.GetAsset(card.rarity)
+	local frameAccent = CardFrames.GetAccent(card.rarity)
+	local frameTextColor = frameAccent.text or textColor
+	local displayRarityLabel = string.upper(style.label or card.rarity or "CARD")
+	local surname = string.upper((card.name or "Player"):match("(%S+)%s*$") or (card.name or "Player"))
+	local revealIncome = payload.coinsPerSecond or card.fansPerSecond or 0
 
-	local rarityLabel = make("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(1, 1),
-		Text = string.upper(style.label or card.rarity or "CARD"),
-		TextColor3 = textColor,
-		TextScaled = false,
-		TextSize = 12,
-		Font = Enum.Font.GothamBlack,
-		ZIndex = 205,
-	}, rarityBand)
-	addStroke(rarityLabel, Color3.fromRGB(6, 3, 1), 1, 0.30)
-
-	make("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 78),
-		Size = UDim2.new(0.84, 0, 0, 1.5),
-		BackgroundColor3 = glowColor,
-		BackgroundTransparency = 0.36,
-		BorderSizePixel = 0,
-		ZIndex = 203,
-	}, frontGroup)
-
-	local badgeGlow = make("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundColor3 = glowColor,
-		BackgroundTransparency = tier >= 2 and 0.60 or 0.74,
-		BorderSizePixel = 0,
-		Position = UDim2.new(0.5, 0, 0, 86 - math.min(portraitBoost, 12) * 0.35),
-		Size = UDim2.fromOffset(104 + portraitBoost, 104 + portraitBoost),
-		ZIndex = 202,
-	}, frontGroup)
-	addCorner(badgeGlow, 52 + portraitBoost / 2)
-
-	if tier >= 3 then
-		for index = 1, 10 do
-			make("Frame", {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				BackgroundColor3 = glowColor,
-				BackgroundTransparency = tier >= 4 and 0.56 or 0.72,
-				BorderSizePixel = 0,
-				Position = UDim2.fromScale(0.5, 0.50),
-				Rotation = index * 18,
-				Size = UDim2.new(0, 3, 0.45, 0),
-				ZIndex = 202,
-			}, frontGroup)
-		end
+	if frameAsset then
+		local frameImage = make("ImageLabel", {
+			BackgroundTransparency = 1,
+			Image = frameAsset,
+			ScaleType = Enum.ScaleType.Stretch,
+			Size = UDim2.fromScale(1, 1),
+			ZIndex = 203,
+		}, frontGroup)
+		addCorner(frameImage, 18)
 	end
 
-	local badge = make("Frame", {
+	local interiorWash = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundColor3 = Color3.fromRGB(8, 10, 18),
-		BackgroundTransparency = 0.03,
+		BackgroundColor3 = frameAccent.wash or rarityColor,
+		BackgroundTransparency = frameAccent.washTransparency or 0.54,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0.5, 0, 0, 102 - math.min(portraitBoost, 12) * 0.35),
-		Rotation = 45,
-		Size = UDim2.fromOffset(70 + portraitBoost * 0.45, 70 + portraitBoost * 0.45),
+		Position = UDim2.fromScale(0.5, 0.190),
+		Size = UDim2.fromScale(0.82, 0.515),
 		ZIndex = 204,
 	}, frontGroup)
-	addCorner(badge, 12)
-	addStroke(badge, trimColor, 2.4 + math.min(borderBoost, 4) * 0.25, 0.12)
+	addCorner(interiorWash, 14)
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, frameAccent.glow or glowColor),
+			ColorSequenceKeypoint.new(0.50, frameAccent.wash or rarityColor),
+			ColorSequenceKeypoint.new(1, (frameAccent.wash or rarityColor):Lerp(Color3.fromRGB(0, 0, 0), 0.35)),
+		}),
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.72),
+			NumberSequenceKeypoint.new(0.44, 0.00),
+			NumberSequenceKeypoint.new(1, 0.18),
+		}),
+		Rotation = 90,
+	}, interiorWash)
 
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Position = UDim2.fromScale(0, 0),
-		Rotation = -45,
-		Size = UDim2.fromScale(1, 1),
-		Text = string.upper(string.sub(card.name, 1, 1)),
-		TextColor3 = textColor,
-		TextScaled = true,
-		Font = Enum.Font.GothamBlack,
-		ZIndex = 205,
-	}, badge)
+	local softGlow = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = frameAccent.glow or glowColor,
+		BackgroundTransparency = frameAccent.glowTransparency or 0.70,
+		BorderSizePixel = 0,
+		Position = UDim2.fromScale(0.5, 0.420),
+		Size = UDim2.fromScale(0.56, 0.26),
+		ZIndex = 204,
+	}, frontGroup)
+	addCorner(softGlow, 80)
+	make("UIGradient", {
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.82),
+			NumberSequenceKeypoint.new(0.50, 0.00),
+			NumberSequenceKeypoint.new(1, 0.88),
+		}),
+	}, softGlow)
 
-	local nameLabel = make("TextLabel", {
-		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0.5, 0, 0, 178),
-		Size = UDim2.new(0.90, 0, 0, 40),
-		Text = string.upper(card.name),
-		TextColor3 = textColor,
-		TextScaled = true,
+	local function makeFrameLabel(labelProps, strokeThickness, strokeTransparency, minTextSize, maxTextSize)
+		local label = make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = labelProps.Position,
+			Size = labelProps.Size,
+			Text = labelProps.Text,
+			TextColor3 = labelProps.TextColor3 or frameTextColor,
+			TextScaled = true,
+			TextWrapped = labelProps.TextWrapped or false,
+			Font = Enum.Font.GothamBlack,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			ZIndex = 206,
+		}, frontGroup)
+		make("UITextSizeConstraint", { MinTextSize = minTextSize, MaxTextSize = maxTextSize }, label)
+		addStroke(label, Color3.fromRGB(0, 0, 0), strokeThickness, strokeTransparency)
+		return label
+	end
+
+	makeFrameLabel({
+		Position = UDim2.fromScale(0.11, 0.043),
+		Size = UDim2.fromScale(0.78, 0.055),
+		Text = displayRarityLabel,
+	}, 1.4, 0.18, tier >= 5 and 5 or 6, tier >= 5 and 12 or 15)
+
+	makeFrameLabel({
+		Position = UDim2.fromScale(0.07, 0.126),
+		Size = UDim2.fromScale(0.40, 0.06),
+		Text = string.upper(card.position or "--"),
+	}, 1.1, 0.22, 6, 14)
+
+	makeFrameLabel({
+		Position = UDim2.fromScale(0.53, 0.126),
+		Size = UDim2.fromScale(0.40, 0.06),
+		Text = card.nation or "Unknown",
+	}, 1.1, 0.24, 6, 13)
+
+	makeFrameLabel({
+		Position = UDim2.fromScale(0.09, 0.515),
+		Size = UDim2.fromScale(0.82, 0.09),
+		Text = surname,
+	}, 2, 0.08, 12, tier >= 5 and 26 or 30)
+
+	makeFrameLabel({
+		Position = UDim2.fromScale(0.07, 0.742),
+		Size = UDim2.fromScale(0.86, 0.07),
+		Text = string.upper(card.name or "Player"),
+		TextColor3 = Color3.fromRGB(255, 255, 245),
 		TextWrapped = true,
-		Font = Enum.Font.GothamBlack,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		ZIndex = 204,
-	}, frontGroup)
-	make("UITextSizeConstraint", { MinTextSize = 9, MaxTextSize = 23 }, nameLabel)
-	addStroke(nameLabel, Color3.fromRGB(6, 3, 1), 1.2, 0.18)
+	}, 1.3, 0.20, 7, 16)
 
-	local metaPanel = make("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, cardHeight - 34),
-		Size = UDim2.fromOffset(cardWidth - 36, 24),
-		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
-		BackgroundTransparency = 0.10,
-		BorderSizePixel = 0,
-		ZIndex = 204,
-	}, frontGroup)
-	addCorner(metaPanel, 12)
-	addStroke(metaPanel, trimColor, 1.2, 0.24)
-
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(1, 1),
-		Text = (card.position or "--") .. "  |  " .. (card.nation or "Unknown"),
-		TextColor3 = textColor,
-		TextScaled = false,
-		TextSize = 11,
-		Font = Enum.Font.GothamBlack,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		ZIndex = 205,
-	}, metaPanel)
+	makeFrameLabel({
+		Position = UDim2.fromScale(0.09, 0.858),
+		Size = UDim2.fromScale(0.82, 0.075),
+		Text = "+" .. Utils.FormatNumber(revealIncome) .. " fans/s",
+		TextColor3 = Color3.fromRGB(184, 255, 196),
+	}, 1.4, 0.18, 7, 16)
 
 	task.wait(0.04)
 	local riseTime = 0.34 + (math.min(tier, 3) * 0.03)
