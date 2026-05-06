@@ -183,7 +183,7 @@ end)
 local sidebar = make("Frame", {
 	Name = "Sidebar",
 	AnchorPoint = Vector2.new(0, 1),
-	Size = UDim2.fromOffset(190, 338),
+	Size = UDim2.fromOffset(190, 462),
 	Position = UDim2.new(0, 20, 1, -20),
 	BackgroundColor3 = Color3.fromRGB(5, 8, 15),
 	BackgroundTransparency = 0.18,
@@ -490,6 +490,36 @@ local function drawShopIcon(parent, accentColor)
 	end
 end
 
+local function drawHelpIcon(parent, accentColor)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(0, 2),
+		Size = UDim2.fromOffset(42, 36),
+		Text = "?",
+		TextColor3 = accentColor,
+		TextScaled = false,
+		TextSize = 30,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 4,
+	}, parent)
+end
+
+local function drawPopupIcon(parent, accentColor)
+	makeIconLine(parent, UDim2.fromOffset(9, 11), UDim2.fromOffset(24, 18), accentColor, 14)
+	makeIconLine(parent, UDim2.fromOffset(15, 29), UDim2.fromOffset(12, 4), accentColor, 28)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(7, 6),
+		Size = UDim2.fromOffset(28, 24),
+		Text = "!",
+		TextColor3 = accentColor,
+		TextScaled = false,
+		TextSize = 21,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 4,
+	}, parent)
+end
+
 local function drawMenuIcon(parent, iconKind, accentColor)
 	if iconKind == "inventory" then
 		drawInventoryIcon(parent, accentColor)
@@ -501,6 +531,10 @@ local function drawMenuIcon(parent, iconKind, accentColor)
 		drawQuestIcon(parent, accentColor)
 	elseif iconKind == "shop" then
 		drawShopIcon(parent, accentColor)
+	elseif iconKind == "help" then
+		drawHelpIcon(parent, accentColor)
+	elseif iconKind == "popups" then
+		drawPopupIcon(parent, accentColor)
 	end
 end
 
@@ -536,7 +570,8 @@ local function createMenuButton(order, text, iconKind, accentColor)
 	addStroke(iconBg, accentColor, 1, 0.72)
 	drawMenuIcon(iconBg, iconKind, accentColor)
 
-	make("TextLabel", {
+	local label = make("TextLabel", {
+		Name = "MenuLabel",
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 62, 0, 0),
 		Size = UDim2.new(1, -70, 1, 0),
@@ -582,6 +617,8 @@ local collectionButton = createMenuButton(2, "Collection", "collection", Color3.
 local upgradesButton  = createMenuButton(3, "Upgrades",  "upgrades",  UI.Gold)
 local questsButton    = createMenuButton(4, "Quests",    "quests",    Color3.fromRGB(205, 88, 255))
 local shopButton      = createMenuButton(5, "Shop",      "shop",      Color3.fromRGB(85, 226, 112))
+local helpButton      = createMenuButton(6, "Help",      "help",      Color3.fromRGB(235, 238, 248))
+local popupMuteButton = createMenuButton(7, "Popups",    "popups",    Color3.fromRGB(255, 156, 82))
 
 local questBadge = make("Frame", {
 	AnchorPoint = Vector2.new(1, 0),
@@ -609,8 +646,8 @@ local questBadgeLabel = make("TextLabel", {
 -- ── Sidebar collapse tab ──────────────────────────────────────────────────────
 local SIDEBAR_OPEN_POS = UDim2.new(0, 20, 1, -20)
 local SIDEBAR_CLOSED_POS = UDim2.new(0, -208, 1, -20)
-local TAB_OPEN_POS = UDim2.new(0, 218, 1, -190)
-local TAB_CLOSED_POS = UDim2.new(0, 10, 1, -190)
+local TAB_OPEN_POS = UDim2.new(0, 218, 1, -252)
+local TAB_CLOSED_POS = UDim2.new(0, 10, 1, -252)
 local SLIDE_INFO = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 local sidebarIsOpen = true
 
@@ -671,7 +708,10 @@ make("UIListLayout", {
 	Padding = UDim.new(0, 10),
 }, toastHolder)
 
+local popupsMuted = false
 local coachDismissed = false
+local coachReplayActive = false
+local coachReplayIndex = 0
 local coachAction
 local coachCard = make("Frame", {
 	AnchorPoint = Vector2.new(0.5, 0),
@@ -777,7 +817,19 @@ local function setGemsDisplay(gems)
 	gemsLabel.Text = Utils.FormatNumber(gems or 0)
 end
 
-local function showToast(text, accent)
+local function updatePopupMuteButton()
+	local label = popupMuteButton.Parent and popupMuteButton.Parent:FindFirstChild("MenuLabel")
+	if label then
+		label.Text = popupsMuted and "POPUPS OFF" or "POPUPS"
+		label.TextColor3 = popupsMuted and Color3.fromRGB(255, 126, 98) or Color3.fromRGB(255, 156, 82)
+	end
+end
+
+local function showToast(text, accent, force)
+	if popupsMuted and not force then
+		return
+	end
+
 	local toast = make("Frame", {
 		BackgroundColor3 = UI.PanelAlt,
 		Size = UDim2.new(1, 0, 0, 58),
@@ -822,6 +874,7 @@ local function showToast(text, accent)
 		end
 	end)
 end
+updatePopupMuteButton()
 
 local lastQuestReadyCount = nil
 local function pulseQuestBadge()
@@ -889,6 +942,10 @@ local function setCoachStep(step)
 	if coachDismissed or not step then
 		coachCard.Visible = false
 		coachAction = nil
+		if not step then
+			coachReplayActive = false
+			coachReplayIndex = 0
+		end
 		return
 	end
 
@@ -904,7 +961,7 @@ local function setCoachStep(step)
 end
 
 local function updateCoach(data)
-	if coachDismissed or type(data) ~= "table" then
+	if coachDismissed or coachReplayActive or type(data) ~= "table" then
 		return
 	end
 
@@ -959,6 +1016,50 @@ local function updateCoach(data)
 	end
 end
 
+local ONBOARDING_REPLAY_STEPS = {
+	{
+		title = "Crack a pack",
+		body = "Equip the Pitchfork, stand by the red pad, and hit the pack until it opens.",
+		accent = UI.Gold,
+	},
+	{
+		title = "Display a player",
+		body = "If a player goes to inventory, hold E on an empty green slot and choose them to start earning Fans.",
+		accent = Color3.fromRGB(78, 170, 255),
+	},
+	{
+		title = "Upgrade your stadium loop",
+		body = "Use Fans on upgrades like sprint speed, pack spawn luck, and card pull luck. More slots come from rebirth.",
+		accent = Color3.fromRGB(85, 226, 112),
+	},
+}
+
+local function showOnboardingReplay(index)
+	coachReplayActive = true
+	coachDismissed = false
+	coachReplayIndex = math.clamp(index or 1, 1, #ONBOARDING_REPLAY_STEPS)
+
+	local replayStep = ONBOARDING_REPLAY_STEPS[coachReplayIndex]
+	setCoachStep({
+		eyebrow = "HELP",
+		title = replayStep.title,
+		body = replayStep.body,
+		buttonText = coachReplayIndex >= #ONBOARDING_REPLAY_STEPS and "Done" or "Next",
+		accent = replayStep.accent,
+		action = function()
+			if coachReplayIndex < #ONBOARDING_REPLAY_STEPS then
+				showOnboardingReplay(coachReplayIndex + 1)
+				return
+			end
+
+			coachReplayActive = false
+			coachDismissed = true
+			coachReplayIndex = 0
+			coachCard.Visible = false
+		end,
+	})
+end
+
 local coachRefreshQueued = false
 local lastCoachRefreshAt = 0
 function refreshCoachSoon(delaySeconds)
@@ -1008,6 +1109,8 @@ coachButton.MouseButton1Click:Connect(function()
 end)
 
 coachClose.MouseButton1Click:Connect(function()
+	coachReplayActive = false
+	coachReplayIndex = 0
 	coachDismissed = true
 	coachCard.Visible = false
 end)
@@ -1043,6 +1146,20 @@ end)
 shopButton.MouseButton1Click:Connect(function()
 	if not fireGuiToggle("ShopUI") then
 		showToast("Shop is still loading. Try again in a second.", Color3.fromRGB(74, 185, 98))
+	end
+end)
+
+helpButton.MouseButton1Click:Connect(function()
+	showOnboardingReplay(1)
+end)
+
+popupMuteButton.MouseButton1Click:Connect(function()
+	popupsMuted = not popupsMuted
+	updatePopupMuteButton()
+	if popupsMuted then
+		showToast("Popup notifications muted.", Color3.fromRGB(255, 156, 82), true)
+	else
+		showToast("Popup notifications on.", Color3.fromRGB(85, 226, 112), true)
 	end
 end)
 
@@ -2568,6 +2685,10 @@ PackHitFeedbackEvent.OnClientEvent:Connect(function(payload)
 end)
 
 MilestoneRewardEvent.OnClientEvent:Connect(function(payload)
+	if popupsMuted then
+		return
+	end
+
 	local ok, err = pcall(showMilestoneRewardPopup, payload)
 	if not ok then
 		warn("[UnboxAFootballer] Milestone popup failed:", err)
