@@ -1783,6 +1783,12 @@ local function closePlayerPickOverlay()
 	activePlayerPickOverlay = nil
 end
 
+local function getPlayerPickOptionScore(card)
+	local rarityScore = (REVEAL_TIERS[card and card.rarity] or 0) * 1000000
+	local incomeScore = math.floor(tonumber(card and card.fansPerSecond) or 0)
+	return rarityScore + incomeScore
+end
+
 local function showPlayerPick(payload)
 	local options = payload and payload.pickOptions or {}
 	if type(options) ~= "table" or #options == 0 then
@@ -1790,19 +1796,37 @@ local function showPlayerPick(payload)
 		return
 	end
 
+	local bestIndex = nil
+	local bestScore = -math.huge
+	local secondScore = -math.huge
+	for index, card in ipairs(options) do
+		local score = getPlayerPickOptionScore(card)
+		if score > bestScore then
+			secondScore = bestScore
+			bestScore = score
+			bestIndex = index
+		elseif score > secondScore then
+			secondScore = score
+		end
+	end
+	local shouldMarkTopPull = bestIndex ~= nil and bestScore > secondScore
+
 	closePlayerPickOverlay()
 	local overlay = make("Frame", {
 		Name = "PlayerPickOverlay",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-		BackgroundTransparency = 0.24,
+		BackgroundTransparency = 1,
 		ZIndex = 230,
 	}, screenGui)
 	activePlayerPickOverlay = overlay
+	TweenService:Create(overlay, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 0.18,
+	}):Play()
 
 	local panel = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.52),
+		Position = UDim2.fromScale(0.5, 0.56),
 		Size = UDim2.new(0.90, 0, 0, 344),
 		BackgroundColor3 = Color3.fromRGB(7, 10, 18),
 		BorderSizePixel = 0,
@@ -1814,6 +1838,14 @@ local function showPlayerPick(payload)
 		MaxSize = Vector2.new(850, 360),
 		MinSize = Vector2.new(360, 320),
 	}, panel)
+
+	local panelScale = make("UIScale", { Scale = 0.92 }, panel)
+	TweenService:Create(panel, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = UDim2.fromScale(0.5, 0.52),
+	}):Play()
+	TweenService:Create(panelScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1,
+	}):Play()
 
 	local title = make("TextLabel", {
 		BackgroundTransparency = 1,
@@ -1828,11 +1860,11 @@ local function showPlayerPick(payload)
 	}, panel)
 	make("UITextSizeConstraint", { MinTextSize = 18, MaxTextSize = 30 }, title)
 
-	make("TextLabel", {
+	local subtitle = make("TextLabel", {
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 22, 0, 48),
 		Size = UDim2.new(1, -44, 0, 20),
-		Text = "Pick one player",
+		Text = "Scouting your options...",
 		TextColor3 = Color3.fromRGB(198, 190, 164),
 		TextScaled = false,
 		TextSize = 13,
@@ -1857,6 +1889,7 @@ local function showPlayerPick(payload)
 
 	local choosing = false
 	local buttons = {}
+	local revealCards = {}
 	for index, card in ipairs(options) do
 		local style = Utils.GetRarityStyle(card.rarity)
 		local primary = style.primary
@@ -1868,14 +1901,17 @@ local function showPlayerPick(payload)
 			LayoutOrder = index,
 			Size = UDim2.new(1 / #options, -8, 1, 0),
 			BackgroundColor3 = dark,
+			BackgroundTransparency = 0.20,
 			BorderSizePixel = 0,
 			Text = "",
-			AutoButtonColor = true,
+			Active = false,
+			AutoButtonColor = false,
 			ZIndex = 233,
 		}, row)
 		table.insert(buttons, button)
 		addCorner(button, 12)
 		addStroke(button, primary, 2, 0.18)
+		local buttonScale = make("UIScale", { Scale = 0.86 }, button)
 		make("UIGradient", {
 			Color = ColorSequence.new({
 				ColorSequenceKeypoint.new(0, dark),
@@ -1884,6 +1920,23 @@ local function showPlayerPick(payload)
 			}),
 			Rotation = 145,
 		}, button)
+
+		if shouldMarkTopPull and index == bestIndex then
+			local topBadge = make("TextLabel", {
+				AnchorPoint = Vector2.new(1, 0),
+				BackgroundColor3 = primary:Lerp(Color3.fromRGB(255, 255, 255), 0.10),
+				Position = UDim2.new(1, -12, 0, 42),
+				Size = UDim2.fromOffset(78, 18),
+				Text = "TOP PULL",
+				TextColor3 = textColor,
+				TextScaled = false,
+				TextSize = 8,
+				Font = Enum.Font.GothamBlack,
+				ZIndex = 236,
+			}, button)
+			addCorner(topBadge, 9)
+			addStroke(topBadge, primary, 1, 0.18)
+		end
 
 		make("TextLabel", {
 			BackgroundColor3 = Color3.fromRGB(6, 8, 13),
@@ -1971,6 +2024,54 @@ local function showPlayerPick(payload)
 		}, button)
 		addCorner(pickLabel, 8)
 
+		local cover = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = Color3.fromRGB(5, 7, 13),
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0),
+			Size = UDim2.fromScale(1, 1),
+			ZIndex = 240,
+		}, button)
+		addCorner(cover, 12)
+		addStroke(cover, primary, 2, 0.12)
+		make("UIGradient", {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, primary:Lerp(Color3.fromRGB(0, 0, 0), 0.42)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(5, 7, 13)),
+				ColorSequenceKeypoint.new(1, dark),
+			}),
+			Rotation = 145,
+		}, cover)
+		make("TextLabel", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundTransparency = 1,
+			Position = UDim2.fromScale(0.5, 0.45),
+			Size = UDim2.fromOffset(76, 76),
+			Text = "?",
+			TextColor3 = primary,
+			TextScaled = true,
+			Font = Enum.Font.GothamBlack,
+			ZIndex = 241,
+		}, cover)
+		make("TextLabel", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundTransparency = 1,
+			Position = UDim2.fromScale(0.5, 0.66),
+			Size = UDim2.new(0.84, 0, 0, 22),
+			Text = "SCOUTING",
+			TextColor3 = Color3.fromRGB(220, 214, 186),
+			TextScaled = false,
+			TextSize = 10,
+			Font = Enum.Font.GothamBlack,
+			ZIndex = 241,
+		}, cover)
+		table.insert(revealCards, {
+			button = button,
+			scale = buttonScale,
+			cover = cover,
+			color = primary,
+		})
+
 		button.MouseButton1Click:Connect(function()
 			if choosing then
 				return
@@ -1982,12 +2083,16 @@ local function showPlayerPick(payload)
 			end
 			pickLabel.Text = "CLAIMING..."
 			pickLabel.BackgroundColor3 = Color3.fromRGB(35, 140, 65)
+			TweenService:Create(buttonScale, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				Scale = 1.06,
+			}):Play()
 
 			local ok, result = pcall(function()
 				return ChoosePlayerPickFn:InvokeServer(index)
 			end)
 			if ok and result and result.success then
-				closePlayerPickOverlay()
+				pickLabel.Text = "SIGNED"
+				task.delay(0.22, closePlayerPickOverlay)
 			else
 				choosing = false
 				for _, otherButton in ipairs(buttons) do
@@ -1996,6 +2101,9 @@ local function showPlayerPick(payload)
 				end
 				pickLabel.Text = "PICK"
 				pickLabel.BackgroundColor3 = primary:Lerp(Color3.fromRGB(22, 124, 62), 0.36)
+				TweenService:Create(buttonScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Scale = 1,
+				}):Play()
 				local errorText = "Player pick failed. Try again."
 				if ok and type(result) == "table" and result.error then
 					errorText = result.error
@@ -2006,6 +2114,43 @@ local function showPlayerPick(payload)
 	end
 
 	showImpactFlash(UI.Gold, true)
+	task.spawn(function()
+		task.wait(0.18)
+		for index, entry in ipairs(revealCards) do
+			if not overlay.Parent then
+				return
+			end
+
+			cardFlipSound.PlaybackSpeed = 1.12 + (index * 0.035)
+			cardFlipSound.Volume = 0.20
+			cardFlipSound:Play()
+			TweenService:Create(entry.scale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				Scale = 1,
+			}):Play()
+			TweenService:Create(entry.cover, TweenInfo.new(0.13, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Size = UDim2.new(0, 8, 1, 0),
+				Position = UDim2.fromScale(0.5, 0),
+			}):Play()
+			task.delay(0.13, function()
+				if entry.cover and entry.cover.Parent then
+					entry.cover:Destroy()
+				end
+				spawnParticleBurst(entry.color, 8, nil, 0.30)
+			end)
+			task.wait(0.16)
+		end
+
+		for _, button in ipairs(buttons) do
+			if button and button.Parent then
+				button.Active = true
+				button.AutoButtonColor = true
+			end
+		end
+		if subtitle.Parent then
+			subtitle.Text = "Pick one player"
+			subtitle.TextColor3 = Color3.fromRGB(220, 214, 186)
+		end
+	end)
 end
 
 PackHitFeedbackEvent.OnClientEvent:Connect(function(payload)
