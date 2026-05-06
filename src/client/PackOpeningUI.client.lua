@@ -26,6 +26,7 @@ local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
 local PackHitFeedbackEvent = Remotes:WaitForChild("PackHitFeedback")
 local MilestoneRewardEvent = Remotes:WaitForChild("MilestoneReward")
 local ChoosePlayerPickFn = Remotes:WaitForChild("ChoosePlayerPick")
+local QuestUpdatedEvent = Remotes:WaitForChild("QuestUpdated")
 
 local UI = Constants.UI
 
@@ -602,6 +603,29 @@ local upgradesButton  = createMenuButton(3, "Upgrades",  "upgrades",  UI.Gold)
 local questsButton    = createMenuButton(4, "Quests",    "quests",    Color3.fromRGB(205, 88, 255))
 local shopButton      = createMenuButton(5, "Shop",      "shop",      Color3.fromRGB(85, 226, 112))
 
+local questBadge = make("Frame", {
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -8, 0, 6),
+	Size = UDim2.fromOffset(24, 24),
+	BackgroundColor3 = Color3.fromRGB(69, 207, 255),
+	BorderSizePixel = 0,
+	Visible = false,
+	ZIndex = 8,
+}, questsButton.Parent)
+addCorner(questBadge, 12)
+addStroke(questBadge, Color3.fromRGB(220, 250, 255), 1.4, 0.18)
+local questBadgeScale = make("UIScale", { Scale = 1 }, questBadge)
+local questBadgeLabel = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Size = UDim2.fromScale(1, 1),
+	Text = "1",
+	TextColor3 = Color3.fromRGB(4, 8, 16),
+	TextScaled = false,
+	TextSize = 12,
+	Font = Enum.Font.GothamBlack,
+	ZIndex = 9,
+}, questBadge)
+
 -- ── Sidebar collapse tab ──────────────────────────────────────────────────────
 local SIDEBAR_OPEN_POS = UDim2.new(0, 20, 1, -20)
 local SIDEBAR_CLOSED_POS = UDim2.new(0, -208, 1, -20)
@@ -721,6 +745,39 @@ local function showToast(text, accent)
 	end)
 end
 
+local lastQuestReadyCount = nil
+local function pulseQuestBadge()
+	if not questBadge.Visible then
+		return
+	end
+
+	TweenService:Create(questBadgeScale, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1.22,
+	}):Play()
+	task.delay(0.14, function()
+		if questBadgeScale.Parent then
+			TweenService:Create(questBadgeScale, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Scale = 1,
+			}):Play()
+		end
+	end)
+end
+
+local function applyQuestNotification(payload)
+	local readyCount = math.max(0, math.floor(tonumber(payload and payload.claimableCount) or 0))
+	questBadge.Visible = readyCount > 0
+	questBadgeLabel.Text = readyCount > 9 and "9+" or tostring(readyCount)
+
+	if lastQuestReadyCount ~= nil and readyCount > lastQuestReadyCount then
+		showToast("Quest complete - claim your reward.", Color3.fromRGB(69, 207, 255))
+		pulseQuestBadge()
+	elseif readyCount > 0 then
+		pulseQuestBadge()
+	end
+
+	lastQuestReadyCount = readyCount
+end
+
 local function fireGuiToggle(guiName)
 	local targetGui = playerGui:FindFirstChild(guiName)
 	if not targetGui then
@@ -767,6 +824,8 @@ end)
 questsButton.MouseButton1Click:Connect(function()
 	if not fireGuiToggle("QuestsUI") then
 		showToast("Quests are still loading. Try again in a second.", Color3.fromRGB(205, 88, 255))
+	elseif questBadge.Visible then
+		pulseQuestBadge()
 	end
 end)
 
@@ -2165,6 +2224,10 @@ MilestoneRewardEvent.OnClientEvent:Connect(function(payload)
 	if not ok then
 		warn("[UnboxAFootballer] Milestone popup failed:", err)
 	end
+end)
+
+QuestUpdatedEvent.OnClientEvent:Connect(function(payload)
+	applyQuestNotification(payload)
 end)
 
 PackOpenedEvent.OnClientEvent:Connect(function(payload)

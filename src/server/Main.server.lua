@@ -298,22 +298,22 @@ local function createSurfaceLabel(face, title, subtitle, color, parent)
 
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.fromScale(1, 1)
-	frame.BackgroundColor3 = Color3.fromRGB(22, 18, 8)
-	frame.BackgroundTransparency = 0.08
+	frame.BackgroundColor3 = color:Lerp(Color3.fromRGB(8, 10, 18), 0.30)
+	frame.BackgroundTransparency = 0
 	frame.BorderSizePixel = 0
 	frame.Parent = gui
 
 	local gradient = Instance.new("UIGradient")
 	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 247, 191)),
-		ColorSequenceKeypoint.new(0.35, color),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(96, 66, 10)),
+		ColorSequenceKeypoint.new(0, color:Lerp(Color3.fromRGB(255, 255, 255), 0.26)),
+		ColorSequenceKeypoint.new(0.45, color),
+		ColorSequenceKeypoint.new(1, color:Lerp(Color3.fromRGB(0, 0, 0), 0.62)),
 	})
 	gradient.Rotation = 25
 	gradient.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(31, 24, 10)
+	stroke.Color = color:Lerp(Color3.fromRGB(255, 255, 255), 0.46)
 	stroke.Thickness = 3
 	stroke.Parent = frame
 
@@ -322,24 +322,46 @@ local function createSurfaceLabel(face, title, subtitle, color, parent)
 	top.Size = UDim2.new(0.42, 0, 0.28, 0)
 	top.Position = UDim2.new(0.06, 0, 0.06, 0)
 	top.Text = title
-	top.TextColor3 = Color3.fromRGB(20, 15, 8)
+	top.TextColor3 = Color3.fromRGB(255, 255, 255)
 	top.TextScaled = true
 	top.Font = Enum.Font.GothamBlack
 	top.TextXAlignment = Enum.TextXAlignment.Left
+	top.TextStrokeColor3 = Color3.fromRGB(4, 5, 10)
+	top.TextStrokeTransparency = 0.18
 	top.Parent = frame
+
+	local nameBand = Instance.new("Frame")
+	nameBand.BackgroundColor3 = Color3.fromRGB(6, 8, 14)
+	nameBand.BackgroundTransparency = 0.08
+	nameBand.BorderSizePixel = 0
+	nameBand.Position = UDim2.new(0.08, 0, 0.58, 0)
+	nameBand.Size = UDim2.new(0.84, 0, 0.26, 0)
+	nameBand.Parent = frame
+
+	local bandCorner = Instance.new("UICorner")
+	bandCorner.CornerRadius = UDim.new(0.18, 0)
+	bandCorner.Parent = nameBand
+
+	local bandStroke = Instance.new("UIStroke")
+	bandStroke.Color = color:Lerp(Color3.fromRGB(255, 255, 255), 0.20)
+	bandStroke.Thickness = 2
+	bandStroke.Transparency = 0.18
+	bandStroke.Parent = nameBand
 
 	local middle = Instance.new("TextLabel")
 	middle.BackgroundTransparency = 1
-	middle.Size = UDim2.new(0.84, 0, 0.22, 0)
-	middle.Position = UDim2.new(0.08, 0, 0.61, 0)
+	middle.Size = UDim2.fromScale(1, 1)
+	middle.Position = UDim2.fromScale(0, 0)
 	middle.Text = subtitle
-	middle.TextColor3 = Color3.fromRGB(48, 38, 14)
+	middle.TextColor3 = Color3.fromRGB(255, 248, 220)
 	middle.TextScaled = true
-	middle.Font = Enum.Font.GothamBold
-	middle.Parent = frame
+	middle.Font = Enum.Font.GothamBlack
+	middle.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	middle.TextStrokeTransparency = 0.38
+	middle.Parent = nameBand
 
 	local stripes = Instance.new("Frame")
-	stripes.BackgroundTransparency = 0.8
+	stripes.BackgroundTransparency = 0.58
 	stripes.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	stripes.Size = UDim2.new(0.52, 0, 0.62, 0)
 	stripes.Position = UDim2.new(0.42, 0, 0.08, 0)
@@ -1198,7 +1220,7 @@ local function spawnPackForPlot(plot)
 	cardBody.Name = "PackBody"
 	cardBody.Anchored = true
 	cardBody.Material = Enum.Material.SmoothPlastic
-	cardBody.Color = Color3.fromRGB(28, 22, 8)
+	cardBody.Color = packDef.color:Lerp(Color3.fromRGB(6, 8, 14), 0.48)
 	cardBody.Size = Vector3.new(5.4, 8, 0.3)
 	cardBody.CFrame = rootCFrame
 	cardBody.Parent = model
@@ -1207,7 +1229,7 @@ local function spawnPackForPlot(plot)
 	topCap.Name = "TopCap"
 	topCap.Anchored = true
 	topCap.Material = Enum.Material.SmoothPlastic
-	topCap.Color = Color3.fromRGB(28, 22, 8)
+	topCap.Color = packDef.color:Lerp(Color3.fromRGB(10, 12, 20), 0.36)
 	topCap.Size = Vector3.new(5.4, 1.4, 0.3)
 	topCap.CFrame = cardBody.CFrame * CFrame.new(0, 4.65, 0) * CFrame.Angles(0, 0, math.rad(180))
 	topCap.Parent = model
@@ -1216,10 +1238,37 @@ local function spawnPackForPlot(plot)
 	bottomCap.Name = "BottomCap"
 	bottomCap.Anchored = true
 	bottomCap.Material = Enum.Material.SmoothPlastic
-	bottomCap.Color = Color3.fromRGB(20, 16, 6)
+	bottomCap.Color = packDef.color:Lerp(Color3.fromRGB(4, 5, 10), 0.45)
 	bottomCap.Size = Vector3.new(5.4, 1.6, 0.3)
 	bottomCap.CFrame = cardBody.CFrame * CFrame.new(0, -4.8, 0)
 	bottomCap.Parent = model
+
+	local identityParts = {}
+	local function addIdentityPart(name, size, offset, material, color, transparency)
+		local part = Instance.new("Part")
+		part.Name = name
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanTouch = false
+		part.CanQuery = false
+		part.Material = material or Enum.Material.Neon
+		part.Color = color or packDef.color
+		part.Transparency = transparency or 0
+		part.Size = size
+		part.CFrame = cardBody.CFrame * offset
+		part.Parent = model
+		table.insert(identityParts, {
+			part = part,
+			offset = offset,
+		})
+		return part
+	end
+
+	addIdentityPart("LeftColorRail", Vector3.new(0.22, 8.9, 0.42), CFrame.new(-2.88, 0, 0), Enum.Material.Neon, packDef.color)
+	addIdentityPart("RightColorRail", Vector3.new(0.22, 8.9, 0.42), CFrame.new(2.88, 0, 0), Enum.Material.Neon, packDef.color)
+	addIdentityPart("TopColorRail", Vector3.new(5.9, 0.20, 0.42), CFrame.new(0, 4.08, 0), Enum.Material.Neon, packDef.color)
+	addIdentityPart("BottomColorRail", Vector3.new(5.9, 0.20, 0.42), CFrame.new(0, -4.08, 0), Enum.Material.Neon, packDef.color)
+	addIdentityPart("PackSpineGlow", Vector3.new(0.12, 7.2, 0.52), CFrame.new(-2.50, 0, 0), Enum.Material.Neon, packDef.color:Lerp(Color3.fromRGB(255, 255, 255), 0.28), 0.12)
 
 	local glow = Instance.new("PointLight")
 	glow.Color = packDef.color
@@ -1328,6 +1377,11 @@ local function spawnPackForPlot(plot)
 				cardBody.CFrame = baseCF
 				topCap.CFrame = baseCF * CFrame.new(0, 4.65, 0) * CFrame.Angles(0, 0, math.rad(180))
 				bottomCap.CFrame = baseCF * CFrame.new(0, -4.8, 0)
+				for _, identity in ipairs(identityParts) do
+					if identity.part and identity.part.Parent then
+						identity.part.CFrame = baseCF * identity.offset
+					end
+				end
 			end
 			task.wait(1 / 30)
 		end
@@ -1344,6 +1398,9 @@ local function spawnPackForPlot(plot)
 	plot.activePackLeakEmitter = leakEmitter
 	plot.activePackHighlight = hitHighlight
 	plot.activePackImpactParts = { cardBody, topCap, bottomCap }
+	for _, identity in ipairs(identityParts) do
+		table.insert(plot.activePackImpactParts, identity.part)
+	end
 	plot.activePackCracks = crackLines
 	plot.activePackIntegrity = 1
 	plot.activePackShakeUntil = 0
@@ -2466,7 +2523,8 @@ local function handlePlayerAdded(player)
 
 	task.defer(function()
 		if player.Parent then
-			UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+			UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player), DataService.GetGems(player))
+			pushQuestPayload(player)
 			sendHint(player, plot and "Equip your pitchfork and crack the pack on your red pad. Hold E on green slots to move players in or out." or "This server's bases are full right now.")
 		end
 	end)
