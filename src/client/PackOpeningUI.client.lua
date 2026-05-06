@@ -1185,16 +1185,18 @@ end
 
 -- ── Rare pull screen effect ───────────────────────────────────────────────────
 -- Gold       = tier 0 : quick flash
--- Premium    = tier 1 : particles + stronger shine
--- Talisman   = tier 2 : rarity label + cinematic bars
--- Maestro+   = tier 3/4 : suspense pause + impact shake
+-- Rare Gold  = tier 1 : small particle pop
+-- Premium    = tier 2 : rarity label + stronger shine
+-- Talisman   = tier 3 : cinematic bars
+-- Maestro+   = tier 4/5 : suspense pause + impact shake
 -- Returns seconds the caller should wait before showing the card panel.
 local REVEAL_TIERS = {
-	["Premium Gold"]       = 1,
-	["Talisman"]           = 2,
-	["Maestro"]            = 3,
-	["Immortal"]           = 4,
-	["Player of the Year"] = 4,
+	["Rare Gold"]          = 1,
+	["Premium Gold"]       = 2,
+	["Talisman"]           = 3,
+	["Maestro"]            = 4,
+	["Immortal"]           = 5,
+	["Player of the Year"] = 5,
 }
 
 local REVEAL_DELAYS = {
@@ -1206,6 +1208,55 @@ local REVEAL_DELAYS = {
 	["Immortal"] = 0.78,
 	["Player of the Year"] = 0.82,
 }
+
+local CARD_VISUAL_TREATMENTS = {
+	["Gold"] = {
+		tag = "BASE",
+		patternCount = 7,
+		borderBoost = 0,
+		portraitBoost = 0,
+	},
+	["Rare Gold"] = {
+		tag = "RARE",
+		patternCount = 10,
+		borderBoost = 1,
+		portraitBoost = 5,
+	},
+	["Premium Gold"] = {
+		tag = "PREMIUM",
+		patternCount = 12,
+		borderBoost = 2,
+		portraitBoost = 9,
+	},
+	["Talisman"] = {
+		tag = "SPECIAL",
+		patternCount = 14,
+		borderBoost = 3,
+		portraitBoost = 12,
+	},
+	["Maestro"] = {
+		tag = "ELITE",
+		patternCount = 16,
+		borderBoost = 4,
+		portraitBoost = 15,
+	},
+	["Immortal"] = {
+		tag = "LEGEND",
+		patternCount = 18,
+		borderBoost = 5,
+		portraitBoost = 18,
+	},
+	["Player of the Year"] = {
+		tag = "BEST",
+		patternCount = 20,
+		borderBoost = 6,
+		portraitBoost = 20,
+	},
+}
+
+local function getCardVisualTreatment(rarity)
+	return CARD_VISUAL_TREATMENTS[rarity] or CARD_VISUAL_TREATMENTS["Gold"]
+end
 
 local function playRevealEffect(rarity)
 	local tier       = REVEAL_TIERS[rarity] or 0
@@ -1470,6 +1521,10 @@ local function showCardReveal(payload)
 	local glowColor      = style.glow or trimColor
 	local toInventory    = payload.storedInInventory == true
 	local tier           = REVEAL_TIERS[card.rarity] or 0
+	local treatment      = getCardVisualTreatment(card.rarity)
+	local patternCount   = treatment.patternCount or 8
+	local borderBoost    = treatment.borderBoost or 0
+	local portraitBoost  = treatment.portraitBoost or 0
 
 	-- Phase 1 + 2: flash, particles, and rarity-specific suspense.
 	local revealPreDelay = playRevealEffect(card.rarity)
@@ -1481,8 +1536,8 @@ local function showCardReveal(payload)
 		task.wait(rarityDelay)
 	end
 
-	local cardWidth = 184 + math.min(tier, 3) * 6
-	local cardHeight = 258 + math.min(tier, 3) * 7
+	local cardWidth = 184 + math.min(borderBoost, 5) * 5
+	local cardHeight = 258 + math.min(borderBoost, 5) * 7
 	local revealPos = UDim2.new(0.5, 0, 0.46, 0)
 	local startPos = getWorldScreenTarget(payload.packWorldPosition, UDim2.new(0.5, 0, 0.78, 0))
 	local focus = makeRevealFocus(style, tier, revealPos)
@@ -1503,13 +1558,14 @@ local function showCardReveal(payload)
 		ClipsDescendants = false,
 	}, screenGui)
 	addCorner(cardPanel, 18)
-	local outerStroke = addStroke(cardPanel, trimColor, tier >= 2 and 4 or 3, tier >= 2 and 0.02 or 0.14)
+	local outerStroke = addStroke(cardPanel, trimColor, 3 + math.min(borderBoost, 5) * 0.45, tier >= 2 and 0.02 or 0.14)
 
 	make("UIGradient", {
 		Color = ColorSequence.new({
 			ColorSequenceKeypoint.new(0, darkColor),
-			ColorSequenceKeypoint.new(0.30, secondaryColor),
-			ColorSequenceKeypoint.new(0.62, rarityColor:Lerp(Color3.fromRGB(255, 255, 255), tier >= 2 and 0.24 or 0.12)),
+			ColorSequenceKeypoint.new(0.24, secondaryColor),
+			ColorSequenceKeypoint.new(0.58, rarityColor:Lerp(Color3.fromRGB(255, 255, 255), tier >= 2 and 0.28 or 0.12)),
+			ColorSequenceKeypoint.new(0.80, tier >= 4 and glowColor or secondaryColor),
 			ColorSequenceKeypoint.new(1, darkColor),
 		}),
 		Rotation = 146,
@@ -1517,17 +1573,67 @@ local function showCardReveal(payload)
 
 	local cardScale = make("UIScale", { Scale = 0.84 }, cardPanel)
 
-	for index = 1, 9 do
+	local railWidth = 8 + math.min(borderBoost, 5) * 1.7
+	for _, rail in ipairs({
+		{ anchor = Vector2.new(0, 0), position = UDim2.fromScale(0, 0), rotation = 0 },
+		{ anchor = Vector2.new(1, 0), position = UDim2.fromScale(1, 0), rotation = 0 },
+	}) do
+		local railFrame = make("Frame", {
+			AnchorPoint = rail.anchor,
+			BackgroundColor3 = glowColor,
+			BackgroundTransparency = tier >= 3 and 0.08 or 0.22,
+			BorderSizePixel = 0,
+			Position = rail.position,
+			Size = UDim2.new(0, railWidth, 1, 0),
+			ZIndex = 201,
+		}, cardPanel)
+		make("UIGradient", {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, trimColor),
+				ColorSequenceKeypoint.new(0.48, Color3.fromRGB(255, 255, 255)),
+				ColorSequenceKeypoint.new(1, trimColor),
+			}),
+			Rotation = 90,
+		}, railFrame)
+	end
+
+	for index = 1, patternCount do
 		make("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-			BackgroundTransparency = tier >= 2 and 0.86 or 0.92,
+			BackgroundTransparency = tier >= 3 and 0.78 or (tier >= 1 and 0.86 or 0.93),
 			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.5, index / 10),
-			Rotation = -22,
-			Size = UDim2.new(1.25, 0, 0, 1),
+			Position = UDim2.fromScale(0.5, index / (patternCount + 1)),
+			Rotation = tier >= 4 and -32 or -22,
+			Size = UDim2.new(tier >= 3 and 1.45 or 1.25, 0, 0, tier >= 4 and 2 or 1),
 			ZIndex = 201,
 		}, cardPanel)
+	end
+
+	local topTag
+	if tier >= 2 then
+		topTag = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = Color3.fromRGB(5, 7, 12),
+			BackgroundTransparency = tier >= 4 and 0.02 or 0.10,
+			BorderSizePixel = 0,
+			Position = UDim2.new(0.5, 0, 0, -12),
+			Size = UDim2.fromOffset(cardWidth - 52, 28),
+			Visible = false,
+			ZIndex = 218,
+		}, cardPanel)
+		addCorner(topTag, 14)
+		addStroke(topTag, glowColor, 1.6, 0.08)
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 1),
+			Text = treatment.tag,
+			TextColor3 = textColor,
+			TextScaled = false,
+			TextSize = 12,
+			Font = Enum.Font.GothamBlack,
+			ZIndex = 219,
+		}, topTag)
 	end
 
 	local innerGlow = make("Frame", {
@@ -1538,7 +1644,7 @@ local function showCardReveal(payload)
 		ZIndex = 207,
 	}, cardPanel)
 	addCorner(innerGlow, 14)
-	local innerStroke = addStroke(innerGlow, glowColor, tier >= 2 and 2.2 or 1.4, tier >= 1 and 0.34 or 0.58)
+	local innerStroke = addStroke(innerGlow, glowColor, (tier >= 2 and 2.2 or 1.4) + math.min(borderBoost, 4) * 0.2, tier >= 1 and 0.34 or 0.58)
 
 	local aura
 	local auraStroke
@@ -1607,10 +1713,10 @@ local function showCardReveal(payload)
 
 	local rarityBand = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 13),
-		Size = UDim2.fromOffset(cardWidth - 42, 26),
+		Position = UDim2.new(0.5, 0, 0, tier >= 2 and 17 or 13),
+		Size = UDim2.fromOffset(cardWidth - (tier >= 3 and 30 or 42), tier >= 3 and 30 or 26),
 		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
-		BackgroundTransparency = 0.08,
+		BackgroundTransparency = tier >= 4 and 0.00 or 0.08,
 		BorderSizePixel = 0,
 		ZIndex = 204,
 	}, frontGroup)
@@ -1644,24 +1750,39 @@ local function showCardReveal(payload)
 		BackgroundColor3 = glowColor,
 		BackgroundTransparency = tier >= 2 and 0.60 or 0.74,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0.5, 0, 0, 86),
-		Size = UDim2.fromOffset(104, 104),
+		Position = UDim2.new(0.5, 0, 0, 86 - math.min(portraitBoost, 12) * 0.35),
+		Size = UDim2.fromOffset(104 + portraitBoost, 104 + portraitBoost),
 		ZIndex = 202,
 	}, frontGroup)
-	addCorner(badgeGlow, 52)
+	addCorner(badgeGlow, 52 + portraitBoost / 2)
+
+	if tier >= 3 then
+		for index = 1, 10 do
+			make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = glowColor,
+				BackgroundTransparency = tier >= 4 and 0.56 or 0.72,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.50),
+				Rotation = index * 18,
+				Size = UDim2.new(0, 3, 0.45, 0),
+				ZIndex = 202,
+			}, frontGroup)
+		end
+	end
 
 	local badge = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
 		BackgroundColor3 = Color3.fromRGB(8, 10, 18),
 		BackgroundTransparency = 0.03,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0.5, 0, 0, 102),
+		Position = UDim2.new(0.5, 0, 0, 102 - math.min(portraitBoost, 12) * 0.35),
 		Rotation = 45,
-		Size = UDim2.fromOffset(70, 70),
+		Size = UDim2.fromOffset(70 + portraitBoost * 0.45, 70 + portraitBoost * 0.45),
 		ZIndex = 204,
 	}, frontGroup)
 	addCorner(badge, 12)
-	addStroke(badge, trimColor, 2.4, 0.12)
+	addStroke(badge, trimColor, 2.4 + math.min(borderBoost, 4) * 0.25, 0.12)
 
 	make("TextLabel", {
 		BackgroundTransparency = 1,
@@ -1738,6 +1859,9 @@ local function showCardReveal(payload)
 
 	cardBack.Visible = false
 	frontGroup.Visible = true
+	if topTag then
+		topTag.Visible = true
+	end
 	if aura then
 		aura.Visible = true
 	end

@@ -2473,6 +2473,62 @@ local function createFanZone(mapWidth, mapLength)
 	return plaza
 end
 
+local DISPLAY_CARD_TREATMENTS = {
+	["Gold"] = {
+		tag = "",
+		tier = 0,
+		edge = 4,
+		patternCount = 5,
+		portraitScale = 1,
+	},
+	["Rare Gold"] = {
+		tag = "RARE",
+		tier = 1,
+		edge = 5,
+		patternCount = 7,
+		portraitScale = 1.04,
+	},
+	["Premium Gold"] = {
+		tag = "PREMIUM",
+		tier = 2,
+		edge = 6,
+		patternCount = 9,
+		portraitScale = 1.08,
+	},
+	["Talisman"] = {
+		tag = "SPECIAL",
+		tier = 3,
+		edge = 7,
+		patternCount = 11,
+		portraitScale = 1.12,
+	},
+	["Maestro"] = {
+		tag = "ELITE",
+		tier = 4,
+		edge = 8,
+		patternCount = 13,
+		portraitScale = 1.16,
+	},
+	["Immortal"] = {
+		tag = "LEGEND",
+		tier = 5,
+		edge = 9,
+		patternCount = 15,
+		portraitScale = 1.20,
+	},
+	["Player of the Year"] = {
+		tag = "BEST",
+		tier = 6,
+		edge = 10,
+		patternCount = 17,
+		portraitScale = 1.22,
+	},
+}
+
+local function getDisplayCardTreatment(rarity)
+	return DISPLAY_CARD_TREATMENTS[rarity] or DISPLAY_CARD_TREATMENTS["Gold"]
+end
+
 local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	local style = Utils.GetRarityStyle(card.rarity)
 	local rarityColor = style.primary
@@ -2481,6 +2537,8 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	local trimColor = style.trim or rarityColor
 	local textColor = style.text or Constants.UI.Text
 	local rarityLabel = string.upper(style.label or card.rarity or "CARD")
+	local treatment = getDisplayCardTreatment(card.rarity)
+	local tier = treatment.tier or 0
 
 	local gui = make("SurfaceGui", {
 		Face = face,
@@ -2497,8 +2555,9 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 
 	make("UIGradient", {
 		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.12)),
-			ColorSequenceKeypoint.new(0.42, secondaryColor),
+			ColorSequenceKeypoint.new(0, tier >= 4 and trimColor or rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.12)),
+			ColorSequenceKeypoint.new(0.30, secondaryColor),
+			ColorSequenceKeypoint.new(0.64, tier >= 3 and rarityColor:Lerp(Color3.fromRGB(255, 255, 255), 0.22) or secondaryColor),
 			ColorSequenceKeypoint.new(1, darkColor),
 		}),
 		Rotation = 138,
@@ -2506,26 +2565,82 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 
 	make("UIStroke", {
 		Color = trimColor,
-		Thickness = 4,
+		Thickness = treatment.edge or 4,
 	}, frame)
 
 	local innerBorder = make("Frame", {
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, -14, 1, -14),
-		Position = UDim2.fromOffset(7, 7),
+		Size = UDim2.new(1, -(14 + tier), 1, -(14 + tier)),
+		Position = UDim2.fromOffset(7 + tier / 2, 7 + tier / 2),
 	}, frame)
 	make("UIStroke", {
-		Color = Color3.fromRGB(24, 16, 4),
-		Thickness = 1.5,
-		Transparency = 0.55,
+		Color = tier >= 4 and trimColor or Color3.fromRGB(24, 16, 4),
+		Thickness = tier >= 3 and 2.2 or 1.5,
+		Transparency = tier >= 4 and 0.24 or 0.55,
 	}, innerBorder)
+
+	local railWidth = 0.035 + math.min(tier, 6) * 0.006
+	for _, rail in ipairs({
+		{ anchor = Vector2.new(0, 0), position = UDim2.fromScale(0, 0) },
+		{ anchor = Vector2.new(1, 0), position = UDim2.fromScale(1, 0) },
+	}) do
+		local railFrame = make("Frame", {
+			AnchorPoint = rail.anchor,
+			BackgroundColor3 = trimColor,
+			BackgroundTransparency = tier >= 3 and 0.08 or 0.20,
+			BorderSizePixel = 0,
+			Position = rail.position,
+			Size = UDim2.new(railWidth, 0, 1, 0),
+		}, frame)
+		make("UIGradient", {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, trimColor),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(255, 255, 255)),
+				ColorSequenceKeypoint.new(1, trimColor),
+			}),
+			Rotation = 90,
+		}, railFrame)
+	end
+
+	for index = 1, treatment.patternCount or 5 do
+		make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = tier >= 4 and 0.80 or (tier >= 2 and 0.87 or 0.93),
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, index / ((treatment.patternCount or 5) + 1)),
+			Rotation = tier >= 4 and -31 or -22,
+			Size = UDim2.new(tier >= 3 and 1.45 or 1.25, 0, 0, tier >= 4 and 2 or 1),
+		}, frame)
+	end
+
+	if tier >= 2 then
+		local tag = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = Color3.fromRGB(6, 7, 10),
+			BackgroundTransparency = 0.06,
+			BorderSizePixel = 0,
+			Position = UDim2.new(0.5, 0, 0.018, 0),
+			Size = UDim2.new(0.46, 0, 0.07, 0),
+		}, frame)
+		local tagCorner = Instance.new("UICorner")
+		tagCorner.CornerRadius = UDim.new(1, 0)
+		tagCorner.Parent = tag
+		make("UIStroke", {
+			Color = trimColor,
+			Thickness = 1.2,
+			Transparency = 0.12,
+		}, tag)
+		local tagLabel = createSignLabel(treatment.tag or "", UDim2.fromScale(0.88, 0.74), UDim2.fromScale(0.06, 0.13), textColor, tag)
+		make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 12 }, tagLabel)
+	end
 
 	local rarityBand = make("Frame", {
 		BackgroundColor3 = Color3.fromRGB(6, 7, 10),
-		BackgroundTransparency = 0.12,
+		BackgroundTransparency = tier >= 4 and 0.02 or 0.12,
 		BorderSizePixel = 0,
-		Size = UDim2.new(0.76, 0, 0.1, 0),
-		Position = UDim2.new(0.12, 0, 0.06, 0),
+		Size = UDim2.new(tier >= 3 and 0.82 or 0.76, 0, tier >= 3 and 0.11 or 0.1, 0),
+		Position = UDim2.new(tier >= 3 and 0.09 or 0.12, 0, tier >= 2 and 0.095 or 0.06, 0),
 	}, frame)
 	local rarityCorner = Instance.new("UICorner")
 	rarityCorner.CornerRadius = UDim.new(1, 0)
@@ -2561,19 +2676,33 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 
 	local portrait = make("Frame", {
 		BackgroundColor3 = Color3.fromRGB(2, 3, 6),
-		BackgroundTransparency = 0.24,
+		BackgroundTransparency = tier >= 4 and 0.08 or 0.24,
 		BorderSizePixel = 0,
-		Size = UDim2.new(0.54, 0, 0.29, 0),
-		Position = UDim2.new(0.23, 0, 0.34, 0),
+		Size = UDim2.new(0.54 * treatment.portraitScale, 0, 0.29 * treatment.portraitScale, 0),
+		Position = UDim2.new(0.5 - (0.54 * treatment.portraitScale) / 2, 0, 0.34 - (0.29 * (treatment.portraitScale - 1)) / 2, 0),
 	}, frame)
 	local portraitCorner = Instance.new("UICorner")
 	portraitCorner.CornerRadius = UDim.new(0.18, 0)
 	portraitCorner.Parent = portrait
 	make("UIStroke", {
 		Color = trimColor,
-		Thickness = 1,
-		Transparency = 0.55,
+		Thickness = tier >= 3 and 1.8 or 1,
+		Transparency = tier >= 4 and 0.18 or 0.55,
 	}, portrait)
+
+	if tier >= 4 then
+		for index = 1, 8 do
+			make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = trimColor,
+				BackgroundTransparency = 0.68,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.5),
+				Rotation = index * 22.5,
+				Size = UDim2.new(0, 2, 0.85, 0),
+			}, portrait)
+		end
+	end
 
 	local head = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
