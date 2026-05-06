@@ -2736,11 +2736,11 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		Transparency = tier >= 4 and 0.18 or 0.55,
 	}, portrait)
 
-	local watermark = createSignLabel(initials, UDim2.fromScale(0.92, 0.78), UDim2.fromScale(0.04, 0.04), textColor, portrait)
-	watermark.TextTransparency = tier >= 3 and 0.70 or 0.80
+	local watermark = createSignLabel(initials, UDim2.fromScale(0.96, 0.86), UDim2.fromScale(0.02, 0.03), textColor, portrait)
+	watermark.TextTransparency = tier >= 3 and 0.78 or 0.86
 	watermark.TextXAlignment = Enum.TextXAlignment.Center
 	watermark.ZIndex = 4
-	make("UITextSizeConstraint", { MinTextSize = 24, MaxTextSize = 52 }, watermark)
+	make("UITextSizeConstraint", { MinTextSize = 28, MaxTextSize = 58 }, watermark)
 
 	if tier >= 4 then
 		for index = 1, 8 do
@@ -2757,72 +2757,69 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		end
 	end
 
-	local head = make("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundColor3 = Color3.fromRGB(245, 222, 190),
-		BackgroundTransparency = 0.04,
+	local crestGlow = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = positionAccent,
+		BackgroundTransparency = tier >= 3 and 0.54 or 0.68,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0.5, 0, 0.08, 0),
-		Size = UDim2.fromScale(0.18, 0.19),
+		Position = UDim2.fromScale(0.5, 0.49),
+		Size = UDim2.fromScale(0.54, 0.72),
+		ZIndex = 6,
+	}, portrait)
+	local crestGlowCorner = Instance.new("UICorner")
+	crestGlowCorner.CornerRadius = UDim.new(0.18, 0)
+	crestGlowCorner.Parent = crestGlow
+
+	local crest = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
+		BackgroundTransparency = 0.03,
+		BorderSizePixel = 0,
+		Position = UDim2.fromScale(0.5, 0.48),
+		Rotation = 45,
+		Size = UDim2.fromScale(0.42, 0.56),
 		ZIndex = 8,
 	}, portrait)
-	local headCorner = Instance.new("UICorner")
-	headCorner.CornerRadius = UDim.new(1, 0)
-	headCorner.Parent = head
-	make("UIStroke", {
-		Color = Color3.fromRGB(8, 9, 14),
-		Thickness = 1,
-		Transparency = 0.28,
-	}, head)
-
-	local jersey = make("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundColor3 = positionAccent,
-		BackgroundTransparency = 0.02,
-		BorderSizePixel = 0,
-		Position = UDim2.new(0.5, 0, 0.32, 0),
-		Size = UDim2.fromScale(0.55, 0.45),
-		ZIndex = 7,
-	}, portrait)
-	local jerseyCorner = Instance.new("UICorner")
-	jerseyCorner.CornerRadius = UDim.new(0.20, 0)
-	jerseyCorner.Parent = jersey
+	local crestCorner = Instance.new("UICorner")
+	crestCorner.CornerRadius = UDim.new(0.16, 0)
+	crestCorner.Parent = crest
 	make("UIGradient", {
 		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, positionAccent:Lerp(Color3.fromRGB(255, 255, 255), 0.16)),
-			ColorSequenceKeypoint.new(0.58, positionAccent),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 10, 18)),
+			ColorSequenceKeypoint.new(0, positionAccent:Lerp(Color3.fromRGB(255, 255, 255), tier >= 3 and 0.16 or 0.06)),
+			ColorSequenceKeypoint.new(0.50, Color3.fromRGB(7, 9, 16)),
+			ColorSequenceKeypoint.new(1, darkColor),
 		}),
-		Rotation = 96,
-	}, jersey)
+		Rotation = 118,
+	}, crest)
 	make("UIStroke", {
 		Color = trimColor,
-		Thickness = tier >= 3 and 1.4 or 1,
-		Transparency = 0.22,
-	}, jersey)
+		Thickness = tier >= 3 and 2.2 or 1.4,
+		Transparency = tier >= 4 and 0.04 or 0.16,
+	}, crest)
 
 	make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-		BackgroundTransparency = 0.26,
+		BackgroundTransparency = 0.62,
 		BorderSizePixel = 0,
-		Position = UDim2.fromScale(0.5, 0.50),
-		Rotation = -24,
-		Size = UDim2.new(1.18, 0, 0, tier >= 3 and 5 or 3),
-		ZIndex = 8,
-	}, jersey)
+		Position = UDim2.fromScale(0.5, 0.32),
+		Rotation = -45,
+		Size = UDim2.new(1.1, 0, 0, tier >= 3 and 4 or 2),
+		ZIndex = 9,
+	}, crest)
 
-	local jerseyInitials = createSignLabel(initials, UDim2.fromScale(0.68, 0.56), UDim2.fromScale(0.16, 0.20), textColor, jersey)
-	jerseyInitials.ZIndex = 9
-	make("UITextSizeConstraint", { MinTextSize = 10, MaxTextSize = 28 }, jerseyInitials)
+	local crestInitials = createSignLabel(initials, UDim2.fromScale(1.15, 0.74), UDim2.fromScale(-0.075, 0.13), textColor, crest)
+	crestInitials.Rotation = -45
+	crestInitials.ZIndex = 10
+	make("UITextSizeConstraint", { MinTextSize = 16, MaxTextSize = 38 }, crestInitials)
 
 	local rolePill = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 1),
 		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
 		BackgroundTransparency = 0.04,
 		BorderSizePixel = 0,
-		Position = UDim2.fromScale(0.5, 0.96),
-		Size = UDim2.fromScale(0.46, 0.18),
+		Position = UDim2.fromScale(0.5, 0.95),
+		Size = UDim2.fromScale(0.54, 0.17),
 		ZIndex = 9,
 	}, portrait)
 	local roleCorner = Instance.new("UICorner")
