@@ -186,7 +186,7 @@ function PackService.OpenPack(player, packId, options)
 		DataService.MarkDirty(player)
 
 		if Remotes and Remotes.UpdateCoins then
-			Remotes.UpdateCoins:FireClient(player, DataService.GetCoins(player))
+			Remotes.UpdateCoins:FireClient(player, DataService.GetCoins(player), DataService.GetGems(player))
 		end
 
 		return true, {
@@ -220,7 +220,7 @@ function PackService.OpenPack(player, packId, options)
 	DataService.MarkDirty(player)
 
 	if Remotes and Remotes.UpdateCoins then
-		Remotes.UpdateCoins:FireClient(player, DataService.GetCoins(player))
+		Remotes.UpdateCoins:FireClient(player, DataService.GetCoins(player), DataService.GetGems(player))
 	end
 
 	return true, {

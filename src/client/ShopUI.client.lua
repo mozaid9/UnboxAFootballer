@@ -27,14 +27,19 @@ local DAILY_REWARDS = Constants.DailyStreakRewards or {
 	{ day = 4, packId = "DeluxePack", label = "Deluxe Pack" },
 }
 
-local PACK_INFO = {}
+local FAN_PACK_INFO = {}
+local GEM_PACK_INFO = {}
 for _, pack in ipairs(PackConfig.ShopOrder or {}) do
 	if pack.shopBuyable == true then
-		table.insert(PACK_INFO, pack.id)
+		if type(PackConfig.GetShopCurrency) == "function" and PackConfig.GetShopCurrency(pack) == "Gems" then
+			table.insert(GEM_PACK_INFO, pack.id)
+		else
+			table.insert(FAN_PACK_INFO, pack.id)
+		end
 	end
 end
-if #PACK_INFO == 0 then
-	PACK_INFO = {
+if #FAN_PACK_INFO == 0 then
+	FAN_PACK_INFO = {
 		"GoldPack",
 		"RarePack",
 		"PremiumPack",
@@ -58,7 +63,7 @@ local RARITY_BAR_COLORS = {
 
 local LIMITED_DEAL_DURATION = (4 * 60) + 32
 local PACK_PURCHASE_CONFIRM_SECONDS = 2.25
-local PACK_HINT_DEFAULT = "Bought packs queue on your red pad after the current pack."
+local PACK_HINT_DEFAULT = "Fan and Gem packs queue on your red pad after the current pack."
 
 local dailyRewardStreak = 0
 local limitedDealRemaining = LIMITED_DEAL_DURATION
@@ -187,6 +192,13 @@ local function getShopCost(packDef)
 	return math.max(0, math.floor(tonumber(packDef and (packDef.shopCost or packDef.futureCost)) or 0))
 end
 
+local function getShopCurrency(packDef)
+	if type(PackConfig.GetShopCurrency) == "function" then
+		return PackConfig.GetShopCurrency(packDef)
+	end
+	return packDef and packDef.shopCurrency == "Gems" and "Gems" or "Fans"
+end
+
 local function getNextDailyReward()
 	if #DAILY_REWARDS == 0 then
 		return nil, 0
@@ -195,8 +207,8 @@ local function getNextDailyReward()
 	return DAILY_REWARDS[index], index
 end
 
-local function getPackGridHeight()
-	local rows = math.max(1, math.ceil(#PACK_INFO / PACK_GRID_COLUMNS))
+local function getPackGridHeight(packIds)
+	local rows = math.max(1, math.ceil(#(packIds or {}) / PACK_GRID_COLUMNS))
 	return (rows * PACK_CARD_HEIGHT) + ((rows - 1) * PACK_GRID_GAP)
 end
 
@@ -225,11 +237,16 @@ local canClaimDaily = false
 local claimingFree = false
 local claimingDaily = false
 local currentFans = 0
+local currentGems = 0
 local queuedRewardCount = 0
 local buyingPackId = nil
 local packBuyControls = {}
 local packQueuedThisVisit = {}
 local limitedPackCooldowns = {}
+
+local function getPackBalance(currency)
+	return currency == "Gems" and currentGems or currentFans
+end
 
 local overlay = make("Frame", {
 	Name = "Overlay",
@@ -791,7 +808,9 @@ local function updatePackBuyButtons()
 
 		local cost = control.cost or 0
 		local buyable = control.buyable == true and cost > 0
-		local enoughFans = currentFans >= cost
+		local currency = control.currency or "Fans"
+		local balance = getPackBalance(currency)
+		local enoughCurrency = balance >= cost
 		local color = control.color or UI.Gold
 		local queuedThisVisit = packQueuedThisVisit[packId] or 0
 		local confirmingPurchase = (control.confirmUntil or 0) > os.clock()
@@ -800,7 +819,7 @@ local function updatePackBuyButtons()
 		local statusLabel = control.statusLabel
 
 		button.Active = buyable and buyingPackId == nil and not confirmingPurchase and not coolingDown
-		button.AutoButtonColor = buyable and enoughFans and buyingPackId == nil and not confirmingPurchase and not coolingDown
+		button.AutoButtonColor = buyable and enoughCurrency and buyingPackId == nil and not confirmingPurchase and not coolingDown
 
 		if statusLabel then
 			if confirmingPurchase then
@@ -841,201 +860,208 @@ local function updatePackBuyButtons()
 			button.Text = "LOCKED"
 			button.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
 			button.TextColor3 = Color3.fromRGB(175, 180, 190)
-		elseif enoughFans then
+		elseif enoughCurrency then
 			button.Text = queuedThisVisit > 0 and "BUY AGAIN" or "BUY"
 			button.BackgroundColor3 = color:Lerp(Color3.fromRGB(22, 124, 62), 0.36)
 			button.TextColor3 = Color3.fromRGB(255, 255, 255)
 		else
-			button.Text = "NEED " .. formatCompactNumber(cost - currentFans)
+			button.Text = "NEED " .. formatCompactNumber(cost - balance)
 			button.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
 			button.TextColor3 = Color3.fromRGB(190, 194, 204)
 		end
 	end
 end
 
-sectionLabel("PACKS", 6)
-
-local packGrid = make("Frame", {
-	LayoutOrder = 7,
-	Size = UDim2.new(1, 0, 0, getPackGridHeight()),
-	BackgroundTransparency = 1,
-	ZIndex = 11,
-}, content)
-
-local gridLayout = make("UIGridLayout", {
-	CellPadding = UDim2.fromOffset(PACK_GRID_GAP, PACK_GRID_GAP),
-	CellSize = UDim2.new(1 / PACK_GRID_COLUMNS, -(PACK_GRID_GAP / 2), 0, PACK_CARD_HEIGHT),
-	FillDirectionMaxCells = PACK_GRID_COLUMNS,
-	SortOrder = Enum.SortOrder.LayoutOrder,
-}, packGrid)
-_ = gridLayout
-
-for index, packId in ipairs(PACK_INFO) do
-	local packDef = PackConfig.ById[packId]
-	local color = packDef and packDef.color or UI.Gold
-	local card = make("Frame", {
-		LayoutOrder = index,
-		BackgroundColor3 = Color3.fromRGB(15, 19, 32),
+local function createPackGrid(packIds, layoutOrder)
+	local packGrid = make("Frame", {
+		LayoutOrder = layoutOrder,
+		Size = UDim2.new(1, 0, 0, getPackGridHeight(packIds)),
+		BackgroundTransparency = 1,
 		ZIndex = 11,
-	}, packGrid)
-	addCorner(card, 14)
-	addStroke(card, color, 1.4, 0.58)
-	addHoverScale(card, 1.015)
+	}, content)
 
-	make("Frame", {
-		Position = UDim2.new(0, 10, 0, 12),
-		Size = UDim2.fromOffset(36, 36),
-		BackgroundColor3 = color:Lerp(Color3.fromRGB(0, 0, 0), 0.55),
-		ZIndex = 12,
-	}, card)
-	addCorner(card:FindFirstChildOfClass("Frame"), 10)
-
-	local icon = card:FindFirstChildOfClass("Frame")
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(1, 1),
-		Text = string.sub(packDef and packDef.displayName or "P", 1, 1),
-		TextColor3 = color,
-		TextScaled = false,
-		TextSize = 18,
-		Font = Enum.Font.GothamBlack,
-		ZIndex = 13,
-	}, icon)
-
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 56, 0, 10),
-		Size = UDim2.new(1, -142, 0, 18),
-		Text = packDef and packDef.displayName or packId,
-		TextColor3 = UI.Text,
-		TextScaled = false,
-		TextSize = 13,
-		Font = Enum.Font.GothamBlack,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 12,
-	}, card)
-
-	make("TextLabel", {
-		AnchorPoint = Vector2.new(1, 0),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(1, -10, 0, 10),
-		Size = UDim2.fromOffset(72, 18),
-		Text = tostring(formatCompactNumber(getShopCost(packDef))) .. " Fans",
-		TextColor3 = color,
-		TextScaled = false,
-		TextSize = 10,
-		Font = Enum.Font.GothamBlack,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		ZIndex = 12,
-	}, card)
-
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 56, 0, 31),
-		Size = UDim2.new(1, -66, 0, 28),
-		Text = packDef and packDef.description or "Pack odds improve by tier.",
-		TextColor3 = UI.Muted,
-		TextScaled = false,
-		TextWrapped = true,
-		TextSize = 10,
-		Font = Enum.Font.GothamMedium,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Top,
-		ZIndex = 12,
-	}, card)
-
-	local packCost = getShopCost(packDef)
-	local buyButton = make("TextButton", {
-		Position = UDim2.new(0, 56, 0, 68),
-		Size = UDim2.new(1, -66, 0, 24),
-		BackgroundColor3 = color:Lerp(Color3.fromRGB(22, 124, 62), 0.36),
-		Text = "BUY",
-		TextColor3 = Color3.fromRGB(255, 255, 255),
-		TextScaled = false,
-		TextSize = 10,
-		Font = Enum.Font.GothamBlack,
-		AutoButtonColor = false,
-		ZIndex = 12,
-	}, card)
-	addCorner(buyButton, 8)
-	addHoverScale(buyButton, 1.035)
-
-	local queueStatusLabel = make("TextLabel", {
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 56, 0, 95),
-		Size = UDim2.new(1, -66, 0, 12),
-		Text = "",
-		TextColor3 = Color3.fromRGB(139, 244, 165),
-		TextScaled = false,
-		TextSize = 9,
-		Font = Enum.Font.GothamBlack,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 12,
-	}, card)
-	packBuyControls[packId] = {
-		button = buyButton,
-		statusLabel = queueStatusLabel,
-		cost = packCost,
-		color = color,
-		buyable = packDef and packDef.shopBuyable == true,
-		cooldownSeconds = tonumber(packDef and packDef.purchaseCooldownSeconds) or 0,
-	}
-	buyButton.MouseButton1Click:Connect(function()
-		if purchasePack then
-			purchasePack(packId)
-		end
-	end)
-
-	local rarityBar = make("Frame", {
-		Position = UDim2.new(0, 56, 1, -23),
-		Size = UDim2.new(1, -66, 0, 6),
-		BackgroundColor3 = Color3.fromRGB(7, 10, 18),
-		BorderSizePixel = 0,
-		ClipsDescendants = true,
-		ZIndex = 12,
-	}, card)
-	addCorner(rarityBar, 3)
-
-	make("UIListLayout", {
-		FillDirection = Enum.FillDirection.Horizontal,
-		HorizontalAlignment = Enum.HorizontalAlignment.Left,
-		VerticalAlignment = Enum.VerticalAlignment.Center,
-		Padding = UDim.new(0, 0),
+	make("UIGridLayout", {
+		CellPadding = UDim2.fromOffset(PACK_GRID_GAP, PACK_GRID_GAP),
+		CellSize = UDim2.new(1 / PACK_GRID_COLUMNS, -(PACK_GRID_GAP / 2), 0, PACK_CARD_HEIGHT),
+		FillDirectionMaxCells = PACK_GRID_COLUMNS,
 		SortOrder = Enum.SortOrder.LayoutOrder,
-	}, rarityBar)
+	}, packGrid)
 
-	local weights = packDef and packDef.tierWeights or {}
-	for rarityIndex, weight in ipairs(weights) do
-		if weight > 0 then
-			local segment = make("Frame", {
-				LayoutOrder = rarityIndex,
-				Size = UDim2.new(math.max(weight / 100, 0.012), 0, 1, 0),
-				BackgroundColor3 = RARITY_BAR_COLORS[rarityIndex] or color,
-				BorderSizePixel = 0,
-				ZIndex = 13,
-			}, rarityBar)
-			if rarityIndex == 1 then
-				addCorner(segment, 3)
+	for index, packId in ipairs(packIds) do
+		local packDef = PackConfig.ById[packId]
+		local color = packDef and packDef.color or UI.Gold
+		local currency = getShopCurrency(packDef)
+		local card = make("Frame", {
+			LayoutOrder = index,
+			BackgroundColor3 = Color3.fromRGB(15, 19, 32),
+			ZIndex = 11,
+		}, packGrid)
+		addCorner(card, 14)
+		addStroke(card, color, 1.4, currency == "Gems" and 0.38 or 0.58)
+		addHoverScale(card, 1.015)
+
+		local icon = make("Frame", {
+			Position = UDim2.new(0, 10, 0, 12),
+			Size = UDim2.fromOffset(36, 36),
+			BackgroundColor3 = color:Lerp(Color3.fromRGB(0, 0, 0), 0.55),
+			ZIndex = 12,
+		}, card)
+		addCorner(icon, 10)
+
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 1),
+			Text = string.sub(packDef and packDef.displayName or "P", 1, 1),
+			TextColor3 = color,
+			TextScaled = false,
+			TextSize = 18,
+			Font = Enum.Font.GothamBlack,
+			ZIndex = 13,
+		}, icon)
+
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0, 56, 0, 10),
+			Size = UDim2.new(1, -142, 0, 18),
+			Text = packDef and packDef.displayName or packId,
+			TextColor3 = UI.Text,
+			TextScaled = false,
+			TextSize = 13,
+			Font = Enum.Font.GothamBlack,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 12,
+		}, card)
+
+		make("TextLabel", {
+			AnchorPoint = Vector2.new(1, 0),
+			BackgroundTransparency = 1,
+			Position = UDim2.new(1, -10, 0, 10),
+			Size = UDim2.fromOffset(76, 18),
+			Text = tostring(formatCompactNumber(getShopCost(packDef))) .. " " .. currency,
+			TextColor3 = color,
+			TextScaled = false,
+			TextSize = 10,
+			Font = Enum.Font.GothamBlack,
+			TextXAlignment = Enum.TextXAlignment.Right,
+			ZIndex = 12,
+		}, card)
+
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0, 56, 0, 31),
+			Size = UDim2.new(1, -66, 0, 28),
+			Text = packDef and packDef.description or "Pack odds improve by tier.",
+			TextColor3 = UI.Muted,
+			TextScaled = false,
+			TextWrapped = true,
+			TextSize = 10,
+			Font = Enum.Font.GothamMedium,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			ZIndex = 12,
+		}, card)
+
+		local packCost = getShopCost(packDef)
+		local buyButton = make("TextButton", {
+			Position = UDim2.new(0, 56, 0, 68),
+			Size = UDim2.new(1, -66, 0, 24),
+			BackgroundColor3 = color:Lerp(Color3.fromRGB(22, 124, 62), 0.36),
+			Text = "BUY",
+			TextColor3 = Color3.fromRGB(255, 255, 255),
+			TextScaled = false,
+			TextSize = 10,
+			Font = Enum.Font.GothamBlack,
+			AutoButtonColor = false,
+			ZIndex = 12,
+		}, card)
+		addCorner(buyButton, 8)
+		addHoverScale(buyButton, 1.035)
+
+		local queueStatusLabel = make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0, 56, 0, 95),
+			Size = UDim2.new(1, -66, 0, 12),
+			Text = "",
+			TextColor3 = Color3.fromRGB(139, 244, 165),
+			TextScaled = false,
+			TextSize = 9,
+			Font = Enum.Font.GothamBlack,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 12,
+		}, card)
+		packBuyControls[packId] = {
+			button = buyButton,
+			statusLabel = queueStatusLabel,
+			cost = packCost,
+			currency = currency,
+			color = color,
+			buyable = packDef and packDef.shopBuyable == true,
+			cooldownSeconds = tonumber(packDef and packDef.purchaseCooldownSeconds) or 0,
+		}
+		buyButton.MouseButton1Click:Connect(function()
+			if purchasePack then
+				purchasePack(packId)
+			end
+		end)
+
+		local rarityBar = make("Frame", {
+			Position = UDim2.new(0, 56, 1, -23),
+			Size = UDim2.new(1, -66, 0, 6),
+			BackgroundColor3 = Color3.fromRGB(7, 10, 18),
+			BorderSizePixel = 0,
+			ClipsDescendants = true,
+			ZIndex = 12,
+		}, card)
+		addCorner(rarityBar, 3)
+
+		make("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Left,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			Padding = UDim.new(0, 0),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}, rarityBar)
+
+		local weights = packDef and packDef.tierWeights or {}
+		for rarityIndex, weight in ipairs(weights) do
+			if weight > 0 then
+				local segment = make("Frame", {
+					LayoutOrder = rarityIndex,
+					Size = UDim2.new(math.max(weight / 100, 0.012), 0, 1, 0),
+					BackgroundColor3 = RARITY_BAR_COLORS[rarityIndex] or color,
+					BorderSizePixel = 0,
+					ZIndex = 13,
+				}, rarityBar)
+				if rarityIndex == 1 then
+					addCorner(segment, 3)
+				end
 			end
 		end
-	end
 
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 56, 1, -14),
-		Size = UDim2.new(1, -66, 0, 12),
-		Text = "Gold   Rare   Elite",
-		TextColor3 = Color3.fromRGB(160, 152, 126),
-		TextScaled = false,
-		TextSize = 9,
-		Font = Enum.Font.GothamBold,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 12,
-	}, card)
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0, 56, 1, -14),
+			Size = UDim2.new(1, -66, 0, 12),
+			Text = "Gold   Rare   Elite",
+			TextColor3 = Color3.fromRGB(160, 152, 126),
+			TextScaled = false,
+			TextSize = 9,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 12,
+		}, card)
+	end
+end
+
+sectionLabel("PACKS", 6)
+createPackGrid(FAN_PACK_INFO, 7)
+if #GEM_PACK_INFO > 0 then
+	sectionLabel("GEM PACKS", 8)
+	createPackGrid(GEM_PACK_INFO, 9)
 end
 
 packHint = make("TextLabel", {
-	LayoutOrder = 8,
+	LayoutOrder = 10,
 	Size = UDim2.new(1, 0, 0, 30),
 	BackgroundColor3 = Color3.fromRGB(12, 16, 27),
 	Text = PACK_HINT_DEFAULT,
@@ -1063,6 +1089,8 @@ purchasePack = function(packId)
 	end
 
 	local cost = control.cost or 0
+	local currency = control.currency or "Fans"
+	local balance = getPackBalance(currency)
 	local packName = packDisplayName(packId)
 	local cooldownRemaining = getPackCooldownRemaining(packId)
 	if cooldownRemaining > 0 then
@@ -1070,8 +1098,8 @@ purchasePack = function(packId)
 		updatePackBuyButtons()
 		return
 	end
-	if currentFans < cost then
-		packHint.Text = "Earn " .. formatNumber(cost - currentFans) .. " more Fans for " .. packName .. "."
+	if balance < cost then
+		packHint.Text = "Earn " .. formatNumber(cost - balance) .. " more " .. currency .. " for " .. packName .. "."
 		updatePackBuyButtons()
 		return
 	end
@@ -1092,7 +1120,8 @@ purchasePack = function(packId)
 		limitedPackCooldowns = result.limitedPackCooldowns
 	end
 	if result and result.success then
-		currentFans = result.newCoins or math.max(0, currentFans - cost)
+		currentFans = result.newCoins or currentFans
+		currentGems = result.newGems or currentGems
 		queuedRewardCount = result.queuedRewardCount or queuedRewardCount
 		if isOpen then
 			packQueuedThisVisit[packId] = (packQueuedThisVisit[packId] or 0) + 1
@@ -1108,6 +1137,7 @@ purchasePack = function(packId)
 		end
 	else
 		currentFans = result and result.newCoins or currentFans
+		currentGems = result and result.newGems or currentGems
 		if isOpen then
 			packHint.Text = result and result.error or "Purchase failed. Try again."
 		end
@@ -1117,7 +1147,7 @@ purchasePack = function(packId)
 end
 
 local futureCard = make("Frame", {
-	LayoutOrder = 9,
+	LayoutOrder = 11,
 	Size = UDim2.new(1, 0, 0, 58),
 	BackgroundColor3 = UI.PanelAlt,
 	ZIndex = 11,
@@ -1152,7 +1182,7 @@ make("TextLabel", {
 }, futureCard)
 
 local footerHookLabel = make("TextLabel", {
-	LayoutOrder = 10,
+	LayoutOrder = 12,
 	Size = UDim2.new(1, 0, 0, 28),
 	BackgroundTransparency = 1,
 	Text = "",
@@ -1438,6 +1468,7 @@ local function applyData(data)
 	freePackRemaining = data.freePackRemaining or Constants.FreePackCooldown
 	canClaimFree = data.canClaimFreePack == true
 	currentFans = data.coins or currentFans
+	currentGems = data.gems or currentGems
 
 	dailyRemaining = data.dailyRewardRemaining or Constants.DailyRewardCooldown
 	canClaimDaily = data.canClaimDailyReward == true
@@ -1616,8 +1647,9 @@ dailyClaimBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
-UpdateCoinsEvent.OnClientEvent:Connect(function(coins)
+UpdateCoinsEvent.OnClientEvent:Connect(function(coins, gems)
 	currentFans = coins or currentFans
+	currentGems = gems or currentGems
 	updatePackBuyButtons()
 end)
 

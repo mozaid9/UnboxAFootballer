@@ -781,7 +781,7 @@ addFansButton.MouseButton1Click:Connect(function()
 end)
 
 addGemsButton.MouseButton1Click:Connect(function()
-	showToast("Gems are planned for premium packs and cosmetics later.", Color3.fromRGB(69, 207, 255))
+	showToast("Earn Gems from daily quests, then spend them in the Shop.", Color3.fromRGB(69, 207, 255))
 end)
 
 UpdateCoinsEvent.OnClientEvent:Connect(function(coins, gems)

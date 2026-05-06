@@ -343,6 +343,56 @@ PackConfig.ShopOrder = {
 		station = { position = Vector3.new(24, 1.5, 4) },
 	},
 	{
+		id = "GemPlayerPickPack",
+		displayName = "Gem Player Pick",
+		description = "Choose 1 of 4. Strong floor with a real special chance.",
+		cost = 0,
+		shopGemCost = 18,
+		shopCurrency = "Gems",
+		shopBuyable = true,
+		cardCount = 1,
+		hitsRequired = 60,
+		padWeight = 0,
+		color = Color3.fromRGB(69, 207, 255),
+		tierWeights = { 8, 18, 24, 20, 15, 10, 5 },
+		playerPick = {
+			optionCount = 4,
+			minPowerScore = 87,
+		},
+		station = { position = Vector3.new(16, 1.5, 4) },
+	},
+	{
+		id = "GemImmortalPack",
+		displayName = "Immortal Gem Pack",
+		description = "Guaranteed Immortal. Queues on your red pad.",
+		cost = 0,
+		shopGemCost = 75,
+		shopCurrency = "Gems",
+		shopBuyable = true,
+		cardCount = 1,
+		hitsRequired = 88,
+		padWeight = 0,
+		color = Color3.fromRGB(226, 248, 255),
+		tierWeights = { 0, 0, 0, 0, 0, 100, 0 },
+		station = { position = Vector3.new(16, 1.5, 4) },
+	},
+	{
+		id = "GemTotyPack",
+		displayName = "TOTY Gem Pack",
+		description = "Guaranteed Player of the Year. One every 2 days.",
+		cost = 0,
+		shopGemCost = 150,
+		shopCurrency = "Gems",
+		shopBuyable = true,
+		purchaseCooldownSeconds = 2 * 24 * 60 * 60,
+		cardCount = 1,
+		hitsRequired = 110,
+		padWeight = 0,
+		color = Color3.fromRGB(255, 208, 76),
+		tierWeights = { 0, 0, 0, 0, 0, 0, 100 },
+		station = { position = Vector3.new(24, 1.5, 4) },
+	},
+	{
 		id = "ServerPack",
 		displayName = "Server Pack",
 		description = "Shared event pack with boosted odds for helpers.",
@@ -365,7 +415,15 @@ end
 
 function PackConfig.GetShopCost(packOrId)
 	local pack = type(packOrId) == "table" and packOrId or PackConfig.ById[packOrId]
+	if pack and pack.shopCurrency == "Gems" then
+		return math.max(0, math.floor(tonumber(pack.shopGemCost) or 0))
+	end
 	return math.max(0, math.floor(tonumber(pack and (pack.shopCost or pack.futureCost)) or 0))
+end
+
+function PackConfig.GetShopCurrency(packOrId)
+	local pack = type(packOrId) == "table" and packOrId or PackConfig.ById[packOrId]
+	return pack and pack.shopCurrency == "Gems" and "Gems" or "Fans"
 end
 
 function PackConfig.IsShopBuyable(packId)

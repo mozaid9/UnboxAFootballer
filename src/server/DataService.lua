@@ -406,6 +406,27 @@ function DataService.SpendCoins(player, amount)
 	return true
 end
 
+function DataService.SpendGems(player, amount)
+	local data = cache[player]
+	if not data then
+		return false, "Player data not loaded."
+	end
+
+	local value = math.floor(tonumber(amount) or 0)
+	if value < 0 then
+		return false, "Invalid amount."
+	end
+
+	data.gems = math.max(0, math.floor(tonumber(data.gems) or 0))
+	if data.gems < value then
+		return false, "Not enough Gems."
+	end
+
+	data.gems -= value
+	DataService.MarkDirty(player)
+	return true
+end
+
 function DataService.AddCard(player, cardId, amount)
 	local data = cache[player]
 	if not data then

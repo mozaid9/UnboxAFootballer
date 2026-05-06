@@ -3001,6 +3001,7 @@ PurchasePackFn.OnServerInvoke = function(player, packId)
 			success = false,
 			error = "Purchase already processing.",
 			newCoins = DataService.GetCoins(player),
+			newGems = DataService.GetGems(player),
 			queuedRewardCount = getQueuedMilestoneCount(player),
 			limitedPackCooldowns = buildPackPurchaseCooldownPayload(player),
 		}
@@ -3030,6 +3031,7 @@ PurchasePackFn.OnServerInvoke = function(player, packId)
 	if cost <= 0 then
 		return finish({ success = false, error = "That pack is not for sale." })
 	end
+	local currency = type(PackConfig.GetShopCurrency) == "function" and PackConfig.GetShopCurrency(packDef) or "Fans"
 
 	local cooldownRemaining, purchaseCooldown = getPackPurchaseCooldownRemaining(data, packDef)
 	if purchaseCooldown > 0 then
@@ -3041,18 +3043,25 @@ PurchasePackFn.OnServerInvoke = function(player, packId)
 				success = false,
 				error = packDef.displayName .. " ready in " .. Utils.FormatCountdown(cooldownRemaining) .. ".",
 				newCoins = DataService.GetCoins(player),
+				newGems = DataService.GetGems(player),
 				queuedRewardCount = getQueuedMilestoneCount(player),
 				limitedPackCooldowns = buildPackPurchaseCooldownPayload(player),
 			})
 		end
 	end
 
-	local ok, err = DataService.SpendCoins(player, cost)
+	local ok, err
+	if currency == "Gems" then
+		ok, err = DataService.SpendGems(player, cost)
+	else
+		ok, err = DataService.SpendCoins(player, cost)
+	end
 	if not ok then
 		return finish({
 			success = false,
-			error = err or "Not enough Fans.",
+			error = err or ("Not enough " .. currency .. "."),
 			newCoins = DataService.GetCoins(player),
+			newGems = DataService.GetGems(player),
 			queuedRewardCount = getQueuedMilestoneCount(player),
 			limitedPackCooldowns = buildPackPurchaseCooldownPayload(player),
 		})
@@ -3060,12 +3069,17 @@ PurchasePackFn.OnServerInvoke = function(player, packId)
 
 	local queuedReward = queuePackRewardForPad(player, packId, "SHOP", packDef.displayName .. " Queued")
 	if not queuedReward then
-		EconomyService.AddCoins(player, cost)
-		UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+		if currency == "Gems" then
+			DataService.AddGems(player, cost)
+		else
+			EconomyService.AddCoins(player, cost)
+		end
+		UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player), DataService.GetGems(player))
 		return finish({
 			success = false,
 			error = "Pack could not be queued. Try again.",
 			newCoins = DataService.GetCoins(player),
+			newGems = DataService.GetGems(player),
 			queuedRewardCount = getQueuedMilestoneCount(player),
 			limitedPackCooldowns = buildPackPurchaseCooldownPayload(player),
 		})
@@ -3076,7 +3090,7 @@ PurchasePackFn.OnServerInvoke = function(player, packId)
 		DataService.MarkDirty(player)
 	end
 
-	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+	UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player), DataService.GetGems(player))
 	addQuestProgress(player, "buyPack", 1)
 	sendHint(player, packDef.displayName .. " bought and queued for your red pad.")
 
@@ -3084,8 +3098,11 @@ PurchasePackFn.OnServerInvoke = function(player, packId)
 		success = true,
 		packId = packId,
 		packName = packDef.displayName,
-		coinsSpent = cost,
+		currency = currency,
+		coinsSpent = currency == "Fans" and cost or 0,
+		gemsSpent = currency == "Gems" and cost or 0,
 		newCoins = DataService.GetCoins(player),
+		newGems = DataService.GetGems(player),
 		queuedRewardCount = getQueuedMilestoneCount(player),
 		rewardQueued = true,
 		limitedPackCooldowns = buildPackPurchaseCooldownPayload(player),
