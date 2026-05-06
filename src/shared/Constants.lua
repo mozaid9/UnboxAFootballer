@@ -261,6 +261,20 @@ Constants.CollectionRewards = {
 
 Constants.Rebirth = {
 	StartingFansAfterRebirth = Constants.StartingCoins,
+	StartingFansByTierAfterRebirth = {
+		[1] = 5000,
+		[2] = 15000,
+		[3] = 40000,
+		[4] = 100000,
+		[5] = 250000,
+		[6] = 600000,
+	},
+	StartingFansGrowthAfterTier = 2.35,
+
+	VaultSlots = {
+		{ tier = 3, slots = 1 },
+		{ tier = 6, slots = 2 },
+	},
 
 	-- Requirements to go from tier N-1 → N.
 	-- cards = list of { count, rarity } where the player must own that many

@@ -4459,6 +4459,121 @@ local function createPlot(plotId, side, laneIndex, position)
 		Style                 = Enum.ProximityPromptStyle.Default,
 	}, rebirthOrb)
 
+	-- ── Rebirth Vault ──────────────────────────────────────────────────────────
+	local vaultCF = machineFacingCF * CFrame.new(7.6, 0, -0.35)
+	local vaultModel = make("Model", {
+		Name = "RebirthVault",
+	}, model)
+
+	make("Part", {
+		Name = "RebirthVaultPad",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(75, 190, 255),
+		Transparency = 0.52,
+		Size = Vector3.new(5.6, 0.16, 5.6),
+		CFrame = vaultCF * CFrame.new(0, 0.66, 0),
+	}, vaultModel)
+
+	make("Part", {
+		Name = "RebirthVaultBase",
+		Anchored = true,
+		CanCollide = true,
+		CanQuery = true,
+		CanTouch = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(8, 14, 28),
+		Size = Vector3.new(4.6, 1.15, 4.6),
+		CFrame = vaultCF * CFrame.new(0, 1.08, 0),
+	}, vaultModel)
+
+	local vaultCore = make("Part", {
+		Name = "RebirthVaultCore",
+		Anchored = true,
+		CanCollide = true,
+		CanQuery = true,
+		CanTouch = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(10, 20, 42),
+		Size = Vector3.new(3.2, 3.8, 2.0),
+		CFrame = vaultCF * CFrame.new(0, 3.12, 0),
+	}, vaultModel)
+
+	make("Part", {
+		Name = "RebirthVaultDoorGlow",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(80, 220, 255),
+		Transparency = 0.12,
+		Size = Vector3.new(2.45, 2.95, 0.12),
+		CFrame = vaultCF * CFrame.new(0, 3.16, -1.04),
+	}, vaultModel)
+
+	local vaultSign = make("Part", {
+		Name = "RebirthVaultSign",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(6, 9, 18),
+		Size = Vector3.new(4.8, 1.15, 0.18),
+		CFrame = vaultCF * CFrame.new(0, 5.72, -1.35),
+	}, vaultModel)
+	local vaultSignGui = make("SurfaceGui", {
+		Face = Enum.NormalId.Front,
+		PixelsPerStud = 90,
+		LightInfluence = 0,
+	}, vaultSign)
+	local vaultSignFrame = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(6, 9, 18),
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+	}, vaultSignGui)
+	make("UIStroke", {
+		Color = Color3.fromRGB(98, 220, 255),
+		Thickness = 2,
+		Transparency = 0.08,
+	}, vaultSignFrame)
+	createOwnerSignText("VAULT", UDim2.fromScale(0.9, 0.58), UDim2.fromScale(0.05, 0.07), Color3.fromRGB(170, 245, 255), {
+		textScaled = true,
+		minTextSize = 16,
+		maxTextSize = 62,
+		textStrokeTransparency = 0.45,
+		font = Enum.Font.GothamBlack,
+	}, vaultSignFrame)
+	createOwnerSignText("KEEP PLAYERS", UDim2.fromScale(0.82, 0.25), UDim2.fromScale(0.09, 0.66), Color3.fromRGB(230, 245, 255), {
+		textScaled = true,
+		minTextSize = 8,
+		maxTextSize = 24,
+		textStrokeTransparency = 0.7,
+		font = Enum.Font.GothamBold,
+	}, vaultSignFrame)
+
+	make("PointLight", {
+		Brightness = 1.9,
+		Range = 20,
+		Color = Color3.fromRGB(80, 220, 255),
+	}, vaultCore)
+
+	assignCollisionGroup(vaultModel, COLLISION_GROUPS.Props)
+
+	local rebirthVaultPrompt = make("ProximityPrompt", {
+		ActionText            = "Open Vault",
+		ObjectText            = "Rebirth Vault",
+		KeyboardKeyCode       = Enum.KeyCode.E,
+		HoldDuration          = 0.35,
+		MaxActivationDistance = 11,
+		RequiresLineOfSight   = false,
+		Style                 = Enum.ProximityPromptStyle.Default,
+	}, vaultCore)
+
 	-- Folder for visuals that change per rebirth tier (seats, lighting, etc.)
 	local stadiumExtrasFolder = make("Folder", { Name = "StadiumExtras" }, model)
 
@@ -4497,6 +4612,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		displaySlots = displaySlots,
 		spawnCFrame = spawnCFrame,
 		rebirthPrompt = rebirthPrompt,
+		rebirthVaultPrompt = rebirthVaultPrompt,
 	}
 
 	updateOwnerSign(plot, nil, "")

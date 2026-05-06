@@ -120,6 +120,39 @@ function RebirthService.GetFanMultiplier(rebirthTier)
 	return previous.multiplier + ((rebirthTier - previous.tier) * 0.5)
 end
 
+function RebirthService.GetVaultSlots(rebirthTier)
+	rebirthTier = math.max(0, rebirthTier or 0)
+	local slots = 0
+	for _, milestone in ipairs(rebirthConfig.VaultSlots or {}) do
+		if rebirthTier >= (milestone.tier or math.huge) then
+			slots = math.max(slots, milestone.slots or 0)
+		end
+	end
+	return slots
+end
+
+function RebirthService.GetStartingFansAfterRebirth(targetTier)
+	targetTier = math.max(1, math.floor(tonumber(targetTier) or 1))
+	local byTier = rebirthConfig.StartingFansByTierAfterRebirth or {}
+	if byTier[targetTier] then
+		return byTier[targetTier]
+	end
+
+	local maxDefinedTier = 0
+	for tier in pairs(byTier) do
+		if tier > maxDefinedTier then
+			maxDefinedTier = tier
+		end
+	end
+
+	if maxDefinedTier <= 0 then
+		return rebirthConfig.StartingFansAfterRebirth or Constants.StartingCoins
+	end
+
+	local growth = rebirthConfig.StartingFansGrowthAfterTier or 2
+	return math.floor((byTier[maxDefinedTier] or Constants.StartingCoins) * (growth ^ (targetTier - maxDefinedTier)))
+end
+
 function RebirthService.GetStatus(player)
 	local data = getData(player)
 	if not data then
@@ -168,6 +201,9 @@ function RebirthService.GetStatus(player)
 		currentMultiplier = RebirthService.GetFanMultiplier(tier),
 		nextMultiplier    = RebirthService.GetFanMultiplier(tier + 1),
 		rebirthTokens     = data.rebirthTokens or 0,
+		vaultSlots        = RebirthService.GetVaultSlots(tier),
+		nextVaultSlots    = RebirthService.GetVaultSlots(tier + 1),
+		startingFansAfterRebirth = RebirthService.GetStartingFansAfterRebirth(tier + 1),
 		baseSlots         = data.baseSlots or rebirthConfig.BaseSlots,
 		nextBaseSlots     = math.min(
 			(data.baseSlots or rebirthConfig.BaseSlots) + rebirthConfig.SlotsPerRebirth,
@@ -199,12 +235,32 @@ function RebirthService.PerformRebirth(player)
 		(data.baseSlots or rebirthConfig.BaseSlots) + rebirthConfig.SlotsPerRebirth,
 		rebirthConfig.MaxSlots
 	)
+	local startingFans = RebirthService.GetStartingFansAfterRebirth(nextTier)
+	local keepers = {}
+	local maxVaultSlots = RebirthService.GetVaultSlots(data.rebirthTier or 0)
+	local inventory = data.inventory or {}
+	local seen = {}
+	for _, value in ipairs(data.rebirthVault or {}) do
+		local cardId = tonumber(value)
+		if cardId and #keepers < maxVaultSlots then
+			cardId = math.floor(cardId)
+			local key = tostring(cardId)
+			if not seen[cardId] and (inventory[key] or 0) > 0 then
+				table.insert(keepers, cardId)
+				seen[cardId] = true
+			end
+		end
+	end
 
-	DataService.ResetForRebirth(player, rebirthConfig.StartingFansAfterRebirth)
+	DataService.ResetForRebirth(player, startingFans)
 	data.rebirthTier   = nextTier
 	data.rebirthTokens = nextTokens
 	data.totalRebirths = nextTotal
 	data.baseSlots     = nextSlots
+	for _, cardId in ipairs(keepers) do
+		DataService.AddCard(player, cardId, 1)
+	end
+	DataService.ClearRebirthVault(player)
 	DataService.MarkDirty(player)
 
 	return true, RebirthService.GetStatus(player)

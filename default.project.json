@@ -81,6 +81,9 @@
         "RebirthUI": {
           "$path": "src/client/RebirthUI.client.lua"
         },
+        "RebirthVaultUI": {
+          "$path": "src/client/RebirthVaultUI.client.lua"
+        },
         "ShopUI": {
           "$path": "src/client/ShopUI.client.lua"
         },

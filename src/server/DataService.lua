@@ -14,6 +14,7 @@ local DEFAULT_DATA = {
 	gems = 0,
 	starterGrantClaimed = false,
 	inventory = {},
+	rebirthVault = {},
 	collection = {},
 	collectionViewed = {},
 	rebirthTier = 0,
@@ -131,6 +132,49 @@ local function normalizeInventoryData(data)
 
 	if changed then
 		data.inventory = normalized
+	end
+
+	return changed
+end
+
+local function normalizeRebirthVaultData(data)
+	if not data then
+		return false
+	end
+
+	if type(data.rebirthVault) ~= "table" then
+		data.rebirthVault = {}
+		return true
+	end
+
+	local normalized = {}
+	local seen = {}
+	local changed = false
+
+	for _, value in ipairs(data.rebirthVault) do
+		local cardId = tonumber(value)
+		if cardId then
+			local normalizedId = math.floor(cardId)
+			if normalizedId > 0 and not seen[normalizedId] then
+				table.insert(normalized, normalizedId)
+				seen[normalizedId] = true
+				if value ~= normalizedId then
+					changed = true
+				end
+			else
+				changed = true
+			end
+		else
+			changed = true
+		end
+	end
+
+	if #normalized ~= #data.rebirthVault then
+		changed = true
+	end
+
+	if changed then
+		data.rebirthVault = normalized
 	end
 
 	return changed
@@ -311,6 +355,7 @@ function DataService.LoadPlayer(player)
 
 	cache[player] = deepMergeDefaults(ok and storedData or {}, DEFAULT_DATA)
 	normalizeInventoryData(cache[player])
+	normalizeRebirthVaultData(cache[player])
 	normalizeCollectionData(cache[player])
 	normalizeUpgradeData(cache[player])
 	DataService.MarkDirty(player)
@@ -494,6 +539,51 @@ function DataService.GetInventory(player)
 		DataService.MarkDirty(player)
 	end
 	return data.inventory
+end
+
+function DataService.GetRebirthVault(player)
+	local data = cache[player]
+	if not data then
+		return {}
+	end
+	if normalizeRebirthVaultData(data) then
+		DataService.MarkDirty(player)
+	end
+	return data.rebirthVault
+end
+
+function DataService.SetRebirthVault(player, cardIds)
+	local data = cache[player]
+	if not data or type(cardIds) ~= "table" then
+		return false
+	end
+
+	data.rebirthVault = {}
+	local seen = {}
+	for _, value in ipairs(cardIds) do
+		local cardId = tonumber(value)
+		if cardId then
+			cardId = math.floor(cardId)
+			if cardId > 0 and not seen[cardId] then
+				table.insert(data.rebirthVault, cardId)
+				seen[cardId] = true
+			end
+		end
+	end
+
+	DataService.MarkDirty(player)
+	return true
+end
+
+function DataService.ClearRebirthVault(player)
+	local data = cache[player]
+	if not data then
+		return false
+	end
+
+	data.rebirthVault = {}
+	DataService.MarkDirty(player)
+	return true
 end
 
 function DataService.RecordCardPacked(player, cardId, amount)

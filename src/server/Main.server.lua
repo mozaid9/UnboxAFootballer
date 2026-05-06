@@ -84,6 +84,9 @@ local ClaimQuestFn = makeFunction("ClaimQuest")
 local GetRebirthStatusFn = makeFunction("GetRebirthStatus")
 local RequestRebirthFn = makeFunction("RequestRebirth")
 local OpenRebirthUIEvent = makeEvent("OpenRebirthUI")
+local GetRebirthVaultFn = makeFunction("GetRebirthVault")
+local SetRebirthVaultFn = makeFunction("SetRebirthVault")
+local OpenRebirthVaultUIEvent = makeEvent("OpenRebirthVaultUI")
 
 PackService.Init(DataService, EconomyService, {
 	UpdateCoins = UpdateCoinsEvent,
@@ -92,6 +95,8 @@ PackService.Init(DataService, EconomyService, {
 })
 EconomyService.Init(DataService)
 RebirthService.Init(DataService)
+
+local buildRebirthVaultPayload
 
 BaseService.BuildBaseMap()
 CrowdService.Init(BaseService, DataService)
@@ -105,6 +110,12 @@ for _, plot in ipairs(BaseService.GetPlots()) do
 			if plot.ownerPlayer ~= player then return end
 			local status = RebirthService.GetStatus(player)
 			OpenRebirthUIEvent:FireClient(player, status)
+		end)
+	end
+	if plot.rebirthVaultPrompt then
+		plot.rebirthVaultPrompt.Triggered:Connect(function(player)
+			if plot.ownerPlayer ~= player then return end
+			OpenRebirthVaultUIEvent:FireClient(player, buildRebirthVaultPayload and buildRebirthVaultPayload(player) or nil)
 		end)
 	end
 end
@@ -2687,7 +2698,7 @@ GetPlayerDataFn.OnServerInvoke = function(player)
 	}
 end
 
-GetInventoryFn.OnServerInvoke = function(player)
+local function buildInventoryPayload(player)
 	local data = DataService.GetData(player)
 	if not data then
 		return {}
@@ -2730,6 +2741,155 @@ GetInventoryFn.OnServerInvoke = function(player)
 	end)
 
 	return inventory
+end
+
+GetInventoryFn.OnServerInvoke = function(player)
+	return buildInventoryPayload(player)
+end
+
+local function getDisplayedCardIdSet(player)
+	local displayedSet = {}
+	for _, cardId in pairs(DataService.GetDisplayedCards(player) or {}) do
+		local numericId = tonumber(cardId)
+		if numericId then
+			displayedSet[math.floor(numericId)] = true
+		end
+	end
+	return displayedSet
+end
+
+local function buildDisplayedCardPayload(player)
+	local displayed = {}
+	for slotIndex, cardId in pairs(DataService.GetDisplayedCards(player) or {}) do
+		local card = getCardById(cardId)
+		if card then
+			local entry = serializeCardForClient(card)
+			entry.slotIndex = tonumber(slotIndex)
+			table.insert(displayed, entry)
+		end
+	end
+	table.sort(displayed, function(a, b)
+		return (a.slotIndex or 0) < (b.slotIndex or 0)
+	end)
+	return displayed
+end
+
+buildRebirthVaultPayload = function(player)
+	local data = DataService.GetData(player)
+	if not data then
+		return {
+			success = false,
+			error = "Your data is still loading.",
+		}
+	end
+
+	local tier = data.rebirthTier or 0
+	local maxSlots = RebirthService.GetVaultSlots(tier)
+	local nextSlots = RebirthService.GetVaultSlots(tier + 1)
+	local displayedSet = getDisplayedCardIdSet(player)
+	local inventoryCounts = DataService.GetInventory(player)
+	local validVaultIds = {}
+	local vault = {}
+
+	for _, cardId in ipairs(DataService.GetRebirthVault(player)) do
+		local numericId = tonumber(cardId)
+		local card = numericId and getCardById(numericId)
+		if card and maxSlots > 0 and #validVaultIds < maxSlots and not displayedSet[card.id] and (inventoryCounts[tostring(card.id)] or 0) > 0 then
+			table.insert(validVaultIds, card.id)
+			local entry = serializeCardForClient(card)
+			entry.quantity = inventoryCounts[tostring(card.id)] or 0
+			table.insert(vault, entry)
+		end
+	end
+
+	if #validVaultIds ~= #(data.rebirthVault or {}) then
+		DataService.SetRebirthVault(player, validVaultIds)
+	end
+
+	local inventory = buildInventoryPayload(player)
+	local vaultSet = {}
+	for _, cardId in ipairs(validVaultIds) do
+		vaultSet[cardId] = true
+	end
+	for _, entry in ipairs(inventory) do
+		entry.inVault = vaultSet[entry.id] == true
+		entry.onDisplay = displayedSet[entry.id] == true
+	end
+
+	return {
+		success = true,
+		rebirthTier = tier,
+		maxSlots = maxSlots,
+		nextSlots = nextSlots,
+		unlocked = maxSlots > 0,
+		unlockTier = 3,
+		note = "Only stored inventory players can enter the vault. Remove a player from a green display slot first.",
+		vault = vault,
+		inventory = inventory,
+		displayed = buildDisplayedCardPayload(player),
+	}
+end
+
+GetRebirthVaultFn.OnServerInvoke = function(player)
+	return buildRebirthVaultPayload(player)
+end
+
+SetRebirthVaultFn.OnServerInvoke = function(player, requestedCardIds)
+	local data = DataService.GetData(player)
+	if not data then
+		return { success = false, error = "Your data is still loading." }
+	end
+
+	if type(requestedCardIds) ~= "table" then
+		return { success = false, error = "Choose players for the vault.", vault = buildRebirthVaultPayload(player) }
+	end
+
+	local maxSlots = RebirthService.GetVaultSlots(data.rebirthTier or 0)
+	if maxSlots <= 0 then
+		return { success = false, error = "Vault unlocks at Rebirth 3.", vault = buildRebirthVaultPayload(player) }
+	end
+
+	local displayedSet = getDisplayedCardIdSet(player)
+	local inventoryCounts = DataService.GetInventory(player)
+	local accepted = {}
+	local seen = {}
+
+	for _, value in ipairs(requestedCardIds) do
+		if #accepted >= maxSlots then
+			break
+		end
+		local cardId = tonumber(value)
+		if cardId then
+			cardId = math.floor(cardId)
+			local card = getCardById(cardId)
+			if card and not seen[cardId] then
+				if displayedSet[cardId] then
+					return {
+						success = false,
+						error = card.name .. " is on a green display slot. Remove them first.",
+						vault = buildRebirthVaultPayload(player),
+					}
+				end
+				if (inventoryCounts[tostring(cardId)] or 0) <= 0 then
+					return {
+						success = false,
+						error = card.name .. " is not in your stored inventory.",
+						vault = buildRebirthVaultPayload(player),
+					}
+				end
+
+				table.insert(accepted, cardId)
+				seen[cardId] = true
+			end
+		end
+	end
+
+	DataService.SetRebirthVault(player, accepted)
+	sendHint(player, #accepted > 0 and ("Vault saved: " .. tostring(#accepted) .. "/" .. tostring(maxSlots) .. " player(s).") or "Vault cleared.")
+	return {
+		success = true,
+		vault = buildRebirthVaultPayload(player),
+	}
 end
 
 local function getCollectionUnlockedCount(collection)

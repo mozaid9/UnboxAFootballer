@@ -312,10 +312,10 @@ local cardSlotCheck = makeLabel({
 }, cardSlotFrame)
 
 -- ── 3. LOSE / GAIN section ────────────────────────────────────────────────────
-local infoSection = section("REBIRTH INFO", 3, 100)
+local infoSection = section("REBIRTH INFO", 3, 146)
 
 makeLabel({
-	Text = "⚠  You will LOSE all fans and inventory cards",
+	Text = "⚠  You will LOSE fans and non-vaulted inventory cards",
 	Size = UDim2.new(1, -16, 0, 22),
 	Position = UDim2.new(0, 10, 0, 30),
 	Font = Enum.Font.GothamBold,
@@ -343,6 +343,30 @@ local gainSlotsLabel = makeLabel({
 	Text = "✅  Display slots: 6 → 7",
 	Size = UDim2.new(1, -16, 0, 22),
 	Position = UDim2.new(0, 10, 0, 74),
+	Font = Enum.Font.GothamBold,
+	TextColor3 = Color3.fromRGB(90, 200, 130),
+	TextSize = 12,
+	TextScaled = false,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 4,
+}, infoSection)
+
+local vaultSlotsLabel = makeLabel({
+	Text = "ℹ  Vault slots: locked",
+	Size = UDim2.new(1, -16, 0, 22),
+	Position = UDim2.new(0, 10, 0, 94),
+	Font = Enum.Font.GothamBold,
+	TextColor3 = Color3.fromRGB(170, 220, 245),
+	TextSize = 12,
+	TextScaled = false,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 4,
+}, infoSection)
+
+local startingFansLabel = makeLabel({
+	Text = "✅  Starting fans: 5,000",
+	Size = UDim2.new(1, -16, 0, 22),
+	Position = UDim2.new(0, 10, 0, 116),
 	Font = Enum.Font.GothamBold,
 	TextColor3 = Color3.fromRGB(90, 200, 130),
 	TextSize = 12,
@@ -469,6 +493,18 @@ local function populate(status)
 	else
 		gainSlotsLabel.Text = "ℹ️  Display slots: " .. curSlots .. " (already at max)"
 	end
+
+	local curVaultSlots = status.vaultSlots or 0
+	local nextVaultSlots = status.nextVaultSlots or curVaultSlots
+	if nextVaultSlots > curVaultSlots then
+		vaultSlotsLabel.Text = "✅  Vault slots: " .. curVaultSlots .. " → " .. nextVaultSlots
+	elseif curVaultSlots > 0 then
+		vaultSlotsLabel.Text = "✅  Vault slots: " .. curVaultSlots
+	else
+		vaultSlotsLabel.Text = "ℹ  Vault unlocks at Rebirth 3"
+	end
+
+	startingFansLabel.Text = "✅  Starts after rebirth: " .. fmt(status.startingFansAfterRebirth or 5000) .. " fans"
 
 	-- Status banner + button
 	local canRebirth = status.canRebirth
