@@ -296,6 +296,58 @@ local RARITY_RANK = {
 	["Player of the Year"] = 7,
 }
 
+local COLLECTION_SKINS = {
+	["Gold"] = {
+		bgA = Color3.fromRGB(112, 68, 12),
+		bgB = Color3.fromRGB(192, 124, 28),
+		trim = Color3.fromRGB(255, 210, 78),
+		text = Color3.fromRGB(255, 250, 226),
+		glow = Color3.fromRGB(255, 220, 92),
+	},
+	["Rare Gold"] = {
+		bgA = Color3.fromRGB(96, 22, 6),
+		bgB = Color3.fromRGB(214, 58, 14),
+		trim = Color3.fromRGB(255, 160, 46),
+		text = Color3.fromRGB(255, 242, 222),
+		glow = Color3.fromRGB(255, 112, 28),
+	},
+	["Premium Gold"] = {
+		bgA = Color3.fromRGB(172, 108, 12),
+		bgB = Color3.fromRGB(255, 204, 58),
+		trim = Color3.fromRGB(255, 236, 116),
+		text = Color3.fromRGB(36, 22, 4),
+		glow = Color3.fromRGB(255, 234, 118),
+	},
+	["Talisman"] = {
+		bgA = Color3.fromRGB(42, 10, 86),
+		bgB = Color3.fromRGB(130, 44, 218),
+		trim = Color3.fromRGB(202, 84, 255),
+		text = Color3.fromRGB(248, 230, 255),
+		glow = Color3.fromRGB(214, 116, 255),
+	},
+	["Maestro"] = {
+		bgA = Color3.fromRGB(5, 22, 86),
+		bgB = Color3.fromRGB(26, 86, 212),
+		trim = Color3.fromRGB(255, 204, 70),
+		text = Color3.fromRGB(238, 246, 255),
+		glow = Color3.fromRGB(88, 154, 255),
+	},
+	["Immortal"] = {
+		bgA = Color3.fromRGB(24, 118, 170),
+		bgB = Color3.fromRGB(116, 218, 255),
+		trim = Color3.fromRGB(220, 252, 255),
+		text = Color3.fromRGB(245, 255, 255),
+		glow = Color3.fromRGB(210, 248, 255),
+	},
+	["Player of the Year"] = {
+		bgA = Color3.fromRGB(0, 0, 0),
+		bgB = Color3.fromRGB(42, 32, 6),
+		trim = Color3.fromRGB(255, 226, 74),
+		text = Color3.fromRGB(255, 246, 210),
+		glow = Color3.fromRGB(255, 226, 88),
+	},
+}
+
 local LOCKED_STYLES = {
 	["Gold"] = {
 		hints = { "Found in Gold Packs", "Starter album card", "Common pack find", "Early collection piece" },
@@ -313,31 +365,31 @@ local LOCKED_STYLES = {
 	},
 	["Premium Gold"] = {
 		hints = { "Premium-tier player", "Strong pack pull", "Mid-game target", "High-value find" },
-		bgA = Color3.fromRGB(3, 3, 5),
-		bgB = Color3.fromRGB(30, 24, 10),
-		trim = Color3.fromRGB(196, 166, 72),
-		text = Color3.fromRGB(222, 196, 116),
+		bgA = Color3.fromRGB(60, 38, 6),
+		bgB = Color3.fromRGB(116, 74, 12),
+		trim = Color3.fromRGB(210, 176, 78),
+		text = Color3.fromRGB(232, 204, 124),
 	},
 	["Talisman"] = {
 		hints = { "Star player", "Club leader", "Rare headline pull", "Main man" },
-		bgA = Color3.fromRGB(34, 4, 8),
-		bgB = Color3.fromRGB(84, 12, 14),
-		trim = Color3.fromRGB(184, 62, 48),
-		text = Color3.fromRGB(218, 128, 116),
+		bgA = Color3.fromRGB(22, 6, 48),
+		bgB = Color3.fromRGB(58, 20, 108),
+		trim = Color3.fromRGB(150, 74, 210),
+		text = Color3.fromRGB(200, 152, 236),
 	},
 	["Maestro"] = {
 		hints = { "Legendary playmaker", "Elite technician", "Rare creator", "Masterclass tier" },
-		bgA = Color3.fromRGB(18, 8, 42),
-		bgB = Color3.fromRGB(56, 22, 104),
-		trim = Color3.fromRGB(150, 96, 222),
-		text = Color3.fromRGB(196, 158, 236),
+		bgA = Color3.fromRGB(4, 12, 46),
+		bgB = Color3.fromRGB(12, 42, 108),
+		trim = Color3.fromRGB(88, 128, 208),
+		text = Color3.fromRGB(162, 190, 236),
 	},
 	["Immortal"] = {
 		hints = { "Extremely rare", "All-time legend", "Legacy card", "Iconic pull" },
-		bgA = Color3.fromRGB(20, 28, 42),
-		bgB = Color3.fromRGB(72, 102, 130),
-		trim = Color3.fromRGB(178, 218, 235),
-		text = Color3.fromRGB(198, 228, 238),
+		bgA = Color3.fromRGB(10, 44, 68),
+		bgB = Color3.fromRGB(42, 112, 150),
+		trim = Color3.fromRGB(160, 228, 242),
+		text = Color3.fromRGB(202, 238, 244),
 	},
 	["Player of the Year"] = {
 		hints = { "Seasonal special", "Award winner", "Top performer", "Limited drop", "Elite tier" },
@@ -614,10 +666,13 @@ gridFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateVisibleNewCards
 local function makeCardTile(card, packedCount, index, payload)
 	local unlocked = packedCount > 0
 	local style = Utils.GetRarityStyle(card.rarity)
+	local skin = COLLECTION_SKINS[card.rarity]
 	local lockedStyle = LOCKED_STYLES[card.rarity] or LOCKED_STYLES.Gold
-	local trim = style.trim or style.primary or UI.Gold
-	local dark = style.dark or UI.PanelAlt
-	local textColor = style.text or UI.Text
+	local trim = (skin and skin.trim) or style.trim or style.primary or UI.Gold
+	local dark = (skin and skin.bgA) or style.dark or UI.PanelAlt
+	local secondary = (skin and skin.bgB) or style.secondary or dark
+	local textColor = (skin and skin.text) or style.text or UI.Text
+	local glow = (skin and skin.glow) or style.glow or trim
 	local viewed = payload and payload.viewed or {}
 	local isNew = unlocked and viewed[tostring(card.id)] ~= true
 	local tileTrim = unlocked and trim or (lockedStyle.trim or UI.Muted)
@@ -636,7 +691,7 @@ local function makeCardTile(card, packedCount, index, payload)
 
 	make("UIGradient", {
 		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, unlocked and (style.secondary or dark) or (lockedStyle.bgB or Color3.fromRGB(18, 21, 34))),
+			ColorSequenceKeypoint.new(0, unlocked and secondary or (lockedStyle.bgB or Color3.fromRGB(18, 21, 34))),
 			ColorSequenceKeypoint.new(1, unlocked and dark or (lockedStyle.bgA or Color3.fromRGB(6, 8, 14))),
 		}),
 		Rotation = 35,
@@ -662,7 +717,7 @@ local function makeCardTile(card, packedCount, index, payload)
 		BackgroundColor3 = isNew and UI.Gold or (unlocked and Color3.fromRGB(26, 58, 38) or UI.PanelAlt),
 	}, tile)
 	addCorner(statusPill, 7)
-	addStroke(statusPill, isNew and (style.glow or trim) or tileTrim, 1, isNew and 0.25 or 0.68)
+	addStroke(statusPill, isNew and glow or tileTrim, 1, isNew and 0.25 or 0.68)
 
 	make("TextLabel", {
 		BackgroundTransparency = 1,
@@ -698,7 +753,7 @@ local function makeCardTile(card, packedCount, index, payload)
 		BackgroundTransparency = 1,
 		Size = UDim2.fromScale(1, 1),
 		Text = unlocked and ("Packed x" .. tostring(packedCount)) or "???",
-		TextColor3 = unlocked and (style.glow or trim) or tileText,
+		TextColor3 = unlocked and glow or tileText,
 		TextScaled = false,
 		TextSize = 10,
 		Font = Enum.Font.GothamBlack,
