@@ -2524,9 +2524,10 @@ local DISPLAY_CARD_TREATMENTS = {
 	},
 	["Player of the Year"] = {
 		tag = "BEST",
+		displayLabel = "PLAYER OF THE YEAR",
 		tier = 6,
 		edge = 10,
-		patternCount = 17,
+		patternCount = 0,
 		portraitScale = 1.22,
 		template = "trophy",
 	},
@@ -2699,12 +2700,87 @@ local function addDisplayCardTemplate(frame, treatment, tier, rarityColor, secon
 	end
 
 	if template == "trophy" then
-		local crownBaseY = 0.18
+		local trophyPanel = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = Color3.fromRGB(5, 4, 1),
+			BackgroundTransparency = 0.08,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.18),
+			Size = UDim2.fromScale(0.80, 0.58),
+			ZIndex = 1,
+		}, frame)
+		local trophyPanelCorner = Instance.new("UICorner")
+		trophyPanelCorner.CornerRadius = UDim.new(0.08, 0)
+		trophyPanelCorner.Parent = trophyPanel
+		make("UIStroke", {
+			Color = trimColor,
+			Thickness = 2,
+			Transparency = 0.42,
+		}, trophyPanel)
+
+		for _, x in ipairs({0.07, 0.88}) do
+			make("Frame", {
+				BackgroundColor3 = trimColor,
+				BackgroundTransparency = 0.16,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(x, 0.22),
+				Size = UDim2.fromScale(0.05, 0.54),
+				ZIndex = 1,
+			}, frame)
+		end
+
+		local halo = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.70,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.48),
+			Size = UDim2.fromScale(0.56, 0.34),
+			ZIndex = 1,
+		}, frame)
+		local haloCorner = Instance.new("UICorner")
+		haloCorner.CornerRadius = UDim.new(1, 0)
+		haloCorner.Parent = halo
+		make("UIStroke", {
+			Color = Color3.fromRGB(255, 247, 164),
+			Thickness = 2,
+			Transparency = 0.70,
+		}, halo)
+
+		make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.28,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.36),
+			Size = UDim2.fromScale(0.34, 0.14),
+			ZIndex = 1,
+		}, frame)
+		make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.24,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.50),
+			Size = UDim2.fromScale(0.08, 0.16),
+			ZIndex = 1,
+		}, frame)
+		make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = trimColor,
+			BackgroundTransparency = 0.20,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.64),
+			Size = UDim2.fromScale(0.34, 0.05),
+			ZIndex = 1,
+		}, frame)
+
+		local crownBaseY = 0.16
 		for index = 1, 5 do
 			make("Frame", {
 				AnchorPoint = Vector2.new(0.5, 1),
 				BackgroundColor3 = trimColor,
-				BackgroundTransparency = index == 3 and 0.08 or 0.22,
+				BackgroundTransparency = index == 3 and 0.00 or 0.14,
 				BorderSizePixel = 0,
 				Position = UDim2.fromScale(0.18 + index * 0.105, crownBaseY),
 				Rotation = (index - 3) * 10,
@@ -2712,15 +2788,6 @@ local function addDisplayCardTemplate(frame, treatment, tier, rarityColor, secon
 				ZIndex = 1,
 			}, frame)
 		end
-		make("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0),
-			BackgroundColor3 = Color3.fromRGB(3, 3, 4),
-			BackgroundTransparency = 0.02,
-			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.5, 0.18),
-			Size = UDim2.fromScale(0.72, 0.56),
-			ZIndex = 1,
-		}, frame)
 	end
 end
 
@@ -2731,9 +2798,10 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	local darkColor = style.dark or Color3.fromRGB(16, 12, 8)
 	local trimColor = style.trim or rarityColor
 	local textColor = style.text or Constants.UI.Text
-	local rarityLabel = string.upper(style.label or card.rarity or "CARD")
 	local treatment = getDisplayCardTreatment(card.rarity)
 	local tier = treatment.tier or 0
+	local isTrophyCard = treatment.template == "trophy"
+	local displayRarityLabel = string.upper(treatment.displayLabel or style.label or card.rarity or "CARD")
 	local initials = getCardInitials(card.name)
 	local positionAccent = getPositionAccent(card.position, trimColor)
 
@@ -2812,7 +2880,22 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		}, frame)
 	end
 
-	if tier >= 2 then
+	if isTrophyCard then
+		for index = 1, 5 do
+			make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = index % 2 == 0 and Color3.fromRGB(255, 244, 143) or trimColor,
+				BackgroundTransparency = 0.78,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.49),
+				Rotation = index * 36,
+				Size = UDim2.new(0.96, 0, 0, 2),
+				ZIndex = 1,
+			}, frame)
+		end
+	end
+
+	if tier >= 2 and not isTrophyCard then
 		local tag = make("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundColor3 = Color3.fromRGB(6, 7, 10),
@@ -2837,8 +2920,8 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		BackgroundColor3 = Color3.fromRGB(6, 7, 10),
 		BackgroundTransparency = tier >= 4 and 0.02 or 0.12,
 		BorderSizePixel = 0,
-		Size = UDim2.new(tier >= 3 and 0.82 or 0.76, 0, tier >= 3 and 0.11 or 0.1, 0),
-		Position = UDim2.new(tier >= 3 and 0.09 or 0.12, 0, tier >= 2 and 0.095 or 0.06, 0),
+		Size = isTrophyCard and UDim2.new(0.90, 0, 0.13, 0) or UDim2.new(tier >= 3 and 0.82 or 0.76, 0, tier >= 3 and 0.11 or 0.1, 0),
+		Position = isTrophyCard and UDim2.new(0.05, 0, 0.045, 0) or UDim2.new(tier >= 3 and 0.09 or 0.12, 0, tier >= 2 and 0.095 or 0.06, 0),
 	}, frame)
 	local rarityCorner = Instance.new("UICorner")
 	rarityCorner.CornerRadius = UDim.new(1, 0)
@@ -2848,8 +2931,8 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		Thickness = 1.4,
 		Transparency = 0.2,
 	}, rarityBand)
-	local rarityText = createSignLabel(rarityLabel, UDim2.fromScale(0.92, 0.82), UDim2.fromScale(0.04, 0.09), textColor, rarityBand)
-	make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 18 }, rarityText)
+	local rarityText = createSignLabel(displayRarityLabel, UDim2.fromScale(0.92, 0.82), UDim2.fromScale(0.04, 0.09), textColor, rarityBand)
+	make("UITextSizeConstraint", { MinTextSize = isTrophyCard and 6 or 7, MaxTextSize = isTrophyCard and 15 or 18 }, rarityText)
 
 	local positionBadge = make("Frame", {
 		BackgroundColor3 = Color3.fromRGB(9, 11, 17),
@@ -2874,8 +2957,8 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 
 	local identityPanel = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundColor3 = Color3.fromRGB(4, 6, 11),
-		BackgroundTransparency = tier >= 3 and 0.30 or 0.46,
+		BackgroundColor3 = isTrophyCard and Color3.fromRGB(8, 5, 0) or Color3.fromRGB(4, 6, 11),
+		BackgroundTransparency = isTrophyCard and 0.16 or (tier >= 3 and 0.30 or 0.46),
 		BorderSizePixel = 0,
 		Position = UDim2.new(0.5, 0, 0.33, 0),
 		Size = UDim2.new(0.68, 0, 0.28, 0),
@@ -2885,17 +2968,24 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	identityCorner.CornerRadius = UDim.new(0.18, 0)
 	identityCorner.Parent = identityPanel
 	make("UIStroke", {
-		Color = positionAccent,
-		Thickness = tier >= 3 and 1.6 or 1,
-		Transparency = tier >= 3 and 0.28 or 0.48,
+		Color = isTrophyCard and trimColor or positionAccent,
+		Thickness = isTrophyCard and 2 or (tier >= 3 and 1.6 or 1),
+		Transparency = isTrophyCard and 0.14 or (tier >= 3 and 0.28 or 0.48),
 	}, identityPanel)
 
-	local initialsLabel = createSignLabel(initials, UDim2.fromScale(0.78, 0.76), UDim2.fromScale(0.11, 0.06), textColor, identityPanel)
+	if isTrophyCard then
+		local potyStamp = createSignLabel("POTY", UDim2.fromScale(0.9, 0.28), UDim2.fromScale(0.05, 0.05), Color3.fromRGB(255, 232, 82), identityPanel)
+		potyStamp.ZIndex = 4
+		potyStamp.TextXAlignment = Enum.TextXAlignment.Center
+		make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 14 }, potyStamp)
+	end
+
+	local initialsLabel = createSignLabel(initials, isTrophyCard and UDim2.fromScale(0.78, 0.54) or UDim2.fromScale(0.78, 0.76), isTrophyCard and UDim2.fromScale(0.11, 0.30) or UDim2.fromScale(0.11, 0.06), textColor, identityPanel)
 	initialsLabel.ZIndex = 5
 	initialsLabel.TextXAlignment = Enum.TextXAlignment.Center
 	make("UITextSizeConstraint", { MinTextSize = 22, MaxTextSize = tier >= 4 and 54 or 46 }, initialsLabel)
 
-	local positionMark = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.34, 0.28), UDim2.fromScale(0.33, 0.70), positionAccent, identityPanel)
+	local positionMark = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.34, 0.24), UDim2.fromScale(0.33, isTrophyCard and 0.72 or 0.70), positionAccent, identityPanel)
 	positionMark.ZIndex = 5
 	positionMark.TextXAlignment = Enum.TextXAlignment.Center
 	make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 14 }, positionMark)
