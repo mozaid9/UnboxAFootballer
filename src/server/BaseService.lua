@@ -2874,128 +2874,44 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	nationLabel.TextXAlignment = Enum.TextXAlignment.Right
 	make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 14 }, nationLabel)
 
-	local portrait = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(2, 3, 6),
-		BackgroundTransparency = tier >= 4 and 0.08 or 0.24,
+	local identityPanel = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		BackgroundColor3 = Color3.fromRGB(4, 6, 11),
+		BackgroundTransparency = tier >= 3 and 0.30 or 0.46,
 		BorderSizePixel = 0,
-		Size = UDim2.new(0.54 * treatment.portraitScale, 0, 0.29 * treatment.portraitScale, 0),
-		Position = UDim2.new(0.5 - (0.54 * treatment.portraitScale) / 2, 0, 0.34 - (0.29 * (treatment.portraitScale - 1)) / 2, 0),
+		Position = UDim2.new(0.5, 0, 0.33, 0),
+		Size = UDim2.new(0.68, 0, 0.28, 0),
 		ZIndex = 3,
 	}, frame)
-	local portraitCorner = Instance.new("UICorner")
-	portraitCorner.CornerRadius = UDim.new(0.18, 0)
-	portraitCorner.Parent = portrait
-	make("UIGradient", {
-		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, positionAccent:Lerp(Color3.fromRGB(255, 255, 255), tier >= 3 and 0.18 or 0.08)),
-			ColorSequenceKeypoint.new(0.54, Color3.fromRGB(8, 10, 18)),
-			ColorSequenceKeypoint.new(1, darkColor),
-		}),
-		Rotation = 122,
-	}, portrait)
+	local identityCorner = Instance.new("UICorner")
+	identityCorner.CornerRadius = UDim.new(0.18, 0)
+	identityCorner.Parent = identityPanel
 	make("UIStroke", {
-		Color = trimColor,
-		Thickness = tier >= 3 and 1.8 or 1,
-		Transparency = tier >= 4 and 0.18 or 0.55,
-	}, portrait)
-
-	local watermark = createSignLabel(initials, UDim2.fromScale(0.96, 0.86), UDim2.fromScale(0.02, 0.03), textColor, portrait)
-	watermark.TextTransparency = tier >= 3 and 0.78 or 0.86
-	watermark.TextXAlignment = Enum.TextXAlignment.Center
-	watermark.ZIndex = 4
-	make("UITextSizeConstraint", { MinTextSize = 28, MaxTextSize = 58 }, watermark)
-
-	if tier >= 4 then
-		for index = 1, 8 do
-			make("Frame", {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				BackgroundColor3 = trimColor,
-				BackgroundTransparency = 0.68,
-				BorderSizePixel = 0,
-				Position = UDim2.fromScale(0.5, 0.5),
-				Rotation = index * 22.5,
-				Size = UDim2.new(0, 2, 0.85, 0),
-				ZIndex = 5,
-			}, portrait)
-		end
-	end
-
-	local crestGlow = make("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = positionAccent,
-		BackgroundTransparency = tier >= 3 and 0.54 or 0.68,
-		BorderSizePixel = 0,
-		Position = UDim2.fromScale(0.5, 0.49),
-		Size = UDim2.fromScale(0.54, 0.72),
-		ZIndex = 6,
-	}, portrait)
-	local crestGlowCorner = Instance.new("UICorner")
-	crestGlowCorner.CornerRadius = UDim.new(0.18, 0)
-	crestGlowCorner.Parent = crestGlow
-
-	local crest = make("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
-		BackgroundTransparency = 0.03,
-		BorderSizePixel = 0,
-		Position = UDim2.fromScale(0.5, 0.48),
-		Rotation = 45,
-		Size = UDim2.fromScale(0.42, 0.56),
-		ZIndex = 8,
-	}, portrait)
-	local crestCorner = Instance.new("UICorner")
-	crestCorner.CornerRadius = UDim.new(0.16, 0)
-	crestCorner.Parent = crest
-	make("UIGradient", {
-		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, positionAccent:Lerp(Color3.fromRGB(255, 255, 255), tier >= 3 and 0.16 or 0.06)),
-			ColorSequenceKeypoint.new(0.50, Color3.fromRGB(7, 9, 16)),
-			ColorSequenceKeypoint.new(1, darkColor),
-		}),
-		Rotation = 118,
-	}, crest)
-	make("UIStroke", {
-		Color = trimColor,
-		Thickness = tier >= 3 and 2.2 or 1.4,
-		Transparency = tier >= 4 and 0.04 or 0.16,
-	}, crest)
+		Color = positionAccent,
+		Thickness = tier >= 3 and 1.6 or 1,
+		Transparency = tier >= 3 and 0.28 or 0.48,
+	}, identityPanel)
 
 	make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-		BackgroundTransparency = 0.62,
+		BackgroundColor3 = positionAccent,
+		BackgroundTransparency = 0.18,
 		BorderSizePixel = 0,
-		Position = UDim2.fromScale(0.5, 0.32),
-		Rotation = -45,
-		Size = UDim2.new(1.1, 0, 0, tier >= 3 and 4 or 2),
-		ZIndex = 9,
-	}, crest)
+		Position = UDim2.fromScale(0.5, 0.50),
+		Rotation = -18,
+		Size = UDim2.new(1.12, 0, 0, tier >= 3 and 5 or 3),
+		ZIndex = 4,
+	}, identityPanel)
 
-	local crestInitials = createSignLabel(initials, UDim2.fromScale(1.15, 0.74), UDim2.fromScale(-0.075, 0.13), textColor, crest)
-	crestInitials.Rotation = -45
-	crestInitials.ZIndex = 10
-	make("UITextSizeConstraint", { MinTextSize = 16, MaxTextSize = 38 }, crestInitials)
+	local initialsLabel = createSignLabel(initials, UDim2.fromScale(0.78, 0.76), UDim2.fromScale(0.11, 0.06), textColor, identityPanel)
+	initialsLabel.ZIndex = 5
+	initialsLabel.TextXAlignment = Enum.TextXAlignment.Center
+	make("UITextSizeConstraint", { MinTextSize = 22, MaxTextSize = tier >= 4 and 54 or 46 }, initialsLabel)
 
-	local rolePill = make("Frame", {
-		AnchorPoint = Vector2.new(0.5, 1),
-		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
-		BackgroundTransparency = 0.04,
-		BorderSizePixel = 0,
-		Position = UDim2.fromScale(0.5, 0.95),
-		Size = UDim2.fromScale(0.54, 0.17),
-		ZIndex = 9,
-	}, portrait)
-	local roleCorner = Instance.new("UICorner")
-	roleCorner.CornerRadius = UDim.new(1, 0)
-	roleCorner.Parent = rolePill
-	make("UIStroke", {
-		Color = positionAccent,
-		Thickness = 1,
-		Transparency = 0.18,
-	}, rolePill)
-	local roleLabel = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.82, 0.72), UDim2.fromScale(0.09, 0.14), textColor, rolePill)
-	roleLabel.ZIndex = 10
-	make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 13 }, roleLabel)
+	local positionMark = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.34, 0.28), UDim2.fromScale(0.33, 0.70), positionAccent, identityPanel)
+	positionMark.ZIndex = 5
+	positionMark.TextXAlignment = Enum.TextXAlignment.Center
+	make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 14 }, positionMark)
 
 	make("Frame", {
 		BackgroundColor3 = trimColor,
