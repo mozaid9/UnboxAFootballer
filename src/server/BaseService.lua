@@ -2529,6 +2529,41 @@ local function getDisplayCardTreatment(rarity)
 	return DISPLAY_CARD_TREATMENTS[rarity] or DISPLAY_CARD_TREATMENTS["Gold"]
 end
 
+local POSITION_ACCENTS = {
+	GK = Color3.fromRGB(78, 221, 125),
+	CB = Color3.fromRGB(73, 167, 255),
+	LB = Color3.fromRGB(73, 167, 255),
+	RB = Color3.fromRGB(73, 167, 255),
+	CDM = Color3.fromRGB(110, 222, 205),
+	CM = Color3.fromRGB(170, 116, 255),
+	CAM = Color3.fromRGB(207, 128, 255),
+	LM = Color3.fromRGB(186, 114, 255),
+	RM = Color3.fromRGB(186, 114, 255),
+	LW = Color3.fromRGB(255, 116, 84),
+	RW = Color3.fromRGB(255, 116, 84),
+	ST = Color3.fromRGB(255, 82, 68),
+	CF = Color3.fromRGB(255, 104, 64),
+}
+
+local function getCardInitials(name)
+	local initials = ""
+	for word in string.gmatch(name or "Player", "%w+") do
+		initials = initials .. string.sub(word, 1, 1)
+		if string.len(initials) >= 2 then
+			break
+		end
+	end
+
+	if initials == "" then
+		initials = "P"
+	end
+	return string.upper(initials)
+end
+
+local function getPositionAccent(position, fallback)
+	return POSITION_ACCENTS[string.upper(position or "")] or fallback
+end
+
 local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	local style = Utils.GetRarityStyle(card.rarity)
 	local rarityColor = style.primary
@@ -2539,6 +2574,8 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	local rarityLabel = string.upper(style.label or card.rarity or "CARD")
 	local treatment = getDisplayCardTreatment(card.rarity)
 	local tier = treatment.tier or 0
+	local initials = getCardInitials(card.name)
+	local positionAccent = getPositionAccent(card.position, trimColor)
 
 	local gui = make("SurfaceGui", {
 		Face = face,
@@ -2680,15 +2717,30 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		BorderSizePixel = 0,
 		Size = UDim2.new(0.54 * treatment.portraitScale, 0, 0.29 * treatment.portraitScale, 0),
 		Position = UDim2.new(0.5 - (0.54 * treatment.portraitScale) / 2, 0, 0.34 - (0.29 * (treatment.portraitScale - 1)) / 2, 0),
+		ZIndex = 3,
 	}, frame)
 	local portraitCorner = Instance.new("UICorner")
 	portraitCorner.CornerRadius = UDim.new(0.18, 0)
 	portraitCorner.Parent = portrait
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, positionAccent:Lerp(Color3.fromRGB(255, 255, 255), tier >= 3 and 0.18 or 0.08)),
+			ColorSequenceKeypoint.new(0.54, Color3.fromRGB(8, 10, 18)),
+			ColorSequenceKeypoint.new(1, darkColor),
+		}),
+		Rotation = 122,
+	}, portrait)
 	make("UIStroke", {
 		Color = trimColor,
 		Thickness = tier >= 3 and 1.8 or 1,
 		Transparency = tier >= 4 and 0.18 or 0.55,
 	}, portrait)
+
+	local watermark = createSignLabel(initials, UDim2.fromScale(0.92, 0.78), UDim2.fromScale(0.04, 0.04), textColor, portrait)
+	watermark.TextTransparency = tier >= 3 and 0.70 or 0.80
+	watermark.TextXAlignment = Enum.TextXAlignment.Center
+	watermark.ZIndex = 4
+	make("UITextSizeConstraint", { MinTextSize = 24, MaxTextSize = 52 }, watermark)
 
 	if tier >= 4 then
 		for index = 1, 8 do
@@ -2700,33 +2752,90 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 				Position = UDim2.fromScale(0.5, 0.5),
 				Rotation = index * 22.5,
 				Size = UDim2.new(0, 2, 0.85, 0),
+				ZIndex = 5,
 			}, portrait)
 		end
 	end
 
 	local head = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundColor3 = textColor,
-		BackgroundTransparency = 0.2,
+		BackgroundColor3 = Color3.fromRGB(245, 222, 190),
+		BackgroundTransparency = 0.04,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0.5, 0, 0.12, 0),
-		Size = UDim2.fromScale(0.26, 0.25),
+		Position = UDim2.new(0.5, 0, 0.08, 0),
+		Size = UDim2.fromScale(0.18, 0.19),
+		ZIndex = 8,
 	}, portrait)
 	local headCorner = Instance.new("UICorner")
 	headCorner.CornerRadius = UDim.new(1, 0)
 	headCorner.Parent = head
+	make("UIStroke", {
+		Color = Color3.fromRGB(8, 9, 14),
+		Thickness = 1,
+		Transparency = 0.28,
+	}, head)
 
-	local shoulders = make("Frame", {
+	local jersey = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundColor3 = textColor,
+		BackgroundColor3 = positionAccent,
+		BackgroundTransparency = 0.02,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0.5, 0, 0.32, 0),
+		Size = UDim2.fromScale(0.55, 0.45),
+		ZIndex = 7,
+	}, portrait)
+	local jerseyCorner = Instance.new("UICorner")
+	jerseyCorner.CornerRadius = UDim.new(0.20, 0)
+	jerseyCorner.Parent = jersey
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, positionAccent:Lerp(Color3.fromRGB(255, 255, 255), 0.16)),
+			ColorSequenceKeypoint.new(0.58, positionAccent),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 10, 18)),
+		}),
+		Rotation = 96,
+	}, jersey)
+	make("UIStroke", {
+		Color = trimColor,
+		Thickness = tier >= 3 and 1.4 or 1,
+		Transparency = 0.22,
+	}, jersey)
+
+	make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 		BackgroundTransparency = 0.26,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0.5, 0, 0.43, 0),
-		Size = UDim2.fromScale(0.58, 0.34),
+		Position = UDim2.fromScale(0.5, 0.50),
+		Rotation = -24,
+		Size = UDim2.new(1.18, 0, 0, tier >= 3 and 5 or 3),
+		ZIndex = 8,
+	}, jersey)
+
+	local jerseyInitials = createSignLabel(initials, UDim2.fromScale(0.68, 0.56), UDim2.fromScale(0.16, 0.20), textColor, jersey)
+	jerseyInitials.ZIndex = 9
+	make("UITextSizeConstraint", { MinTextSize = 10, MaxTextSize = 28 }, jerseyInitials)
+
+	local rolePill = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 1),
+		BackgroundColor3 = Color3.fromRGB(6, 8, 13),
+		BackgroundTransparency = 0.04,
+		BorderSizePixel = 0,
+		Position = UDim2.fromScale(0.5, 0.96),
+		Size = UDim2.fromScale(0.46, 0.18),
+		ZIndex = 9,
 	}, portrait)
-	local shouldersCorner = Instance.new("UICorner")
-	shouldersCorner.CornerRadius = UDim.new(0.35, 0)
-	shouldersCorner.Parent = shoulders
+	local roleCorner = Instance.new("UICorner")
+	roleCorner.CornerRadius = UDim.new(1, 0)
+	roleCorner.Parent = rolePill
+	make("UIStroke", {
+		Color = positionAccent,
+		Thickness = 1,
+		Transparency = 0.18,
+	}, rolePill)
+	local roleLabel = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.82, 0.72), UDim2.fromScale(0.09, 0.14), textColor, rolePill)
+	roleLabel.ZIndex = 10
+	make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 13 }, roleLabel)
 
 	make("Frame", {
 		BackgroundColor3 = trimColor,
