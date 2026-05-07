@@ -1703,7 +1703,7 @@ local function createServerPackBillboard(state, body, packDef, color)
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
 	billboard.MaxDistance = 230
-	billboard.Size = UDim2.fromOffset(260, 78)          -- was 300 × 96
+	billboard.Size = UDim2.fromOffset(260, 90)          -- was 300 × 96; extra height keeps pills off the corner clip
 	billboard.StudsOffsetWorldSpace = Vector3.new(0, 12.0, 0)  -- was 9.2
 	billboard.Parent = body
 
@@ -1714,7 +1714,7 @@ local function createServerPackBillboard(state, body, packDef, color)
 	frame.Size = UDim2.fromScale(1, 1)
 	frame.Parent = billboard
 
-	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)  -- was 14; smaller radius = less corner clip
 
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = color
@@ -1748,22 +1748,22 @@ local function createServerPackBillboard(state, body, packDef, color)
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Parent = frame
 
-	-- Health text — compact, just below the title row
+	-- Health text — sits below title row with a clear gap
 	local healthText = Instance.new("TextLabel")
 	healthText.BackgroundTransparency = 1
-	healthText.Size = UDim2.new(0.90, 0, 0.18, 0)
-	healthText.Position = UDim2.new(0.05, 0, 0.30, 0)   -- was y=0.48
+	healthText.Size = UDim2.new(0.90, 0, 0.16, 0)
+	healthText.Position = UDim2.new(0.05, 0, 0.32, 0)   -- 4px gap below title row
 	healthText.TextColor3 = Color3.fromRGB(214, 232, 255)
 	healthText.TextScaled = true
 	healthText.Font = Enum.Font.GothamBold
 	healthText.Parent = frame
 
-	-- Progress bar — thinner, immediately below health text
+	-- Progress bar — below health text with a clear gap
 	local progressBack = Instance.new("Frame")
 	progressBack.BackgroundColor3 = Color3.fromRGB(16, 21, 34)
 	progressBack.BorderSizePixel = 0
-	progressBack.Size = UDim2.new(0.90, 0, 0.08, 0)     -- was h=0.09
-	progressBack.Position = UDim2.new(0.05, 0, 0.51, 0) -- was y=0.67
+	progressBack.Size = UDim2.new(0.90, 0, 0.07, 0)
+	progressBack.Position = UDim2.new(0.05, 0, 0.52, 0)  -- 4px gap below health text
 	progressBack.Parent = frame
 	Instance.new("UICorner", progressBack).CornerRadius = UDim.new(1, 0)
 
@@ -1774,13 +1774,13 @@ local function createServerPackBillboard(state, body, packDef, color)
 	progressFill.Parent = progressBack
 	Instance.new("UICorner", progressFill).CornerRadius = UDim.new(1, 0)
 
-	-- Bottom stat pills — smaller, side by side, below the bar
+	-- Bottom stat pills — anchored 6px above bottom edge (safe from corner clip)
 	local helperText = Instance.new("TextLabel")
 	helperText.BackgroundColor3 = Color3.fromRGB(12, 16, 28)
 	helperText.BackgroundTransparency = 0.08
 	helperText.BorderSizePixel = 0
-	helperText.Size = UDim2.new(0.44, 0, 0.20, 0)       -- was h=0.17
-	helperText.Position = UDim2.new(0.04, 0, 0.76, 0)   -- was y=0.80
+	helperText.Size = UDim2.new(0.44, 0, 0, 18)          -- fixed px height so it doesn't scale into edge
+	helperText.Position = UDim2.new(0.04, 0, 1, -24)     -- 6px from bottom
 	helperText.TextColor3 = Color3.fromRGB(255, 225, 96)
 	helperText.TextScaled = true
 	helperText.Font = Enum.Font.GothamBlack
@@ -1791,8 +1791,8 @@ local function createServerPackBillboard(state, body, packDef, color)
 	qualifiedText.BackgroundColor3 = Color3.fromRGB(12, 16, 28)
 	qualifiedText.BackgroundTransparency = 0.08
 	qualifiedText.BorderSizePixel = 0
-	qualifiedText.Size = UDim2.new(0.44, 0, 0.20, 0)    -- was w=0.40
-	qualifiedText.Position = UDim2.new(0.52, 0, 0.76, 0) -- was x=0.54 y=0.80
+	qualifiedText.Size = UDim2.new(0.44, 0, 0, 18)       -- fixed px height
+	qualifiedText.Position = UDim2.new(0.52, 0, 1, -24)  -- same row, 6px from bottom
 	qualifiedText.TextColor3 = color
 	qualifiedText.TextScaled = true
 	qualifiedText.Font = Enum.Font.GothamBlack
