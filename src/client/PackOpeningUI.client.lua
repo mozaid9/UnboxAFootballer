@@ -710,40 +710,47 @@ local utilityPanelOpen = false
 local utilityButton = make("TextButton", {
 	AnchorPoint = Vector2.new(1, 0),
 	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
-	BackgroundTransparency = 0.05,
-	Position = UDim2.new(1, -20, 0, 86),
-	Size = UDim2.fromOffset(46, 46),
+	BackgroundTransparency = 0.02,
+	Position = UDim2.new(1, -20, 0, 56),
+	Size = UDim2.fromOffset(42, 42),
 	Text = "?",
-	TextColor3 = Color3.fromRGB(235, 238, 248),
+	TextColor3 = UI.Gold,
 	TextScaled = false,
-	TextSize = 24,
+	TextSize = 23,
 	Font = Enum.Font.GothamBlack,
 	AutoButtonColor = true,
 	ZIndex = 80,
 }, screenGui)
-addCorner(utilityButton, 14)
-addStroke(utilityButton, Color3.fromRGB(235, 238, 248), 1.5, 0.44)
+addCorner(utilityButton, 13)
+addStroke(utilityButton, UI.Gold, 1.5, 0.36)
 
 local utilityPanel = make("Frame", {
 	AnchorPoint = Vector2.new(1, 0),
-	BackgroundColor3 = Color3.fromRGB(7, 10, 18),
-	BackgroundTransparency = 0.04,
-	Position = UDim2.new(1, -20, 0, 138),
-	Size = UDim2.fromOffset(224, 138),
+	BackgroundColor3 = Color3.fromRGB(6, 8, 14),
+	BackgroundTransparency = 0.02,
+	Position = UDim2.new(1, -20, 0, 104),
+	Size = UDim2.fromOffset(224, 132),
 	Visible = false,
 	ZIndex = 80,
 }, screenGui)
 addCorner(utilityPanel, 16)
-addStroke(utilityPanel, UI.Gold, 1.5, 0.48)
+addStroke(utilityPanel, UI.Gold, 1.5, 0.34)
+make("UIGradient", {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 22, 35)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(5, 7, 12)),
+	}),
+	Rotation = 100,
+}, utilityPanel)
 
 make("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.new(0, 14, 0, 10),
 	Size = UDim2.new(1, -56, 0, 22),
-	Text = "Help",
-	TextColor3 = UI.Text,
+	Text = "HELP",
+	TextColor3 = UI.Gold,
 	TextScaled = false,
-	TextSize = 16,
+	TextSize = 14,
 	Font = Enum.Font.GothamBlack,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ZIndex = 81,
@@ -765,11 +772,11 @@ local utilityCloseButton = make("TextButton", {
 addCorner(utilityCloseButton, 8)
 
 local helpButton = make("TextButton", {
-	BackgroundColor3 = Color3.fromRGB(34, 38, 49),
-	Position = UDim2.new(0, 14, 0, 46),
-	Size = UDim2.new(1, -28, 0, 34),
-	Text = "Replay onboarding",
-	TextColor3 = Color3.fromRGB(245, 246, 255),
+	BackgroundColor3 = UI.Gold,
+	Position = UDim2.new(0, 14, 0, 44),
+	Size = UDim2.new(1, -28, 0, 32),
+	Text = "HOW TO PLAY",
+	TextColor3 = Color3.fromRGB(12, 9, 3),
 	TextScaled = false,
 	TextSize = 13,
 	Font = Enum.Font.GothamBlack,
@@ -779,11 +786,11 @@ local helpButton = make("TextButton", {
 addCorner(helpButton, 10)
 
 local popupMuteButton = make("TextButton", {
-	BackgroundColor3 = Color3.fromRGB(255, 156, 82),
-	Position = UDim2.new(0, 14, 0, 88),
-	Size = UDim2.new(1, -28, 0, 34),
-	Text = "Popups: On",
-	TextColor3 = Color3.fromRGB(12, 7, 3),
+	BackgroundColor3 = Color3.fromRGB(24, 29, 43),
+	Position = UDim2.new(0, 14, 0, 84),
+	Size = UDim2.new(1, -28, 0, 32),
+	Text = "POPUPS: ON",
+	TextColor3 = Color3.fromRGB(248, 240, 210),
 	TextScaled = false,
 	TextSize = 13,
 	Font = Enum.Font.GothamBlack,
@@ -902,9 +909,9 @@ local function setGemsDisplay(gems)
 end
 
 local function updatePopupMuteButton()
-	popupMuteButton.Text = popupsMuted and "Popups: Off" or "Popups: On"
-	popupMuteButton.BackgroundColor3 = popupsMuted and Color3.fromRGB(104, 46, 38) or Color3.fromRGB(255, 156, 82)
-	popupMuteButton.TextColor3 = popupsMuted and Color3.fromRGB(255, 226, 216) or Color3.fromRGB(12, 7, 3)
+	popupMuteButton.Text = popupsMuted and "POPUPS: OFF" or "POPUPS: ON"
+	popupMuteButton.BackgroundColor3 = popupsMuted and Color3.fromRGB(52, 20, 18) or Color3.fromRGB(24, 29, 43)
+	popupMuteButton.TextColor3 = popupsMuted and Color3.fromRGB(255, 184, 166) or Color3.fromRGB(248, 240, 210)
 end
 
 local function showToast(text, accent, force)
@@ -1235,6 +1242,7 @@ local function setUtilityPanelOpen(open)
 	utilityPanelOpen = open
 	utilityPanel.Visible = open
 	utilityButton.Text = open and "X" or "?"
+	utilityButton.TextColor3 = open and UI.Text or UI.Gold
 end
 
 utilityButton.MouseButton1Click:Connect(function()
