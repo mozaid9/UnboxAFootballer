@@ -331,10 +331,71 @@ local closeBtn = make("TextButton", {
 addCorner(closeBtn, 12)
 addHoverScale(closeBtn, 1.05)
 
+local shopTabBar = make("Frame", {
+	Name = "TabBar",
+	Position = UDim2.new(0, 16, 0, 72),
+	Size = UDim2.new(1, -32, 0, 36),
+	BackgroundTransparency = 1,
+	ZIndex = 14,
+}, panel)
+
+make("UIListLayout", {
+	FillDirection = Enum.FillDirection.Horizontal,
+	HorizontalAlignment = Enum.HorizontalAlignment.Left,
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+	Padding = UDim.new(0, 8),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, shopTabBar)
+
+local shopTabs = {}
+local selectedShopTab = "Rewards"
+local scrollToShopSection
+
+local function setSelectedShopTab(tabKey)
+	selectedShopTab = tabKey or selectedShopTab
+	for key, tab in pairs(shopTabs) do
+		local selected = key == selectedShopTab
+		tab.button.BackgroundColor3 = selected and UI.Gold or Color3.fromRGB(18, 23, 38)
+		tab.button.TextColor3 = selected and Color3.fromRGB(12, 9, 3) or Color3.fromRGB(224, 220, 204)
+		tab.stroke.Transparency = selected and 0.22 or 0.76
+	end
+end
+
+local function createShopTab(tabKey, label, layoutOrder)
+	local button = make("TextButton", {
+		LayoutOrder = layoutOrder,
+		Size = UDim2.new(0.25, -6, 1, 0),
+		BackgroundColor3 = Color3.fromRGB(18, 23, 38),
+		Text = label,
+		TextColor3 = Color3.fromRGB(224, 220, 204),
+		TextScaled = false,
+		TextSize = 11,
+		Font = Enum.Font.GothamBlack,
+		AutoButtonColor = true,
+		ZIndex = 14,
+	}, shopTabBar)
+	addCorner(button, 10)
+	local stroke = addStroke(button, UI.Gold, 1.2, 0.76)
+	shopTabs[tabKey] = { button = button, stroke = stroke }
+
+	button.MouseButton1Click:Connect(function()
+		setSelectedShopTab(tabKey)
+		if scrollToShopSection then
+			scrollToShopSection(tabKey)
+		end
+	end)
+end
+
+createShopTab("Rewards", "Rewards", 1)
+createShopTab("FanPacks", "Fan Packs", 2)
+createShopTab("GemPacks", "Gem Packs", 3)
+createShopTab("Cosmetics", "Cosmetics", 4)
+setSelectedShopTab("Rewards")
+
 local scroll = make("ScrollingFrame", {
 	Name = "ContentScroll",
-	Position = UDim2.new(0, 0, 0, 68),
-	Size = UDim2.new(1, 0, 1, -68),
+	Position = UDim2.new(0, 0, 0, 116),
+	Size = UDim2.new(1, 0, 1, -116),
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
 	ScrollBarThickness = 5,
@@ -364,8 +425,10 @@ contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 	scroll.CanvasSize = UDim2.fromOffset(0, contentLayout.AbsoluteContentSize.Y + 36)
 end)
 
-local function sectionLabel(text, layoutOrder)
-	return make("TextLabel", {
+local sectionAnchors = {}
+
+local function sectionLabel(text, layoutOrder, tabKey)
+	local label = make("TextLabel", {
 		LayoutOrder = layoutOrder,
 		Size = UDim2.new(1, 0, 0, 18),
 		BackgroundTransparency = 1,
@@ -377,9 +440,29 @@ local function sectionLabel(text, layoutOrder)
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 11,
 	}, content)
+	if tabKey then
+		sectionAnchors[tabKey] = label
+	end
+	return label
 end
 
-sectionLabel("FREE REWARDS", 1)
+scrollToShopSection = function(tabKey)
+	local target = sectionAnchors[tabKey]
+	if not target then
+		return
+	end
+
+	task.defer(function()
+		if not target.Parent then
+			return
+		end
+		local relativeY = target.AbsolutePosition.Y - content.AbsolutePosition.Y
+		local maxY = math.max(0, scroll.AbsoluteCanvasSize.Y - scroll.AbsoluteWindowSize.Y)
+		scroll.CanvasPosition = Vector2.new(0, math.clamp(relativeY - 4, 0, maxY))
+	end)
+end
+
+sectionLabel("FREE REWARDS", 1, "Rewards")
 
 local freeCard = make("Frame", {
 	LayoutOrder = 2,
@@ -1053,11 +1136,15 @@ local function createPackGrid(packIds, layoutOrder)
 	end
 end
 
-sectionLabel("PACKS", 6)
+sectionLabel("PACKS", 6, "FanPacks")
 createPackGrid(FAN_PACK_INFO, 7)
 if #GEM_PACK_INFO > 0 then
-	sectionLabel("GEM PACKS", 8)
+	sectionLabel("GEM PACKS", 8, "GemPacks")
 	createPackGrid(GEM_PACK_INFO, 9)
+else
+	shopTabs.GemPacks.button.TextColor3 = UI.Muted
+	shopTabs.GemPacks.button.AutoButtonColor = false
+	shopTabs.GemPacks.button.Active = false
 end
 
 packHint = make("TextLabel", {
@@ -1146,8 +1233,10 @@ purchasePack = function(packId)
 	updatePackBuyButtons()
 end
 
+sectionLabel("COSMETICS", 11, "Cosmetics")
+
 local futureCard = make("Frame", {
-	LayoutOrder = 11,
+	LayoutOrder = 12,
 	Size = UDim2.new(1, 0, 0, 58),
 	BackgroundColor3 = UI.PanelAlt,
 	ZIndex = 11,
@@ -1542,6 +1631,8 @@ local function openShop()
 	end
 	isOpen = true
 	screenGui.Enabled = true
+	setSelectedShopTab("Rewards")
+	scroll.CanvasPosition = Vector2.new(0, 0)
 
 	task.spawn(function()
 		local data = GetPlayerDataFn:InvokeServer()
