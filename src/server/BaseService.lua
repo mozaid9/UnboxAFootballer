@@ -2585,6 +2585,102 @@ local function createFanZone(mapWidth, mapLength)
 		createPlanter(plaza, planterPosition, 0.9)
 	end
 
+	-- ── Plaza greenery & border ───────────────────────────────────────────────
+	-- Hedge rows line the north/south edges of the central deck.
+	-- Bush clusters anchor all four corners.
+	-- Low stone walls cap the west/east outer edges of the deck.
+	-- Soft green ambient lights wash the greenery so it reads at night.
+	do
+		local hedgeAsset = modelAssets.Hedge
+		local bushAsset  = modelAssets.Bush
+		local wallAsset  = modelAssets.StoneWall
+
+		-- North hedge row  (deck north edge z = -23, placed at z = -27)
+		-- Face INWARD (toward z = 0) so the trimmed face shows to players
+		for hx = -21, 21, 7 do
+			tryCreateImportedDecor(
+				plaza, "HedgeNorth" .. hx,
+				hedgeAsset,
+				Vector3.new(hx, 0, -27),
+				Vector3.new(hx, 0, 0),
+				3.2
+			)
+		end
+
+		-- South hedge row  (deck south edge z = 23, placed at z = 27)
+		for hx = -21, 21, 7 do
+			tryCreateImportedDecor(
+				plaza, "HedgeSouth" .. hx,
+				hedgeAsset,
+				Vector3.new(hx, 0, 27),
+				Vector3.new(hx, 0, 0),
+				3.2
+			)
+		end
+
+		-- Bush clusters at each corner of the deck
+		for _, bp in ipairs({
+			Vector3.new(-25, 0, -25),
+			Vector3.new( 25, 0, -25),
+			Vector3.new(-25, 0,  25),
+			Vector3.new( 25, 0,  25),
+		}) do
+			tryCreateImportedDecor(
+				plaza, "BushCorner" .. bp.X .. "_" .. bp.Z,
+				bushAsset,
+				bp,
+				Vector3.new(0, 0, 0),  -- face podium
+				2.4
+			)
+		end
+
+		-- Low stone wall segments along west / east edges of the deck
+		-- They run north-south at x = ±31, skipping the very centre so
+		-- the main walkway (width 54, ±27) stays clear.
+		for wz = -18, 18, 9 do
+			tryCreateImportedDecor(
+				plaza, "StoneWallWest" .. wz,
+				wallAsset,
+				Vector3.new(-31, 0, wz),
+				Vector3.new(-31, 0, wz + 1),
+				2.2
+			)
+			tryCreateImportedDecor(
+				plaza, "StoneWallEast" .. wz,
+				wallAsset,
+				Vector3.new(31, 0, wz),
+				Vector3.new(31, 0, wz + 1),
+				2.2
+			)
+		end
+
+		-- Green ambient wash lights behind each hedge row so the greenery
+		-- glows softly at night (matches the concept-art look)
+		local GREEN_HEDGE = Color3.fromRGB(38, 168, 72)
+		for _, lightPos in ipairs({
+			Vector3.new(-14, 2.5, -27),
+			Vector3.new(  0, 2.5, -27),
+			Vector3.new( 14, 2.5, -27),
+			Vector3.new(-14, 2.5,  27),
+			Vector3.new(  0, 2.5,  27),
+			Vector3.new( 14, 2.5,  27),
+		}) do
+			local gAnchor = make("Part", {
+				Name = "HedgeGreenLight",
+				Anchored = true, CanCollide = false,
+				Transparency = 1,
+				Size = Vector3.new(1, 1, 1),
+				CFrame = CFrame.new(lightPos),
+			}, plaza)
+			make("PointLight", {
+				Color = GREEN_HEDGE,
+				Range = 18,
+				Brightness = 0.35,
+				Shadows = false,
+			}, gAnchor)
+		end
+	end
+
 	createSoftFillLight(plaza, "CenterPlazaFill", Vector3.new(0, 13, 0), 78, 0.3, Color3.fromRGB(255, 225, 170))
 	createSoftFillLight(plaza, "NorthPlazaFill", Vector3.new(0, 13, northZ - 8), 68, 0.22, Color3.fromRGB(230, 238, 255))
 	createSoftFillLight(plaza, "SouthPlazaFill", Vector3.new(0, 13, southZ + 8), 68, 0.22, Color3.fromRGB(230, 238, 255))
@@ -5850,8 +5946,8 @@ function BaseService.BuildBaseMap()
 		Name = "LobbyPlaza",
 		Anchored = true,
 		CanCollide = false,
-		Material = Enum.Material.Cobblestone,
-		Color = Color3.fromRGB(46, 54, 68),
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(22, 28, 38),   -- premium dark tile (was rough cobblestone)
 		Size = Vector3.new(mapWidth - 8, 0.2, mapLength - 8),
 		CFrame = CFrame.new(0, 0.1, 0),
 	}, basesFolder)

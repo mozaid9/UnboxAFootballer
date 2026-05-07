@@ -223,6 +223,10 @@ Constants.FanZone = {
 		DirectionSign = 102532409227953,
 		TicketBooth = 3999244765,
 		WalkingNpc = 127964771902906,
+		-- Plaza greenery & border
+		Hedge      = 65660592,
+		Bush       = 8647777369,
+		StoneWall  = 3310830189,
 	},
 	FansPerVisibleNpc = 75000,
 	FansPerStadiumVisitor = 10000000,
