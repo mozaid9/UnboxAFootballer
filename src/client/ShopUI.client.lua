@@ -349,7 +349,9 @@ make("UIListLayout", {
 
 local shopTabs = {}
 local selectedShopTab = "Rewards"
-local scrollToShopSection
+local shopSections = {}
+local scroll
+local packHint
 
 local function setSelectedShopTab(tabKey)
 	selectedShopTab = tabKey or selectedShopTab
@@ -358,6 +360,22 @@ local function setSelectedShopTab(tabKey)
 		tab.button.BackgroundColor3 = selected and UI.Gold or Color3.fromRGB(18, 23, 38)
 		tab.button.TextColor3 = selected and Color3.fromRGB(12, 9, 3) or Color3.fromRGB(224, 220, 204)
 		tab.stroke.Transparency = selected and 0.22 or 0.76
+	end
+
+	for key, entries in pairs(shopSections) do
+		local visible = key == selectedShopTab
+		for _, guiObject in ipairs(entries) do
+			if guiObject and guiObject.Parent then
+				guiObject.Visible = visible
+			end
+		end
+	end
+	if packHint and packHint.Parent then
+		packHint.Visible = selectedShopTab == "FanPacks" or selectedShopTab == "GemPacks"
+	end
+
+	if scroll then
+		scroll.CanvasPosition = Vector2.new(0, 0)
 	end
 end
 
@@ -380,9 +398,6 @@ local function createShopTab(tabKey, label, layoutOrder)
 
 	button.MouseButton1Click:Connect(function()
 		setSelectedShopTab(tabKey)
-		if scrollToShopSection then
-			scrollToShopSection(tabKey)
-		end
 	end)
 end
 
@@ -392,7 +407,7 @@ createShopTab("GemPacks", "Gem Packs", 3)
 createShopTab("Cosmetics", "Cosmetics", 4)
 setSelectedShopTab("Rewards")
 
-local scroll = make("ScrollingFrame", {
+scroll = make("ScrollingFrame", {
 	Name = "ContentScroll",
 	Position = UDim2.new(0, 0, 0, 116),
 	Size = UDim2.new(1, 0, 1, -116),
@@ -425,10 +440,8 @@ contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 	scroll.CanvasSize = UDim2.fromOffset(0, contentLayout.AbsoluteContentSize.Y + 36)
 end)
 
-local sectionAnchors = {}
-
-local function sectionLabel(text, layoutOrder, tabKey)
-	local label = make("TextLabel", {
+local function sectionLabel(text, layoutOrder)
+	return make("TextLabel", {
 		LayoutOrder = layoutOrder,
 		Size = UDim2.new(1, 0, 0, 18),
 		BackgroundTransparency = 1,
@@ -440,29 +453,9 @@ local function sectionLabel(text, layoutOrder, tabKey)
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 11,
 	}, content)
-	if tabKey then
-		sectionAnchors[tabKey] = label
-	end
-	return label
 end
 
-scrollToShopSection = function(tabKey)
-	local target = sectionAnchors[tabKey]
-	if not target then
-		return
-	end
-
-	task.defer(function()
-		if not target.Parent then
-			return
-		end
-		local relativeY = target.AbsolutePosition.Y - content.AbsolutePosition.Y
-		local maxY = math.max(0, scroll.AbsoluteCanvasSize.Y - scroll.AbsoluteWindowSize.Y)
-		scroll.CanvasPosition = Vector2.new(0, math.clamp(relativeY - 4, 0, maxY))
-	end)
-end
-
-sectionLabel("FREE REWARDS", 1, "Rewards")
+local rewardsLabel = sectionLabel("FREE REWARDS", 1)
 
 local freeCard = make("Frame", {
 	LayoutOrder = 2,
@@ -754,7 +747,7 @@ for index, reward in ipairs(DAILY_REWARDS) do
 	}
 end
 
-sectionLabel("LIMITED OFFERS", 4)
+local limitedLabel = sectionLabel("LIMITED OFFERS", 4)
 
 local limitedCard = make("Frame", {
 	LayoutOrder = 5,
@@ -871,7 +864,6 @@ local limitedBtn = make("TextButton", {
 }, limitedCard)
 addCorner(limitedBtn, 10)
 
-local packHint
 local purchasePack
 
 local function getPackCooldownRemaining(packId)
@@ -1134,13 +1126,17 @@ local function createPackGrid(packIds, layoutOrder)
 			ZIndex = 12,
 		}, card)
 	end
+
+	return packGrid
 end
 
-sectionLabel("PACKS", 6, "FanPacks")
-createPackGrid(FAN_PACK_INFO, 7)
+local fanPacksLabel = sectionLabel("PACKS", 6)
+local fanPacksGrid = createPackGrid(FAN_PACK_INFO, 7)
+local gemPacksLabel
+local gemPacksGrid
 if #GEM_PACK_INFO > 0 then
-	sectionLabel("GEM PACKS", 8, "GemPacks")
-	createPackGrid(GEM_PACK_INFO, 9)
+	gemPacksLabel = sectionLabel("GEM PACKS", 8)
+	gemPacksGrid = createPackGrid(GEM_PACK_INFO, 9)
 else
 	shopTabs.GemPacks.button.TextColor3 = UI.Muted
 	shopTabs.GemPacks.button.AutoButtonColor = false
@@ -1233,7 +1229,7 @@ purchasePack = function(packId)
 	updatePackBuyButtons()
 end
 
-sectionLabel("COSMETICS", 11, "Cosmetics")
+local cosmeticsLabel = sectionLabel("COSMETICS", 11)
 
 local futureCard = make("Frame", {
 	LayoutOrder = 12,
@@ -1256,6 +1252,12 @@ make("TextLabel", {
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ZIndex = 12,
 }, futureCard)
+
+shopSections.Rewards = { rewardsLabel, freeCard, dailyCard, limitedLabel, limitedCard }
+shopSections.FanPacks = { fanPacksLabel, fanPacksGrid }
+shopSections.GemPacks = gemPacksGrid and { gemPacksLabel, gemPacksGrid } or {}
+shopSections.Cosmetics = { cosmeticsLabel, futureCard }
+setSelectedShopTab("Rewards")
 
 make("TextLabel", {
 	BackgroundTransparency = 1,
