@@ -1689,61 +1689,81 @@ local function updateServerPackBillboard(state)
 	state.healthText.Text = "HEALTH " .. Utils.FormatNumber(math.ceil(health)) .. " / " .. Utils.FormatNumber(maxHealth)
 	state.progressFill.Size = UDim2.fromScale(ratio, 1)
 	if state.helperText then
-		state.helperText.Text = tostring(minHits) .. " HITS TO CLAIM  |  " .. tostring(qualified) .. " QUALIFIED"
+		state.helperText.Text = tostring(minHits) .. " HITS TO CLAIM"
+	end
+	if state.qualifiedText then
+		state.qualifiedText.Text = tostring(qualified) .. " QUALIFIED"
 	end
 end
 
 local function createServerPackBillboard(state, body, packDef, color)
+	-- Smaller footprint, lifted higher so it reads like a HUD rather than blocking the view
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "ServerPackBillboard"
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
 	billboard.MaxDistance = 230
-	billboard.Size = UDim2.fromOffset(360, 128)
-	billboard.StudsOffsetWorldSpace = Vector3.new(0, 8.6, 0)
+	billboard.Size = UDim2.fromOffset(260, 78)          -- was 300 × 96
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, 12.0, 0)  -- was 9.2
 	billboard.Parent = body
 
 	local frame = Instance.new("Frame")
 	frame.BackgroundColor3 = Color3.fromRGB(6, 10, 20)
-	frame.BackgroundTransparency = 0.05
+	frame.BackgroundTransparency = 0.12
 	frame.BorderSizePixel = 0
 	frame.Size = UDim2.fromScale(1, 1)
 	frame.Parent = billboard
 
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 16)
-	corner.Parent = frame
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
 
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = color
-	stroke.Thickness = 3
-	stroke.Transparency = 0.08
+	stroke.Thickness = 2
+	stroke.Transparency = 0.14
 	stroke.Parent = frame
 
+	-- EVENT badge — top-left pill instead of floating in the centre
+	local badge = Instance.new("TextLabel")
+	badge.BackgroundColor3 = color
+	badge.BackgroundTransparency = 0
+	badge.BorderSizePixel = 0
+	badge.Size = UDim2.new(0.24, 0, 0.20, 0)
+	badge.Position = UDim2.new(0.04, 0, 0.05, 0)        -- was centred at 0.36
+	badge.Text = "EVENT"
+	badge.TextColor3 = Color3.fromRGB(5, 10, 18)
+	badge.TextScaled = true
+	badge.Font = Enum.Font.GothamBlack
+	badge.Parent = frame
+	Instance.new("UICorner", badge).CornerRadius = UDim.new(1, 0)
+
+	-- Title — sits right of the badge on the same row
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
-	title.Size = UDim2.new(0.9, 0, 0.26, 0)
-	title.Position = UDim2.new(0.05, 0, 0.08, 0)
+	title.Size = UDim2.new(0.68, 0, 0.24, 0)
+	title.Position = UDim2.new(0.30, 0, 0.04, 0)        -- was full-width at y=0.22
 	title.Text = string.upper(packDef.displayName or "SERVER PACK")
 	title.TextColor3 = Color3.fromRGB(255, 255, 255)
 	title.TextScaled = true
 	title.Font = Enum.Font.GothamBlack
+	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Parent = frame
 
+	-- Health text — compact, just below the title row
 	local healthText = Instance.new("TextLabel")
 	healthText.BackgroundTransparency = 1
-	healthText.Size = UDim2.new(0.9, 0, 0.19, 0)
-	healthText.Position = UDim2.new(0.05, 0, 0.38, 0)
+	healthText.Size = UDim2.new(0.90, 0, 0.18, 0)
+	healthText.Position = UDim2.new(0.05, 0, 0.30, 0)   -- was y=0.48
 	healthText.TextColor3 = Color3.fromRGB(214, 232, 255)
 	healthText.TextScaled = true
 	healthText.Font = Enum.Font.GothamBold
 	healthText.Parent = frame
 
+	-- Progress bar — thinner, immediately below health text
 	local progressBack = Instance.new("Frame")
 	progressBack.BackgroundColor3 = Color3.fromRGB(16, 21, 34)
 	progressBack.BorderSizePixel = 0
-	progressBack.Size = UDim2.new(0.84, 0, 0.12, 0)
-	progressBack.Position = UDim2.new(0.08, 0, 0.62, 0)
+	progressBack.Size = UDim2.new(0.90, 0, 0.08, 0)     -- was h=0.09
+	progressBack.Position = UDim2.new(0.05, 0, 0.51, 0) -- was y=0.67
 	progressBack.Parent = frame
 	Instance.new("UICorner", progressBack).CornerRadius = UDim.new(1, 0)
 
@@ -1754,18 +1774,36 @@ local function createServerPackBillboard(state, body, packDef, color)
 	progressFill.Parent = progressBack
 	Instance.new("UICorner", progressFill).CornerRadius = UDim.new(1, 0)
 
+	-- Bottom stat pills — smaller, side by side, below the bar
 	local helperText = Instance.new("TextLabel")
-	helperText.BackgroundTransparency = 1
-	helperText.Size = UDim2.new(0.9, 0, 0.18, 0)
-	helperText.Position = UDim2.new(0.05, 0, 0.78, 0)
+	helperText.BackgroundColor3 = Color3.fromRGB(12, 16, 28)
+	helperText.BackgroundTransparency = 0.08
+	helperText.BorderSizePixel = 0
+	helperText.Size = UDim2.new(0.44, 0, 0.20, 0)       -- was h=0.17
+	helperText.Position = UDim2.new(0.04, 0, 0.76, 0)   -- was y=0.80
 	helperText.TextColor3 = Color3.fromRGB(255, 225, 96)
 	helperText.TextScaled = true
 	helperText.Font = Enum.Font.GothamBlack
 	helperText.Parent = frame
+	Instance.new("UICorner", helperText).CornerRadius = UDim.new(1, 0)
 
+	local qualifiedText = Instance.new("TextLabel")
+	qualifiedText.BackgroundColor3 = Color3.fromRGB(12, 16, 28)
+	qualifiedText.BackgroundTransparency = 0.08
+	qualifiedText.BorderSizePixel = 0
+	qualifiedText.Size = UDim2.new(0.44, 0, 0.20, 0)    -- was w=0.40
+	qualifiedText.Position = UDim2.new(0.52, 0, 0.76, 0) -- was x=0.54 y=0.80
+	qualifiedText.TextColor3 = color
+	qualifiedText.TextScaled = true
+	qualifiedText.Font = Enum.Font.GothamBlack
+	qualifiedText.Parent = frame
+	Instance.new("UICorner", qualifiedText).CornerRadius = UDim.new(1, 0)
+
+	-- State refs unchanged — updateServerPackBillboard writes to the same fields
 	state.healthText = healthText
 	state.progressFill = progressFill
 	state.helperText = helperText
+	state.qualifiedText = qualifiedText
 	updateServerPackBillboard(state)
 end
 
