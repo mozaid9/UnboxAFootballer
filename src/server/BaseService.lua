@@ -2288,43 +2288,115 @@ local function createFanZone(mapWidth, mapLength)
 	createPennantString(plaza, "SouthWalkwayPennants", -56, Color3.fromRGB(255, 214, 58), Color3.fromRGB(218, 38, 48))
 	createPennantString(plaza, "NorthWalkwayPennants", 56, Color3.fromRGB(72, 185, 245), Color3.fromRGB(255, 214, 58))
 
-	-- ── Centre podium: three stepped tiers + elevated spinning football ──────────
-	-- Roblox cylinders have their length along X, so we rotate 90° on Z to stand
-	-- them upright (flat faces become top/bottom).
+	-- ── Centre podium: three stepped tiers with neon rims + dramatic lighting ───
+	-- Cylinders have length along X so we rotate 90° on Z to stand them upright.
+	local PODIUM_GOLD  = Color3.fromRGB(220, 170, 28)   -- deep warm gold for rims
+	local PODIUM_RED   = Color3.fromRGB(220, 40,  20)   -- red glow at base (concept art)
 
 	-- Tier 1 — wide base (bottom at Y=0, top at Y=3.2)
 	make("Part", {
 		Name = "PedestalTier1",
-		Anchored = true,
-		CanCollide = true,
+		Anchored = true, CanCollide = true,
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(10, 14, 24),
 		Size = Vector3.new(3.2, 24, 24),
 		CFrame = CFrame.new(0, 1.6, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
+	-- Gold neon rim ring at top edge of Tier 1
+	make("Part", {
+		Name = "PedestalTier1Rim",
+		Anchored = true, CanCollide = false,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Neon,
+		Color = PODIUM_GOLD,
+		Size = Vector3.new(0.18, 24.6, 24.6),
+		CFrame = CFrame.new(0, 3.15, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, plaza)
+	-- Red glow ring at the very base — the dramatic floor halo from the concept
+	make("Part", {
+		Name = "PedestalBaseGlow",
+		Anchored = true, CanCollide = false,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Neon,
+		Color = PODIUM_RED,
+		Transparency = 0.55,
+		Size = Vector3.new(0.10, 28, 28),
+		CFrame = CFrame.new(0, 0.12, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, plaza)
+
 	-- Tier 2 — mid (bottom ≈ Y=3.3, top ≈ Y=5.9)
 	make("Part", {
 		Name = "PedestalTier2",
-		Anchored = true,
-		CanCollide = true,
+		Anchored = true, CanCollide = true,
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(14, 19, 32),
 		Size = Vector3.new(2.6, 16, 16),
 		CFrame = CFrame.new(0, 4.6, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
+	-- Gold neon rim ring at top edge of Tier 2
+	make("Part", {
+		Name = "PedestalTier2Rim",
+		Anchored = true, CanCollide = false,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Neon,
+		Color = PODIUM_GOLD,
+		Size = Vector3.new(0.16, 16.6, 16.6),
+		CFrame = CFrame.new(0, 5.85, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, plaza)
+
 	-- Tier 3 — top plinth (bottom ≈ Y=6.1, top ≈ Y=8.4)
 	make("Part", {
 		Name = "PedestalTier3",
-		Anchored = true,
-		CanCollide = true,
+		Anchored = true, CanCollide = true,
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(18, 24, 40),
 		Size = Vector3.new(2.3, 10, 10),
 		CFrame = CFrame.new(0, 7.3, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
+	-- Gold neon rim ring at top edge of Tier 3
+	make("Part", {
+		Name = "PedestalTier3Rim",
+		Anchored = true, CanCollide = false,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Neon,
+		Color = PODIUM_GOLD,
+		Size = Vector3.new(0.14, 10.6, 10.6),
+		CFrame = CFrame.new(0, 8.42, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, plaza)
+
+	-- Dramatic red uplight from inside the base — bleeds onto the ground around it
+	local redGlow = make("Part", {
+		Name = "PedestalRedLightSource",
+		Anchored = true, CanCollide = false,
+		Transparency = 1,
+		Size = Vector3.new(1, 1, 1),
+		CFrame = CFrame.new(0, 0.5, 0),
+	}, plaza)
+	make("PointLight", {
+		Color = PODIUM_RED,
+		Range = 28,
+		Brightness = 1.6,
+		Shadows = false,
+	}, redGlow)
+
+	-- Warm gold light from the top plinth — lights the ball and surrounding area
+	local goldGlow = make("Part", {
+		Name = "PedestalGoldLightSource",
+		Anchored = true, CanCollide = false,
+		Transparency = 1,
+		Size = Vector3.new(1, 1, 1),
+		CFrame = CFrame.new(0, 8.5, 0),
+	}, plaza)
+	make("PointLight", {
+		Color = PODIUM_GOLD,
+		Range = 22,
+		Brightness = 0.9,
+		Shadows = false,
+	}, goldGlow)
+
 	createCollisionBlocker(
 		plaza,
 		"TrophyPodiumCollisionBlocker",
@@ -2332,17 +2404,68 @@ local function createFanZone(mapWidth, mapLength)
 		CFrame.new(0, 4.5, 0),
 		COLLISION_GROUPS.Props
 	)
-	-- ── Planter ring around the podium ────────────────────────────────
-	-- Six smaller planters form a decorative circle at radius 17, just
-	-- outside the Tier1 ring (radius ≈ 12).
+
+	-- ── Ring of alternating accent pillars + planters around the podium ──────
+	-- Even indices: gold neon accent pillars with uplight cones
+	-- Odd indices: planters (unchanged)
 	local RING_RADIUS = 17
-	local RING_COUNT = 6
+	local RING_COUNT  = 6
 	for ringIndex = 1, RING_COUNT do
 		local angle = math.rad((ringIndex - 1) * (360 / RING_COUNT))
-		createPlanter(plaza, Vector3.new(math.cos(angle) * RING_RADIUS, 0, math.sin(angle) * RING_RADIUS), 0.52)
+		local rx = math.cos(angle) * RING_RADIUS
+		local rz = math.sin(angle) * RING_RADIUS
+		if ringIndex % 2 == 0 then
+			-- Gold neon accent pillar
+			make("Part", {
+				Name = "RingPillar" .. ringIndex,
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.SmoothPlastic,
+				Color = Color3.fromRGB(12, 16, 26),
+				Size = Vector3.new(1.2, 5, 1.2),
+				CFrame = CFrame.new(rx, 2.5, rz),
+			}, plaza)
+			-- Neon cap
+			make("Part", {
+				Name = "RingPillarCap" .. ringIndex,
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Neon,
+				Color = PODIUM_GOLD,
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(1.4, 1.4, 1.4),
+				CFrame = CFrame.new(rx, 5.7, rz),
+			}, plaza)
+			-- Uplight cone (thin neon cylinder pointing up)
+			make("Part", {
+				Name = "RingPillarUplight" .. ringIndex,
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Neon,
+				Color = PODIUM_GOLD,
+				Transparency = 0.70,
+				Size = Vector3.new(0.5, 0.5, 0.5),
+				CFrame = CFrame.new(rx, 0.3, rz),
+			}, plaza)
+			-- PointLight at pillar cap
+			local pillarLight = make("Part", {
+				Name = "RingPillarLight" .. ringIndex,
+				Anchored = true, CanCollide = false,
+				Transparency = 1,
+				Size = Vector3.new(0.5, 0.5, 0.5),
+				CFrame = CFrame.new(rx, 5.7, rz),
+			}, plaza)
+			make("PointLight", {
+				Color = PODIUM_GOLD,
+				Range = 12,
+				Brightness = 0.55,
+				Shadows = false,
+			}, pillarLight)
+		else
+			createPlanter(plaza, Vector3.new(rx, 0, rz), 0.52)
+		end
 	end
 
-	local statue = tryCreateImportedDecor(plaza, "FootballStatue", modelAssets.FootballStatue, Vector3.new(0, 8.45, 0), Vector3.new(0, 8.45, -12), 12.0)
+	-- Try custom soccer ball first, then the statue model, then plain gold sphere
+	local statue = tryCreateImportedDecor(plaza, "SoccerBall", modelAssets.SoccerBall, Vector3.new(0, 8.45, 0), Vector3.new(0, 8.45, -12), 5.0)
+		or tryCreateImportedDecor(plaza, "FootballStatue", modelAssets.FootballStatue, Vector3.new(0, 8.45, 0), Vector3.new(0, 8.45, -12), 12.0)
 	if not statue then
 		-- Gold football fallback (centre at Y=12.0, radius=3.5 -> bottom Y=8.5)
 		local ball = make("Part", {
