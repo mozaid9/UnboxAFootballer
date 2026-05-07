@@ -143,6 +143,44 @@ local function formatNextValue(entry)
 	return tostring(entry.nextValue)
 end
 
+local UPGRADE_META = {
+	PitchforkDamage = {
+		tag = "PACK SPEED",
+		accent = Color3.fromRGB(255, 213, 74),
+		dark = Color3.fromRGB(32, 27, 12),
+	},
+	PackSpawnLuck = {
+		tag = "PACK QUALITY",
+		accent = Color3.fromRGB(255, 184, 74),
+		dark = Color3.fromRGB(31, 22, 12),
+	},
+	CardPullLuck = {
+		tag = "CARD QUALITY",
+		accent = Color3.fromRGB(91, 190, 255),
+		dark = Color3.fromRGB(12, 26, 36),
+	},
+	MoveSpeed = {
+		tag = "MOVEMENT",
+		accent = Color3.fromRGB(106, 230, 128),
+		dark = Color3.fromRGB(13, 31, 19),
+	},
+}
+
+local function getUpgradeMeta(entry)
+	return UPGRADE_META[entry.key] or {
+		tag = "UPGRADE",
+		accent = UI.Gold,
+		dark = Color3.fromRGB(28, 24, 12),
+	}
+end
+
+local function getBuyButtonText(entry)
+	if entry.maxed then
+		return "MAX"
+	end
+	return "Buy  •  " .. Utils.FormatNumber(entry.nextCost or 0)
+end
+
 local rows = {}
 
 local function clearRows()
@@ -154,71 +192,110 @@ local function clearRows()
 	rows = {}
 end
 
-local function buildRow(entry, index)
+local function buildRow(entry, index, availableFans)
+	local meta = getUpgradeMeta(entry)
+	local progress = entry.maxLevel > 0 and math.clamp((entry.level or 0) / entry.maxLevel, 0, 1) or 0
+	local affordable = not entry.maxed and (availableFans or 0) >= (entry.nextCost or math.huge)
+	local buttonColor = entry.maxed and UI.PanelAlt or (affordable and UI.Gold or Color3.fromRGB(72, 61, 32))
+	local buttonTextColor = entry.maxed and UI.Muted or (affordable and Color3.fromRGB(18, 12, 6) or Color3.fromRGB(218, 201, 142))
+
 	local row = make("Frame", {
 		LayoutOrder = index,
-		BackgroundColor3 = UI.PanelAlt,
-		Size = UDim2.new(1, -12, 0, 96),
+		BackgroundColor3 = Color3.fromRGB(12, 17, 31),
+		Size = UDim2.new(1, -10, 0, 82),
 	}, scrolling)
-	addCorner(row, 14)
-
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 14, 0, 8),
-		Size = UDim2.new(0.6, 0, 0, 22),
-		Text = entry.displayName,
-		TextColor3 = UI.Text,
-		TextScaled = false,
-		TextSize = 18,
-		Font = Enum.Font.GothamBlack,
-		TextXAlignment = Enum.TextXAlignment.Left,
+	addCorner(row, 12)
+	addStroke(row, meta.accent, 1.1, affordable and 0.72 or 0.86)
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(17, 23, 41)),
+			ColorSequenceKeypoint.new(1, meta.dark),
+		}),
+		Rotation = 0,
 	}, row)
 
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 14, 0, 32),
-		Size = UDim2.new(0.6, 0, 0, 18),
+		Position = UDim2.new(0, 14, 0, 8),
+		Size = UDim2.new(0.38, 0, 0, 20),
+		Text = entry.displayName,
+		TextColor3 = UI.Text,
+		TextScaled = false,
+		TextSize = 16,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, row)
+
+	local tag = make("TextLabel", {
+		BackgroundColor3 = meta.accent,
+		BackgroundTransparency = 0.08,
+		Position = UDim2.new(0.40, 0, 0, 9),
+		Size = UDim2.fromOffset(104, 18),
+		Text = meta.tag,
+		TextColor3 = Color3.fromRGB(12, 9, 3),
+		TextScaled = false,
+		TextSize = 10,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Center,
+	}, row)
+	addCorner(tag, 8)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 14, 0, 30),
+		Size = UDim2.new(0.62, -14, 0, 18),
 		Text = entry.description,
 		TextColor3 = UI.Muted,
 		TextScaled = false,
-		TextSize = 13,
+		TextSize = 12,
 		Font = Enum.Font.GothamMedium,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextWrapped = true,
 	}, row)
 
-	local levelText
-	if entry.maxed then
-		levelText = string.format("Lv %d / %d MAX", entry.level, entry.maxLevel)
-	else
-		levelText = string.format("Lv %d / %d  •  Now: %s  →  Next: %s", entry.level, entry.maxLevel, formatValue(entry), formatNextValue(entry))
-	end
+	local progressBack = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(6, 9, 18),
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 14, 0, 57),
+		Size = UDim2.new(0.22, 0, 0, 7),
+	}, row)
+	addCorner(progressBack, 5)
+
+	local progressFill = make("Frame", {
+		BackgroundColor3 = meta.accent,
+		BorderSizePixel = 0,
+		Size = UDim2.new(progress, 0, 1, 0),
+	}, progressBack)
+	addCorner(progressFill, 5)
 
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 14, 0, 58),
-		Size = UDim2.new(0.65, 0, 0, 30),
-		Text = levelText,
+		Position = UDim2.new(0.25, 0, 0, 50),
+		Size = UDim2.new(0.40, 0, 0, 22),
+		Text = entry.maxed
+			and string.format("Lv %d/%d  •  MAX", entry.level, entry.maxLevel)
+			or string.format("Lv %d/%d  •  %s  →  %s", entry.level, entry.maxLevel, formatValue(entry), formatNextValue(entry)),
 		TextColor3 = UI.Gold,
 		TextScaled = false,
-		TextSize = 14,
+		TextSize = 12,
 		Font = Enum.Font.GothamBold,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	}, row)
 
 	local buyButton = make("TextButton", {
-		Size = UDim2.fromOffset(148, 56),
-		Position = UDim2.new(1, -160, 0.5, -28),
-		BackgroundColor3 = entry.maxed and UI.PanelAlt or UI.Gold,
-		Text = entry.maxed and "MAX" or ("Buy  •  " .. Utils.FormatNumber(entry.nextCost)),
-		TextColor3 = entry.maxed and UI.Muted or Color3.fromRGB(18, 12, 6),
+		Size = UDim2.fromOffset(132, 44),
+		Position = UDim2.new(1, -146, 0.5, -22),
+		BackgroundColor3 = buttonColor,
+		Text = getBuyButtonText(entry),
+		TextColor3 = buttonTextColor,
 		TextScaled = false,
-		TextSize = 16,
+		TextSize = 14,
 		Font = Enum.Font.GothamBlack,
 		AutoButtonColor = not entry.maxed,
 		Active = not entry.maxed,
 	}, row)
-	addCorner(buyButton, 12)
+	addCorner(buyButton, 11)
+	addStroke(buyButton, affordable and Color3.fromRGB(255, 246, 178) or meta.accent, 1, affordable and 0.48 or 0.74)
 
 	table.insert(rows, { frame = row, entry = entry, buyButton = buyButton })
 	return row, buyButton
@@ -236,7 +313,7 @@ local function renderPayload(payload)
 	clearRows()
 
 	for index, entry in ipairs(payload.upgrades or {}) do
-		local _, buyButton = buildRow(entry, index)
+		local _, buyButton = buildRow(entry, index, payload.coins or 0)
 		local key = entry.key
 		local cost = entry.nextCost
 		buyButton.MouseButton1Click:Connect(function()
@@ -247,7 +324,7 @@ local function renderPayload(payload)
 				buyButton.Text = "Not enough Fans"
 				task.delay(0.8, function()
 					if buyButton.Parent then
-						buyButton.Text = "Buy  •  " .. Utils.FormatNumber(cost)
+						buyButton.Text = getBuyButtonText(entry)
 					end
 				end)
 				return
@@ -263,7 +340,7 @@ local function renderPayload(payload)
 				buyButton.Text = (result and result.error) or "Failed"
 				task.delay(1.2, function()
 					if buyButton.Parent then
-						buyButton.Text = "Buy  •  " .. Utils.FormatNumber(cost)
+						buyButton.Text = getBuyButtonText(entry)
 					end
 				end)
 			end
