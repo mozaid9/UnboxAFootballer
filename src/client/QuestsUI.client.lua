@@ -163,7 +163,7 @@ addCorner(summaryBar, 14)
 local summaryLabel = make("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.new(0, 16, 0, 0),
-	Size = UDim2.new(0.55, -16, 1, 0),
+	Size = UDim2.new(0.42, -16, 1, 0),
 	Text = "0 ready",
 	TextColor3 = UI.Text,
 	TextScaled = false,
@@ -176,8 +176,8 @@ local summaryLabel = make("TextLabel", {
 local timerLabel = make("TextLabel", {
 	AnchorPoint = Vector2.new(1, 0),
 	BackgroundTransparency = 1,
-	Position = UDim2.new(1, -16, 0, 0),
-	Size = UDim2.new(0.45, 0, 1, 0),
+	Position = UDim2.new(1, -124, 0, 0),
+	Size = UDim2.new(0.3, 0, 1, 0),
 	Text = "Resets in --",
 	TextColor3 = Color3.fromRGB(218, 200, 255),
 	TextScaled = false,
@@ -186,6 +186,35 @@ local timerLabel = make("TextLabel", {
 	TextXAlignment = Enum.TextXAlignment.Right,
 	ZIndex = 5,
 }, summaryBar)
+
+local claimAllButton = make("TextButton", {
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -8, 0.5, 0),
+	Size = UDim2.fromOffset(104, 32),
+	BackgroundColor3 = Color3.fromRGB(40, 150, 78),
+	Text = "CLAIM ALL",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 12,
+	Font = Enum.Font.GothamBlack,
+	Active = false,
+	AutoButtonColor = false,
+	ZIndex = 5,
+}, summaryBar)
+addCorner(claimAllButton, 10)
+
+local filtersBar = make("Frame", {
+	Position = UDim2.new(0, 20, 0, 148),
+	Size = UDim2.new(1, -40, 0, 32),
+	BackgroundTransparency = 1,
+	ZIndex = 4,
+}, panel)
+
+local filtersLayout = make("UIListLayout", {
+	Padding = UDim.new(0, 8),
+	FillDirection = Enum.FillDirection.Horizontal,
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, filtersBar)
 
 local statusLabel = make("TextLabel", {
 	BackgroundTransparency = 1,
@@ -201,8 +230,8 @@ local statusLabel = make("TextLabel", {
 }, panel)
 
 local scroll = make("ScrollingFrame", {
-	Position = UDim2.new(0, 20, 0, 152),
-	Size = UDim2.new(1, -40, 1, -194),
+	Position = UDim2.new(0, 20, 0, 190),
+	Size = UDim2.new(1, -40, 1, -232),
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
 	ScrollBarThickness = 5,
@@ -221,6 +250,8 @@ end)
 
 local questPayload = nil
 local claimingQuestId = nil
+local selectedFilter = "all"
+local filterButtons = {}
 local isOpen = false
 local renderQuestList
 
@@ -230,6 +261,80 @@ local function clearQuestRows()
 			child:Destroy()
 		end
 	end
+end
+
+local QUEST_FILTERS = {
+	{ key = "all", label = "ALL" },
+	{ key = "ready", label = "READY" },
+	{ key = "progress", label = "IN PROGRESS" },
+	{ key = "claimed", label = "CLAIMED" },
+}
+
+local function getQuestState(quest)
+	if quest.claimed == true then
+		return "claimed"
+	end
+	if quest.claimable == true then
+		return "ready"
+	end
+	return "progress"
+end
+
+local function matchesSelectedFilter(quest)
+	return selectedFilter == "all" or getQuestState(quest) == selectedFilter
+end
+
+local function setFilterButtonStyle(button, selected)
+	button.BackgroundColor3 = selected and Color3.fromRGB(205, 88, 255) or UI.PanelAlt
+	button.TextColor3 = selected and Color3.fromRGB(10, 8, 18) or UI.Text
+	local stroke = button:FindFirstChildOfClass("UIStroke")
+	if stroke then
+		stroke.Color = selected and Color3.fromRGB(245, 214, 255) or Color3.fromRGB(205, 88, 255)
+		stroke.Transparency = selected and 0.28 or 0.72
+	end
+end
+
+local function updateFilterButtons()
+	for key, button in pairs(filterButtons) do
+		setFilterButtonStyle(button, key == selectedFilter)
+	end
+end
+
+for index, filter in ipairs(QUEST_FILTERS) do
+	local width = 78
+	if filter.key == "all" then
+		width = 70
+	elseif filter.key == "progress" then
+		width = 104
+	elseif filter.key == "claimed" then
+		width = 82
+	end
+
+	local button = make("TextButton", {
+		LayoutOrder = index,
+		Size = UDim2.fromOffset(width, 30),
+		BackgroundColor3 = UI.PanelAlt,
+		Text = filter.label,
+		TextColor3 = UI.Text,
+		TextScaled = false,
+		TextSize = 11,
+		Font = Enum.Font.GothamBlack,
+		AutoButtonColor = true,
+		ZIndex = 5,
+	}, filtersBar)
+	addCorner(button, 10)
+	addStroke(button, Color3.fromRGB(205, 88, 255), 1.2, 0.72)
+	filterButtons[filter.key] = button
+
+	button.MouseButton1Click:Connect(function()
+		if selectedFilter == filter.key then
+			return
+		end
+		selectedFilter = filter.key
+		scroll.CanvasPosition = Vector2.new(0, 0)
+		updateFilterButtons()
+		renderQuestList()
+	end)
 end
 
 local function renderQuestRow(quest, index)
@@ -329,12 +434,12 @@ local function renderQuestRow(quest, index)
 	local claimButton = make("TextButton", {
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -14, 0.5, 0),
-		Size = UDim2.fromOffset(118, 34),
+		Size = UDim2.fromOffset(126, 34),
 		BackgroundColor3 = ready and Color3.fromRGB(40, 150, 78) or Color3.fromRGB(45, 48, 58),
-		Text = claimed and "CLAIMED" or (ready and "CLAIM" or "LOCKED"),
+		Text = claimed and "CLAIMED" or (ready and "CLAIM" or "IN PROGRESS"),
 		TextColor3 = claimed and Color3.fromRGB(178, 232, 190) or UI.Text,
 		TextScaled = false,
-		TextSize = 12,
+		TextSize = ready and 12 or 10,
 		Font = Enum.Font.GothamBlack,
 		Active = ready and not claimed,
 		AutoButtonColor = ready and not claimed,
@@ -375,9 +480,16 @@ renderQuestList = function()
 	local total = #quests
 	local completed = tonumber(payload.completedCount) or 0
 	local claimable = tonumber(payload.claimableCount) or 0
+	local visibleCount = 0
 
 	summaryLabel.Text = tostring(claimable) .. " ready  |  " .. tostring(completed) .. " / " .. tostring(total) .. " claimed"
 	timerLabel.Text = "Resets in " .. formatClock(payload.resetRemaining or 0)
+	claimAllButton.Text = claimingQuestId == "__all" and "CLAIMING..." or "CLAIM ALL"
+	claimAllButton.Active = claimable > 0 and not claimingQuestId
+	claimAllButton.AutoButtonColor = claimable > 0 and not claimingQuestId
+	claimAllButton.BackgroundColor3 = claimable > 0 and Color3.fromRGB(40, 150, 78) or Color3.fromRGB(45, 48, 58)
+	claimAllButton.TextColor3 = claimable > 0 and UI.Text or Color3.fromRGB(180, 184, 196)
+	updateFilterButtons()
 
 	if total == 0 then
 		local empty = make("Frame", {
@@ -401,8 +513,80 @@ renderQuestList = function()
 	end
 
 	for index, quest in ipairs(quests) do
-		renderQuestRow(quest, index)
+		if matchesSelectedFilter(quest) then
+			visibleCount += 1
+			renderQuestRow(quest, index)
+		end
 	end
+
+	if visibleCount == 0 then
+		local empty = make("Frame", {
+			LayoutOrder = 1,
+			Size = UDim2.new(1, -4, 0, 96),
+			BackgroundColor3 = UI.PanelAlt,
+			ZIndex = 5,
+		}, scroll)
+		addCorner(empty, 14)
+		addStroke(empty, Color3.fromRGB(205, 88, 255), 1.2, 0.72)
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 1),
+			Text = selectedFilter == "ready" and "No rewards ready yet." or "No quests in this view.",
+			TextColor3 = UI.Muted,
+			TextScaled = false,
+			TextSize = 14,
+			Font = Enum.Font.GothamBlack,
+			ZIndex = 6,
+		}, empty)
+	end
+end
+
+local function claimAllReadyQuests()
+	if claimingQuestId or not questPayload then
+		return
+	end
+
+	local readyQuests = {}
+	for _, quest in ipairs(questPayload.quests or {}) do
+		if quest.claimable == true and quest.claimed ~= true and type(quest.id) == "string" then
+			table.insert(readyQuests, quest)
+		end
+	end
+
+	if #readyQuests == 0 then
+		statusLabel.Text = "No quest rewards ready."
+		return
+	end
+
+	claimingQuestId = "__all"
+	statusLabel.Text = "Claiming " .. tostring(#readyQuests) .. " quest reward" .. (#readyQuests == 1 and "..." or "s...")
+	renderQuestList()
+
+	task.spawn(function()
+		local claimedCount = 0
+		local lastError = nil
+
+		for _, quest in ipairs(readyQuests) do
+			local ok, result = pcall(function()
+				return ClaimQuestFn:InvokeServer(quest.id)
+			end)
+
+			if ok and result and result.success then
+				claimedCount += 1
+				questPayload = result.quests or questPayload
+			else
+				lastError = (ok and result and result.error) or "Quest claim failed."
+			end
+		end
+
+		claimingQuestId = nil
+		if claimedCount > 0 then
+			statusLabel.Text = "Claimed " .. tostring(claimedCount) .. " quest reward" .. (claimedCount == 1 and "." or "s.")
+		else
+			statusLabel.Text = lastError or "Quest claim failed."
+		end
+		renderQuestList()
+	end)
 end
 
 local function applyQuestPayload(payload)
@@ -463,6 +647,7 @@ end)
 
 overlayButton.MouseButton1Click:Connect(closeQuests)
 closeButton.MouseButton1Click:Connect(closeQuests)
+claimAllButton.MouseButton1Click:Connect(claimAllReadyQuests)
 
 QuestUpdatedEvent.OnClientEvent:Connect(function(payload)
 	applyQuestPayload(payload)
