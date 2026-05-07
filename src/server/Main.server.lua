@@ -1702,14 +1702,14 @@ local function createServerPackBillboard(state, body, packDef, color)
 	billboard.Name = "ServerPackBillboard"
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
-	billboard.MaxDistance = 230
-	billboard.Size = UDim2.fromOffset(260, 90)          -- was 300 × 96; extra height keeps pills off the corner clip
-	billboard.StudsOffsetWorldSpace = Vector3.new(0, 12.0, 0)  -- was 9.2
+	billboard.MaxDistance = 130                          -- was 230; only shows when actually near the pack
+	billboard.Size = UDim2.fromOffset(260, 90)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, 12.0, 0)
 	billboard.Parent = body
 
 	local frame = Instance.new("Frame")
 	frame.BackgroundColor3 = Color3.fromRGB(6, 10, 20)
-	frame.BackgroundTransparency = 0.12
+	frame.BackgroundTransparency = 0.52                  -- was 0.12; ghost overlay instead of solid panel
 	frame.BorderSizePixel = 0
 	frame.Size = UDim2.fromScale(1, 1)
 	frame.Parent = billboard

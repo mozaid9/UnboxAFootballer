@@ -1578,56 +1578,106 @@ local function startTurnstileAnimations()
 end
 
 local function createFanGate(parent, name, z, facingDirection)
-	local gate = make("Model", {
-		Name = name,
-	}, parent)
+	local gate = make("Model", { Name = name }, parent)
 
-	local center = Vector3.new(0, 0, z)
-	local columnColor = Color3.fromRGB(24, 30, 42)
-	local signColor = Color3.fromRGB(8, 12, 20)
+	local center        = Vector3.new(0, 0, z)
+	local columnColor   = Color3.fromRGB(14, 18, 28)    -- near-black pillar base
+	local neonGold      = Color3.fromRGB(255, 210, 0)
 	local lookDirection = Vector3.new(0, 0, facingDirection)
 
-	make("Part", {
-		Name = "LeftColumn",
-		Anchored = true,
-		CanCollide = true,
-		Material = Enum.Material.Concrete,
-		Color = columnColor,
-		Size = Vector3.new(4, 13, 4),
-		CFrame = CFrame.new(center + Vector3.new(-17, 6.5, 0)),
-	}, gate)
+	-- Columns + neon trim + orb caps
+	for _, side in ipairs({ -17, 17 }) do
+		local label = side < 0 and "Left" or "Right"
 
-	make("Part", {
-		Name = "RightColumn",
-		Anchored = true,
-		CanCollide = true,
-		Material = Enum.Material.Concrete,
-		Color = columnColor,
-		Size = Vector3.new(4, 13, 4),
-		CFrame = CFrame.new(center + Vector3.new(17, 6.5, 0)),
-	}, gate)
+		-- Main column
+		make("Part", {
+			Name = label .. "Column",
+			Anchored = true, CanCollide = true,
+			Material = Enum.Material.SmoothPlastic,
+			Color = columnColor,
+			Size = Vector3.new(4, 13, 4),
+			CFrame = CFrame.new(center + Vector3.new(side, 6.5, 0)),
+		}, gate)
 
+		-- Neon strip — front face of column
+		make("Part", {
+			Name = label .. "NeonFront",
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon,
+			Color = neonGold,
+			Size = Vector3.new(0.22, 13.4, 0.22),
+			CFrame = CFrame.new(center + Vector3.new(side, 6.5, -2.12)),
+		}, gate)
+
+		-- Neon strip — back face of column
+		make("Part", {
+			Name = label .. "NeonBack",
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon,
+			Color = neonGold,
+			Size = Vector3.new(0.22, 13.4, 0.22),
+			CFrame = CFrame.new(center + Vector3.new(side, 6.5, 2.12)),
+		}, gate)
+
+		-- Glowing orb at top of each column
+		make("Part", {
+			Name = label .. "ColumnOrb",
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon,
+			Color = neonGold,
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(2.4, 2.4, 2.4),
+			CFrame = CFrame.new(center + Vector3.new(side, 14.2, 0)),
+		}, gate)
+	end
+
+	-- Top beam
 	make("Part", {
 		Name = "TopBeam",
-		Anchored = true,
-		CanCollide = true,
-		Material = Enum.Material.Concrete,
+		Anchored = true, CanCollide = true,
+		Material = Enum.Material.SmoothPlastic,
 		Color = columnColor,
 		Size = Vector3.new(40, 3, 4),
 		CFrame = CFrame.new(center + Vector3.new(0, 11.5, 0)),
 	}, gate)
 
-	local sign = make("Part", {
-		Name = "WelcomeSign",
-		Anchored = true,
-		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = signColor,
-		Size = Vector3.new(30, 7.5, 0.5),
-		CFrame = CFrame.lookAt(center + Vector3.new(0, 16.5, -facingDirection * 0.3), center + Vector3.new(0, 16.5, -facingDirection * 0.3) + lookDirection),
+	-- LED strip along the bottom-front edge of the beam
+	make("Part", {
+		Name = "BeamLED",
+		Anchored = true, CanCollide = false,
+		Material = Enum.Material.Neon,
+		Color = neonGold,
+		Size = Vector3.new(40.4, 0.20, 0.20),
+		CFrame = CFrame.new(center + Vector3.new(0, 10.05, -2.12)),
 	}, gate)
 
-	-- Custom sign GUI — fixed size constraints prevent text squishing on a wide panel
+	-- 7 small orb lights spaced across the top of the beam
+	for i = 1, 7 do
+		local bx = -24 + (i - 1) * 8
+		make("Part", {
+			Name = "BeamOrb" .. i,
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon,
+			Color = neonGold,
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(1.1, 1.1, 1.1),
+			CFrame = CFrame.new(center + Vector3.new(bx, 13.6, 0)),
+		}, gate)
+	end
+
+	-- Logo sign — taller than before (9 studs) so 3 stacked lines breathe properly
+	local sign = make("Part", {
+		Name = "LogoSign",
+		Anchored = true, CanCollide = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(6, 8, 14),
+		Size = Vector3.new(30, 9, 0.5),
+		CFrame = CFrame.lookAt(
+			center + Vector3.new(0, 17.5, -facingDirection * 0.3),
+			center + Vector3.new(0, 17.5, -facingDirection * 0.3) + lookDirection
+		),
+	}, gate)
+
 	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
 		local gui = make("SurfaceGui", {
 			Face = face,
@@ -1636,54 +1686,69 @@ local function createFanGate(parent, name, z, facingDirection)
 		}, sign)
 
 		local frame = make("Frame", {
-			BackgroundColor3 = Color3.fromRGB(8, 12, 20),
+			BackgroundColor3 = Color3.fromRGB(6, 8, 14),
 			BorderSizePixel = 0,
 			Size = UDim2.fromScale(1, 1),
 		}, gui)
+		make("UICorner", { CornerRadius = UDim.new(0, 14) }, frame)
+		make("UIStroke", { Color = neonGold, Thickness = 5 }, frame)
 
-		make("UIStroke", { Color = Color3.fromRGB(255, 215, 0), Thickness = 3 }, frame)
-
-		-- Gold top accent bar
+		-- Gold bar top
 		make("Frame", {
-			BackgroundColor3 = Color3.fromRGB(255, 215, 0),
+			BackgroundColor3 = neonGold,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, 8),
+			Size = UDim2.new(1, 0, 0, 9),
 		}, frame)
 
-		-- "WELCOME FANS!" — large, constrained so it doesn't over-stretch
-		local title = make("TextLabel", {
+		-- Gold bar bottom
+		make("Frame", {
+			BackgroundColor3 = neonGold,
+			BorderSizePixel = 0,
+			Size = UDim2.new(1, 0, 0, 9),
+			Position = UDim2.new(0, 0, 1, -9),
+		}, frame)
+
+		-- "PACK" — white, top third, matching logo style
+		local packLabel = make("TextLabel", {
 			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(0.88, 0.52),
-			Position = UDim2.fromScale(0.06, 0.07),
-			Text = "WELCOME FANS!",
-			TextColor3 = Color3.fromRGB(255, 215, 0),
+			Size = UDim2.fromScale(0.88, 0.34),
+			Position = UDim2.fromScale(0.06, 0.06),
+			Text = "PACK",
+			TextColor3 = Color3.fromRGB(255, 255, 255),
 			TextScaled = true,
 			Font = Enum.Font.GothamBlack,
 		}, frame)
-		make("UITextSizeConstraint", { MaxTextSize = 110, MinTextSize = 20 }, title)
+		make("UITextSizeConstraint", { MaxTextSize = 130, MinTextSize = 24 }, packLabel)
+		make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 3, Transparency = 0.25 }, packLabel)
 
-		-- Divider
-		make("Frame", {
-			BackgroundColor3 = Color3.fromRGB(255, 215, 0),
-			BackgroundTransparency = 0.4,
-			BorderSizePixel = 0,
-			Size = UDim2.fromScale(0.75, 0.022),
-			Position = UDim2.fromScale(0.125, 0.62),
-		}, frame)
-
-		-- "TURNSTILES" — smaller subtitle
-		local sub = make("TextLabel", {
+		-- "THAT" — gold, middle, slightly smaller
+		local thatLabel = make("TextLabel", {
 			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(0.6, 0.26),
-			Position = UDim2.fromScale(0.2, 0.66),
-			Text = "TURNSTILES",
-			TextColor3 = Color3.fromRGB(195, 188, 168),
+			Size = UDim2.fromScale(0.72, 0.26),
+			Position = UDim2.fromScale(0.14, 0.37),
+			Text = "THAT",
+			TextColor3 = neonGold,
 			TextScaled = true,
-			Font = Enum.Font.GothamBold,
+			Font = Enum.Font.GothamBlack,
 		}, frame)
-		make("UITextSizeConstraint", { MaxTextSize = 55, MinTextSize = 10 }, sub)
+		make("UITextSizeConstraint", { MaxTextSize = 100, MinTextSize = 18 }, thatLabel)
+		make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 2, Transparency = 0.25 }, thatLabel)
+
+		-- "PLAYER" — white, bottom third
+		local playerLabel = make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(0.88, 0.34),
+			Position = UDim2.fromScale(0.06, 0.60),
+			Text = "PLAYER",
+			TextColor3 = Color3.fromRGB(255, 255, 255),
+			TextScaled = true,
+			Font = Enum.Font.GothamBlack,
+		}, frame)
+		make("UITextSizeConstraint", { MaxTextSize = 130, MinTextSize = 24 }, playerLabel)
+		make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 3, Transparency = 0.25 }, playerLabel)
 	end
 
+	-- Turnstiles (unchanged)
 	for index = 1, 3 do
 		local x = -8 + ((index - 1) * 8)
 		createTurnstile(gate, CFrame.new(center + Vector3.new(x, 2.1, -facingDirection * 2)))
