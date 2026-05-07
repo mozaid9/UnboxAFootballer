@@ -17,6 +17,11 @@ local SetRebirthVaultFn = Remotes:WaitForChild("SetRebirthVault")
 
 local UI = Constants.UI
 local RarityStyles = Constants.RarityStyles
+local VAULT_BLUE = Color3.fromRGB(94, 215, 255)
+local VAULT_DARK = Color3.fromRGB(7, 10, 20)
+local VAULT_GOLD = Color3.fromRGB(255, 211, 78)
+local VAULT_GREEN = Color3.fromRGB(83, 214, 128)
+local VAULT_RED = Color3.fromRGB(220, 86, 86)
 
 local function make(className, props, parent)
 	local inst = Instance.new(className)
@@ -70,31 +75,32 @@ local dimmer = make("Frame", {
 
 local panel = make("Frame", {
 	AnchorPoint = Vector2.new(0.5, 0.5),
-	Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.new(0, 460, 0, 610),
+	Position = UDim2.fromScale(0.5, 0.46),
+	Size = UDim2.new(0, 560, 0, 590),
 	BackgroundColor3 = UI.Panel,
 	Visible = false,
 	ClipsDescendants = true,
 	ZIndex = 2,
 }, screenGui)
 addCorner(panel, 16)
-addStroke(panel, Color3.fromRGB(90, 215, 255), 2, 0.12)
+addStroke(panel, VAULT_BLUE, 2, 0.12)
 make("UISizeConstraint", {
-	MinSize = Vector2.new(320, 460),
-	MaxSize = Vector2.new(520, 680),
+	MinSize = Vector2.new(360, 460),
+	MaxSize = Vector2.new(620, 660),
 }, panel)
 
 local header = make("Frame", {
-	Size = UDim2.new(1, 0, 0, 78),
-	BackgroundColor3 = Color3.fromRGB(8, 16, 32),
+	Size = UDim2.new(1, 0, 0, 76),
+	BackgroundColor3 = VAULT_DARK,
 	BorderSizePixel = 0,
 	ZIndex = 3,
 }, panel)
 addCorner(header, 16)
 make("UIGradient", {
 	Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(16, 70, 120)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(14, 18, 42)),
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(8, 12, 24)),
+		ColorSequenceKeypoint.new(0.55, Color3.fromRGB(12, 34, 58)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(11, 16, 36)),
 	}),
 	Rotation = 90,
 }, header)
@@ -104,7 +110,7 @@ makeLabel({
 	Size = UDim2.new(1, -78, 0, 34),
 	Position = UDim2.new(0, 18, 0, 10),
 	Font = Enum.Font.GothamBlack,
-	TextColor3 = Color3.fromRGB(178, 245, 255),
+	TextColor3 = Color3.fromRGB(190, 248, 255),
 	TextSize = 24,
 	TextScaled = false,
 	TextXAlignment = Enum.TextXAlignment.Left,
@@ -123,6 +129,21 @@ local subtitle = makeLabel({
 	ZIndex = 4,
 }, header)
 
+local headerBadge = makeLabel({
+	Text = "PROTECTION ONLY",
+	AnchorPoint = Vector2.new(1, 0),
+	Size = UDim2.new(0, 136, 0, 26),
+	Position = UDim2.new(1, -62, 0, 25),
+	BackgroundColor3 = VAULT_BLUE,
+	BackgroundTransparency = 0,
+	TextColor3 = Color3.fromRGB(4, 14, 22),
+	TextSize = 11,
+	TextScaled = false,
+	Font = Enum.Font.GothamBlack,
+	ZIndex = 4,
+}, header)
+addCorner(headerBadge, 13)
+
 local closeBtn = make("TextButton", {
 	Text = "X",
 	Size = UDim2.new(0, 40, 0, 40),
@@ -136,28 +157,71 @@ local closeBtn = make("TextButton", {
 }, header)
 addCorner(closeBtn, 8)
 
-local status = makeLabel({
-	Text = "",
-	Size = UDim2.new(1, -32, 0, 42),
-	Position = UDim2.new(0, 16, 0, 92),
-	BackgroundColor3 = Color3.fromRGB(12, 18, 32),
-	BackgroundTransparency = 0,
-	TextColor3 = Color3.fromRGB(220, 238, 255),
-	TextSize = 13,
-	TextScaled = false,
-	TextWrapped = true,
+local summaryCard = make("Frame", {
+	Size = UDim2.new(1, -32, 0, 74),
+	Position = UDim2.new(0, 16, 0, 90),
+	BackgroundColor3 = UI.PanelAlt,
+	BorderSizePixel = 0,
 	ZIndex = 3,
 }, panel)
-addCorner(status, 10)
+addCorner(summaryCard, 12)
+
+local vaultCountLabel = makeLabel({
+	Text = "0 / 0 VAULTED",
+	Size = UDim2.new(0.38, -16, 0, 24),
+	Position = UDim2.new(0, 14, 0, 12),
+	TextColor3 = VAULT_BLUE,
+	TextSize = 15,
+	TextScaled = false,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Font = Enum.Font.GothamBlack,
+	ZIndex = 4,
+}, summaryCard)
+
+local status = makeLabel({
+	Text = "",
+	Size = UDim2.new(0.62, -20, 0, 38),
+	Position = UDim2.new(0.38, 0, 0, 10),
+	TextColor3 = Color3.fromRGB(220, 238, 255),
+	TextSize = 12,
+	TextScaled = false,
+	TextWrapped = true,
+	TextXAlignment = Enum.TextXAlignment.Right,
+	ZIndex = 4,
+}, summaryCard)
+
+local vaultBar = make("Frame", {
+	Size = UDim2.new(1, -28, 0, 10),
+	Position = UDim2.new(0, 14, 1, -22),
+	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+	BorderSizePixel = 0,
+	ZIndex = 4,
+}, summaryCard)
+addCorner(vaultBar, 5)
+
+local vaultBarFill = make("Frame", {
+	Size = UDim2.new(0, 0, 1, 0),
+	BackgroundColor3 = VAULT_BLUE,
+	BorderSizePixel = 0,
+	ZIndex = 5,
+}, vaultBar)
+addCorner(vaultBarFill, 5)
+make("UIGradient", {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, VAULT_BLUE),
+		ColorSequenceKeypoint.new(1, VAULT_GOLD),
+	}),
+	Rotation = 0,
+}, vaultBarFill)
 
 local scroll = make("ScrollingFrame", {
-	Size = UDim2.new(1, -32, 1, -154),
-	Position = UDim2.new(0, 16, 0, 142),
+	Size = UDim2.new(1, -32, 1, -184),
+	Position = UDim2.new(0, 16, 0, 174),
 	BackgroundTransparency = 1,
 	CanvasSize = UDim2.new(0, 0, 0, 0),
 	AutomaticCanvasSize = Enum.AutomaticSize.Y,
 	ScrollBarThickness = 5,
-	ScrollBarImageColor3 = Color3.fromRGB(90, 215, 255),
+	ScrollBarImageColor3 = VAULT_BLUE,
 	ZIndex = 3,
 }, panel)
 
@@ -171,6 +235,7 @@ make("UIPadding", {
 
 local currentPayload
 local selectedIds = {}
+local flashMessage = nil
 local render
 
 local function containsSelected(cardId)
@@ -208,34 +273,37 @@ local function clearRows()
 end
 
 local function makeSectionTitle(text, order)
-	makeLabel({
+	local title = makeLabel({
 		Text = text,
 		Size = UDim2.new(1, 0, 0, 24),
 		LayoutOrder = order,
 		Font = Enum.Font.GothamBlack,
-		TextColor3 = Color3.fromRGB(170, 230, 255),
+		TextColor3 = Color3.fromRGB(184, 238, 255),
 		TextSize = 13,
 		TextScaled = false,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 4,
 	}, scroll)
+	return title
 end
 
 local function makeCardRow(card, order, mode)
 	local rarityStyle = RarityStyles[card.rarity] or RarityStyles["Gold"]
 	local disabled = mode == "displayed"
+	local selected = mode == "vault" or mode == "selected"
 	local row = make("Frame", {
-		Size = UDim2.new(1, 0, 0, 66),
-		BackgroundColor3 = disabled and Color3.fromRGB(28, 28, 34) or Color3.fromRGB(12, 18, 32),
+		Size = UDim2.new(1, 0, 0, 62),
+		BackgroundColor3 = disabled and Color3.fromRGB(24, 25, 32)
+			or (selected and Color3.fromRGB(9, 30, 38) or Color3.fromRGB(12, 18, 32)),
 		LayoutOrder = order,
 		ZIndex = 4,
 	}, scroll)
 	addCorner(row, 10)
-	addStroke(row, disabled and Color3.fromRGB(80, 80, 88) or rarityStyle.primary, 1.2, disabled and 0.55 or 0.22)
+	addStroke(row, disabled and Color3.fromRGB(80, 80, 88) or (selected and VAULT_BLUE or rarityStyle.primary), 1.3, disabled and 0.55 or 0.2)
 
 	local icon = makeLabel({
 		Text = string.upper(string.sub(card.name or "P", 1, 1)),
-		Size = UDim2.new(0, 48, 0, 48),
+		Size = UDim2.new(0, 44, 0, 44),
 		Position = UDim2.new(0, 9, 0, 9),
 		BackgroundColor3 = rarityStyle.dark or Color3.fromRGB(24, 18, 8),
 		BackgroundTransparency = 0,
@@ -250,7 +318,7 @@ local function makeCardRow(card, order, mode)
 	makeLabel({
 		Text = string.upper(card.name or "Player"),
 		Size = UDim2.new(1, -190, 0, 22),
-		Position = UDim2.new(0, 66, 0, 9),
+		Position = UDim2.new(0, 64, 0, 8),
 		TextColor3 = disabled and Color3.fromRGB(160, 160, 168) or UI.Text,
 		TextSize = 13,
 		TextScaled = false,
@@ -261,7 +329,7 @@ local function makeCardRow(card, order, mode)
 	makeLabel({
 		Text = (card.position or "--") .. " | " .. (card.rarity or "Card") .. " | +" .. Utils.FormatNumber(card.fansPerSecond or 0) .. "/s",
 		Size = UDim2.new(1, -190, 0, 20),
-		Position = UDim2.new(0, 66, 0, 34),
+		Position = UDim2.new(0, 64, 0, 32),
 		TextColor3 = disabled and Color3.fromRGB(130, 130, 138) or Color3.fromRGB(190, 205, 220),
 		TextSize = 11,
 		TextScaled = false,
@@ -270,13 +338,13 @@ local function makeCardRow(card, order, mode)
 	}, row)
 
 	local buttonText = "ADD"
-	local buttonColor = Color3.fromRGB(42, 150, 90)
+	local buttonColor = VAULT_GREEN
 	if mode == "vault" then
 		buttonText = "REMOVE"
-		buttonColor = Color3.fromRGB(170, 72, 72)
+		buttonColor = VAULT_RED
 	elseif mode == "selected" then
-		buttonText = "SELECTED"
-		buttonColor = Color3.fromRGB(74, 112, 150)
+		buttonText = "VAULTED"
+		buttonColor = VAULT_BLUE
 	elseif mode == "displayed" then
 		buttonText = "ON SLOT"
 		buttonColor = Color3.fromRGB(66, 66, 76)
@@ -284,10 +352,10 @@ local function makeCardRow(card, order, mode)
 
 	local action = make("TextButton", {
 		Text = buttonText,
-		Size = UDim2.new(0, 96, 0, 36),
-		Position = UDim2.new(1, -108, 0, 15),
+		Size = UDim2.new(0, 98, 0, 34),
+		Position = UDim2.new(1, -110, 0, 14),
 		BackgroundColor3 = buttonColor,
-		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextColor3 = mode == "selected" and Color3.fromRGB(4, 14, 22) or Color3.fromRGB(255, 255, 255),
 		Font = Enum.Font.GothamBlack,
 		TextSize = 12,
 		AutoButtonColor = not disabled,
@@ -303,7 +371,9 @@ local function makeCardRow(card, order, mode)
 			local result = SetRebirthVaultFn:InvokeServer(selectedIds)
 			currentPayload = result and result.vault or currentPayload
 			if result and result.error then
-				status.Text = result.error
+				flashMessage = result.error
+			else
+				flashMessage = "Vault saved."
 			end
 			syncSelectedFromPayload(currentPayload)
 			render(currentPayload)
@@ -318,7 +388,9 @@ local function makeCardRow(card, order, mode)
 			local result = SetRebirthVaultFn:InvokeServer(selectedIds)
 			currentPayload = result and result.vault or currentPayload
 			if result and result.error then
-				status.Text = result.error
+				flashMessage = result.error
+			else
+				flashMessage = "Vault saved."
 			end
 			syncSelectedFromPayload(currentPayload)
 			render(currentPayload)
@@ -336,15 +408,26 @@ render = function(payload)
 	end
 
 	local maxSlots = payload.maxSlots or 0
+	local vaultedCount = #(payload.vault or {})
+	local vaultRatio = maxSlots > 0 and math.clamp(vaultedCount / maxSlots, 0, 1) or 0
+	vaultCountLabel.Text = string.format("%d / %d VAULTED", vaultedCount, maxSlots)
+	vaultCountLabel.TextColor3 = maxSlots > 0 and VAULT_BLUE or Color3.fromRGB(138, 150, 165)
+	TweenService:Create(vaultBarFill, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {
+		Size = UDim2.new(vaultRatio, 0, 1, 0),
+	}):Play()
+
 	if maxSlots <= 0 then
-		status.Text = "Vault unlocks at Rebirth 3. It will keep 1 stored player through rebirth."
+		status.Text = "Unlocks at Rebirth 3. It protects stored players only."
+	elseif flashMessage then
+		status.Text = flashMessage
+		flashMessage = nil
 	else
-		status.Text = string.format("%d / %d vaulted. %s", #(payload.vault or {}), maxSlots, payload.note or "")
+		status.Text = payload.note or "Only stored inventory players can enter the vault."
 	end
-	subtitle.Text = maxSlots > 0 and ("Rebirth " .. tostring(payload.rebirthTier or 0) .. " | " .. tostring(maxSlots) .. " slot(s)") or "Unlocks at Rebirth 3"
+	subtitle.Text = maxSlots > 0 and ("Rebirth " .. tostring(payload.rebirthTier or 0) .. " | protects " .. tostring(maxSlots) .. " player(s)") or "Unlocks at Rebirth 3"
 
 	makeSectionTitle("VAULT", 1)
-	if #(payload.vault or {}) == 0 then
+	if vaultedCount == 0 then
 		makeLabel({
 			Text = maxSlots > 0 and "No players vaulted yet." or "Reach Rebirth 3 to use the vault.",
 			Size = UDim2.new(1, 0, 0, 36),
@@ -362,9 +445,22 @@ render = function(payload)
 	end
 
 	makeSectionTitle("STORED PLAYERS", 1000)
-	for index, card in ipairs(payload.inventory or {}) do
-		local mode = containsSelected(card.id) and "selected" or "inventory"
-		makeCardRow(card, 1010 + index, mode)
+	if maxSlots <= 0 or #(payload.inventory or {}) == 0 then
+		makeLabel({
+			Text = maxSlots > 0 and "No stored players available." or "Vault unlocks at Rebirth 3.",
+			Size = UDim2.new(1, 0, 0, 32),
+			LayoutOrder = 1010,
+			TextColor3 = Color3.fromRGB(160, 174, 190),
+			TextSize = 12,
+			TextScaled = false,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 4,
+		}, scroll)
+	else
+		for index, card in ipairs(payload.inventory or {}) do
+			local mode = containsSelected(card.id) and "selected" or "inventory"
+			makeCardRow(card, 1010 + index, mode)
+		end
 	end
 
 	makeSectionTitle("ON DISPLAY - REMOVE FROM GREEN SLOT FIRST", 3000)
@@ -391,9 +487,9 @@ local function openUI(payload)
 	render(payload)
 	panel.Visible = true
 	dimmer.Visible = true
-	panel.Size = UDim2.new(0, 420, 0, 560)
+	panel.Size = UDim2.new(0, 510, 0, 540)
 	TweenService:Create(panel, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0, 460, 0, 610),
+		Size = UDim2.new(0, 560, 0, 590),
 	}):Play()
 	TweenService:Create(dimmer, TweenInfo.new(0.16), {
 		BackgroundTransparency = 0.48,
@@ -402,7 +498,7 @@ end
 
 local function closeUI()
 	TweenService:Create(panel, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-		Size = UDim2.new(0, 420, 0, 560),
+		Size = UDim2.new(0, 510, 0, 540),
 	}):Play()
 	TweenService:Create(dimmer, TweenInfo.new(0.14), {
 		BackgroundTransparency = 1,
