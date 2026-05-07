@@ -82,7 +82,7 @@ local dimmer = make("Frame", {
 local panel = make("Frame", {
 	Visible          = false,
 	AnchorPoint      = Vector2.new(0.5, 0.5),
-	Position         = UDim2.fromScale(0.5, 0.46),
+	Position         = UDim2.fromScale(0.5, 0.44),
 	Size             = UDim2.new(0, 560, 0, 540),
 	BackgroundColor3 = UI.Panel,
 	ClipsDescendants = true,
@@ -408,13 +408,14 @@ addCorner(startingFansLabel, 10)
 -- ── 4. Status banner ──────────────────────────────────────────────────────────
 local footer = make("Frame", {
 	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 1, -28),
-	Size = UDim2.new(1, -32, 0, 86),
+	Position = UDim2.new(0.5, 0, 1, -32),
+	Size = UDim2.new(1, -32, 0, 88),
 	BackgroundTransparency = 1,
 	ZIndex = 6,
 }, panel)
 
 local statusBanner = make("Frame", {
+	Position = UDim2.new(0, 0, 0, 52),
 	Size = UDim2.new(1, 0, 0, 34),
 	BackgroundColor3 = Color3.fromRGB(35, 28, 58),
 	BorderSizePixel = 0,
@@ -436,7 +437,7 @@ local statusLabel = makeLabel({
 -- ── 5. Rebirth button ─────────────────────────────────────────────────────────
 local rebirthBtn = make("TextButton", {
 	Text = "REBIRTH NOW",
-	Position = UDim2.new(0, 0, 0, 42),
+	Position = UDim2.new(0, 0, 0, 0),
 	Size = UDim2.new(1, 0, 0, 44),
 	BackgroundColor3 = Color3.fromRGB(60, 40, 120),
 	Font = Enum.Font.GothamBlack,
