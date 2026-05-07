@@ -2303,24 +2303,25 @@ local function createFanZone(mapWidth, mapLength)
 		Size = Vector3.new(3.2, 24, 24),
 		CFrame = CFrame.new(0, 1.6, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
-	-- Gold neon rim ring at top edge of Tier 1
+	-- Gold neon rim ring at top edge of Tier 1 — semi-transparent so it glows, not blinds
 	make("Part", {
 		Name = "PedestalTier1Rim",
 		Anchored = true, CanCollide = false,
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Neon,
 		Color = PODIUM_GOLD,
+		Transparency = 0.45,
 		Size = Vector3.new(0.18, 24.6, 24.6),
 		CFrame = CFrame.new(0, 3.15, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
-	-- Red glow ring at the very base — the dramatic floor halo from the concept
+	-- Red glow ring at the very base
 	make("Part", {
 		Name = "PedestalBaseGlow",
 		Anchored = true, CanCollide = false,
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Neon,
 		Color = PODIUM_RED,
-		Transparency = 0.55,
+		Transparency = 0.72,
 		Size = Vector3.new(0.10, 28, 28),
 		CFrame = CFrame.new(0, 0.12, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
@@ -2342,6 +2343,7 @@ local function createFanZone(mapWidth, mapLength)
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Neon,
 		Color = PODIUM_GOLD,
+		Transparency = 0.45,
 		Size = Vector3.new(0.16, 16.6, 16.6),
 		CFrame = CFrame.new(0, 5.85, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
@@ -2363,11 +2365,12 @@ local function createFanZone(mapWidth, mapLength)
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Neon,
 		Color = PODIUM_GOLD,
+		Transparency = 0.45,
 		Size = Vector3.new(0.14, 10.6, 10.6),
 		CFrame = CFrame.new(0, 8.42, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
 
-	-- Dramatic red uplight from inside the base — bleeds onto the ground around it
+	-- Subtle red uplight at the base — toned down so it accents rather than floods
 	local redGlow = make("Part", {
 		Name = "PedestalRedLightSource",
 		Anchored = true, CanCollide = false,
@@ -2377,12 +2380,12 @@ local function createFanZone(mapWidth, mapLength)
 	}, plaza)
 	make("PointLight", {
 		Color = PODIUM_RED,
-		Range = 28,
-		Brightness = 1.6,
+		Range = 20,
+		Brightness = 0.5,
 		Shadows = false,
 	}, redGlow)
 
-	-- Warm gold light from the top plinth — lights the ball and surrounding area
+	-- Very subtle gold light from the top plinth — just enough to light the ball
 	local goldGlow = make("Part", {
 		Name = "PedestalGoldLightSource",
 		Anchored = true, CanCollide = false,
@@ -2392,8 +2395,8 @@ local function createFanZone(mapWidth, mapLength)
 	}, plaza)
 	make("PointLight", {
 		Color = PODIUM_GOLD,
-		Range = 22,
-		Brightness = 0.9,
+		Range = 14,
+		Brightness = 0.28,
 		Shadows = false,
 	}, goldGlow)
 
