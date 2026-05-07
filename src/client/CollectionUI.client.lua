@@ -191,10 +191,10 @@ local rewardsFrame = make("Frame", {
 addCorner(rewardsFrame, 12)
 addStroke(rewardsFrame, UI.Gold, 1, 0.58)
 
-make("TextLabel", {
+local rewardsTitle = make("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.fromOffset(10, 8),
-	Size = UDim2.new(1, -20, 0, 22),
+	Size = UDim2.new(1, -20, 0, 20),
 	Text = "Rewards",
 	TextColor3 = UI.Gold,
 	TextScaled = false,
@@ -203,11 +203,74 @@ make("TextLabel", {
 	TextXAlignment = Enum.TextXAlignment.Left,
 }, rewardsFrame)
 
+local nextRewardCard = make("Frame", {
+	BackgroundColor3 = Color3.fromRGB(11, 16, 28),
+	BorderSizePixel = 0,
+	Position = UDim2.fromOffset(10, 34),
+	Size = UDim2.new(1, -20, 0, 74),
+}, rewardsFrame)
+addCorner(nextRewardCard, 10)
+addStroke(nextRewardCard, UI.Gold, 1, 0.54)
+
+local nextRewardLabel = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.fromOffset(8, 6),
+	Size = UDim2.new(1, -16, 0, 18),
+	Text = "Next reward",
+	TextColor3 = UI.Muted,
+	TextScaled = false,
+	TextSize = 10,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+}, nextRewardCard)
+
+local nextRewardValue = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.fromOffset(8, 24),
+	Size = UDim2.new(1, -16, 0, 20),
+	Text = "--",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 12,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+}, nextRewardCard)
+
+local nextRewardProgress = make("Frame", {
+	BackgroundColor3 = UI.PanelAlt,
+	BorderSizePixel = 0,
+	Position = UDim2.fromOffset(8, 48),
+	Size = UDim2.new(1, -16, 0, 9),
+}, nextRewardCard)
+addCorner(nextRewardProgress, 8)
+
+local nextRewardProgressFill = make("Frame", {
+	BackgroundColor3 = UI.Gold,
+	BorderSizePixel = 0,
+	Size = UDim2.fromScale(0, 1),
+}, nextRewardProgress)
+addCorner(nextRewardProgressFill, 8)
+
+local nextRewardProgressText = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.fromOffset(8, 58),
+	Size = UDim2.new(1, -16, 0, 12),
+	Text = "",
+	TextColor3 = UI.Muted,
+	TextScaled = false,
+	TextSize = 8,
+	Font = Enum.Font.GothamBold,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+}, nextRewardCard)
+
 local rewardsList = make("ScrollingFrame", {
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
-	Position = UDim2.fromOffset(10, 38),
-	Size = UDim2.new(1, -20, 1, -48),
+	Position = UDim2.fromOffset(10, 118),
+	Size = UDim2.new(1, -20, 1, -128),
 	CanvasSize = UDim2.new(),
 	ScrollBarThickness = 4,
 }, rewardsFrame)
@@ -480,24 +543,60 @@ end
 local function renderRewards(payload)
 	clearRewards()
 
+	local nextReward = nil
+	for _, reward in ipairs(payload.rewards or {}) do
+		if not reward.claimed then
+			nextReward = reward
+			break
+		end
+	end
+
+	if nextReward then
+		local requiredCards = math.max(1, nextReward.requiredCards or 1)
+		local progress = math.clamp(nextReward.progress or payload.unlockedCount or 0, 0, requiredCards)
+		local progressRatio = progress / requiredCards
+		nextRewardLabel.Text = nextReward.canClaim and "Ready to claim" or "Next reward"
+		nextRewardLabel.TextColor3 = nextReward.canClaim and UI.Gold or UI.Muted
+		nextRewardValue.Text = tostring(nextReward.label or "Reward") .. " -> " .. tostring(nextReward.reward or "")
+		nextRewardProgressText.Text = tostring(progress) .. "/" .. tostring(requiredCards) .. " cards"
+		nextRewardCard.BackgroundColor3 = nextReward.canClaim and Color3.fromRGB(30, 26, 10) or Color3.fromRGB(11, 16, 28)
+		TweenService:Create(nextRewardProgressFill, TweenInfo.new(0.22, Enum.EasingStyle.Quad), {
+			Size = UDim2.fromScale(progressRatio, 1),
+		}):Play()
+	else
+		nextRewardLabel.Text = "Album rewards complete"
+		nextRewardLabel.TextColor3 = UI.Success
+		nextRewardValue.Text = "All rewards claimed"
+		nextRewardProgressText.Text = "Nice."
+		nextRewardCard.BackgroundColor3 = Color3.fromRGB(11, 28, 18)
+		TweenService:Create(nextRewardProgressFill, TweenInfo.new(0.22, Enum.EasingStyle.Quad), {
+			Size = UDim2.fromScale(1, 1),
+		}):Play()
+	end
+
 	for index, reward in ipairs(payload.rewards or {}) do
 		local requiredCards = math.max(1, reward.requiredCards or 1)
 		local progress = math.clamp(reward.progress or payload.unlockedCount or 0, 0, requiredCards)
 		local progressRatio = progress / requiredCards
+		local locked = (not reward.claimed) and (not reward.canClaim)
+		local rowColor = reward.claimed and Color3.fromRGB(12, 30, 20)
+			or (reward.canClaim and Color3.fromRGB(34, 27, 8) or UI.Panel)
+		local strokeColor = reward.claimed and UI.Success or (reward.canClaim and UI.Gold or UI.Muted)
+		local fillColor = reward.claimed and UI.Success or (reward.canClaim and UI.Gold or Color3.fromRGB(96, 104, 118))
 		local row = make("Frame", {
 			LayoutOrder = index,
-			BackgroundColor3 = UI.Panel,
-			Size = UDim2.new(1, 0, 0, 74),
+			BackgroundColor3 = rowColor,
+			Size = UDim2.new(1, 0, 0, 84),
 		}, rewardsList)
 		addCorner(row, 10)
-		local rowStroke = addStroke(row, reward.canClaim and UI.Gold or UI.Muted, reward.canClaim and 1.3 or 1, reward.canClaim and 0.22 or 0.72)
+		local rowStroke = addStroke(row, strokeColor, reward.canClaim and 1.4 or 1, reward.canClaim and 0.16 or 0.62)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
 			Position = UDim2.fromOffset(8, 6),
 			Size = UDim2.new(1, -16, 0, 16),
 			Text = reward.label .. " -> " .. reward.reward,
-			TextColor3 = UI.Text,
+			TextColor3 = locked and Color3.fromRGB(180, 184, 194) or UI.Text,
 			TextScaled = false,
 			TextSize = 11,
 			Font = Enum.Font.GothamBlack,
@@ -508,13 +607,13 @@ local function renderRewards(payload)
 		local progressBack = make("Frame", {
 			BackgroundColor3 = UI.PanelAlt,
 			BorderSizePixel = 0,
-			Position = UDim2.fromOffset(8, 26),
+			Position = UDim2.fromOffset(8, 28),
 			Size = UDim2.new(1, -16, 0, 10),
 		}, row)
 		addCorner(progressBack, 8)
 
 		local progressFill = make("Frame", {
-			BackgroundColor3 = reward.claimed and UI.Success or (reward.canClaim and UI.Gold or UI.Muted),
+			BackgroundColor3 = fillColor,
 			BorderSizePixel = 0,
 			Size = UDim2.fromScale(progressRatio, 1),
 		}, progressBack)
@@ -522,7 +621,7 @@ local function renderRewards(payload)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(8, 37),
+			Position = UDim2.fromOffset(8, 40),
 			Size = UDim2.new(1, -16, 0, 12),
 			Text = tostring(progress) .. "/" .. tostring(requiredCards) .. " cards",
 			TextColor3 = UI.Muted,
@@ -532,11 +631,11 @@ local function renderRewards(payload)
 			TextXAlignment = Enum.TextXAlignment.Left,
 		}, row)
 
-		local stateText = reward.claimed and "CLAIMED" or (reward.canClaim and "CLAIM" or "LOCKED")
+		local stateText = reward.claimed and "CLAIMED" or (reward.canClaim and "CLAIM REWARD" or "LOCKED")
 		local stateColor = reward.claimed and UI.Success or (reward.canClaim and UI.Gold or UI.Muted)
 		local button = make("TextButton", {
-			Position = UDim2.fromOffset(8, 50),
-			Size = UDim2.new(1, -16, 0, 20),
+			Position = UDim2.fromOffset(8, 56),
+			Size = UDim2.new(1, -16, 0, 22),
 			BackgroundColor3 = reward.canClaim and UI.Gold or (reward.claimed and Color3.fromRGB(20, 44, 30) or Color3.fromRGB(31, 34, 45)),
 			Text = stateText,
 			TextColor3 = reward.canClaim and Color3.fromRGB(18, 12, 6) or stateColor,
