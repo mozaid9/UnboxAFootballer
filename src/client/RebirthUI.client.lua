@@ -43,7 +43,9 @@ local function addStroke(parent, color, thickness, transp)
 end
 
 local function makeLabel(props, parent)
-	props.BackgroundTransparency = 1
+	if props.BackgroundTransparency == nil then
+		props.BackgroundTransparency = 1
+	end
 	props.Font = props.Font or Enum.Font.GothamBold
 	props.TextColor3 = props.TextColor3 or UI.Text
 	props.TextScaled = props.TextScaled ~= false
@@ -80,8 +82,8 @@ local dimmer = make("Frame", {
 local panel = make("Frame", {
 	Visible          = false,
 	AnchorPoint      = Vector2.new(0.5, 0.5),
-	Position         = UDim2.fromScale(0.5, 0.5),
-	Size             = UDim2.new(0, 520, 0, 570),
+	Position         = UDim2.fromScale(0.5, 0.46),
+	Size             = UDim2.new(0, 560, 0, 540),
 	BackgroundColor3 = UI.Panel,
 	ClipsDescendants = true,
 	ZIndex           = 2,
@@ -91,12 +93,12 @@ addStroke(panel, REBIRTH_PURPLE, 2, 0.15)
 
 make("UISizeConstraint", {
 	MinSize = Vector2.new(360, 440),
-	MaxSize = Vector2.new(560, 660),
+	MaxSize = Vector2.new(600, 620),
 }, panel)
 
 -- Purple/gold gradient header bar
 local headerBar = make("Frame", {
-	Size = UDim2.new(1, 0, 0, 78),
+	Size = UDim2.new(1, 0, 0, 70),
 	BackgroundColor3 = Color3.fromRGB(18, 12, 36),
 	BorderSizePixel = 0,
 	ZIndex = 3,
@@ -116,7 +118,7 @@ make("UIGradient", {
 makeLabel({
 	Text = "REBIRTH",
 	Size = UDim2.new(1, -80, 0, 36),
-	Position = UDim2.new(0, 16, 0, 8),
+	Position = UDim2.new(0, 16, 0, 6),
 	Font = Enum.Font.GothamBlack,
 	TextColor3 = REBIRTH_GOLD,
 	TextSize = 24,
@@ -128,7 +130,7 @@ makeLabel({
 local tierSubtitle = makeLabel({
 	Text = "Tier 0  →  Tier 1",
 	Size = UDim2.new(1, -80, 0, 20),
-	Position = UDim2.new(0, 18, 0, 42),
+	Position = UDim2.new(0, 18, 0, 38),
 	Font = Enum.Font.Gotham,
 	TextColor3 = Color3.fromRGB(200, 180, 255),
 	TextSize = 14,
@@ -141,7 +143,7 @@ local headerBadge = makeLabel({
 	Text = "PERMANENT BOOST",
 	AnchorPoint = Vector2.new(1, 0),
 	Size = UDim2.new(0, 142, 0, 26),
-	Position = UDim2.new(1, -62, 0, 26),
+	Position = UDim2.new(1, -62, 0, 22),
 	Font = Enum.Font.GothamBlack,
 	TextColor3 = Color3.fromRGB(20, 15, 8),
 	TextSize = 11,
@@ -156,7 +158,7 @@ addCorner(headerBadge, 13)
 local closeBtn = make("TextButton", {
 	Text = "X",
 	Size = UDim2.new(0, 38, 0, 38),
-	Position = UDim2.new(1, -46, 0, 20),
+	Position = UDim2.new(1, -46, 0, 16),
 	BackgroundColor3 = Color3.fromRGB(180, 60, 60),
 	TextColor3 = Color3.fromRGB(255, 255, 255),
 	Font = Enum.Font.GothamBlack,
@@ -167,8 +169,8 @@ addCorner(closeBtn, 8)
 
 -- ── Scrollable content area ───────────────────────────────────────────────────
 local scroll = make("ScrollingFrame", {
-	Size = UDim2.new(1, 0, 1, -196),
-	Position = UDim2.new(0, 0, 0, 78),
+	Size = UDim2.new(1, 0, 1, -190),
+	Position = UDim2.new(0, 0, 0, 70),
 	BackgroundTransparency = 1,
 	CanvasSize = UDim2.new(0, 0, 0, 0),
 	AutomaticCanvasSize = Enum.AutomaticSize.Y,
@@ -179,14 +181,14 @@ local scroll = make("ScrollingFrame", {
 
 local listLayout = make("UIListLayout", {
 	SortOrder = Enum.SortOrder.LayoutOrder,
-	Padding = UDim.new(0, 12),
+	Padding = UDim.new(0, 8),
 	FillDirection = Enum.FillDirection.Vertical,
 	HorizontalAlignment = Enum.HorizontalAlignment.Center,
 }, scroll)
 
 make("UIPadding", {
-	PaddingTop    = UDim.new(0, 14),
-	PaddingBottom = UDim.new(0, 14),
+	PaddingTop    = UDim.new(0, 8),
+	PaddingBottom = UDim.new(0, 8),
 	PaddingLeft   = UDim.new(0, 16),
 	PaddingRight  = UDim.new(0, 16),
 }, scroll)
@@ -216,12 +218,12 @@ local function section(labelText, layoutOrder, heightHint)
 end
 
 -- ── 1. FANS section ────────────────────────────────────────────────────────────
-local fansSection = section("FANS CHECK", 1, 96)
+local fansSection = section("FANS CHECK", 1, 72)
 
 local fansCountLabel = makeLabel({
 	Text = "0 / 1,000,000",
 	Size = UDim2.new(1, -72, 0, 24),
-	Position = UDim2.new(0, 10, 0, 30),
+	Position = UDim2.new(0, 10, 0, 25),
 	Font = Enum.Font.GothamBold,
 	TextColor3 = UI.Text,
 	TextSize = 15,
@@ -232,7 +234,7 @@ local fansCountLabel = makeLabel({
 
 local barBg = make("Frame", {
 	Size = UDim2.new(1, -16, 0, 12),
-	Position = UDim2.new(0, 8, 0, 62),
+	Position = UDim2.new(0, 8, 0, 52),
 	BackgroundColor3 = Color3.fromRGB(28, 22, 48),
 	BorderSizePixel = 0,
 	ZIndex = 4,
@@ -257,8 +259,8 @@ make("UIGradient", {
 
 local fansCheckLabel = makeLabel({
 	Text = "",
-	Size = UDim2.new(0, 48, 0, 38),
-	Position = UDim2.new(1, -56, 0, 26),
+	Size = UDim2.new(0, 42, 0, 34),
+	Position = UDim2.new(1, -52, 0, 20),
 	Font = Enum.Font.GothamBlack,
 	TextSize = 28,
 	TextScaled = false,
@@ -266,12 +268,12 @@ local fansCheckLabel = makeLabel({
 }, fansSection)
 
 -- ── 2. REQUIRED PLAYERS section ───────────────────────────────────────────────
-local cardSection = section("PLAYER CHECK", 2, 104)
+local cardSection = section("PLAYER CHECK", 2, 82)
 
 -- Card requirement slot (built dynamically in populate())
 local cardSlotContainer = make("Frame", {
-	Size = UDim2.new(1, -16, 0, 66),
-	Position = UDim2.new(0, 8, 0, 30),
+	Size = UDim2.new(1, -16, 0, 48),
+	Position = UDim2.new(0, 8, 0, 28),
 	BackgroundTransparency = 1,
 	ZIndex = 4,
 }, cardSection)
@@ -286,8 +288,8 @@ addCorner(cardSlotFrame, 10)
 
 local cardSlotIcon = makeLabel({
 	Text = "?",
-	Size = UDim2.new(0, 54, 1, -12),
-	Position = UDim2.new(0, 6, 0, 6),
+	Size = UDim2.new(0, 38, 1, -10),
+	Position = UDim2.new(0, 5, 0, 5),
 	Font = Enum.Font.GothamBlack,
 	TextColor3 = Color3.fromRGB(120, 100, 160),
 	TextSize = 24,
@@ -301,7 +303,7 @@ addCorner(cardSlotIcon, 6)
 local cardSlotName = makeLabel({
 	Text = "Not owned",
 	Size = UDim2.new(1, -124, 0, 24),
-	Position = UDim2.new(0, 72, 0, 9),
+	Position = UDim2.new(0, 58, 0, 5),
 	Font = Enum.Font.GothamBlack,
 	TextColor3 = Color3.fromRGB(150, 130, 190),
 	TextSize = 14,
@@ -313,7 +315,7 @@ local cardSlotName = makeLabel({
 local cardSlotCount = makeLabel({
 	Text = "0 / 1",
 	Size = UDim2.new(1, -124, 0, 20),
-	Position = UDim2.new(0, 72, 0, 36),
+	Position = UDim2.new(0, 58, 0, 27),
 	Font = Enum.Font.Gotham,
 	TextColor3 = Color3.fromRGB(130, 110, 170),
 	TextSize = 13,
@@ -324,8 +326,8 @@ local cardSlotCount = makeLabel({
 
 local cardSlotCheck = makeLabel({
 	Text = "",
-	Size = UDim2.new(0, 44, 1, -12),
-	Position = UDim2.new(1, -50, 0, 6),
+	Size = UDim2.new(0, 38, 1, -10),
+	Position = UDim2.new(1, -44, 0, 5),
 	Font = Enum.Font.GothamBlack,
 	TextSize = 28,
 	TextScaled = false,
@@ -333,11 +335,11 @@ local cardSlotCheck = makeLabel({
 }, cardSlotFrame)
 
 -- ── 3. LOSE / GAIN section ────────────────────────────────────────────────────
-local infoSection = section("WHAT CHANGES", 3, 216)
+local infoSection = section("WHAT CHANGES", 3, 160)
 
 local function changeRow(y, accent, iconText, titleText, bodyText)
 	local row = make("Frame", {
-		Size = UDim2.new(1, -16, 0, 34),
+		Size = UDim2.new(1, -16, 0, 26),
 		Position = UDim2.new(0, 8, 0, y),
 		BackgroundColor3 = Color3.fromRGB(12, 14, 24),
 		BorderSizePixel = 0,
@@ -348,7 +350,7 @@ local function changeRow(y, accent, iconText, titleText, bodyText)
 
 	makeLabel({
 		Text = iconText,
-		Size = UDim2.new(0, 28, 1, 0),
+		Size = UDim2.new(0, 24, 1, 0),
 		Position = UDim2.new(0, 7, 0, 0),
 		Font = Enum.Font.GothamBlack,
 		TextColor3 = accent,
@@ -360,7 +362,7 @@ local function changeRow(y, accent, iconText, titleText, bodyText)
 	makeLabel({
 		Text = titleText,
 		Size = UDim2.new(0.38, -16, 1, 0),
-		Position = UDim2.new(0, 38, 0, 0),
+		Position = UDim2.new(0, 34, 0, 0),
 		Font = Enum.Font.GothamBlack,
 		TextColor3 = UI.Text,
 		TextSize = 11,
@@ -372,7 +374,7 @@ local function changeRow(y, accent, iconText, titleText, bodyText)
 	local body = makeLabel({
 		Text = bodyText,
 		Size = UDim2.new(0.62, -34, 1, 0),
-		Position = UDim2.new(0.38, 14, 0, 0),
+		Position = UDim2.new(0.38, 10, 0, 0),
 		Font = Enum.Font.GothamBold,
 		TextColor3 = accent,
 		TextSize = 11,
@@ -384,18 +386,18 @@ local function changeRow(y, accent, iconText, titleText, bodyText)
 	return body
 end
 
-changeRow(30, REBIRTH_RED, "!", "RESETS", "Fans + non-vaulted inventory")
-local gainMultiplierLabel = changeRow(68, REBIRTH_GREEN, "+", "MULTIPLIER", "1.0x -> 1.2x")
-local gainSlotsLabel = changeRow(106, REBIRTH_GOLD, "+", "DISPLAY SLOTS", "6 -> 7")
-local vaultSlotsLabel = changeRow(144, Color3.fromRGB(125, 208, 255), "i", "VAULT", "Unlocks at Rebirth 3")
+changeRow(29, REBIRTH_RED, "!", "RESETS", "Fans + non-vaulted inventory")
+local gainMultiplierLabel = changeRow(57, REBIRTH_GREEN, "+", "MULTIPLIER", "1.0x -> 1.2x")
+local gainSlotsLabel = changeRow(85, REBIRTH_GOLD, "+", "DISPLAY SLOTS", "6 -> 7")
+local vaultSlotsLabel = changeRow(113, Color3.fromRGB(125, 208, 255), "i", "VAULT", "Unlocks at Rebirth 3")
 
 local startingFansLabel = makeLabel({
 	Text = "START AFTER REBIRTH: 5,000 FANS",
-	Size = UDim2.new(1, -16, 0, 24),
-	Position = UDim2.new(0, 8, 0, 184),
+	Size = UDim2.new(1, -16, 0, 18),
+	Position = UDim2.new(0, 8, 0, 140),
 	Font = Enum.Font.GothamBlack,
 	TextColor3 = Color3.fromRGB(22, 16, 8),
-	TextSize = 11,
+	TextSize = 10,
 	TextScaled = false,
 	BackgroundColor3 = REBIRTH_GOLD,
 	BackgroundTransparency = 0,
@@ -406,14 +408,14 @@ addCorner(startingFansLabel, 10)
 -- ── 4. Status banner ──────────────────────────────────────────────────────────
 local footer = make("Frame", {
 	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 1, -14),
-	Size = UDim2.new(1, -32, 0, 104),
+	Position = UDim2.new(0.5, 0, 1, -28),
+	Size = UDim2.new(1, -32, 0, 86),
 	BackgroundTransparency = 1,
 	ZIndex = 6,
 }, panel)
 
 local statusBanner = make("Frame", {
-	Size = UDim2.new(1, 0, 0, 40),
+	Size = UDim2.new(1, 0, 0, 34),
 	BackgroundColor3 = Color3.fromRGB(35, 28, 58),
 	BorderSizePixel = 0,
 	ZIndex = 6,
@@ -425,7 +427,7 @@ local statusLabel = makeLabel({
 	Size = UDim2.fromScale(1, 1),
 	Font = Enum.Font.GothamBlack,
 	TextColor3 = Color3.fromRGB(200, 140, 80),
-	TextSize = 13,
+	TextSize = 12,
 	TextScaled = false,
 	TextWrapped = true,
 	ZIndex = 7,
@@ -434,12 +436,12 @@ local statusLabel = makeLabel({
 -- ── 5. Rebirth button ─────────────────────────────────────────────────────────
 local rebirthBtn = make("TextButton", {
 	Text = "REBIRTH NOW",
-	Position = UDim2.new(0, 0, 0, 50),
-	Size = UDim2.new(1, 0, 0, 52),
+	Position = UDim2.new(0, 0, 0, 42),
+	Size = UDim2.new(1, 0, 0, 44),
 	BackgroundColor3 = Color3.fromRGB(60, 40, 120),
 	Font = Enum.Font.GothamBlack,
 	TextColor3 = Color3.fromRGB(200, 180, 255),
-	TextSize = 18,
+	TextSize = 16,
 	AutoButtonColor = false,
 	ZIndex = 6,
 }, footer)
@@ -574,9 +576,9 @@ local function openUI(status)
 	panel.Visible  = true
 	dimmer.Visible = true
 
-	panel.Size = UDim2.new(0, 470, 0, 520)
+	panel.Size = UDim2.new(0, 510, 0, 500)
 	TweenService:Create(panel, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0, 520, 0, 570),
+		Size = UDim2.new(0, 560, 0, 540),
 	}):Play()
 	TweenService:Create(dimmer, TweenInfo.new(0.18), {
 		BackgroundTransparency = 0.52,
@@ -585,7 +587,7 @@ end
 
 local function closeUI()
 	TweenService:Create(panel, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-		Size = UDim2.new(0, 470, 0, 520),
+		Size = UDim2.new(0, 510, 0, 500),
 	}):Play()
 	TweenService:Create(dimmer, TweenInfo.new(0.16), {
 		BackgroundTransparency = 1,
