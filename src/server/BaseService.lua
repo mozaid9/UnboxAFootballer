@@ -6178,6 +6178,255 @@ function BaseService.ReleaseCrowdSeat(seat)
 	end
 end
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Concept Test Stadium: standalone visual sandbox to iterate on the concept
+-- art base style without affecting gameplay. Lives separately from player plots.
+-- ─────────────────────────────────────────────────────────────────────────────
+local function createConceptTestStadium(parent, position)
+	local model = make("Model", { Name = "ConceptTestStadium" }, parent)
+	local baseCFrame = CFrame.new(position)
+
+	local size = 90              -- overall footprint
+	local pitchW = 36
+	local pitchD = 26
+	local wallH = 12
+	local wallT = 1.6
+	local floorH = 1
+	local stoneCol = Color3.fromRGB(34, 38, 46)
+	local stoneAccent = Color3.fromRGB(54, 60, 72)
+	local goldCol = Color3.fromRGB(218, 168, 40)
+	local pitchCol = Color3.fromRGB(48, 110, 52)
+	local redSeat = Color3.fromRGB(178, 32, 32)
+
+	-- Stone tile floor
+	make("Part", {
+		Name = "Floor", Anchored = true,
+		Material = Enum.Material.Slate, Color = stoneCol,
+		Size = Vector3.new(size, floorH, size),
+		CFrame = baseCFrame * CFrame.new(0, floorH / 2, 0),
+	}, model)
+
+	-- Central pitch (green grass + white touch lines)
+	make("Part", {
+		Name = "Pitch", Anchored = true, CanCollide = false,
+		Material = Enum.Material.Grass, Color = pitchCol,
+		Size = Vector3.new(pitchW, 0.1, pitchD),
+		CFrame = baseCFrame * CFrame.new(0, floorH + 0.05, 0),
+	}, model)
+	-- pitch border lines
+	for _, edge in ipairs({
+		{ size = Vector3.new(pitchW + 0.4, 0.05, 0.25), x = 0, z = -pitchD / 2 },
+		{ size = Vector3.new(pitchW + 0.4, 0.05, 0.25), x = 0, z =  pitchD / 2 },
+		{ size = Vector3.new(0.25, 0.05, pitchD), x = -pitchW / 2, z = 0 },
+		{ size = Vector3.new(0.25, 0.05, pitchD), x =  pitchW / 2, z = 0 },
+		{ size = Vector3.new(0.25, 0.05, pitchD), x = 0, z = 0 }, -- halfway
+	}) do
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(240, 240, 240),
+			Size = edge.size,
+			CFrame = baseCFrame * CFrame.new(edge.x, floorH + 0.12, edge.z),
+		}, model)
+	end
+
+	-- Octagonal stone perimeter walls (8 wall segments, leaving the front open)
+	local wallY = floorH + wallH / 2
+	local octRadius = size / 2 - 1.5
+	for i = 0, 7 do
+		-- Skip front segment (i = 0) to leave the entrance open
+		if i == 0 then continue end
+		local angle = (i / 8) * math.pi * 2
+		local wallLen = 2 * octRadius * math.sin(math.pi / 8) - 0.4
+		local cf = baseCFrame
+			* CFrame.new(math.cos(angle) * octRadius, wallY, math.sin(angle) * octRadius)
+			* CFrame.Angles(0, -angle + math.pi / 2, 0)
+		make("Part", {
+			Name = "WallSeg" .. i, Anchored = true,
+			Material = Enum.Material.Slate, Color = stoneCol,
+			Size = Vector3.new(wallLen, wallH, wallT),
+			CFrame = cf,
+		}, model)
+		-- Gold trim along top of wall
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.25,
+			Size = Vector3.new(wallLen + 0.1, 0.18, wallT + 0.1),
+			CFrame = cf * CFrame.new(0, wallH / 2 + 0.09, 0),
+		}, model)
+	end
+
+	-- Side red bleachers (left and right of pitch, between walls and pitch)
+	for _, sign in ipairs({-1, 1}) do
+		for tier = 1, 3 do
+			local zOffset = sign * (pitchD / 2 + 4 + (tier - 1) * 1.6)
+			local h = 1 + (tier - 1) * 0.8
+			make("Part", {
+				Name = "Bleacher" .. (sign > 0 and "S" or "N") .. tier,
+				Anchored = true, CanCollide = true,
+				Material = Enum.Material.SmoothPlastic, Color = redSeat,
+				Size = Vector3.new(pitchW + 4, h, 3),
+				CFrame = baseCFrame * CFrame.new(0, floorH + h / 2, zOffset),
+			}, model)
+		end
+	end
+
+	-- Central elevated card display podium (hexagonal feel via stacked parts)
+	local podiumY = floorH + 1
+	make("Part", {
+		Name = "PodiumBase", Anchored = true, CanCollide = true,
+		Material = Enum.Material.Slate, Color = stoneAccent,
+		Size = Vector3.new(14, 2, 10),
+		CFrame = baseCFrame * CFrame.new(0, podiumY, 0),
+	}, model)
+	-- Center pack pillar (placeholder for FOOTBALLER PACK)
+	make("Part", {
+		Name = "PackPillar", Anchored = true, CanCollide = false,
+		Material = Enum.Material.Neon, Color = Color3.fromRGB(220, 60, 30), Transparency = 0.05,
+		Size = Vector3.new(2.2, 5, 1.6),
+		CFrame = baseCFrame * CFrame.new(0, podiumY + 1 + 2.5, 0),
+	}, model)
+	-- Two flanking card pedestals with green glow under each (placeholder slots)
+	for _, sx in ipairs({-4.4, 4.4}) do
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = stoneAccent,
+			Size = Vector3.new(2, 0.4, 2),
+			CFrame = baseCFrame * CFrame.new(sx, podiumY + 1.2, 0),
+		}, model)
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = Color3.fromRGB(40, 220, 80), Transparency = 0.45,
+			Size = Vector3.new(2.4, 0.18, 2.4),
+			CFrame = baseCFrame * CFrame.new(sx, podiumY + 1.05, 0),
+		}, model)
+	end
+
+	-- Freestanding entrance archway out front of the open side
+	local archX = size / 2 + 4
+	local archHeight = 11
+	local archWidth = 14
+	local pillarW = 2.4
+	for _, sz in ipairs({-archWidth / 2, archWidth / 2}) do
+		make("Part", {
+			Anchored = true, CanCollide = true,
+			Material = Enum.Material.Slate, Color = stoneCol,
+			Size = Vector3.new(pillarW, archHeight, pillarW),
+			CFrame = baseCFrame * CFrame.new(archX, archHeight / 2, sz),
+		}, model)
+	end
+	-- Horizontal arch beam
+	local archBeam = make("Part", {
+		Name = "ArchBeam", Anchored = true,
+		Material = Enum.Material.Slate, Color = stoneCol,
+		Size = Vector3.new(pillarW, 3.4, archWidth + pillarW),
+		CFrame = baseCFrame * CFrame.new(archX, archHeight + 1.5, 0),
+	}, model)
+	-- Gold trim under the beam
+	make("Part", {
+		Anchored = true, CanCollide = false,
+		Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.18,
+		Size = Vector3.new(pillarW + 0.4, 0.3, archWidth + pillarW + 0.4),
+		CFrame = baseCFrame * CFrame.new(archX, archHeight + 1.5 - 1.85, 0),
+	}, model)
+	-- "ZAID'S STADIUM" SurfaceGui on the outward face
+	local archGui = make("SurfaceGui", {
+		Name = "ArchSign", Face = Enum.NormalId.Front,
+		LightInfluence = 0, PixelsPerStud = 60,
+	}, archBeam)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(0.96, 0.7),
+		Position = UDim2.fromScale(0.02, 0.15),
+		Text = "ZAID'S STADIUM",
+		TextColor3 = Color3.fromRGB(255, 222, 110),
+		TextStrokeColor3 = Color3.fromRGB(8, 12, 20),
+		TextStrokeTransparency = 0.4,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+	}, archGui)
+	-- Gold ball ornaments on either side of the sign
+	for _, sz in ipairs({-archWidth / 2 + 1.6, archWidth / 2 - 1.6}) do
+		local ball = make("Part", {
+			Anchored = true, CanCollide = false, Shape = Enum.PartType.Ball,
+			Material = Enum.Material.Neon, Color = goldCol,
+			Size = Vector3.new(1.6, 1.6, 1.6),
+			CFrame = baseCFrame * CFrame.new(archX - 0.6, archHeight + 1.5, sz),
+		}, model)
+		make("PointLight", { Brightness = 1.2, Range = 14, Color = goldCol }, ball)
+	end
+
+	-- 4 corner floodlight poles
+	for _, dx in ipairs({-1, 1}) do
+		for _, dz in ipairs({-1, 1}) do
+			local px = dx * (size / 2 - 5)
+			local pz = dz * (size / 2 - 5)
+			make("Part", {
+				Anchored = true, CanCollide = true,
+				Material = Enum.Material.Metal, Color = Color3.fromRGB(45, 50, 60),
+				Size = Vector3.new(1, 26, 1),
+				CFrame = baseCFrame * CFrame.new(px, 13, pz),
+			}, model)
+			local headPos = baseCFrame * CFrame.new(px, 26.5, pz)
+			local head = make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Metal, Color = Color3.fromRGB(60, 65, 75),
+				Size = Vector3.new(3.2, 1.6, 2.2),
+				CFrame = headPos,
+			}, model)
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 240, 200),
+				Size = Vector3.new(2.8, 0.4, 1.8),
+				CFrame = headPos * CFrame.new(0, -0.9, 0),
+			}, model)
+			make("SpotLight", {
+				Brightness = 4, Range = 60, Angle = 90,
+				Face = Enum.NormalId.Bottom,
+				Color = Color3.fromRGB(255, 240, 200),
+			}, head)
+		end
+	end
+
+	-- Decorative bushes/trees along the front edges
+	for _, spot in ipairs({
+		{ x = size / 2 - 8, z = -size / 2 + 5 },
+		{ x = size / 2 - 8, z =  size / 2 - 5 },
+		{ x = size / 2 - 16, z = -size / 2 + 5 },
+		{ x = size / 2 - 16, z =  size / 2 - 5 },
+	}) do
+		make("Part", {
+			Anchored = true, CanCollide = false, Shape = Enum.PartType.Ball,
+			Material = Enum.Material.Grass, Color = Color3.fromRGB(40, 80, 38),
+			Size = Vector3.new(3.2, 3.2, 3.2),
+			CFrame = baseCFrame * CFrame.new(spot.x, floorH + 1.6, spot.z),
+		}, model)
+	end
+
+	-- Floating "TEST" label so the player knows this is the sandbox
+	local labelAnchor = make("Part", {
+		Anchored = true, CanCollide = false, Transparency = 1,
+		Size = Vector3.new(8, 2, 0.2),
+		CFrame = baseCFrame * CFrame.new(0, archHeight + 7, archX),
+	}, model)
+	local bb = make("BillboardGui", {
+		Size = UDim2.fromOffset(360, 80),
+		AlwaysOnTop = true,
+		LightInfluence = 0,
+	}, labelAnchor)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = "🚧 CONCEPT TEST BASE 🚧",
+		TextColor3 = Color3.fromRGB(255, 220, 120),
+		TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
+		TextStrokeTransparency = 0.2,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+	}, bb)
+
+	return model
+end
+
 function BaseService.BuildBaseMap()
 	setupCollisionGroups()
 	plots = {}
@@ -6235,6 +6484,9 @@ function BaseService.BuildBaseMap()
 			table.insert(plots, createPlot(plotId, side, laneIndex, Vector3.new(x, 0.5, z)))
 		end
 	end
+
+	-- Standalone concept test base (visual sandbox, no gameplay)
+	createConceptTestStadium(basesFolder, Vector3.new(0, 0.5, 260))
 
 	return plots
 end
