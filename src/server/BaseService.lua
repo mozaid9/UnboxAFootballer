@@ -4232,7 +4232,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		CFrame = baseCFrame,
 	}, model)
 
-	-- Central football pitch: green grass rectangle on top of stone floor
+	-- Central football pitch: thin grass rectangle (lines render above it)
 	local pitchInsetX = 10
 	local pitchInsetZ = 8
 	make("Part", {
@@ -4243,8 +4243,8 @@ local function createPlot(plotId, side, laneIndex, position)
 		CanQuery = false,
 		Material = Enum.Material.Grass,
 		Color = Color3.fromRGB(48, 110, 52),
-		Size = Vector3.new(layout.PlotSize.X - pitchInsetX, 0.4, layout.PlotSize.Z - pitchInsetZ),
-		CFrame = baseCFrame * CFrame.new(0, layout.PlotSize.Y / 2 + 0.2, 0),
+		Size = Vector3.new(layout.PlotSize.X - pitchInsetX, 0.08, layout.PlotSize.Z - pitchInsetZ),
+		CFrame = baseCFrame * CFrame.new(0, layout.PlotSize.Y / 2 + 0.04, 0),
 	}, model)
 
 	createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, -layout.PlotSize.Z / 2))
@@ -4309,6 +4309,75 @@ local function createPlot(plotId, side, laneIndex, position)
 			CFrame = baseCFrame * CFrame.new(entrancePillarX, pillarCapLocalY - 0.18, zSign * (entranceWidth / 2)),
 		}, model)
 	end
+
+	-- ── Entrance Archway: horizontal beam connecting pillars with STADIUM sign ───
+	local archBeamHeight = 3.6
+	local archBeamY = pillarCapLocalY - archBeamHeight / 2 - 0.1
+	local archBeam = make("Part", {
+		Name = "EntranceArchBeam",
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Material = Enum.Material.Slate,
+		Color = Color3.fromRGB(28, 32, 40),
+		Size = Vector3.new(entrancePillarWidth + 0.2, archBeamHeight, entranceWidth + entrancePillarWidth + 1),
+		CFrame = baseCFrame * CFrame.new(entrancePillarX, archBeamY, 0),
+	}, model)
+	-- Gold trim along the bottom of the arch beam
+	make("Part", {
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon, Color = trimNeon, Transparency = 0.18,
+		Size = Vector3.new(entrancePillarWidth + 0.5, 0.32, entranceWidth + entrancePillarWidth + 1.3),
+		CFrame = baseCFrame * CFrame.new(entrancePillarX, archBeamY - archBeamHeight / 2 - 0.16, 0),
+	}, model)
+	-- Gold trim along the top of the arch beam
+	make("Part", {
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon, Color = trimNeon, Transparency = 0.30,
+		Size = Vector3.new(entrancePillarWidth + 0.5, 0.22, entranceWidth + entrancePillarWidth + 1.3),
+		CFrame = baseCFrame * CFrame.new(entrancePillarX, archBeamY + archBeamHeight / 2 + 0.11, 0),
+	}, model)
+	-- "STADIUM" sign text on outward face of the arch
+	local archSignSurface = make("SurfaceGui", {
+		Name = "ArchStadiumSign",
+		Face = facingDirection > 0 and Enum.NormalId.Right or Enum.NormalId.Left,
+		LightInfluence = 0,
+		PixelsPerStud = 60,
+		AlwaysOnTop = false,
+		ClipsDescendants = true,
+	}, archBeam)
+	createOwnerSignText("STADIUM", UDim2.fromScale(0.96, 0.7), UDim2.fromScale(0.02, 0.15),
+		Color3.fromRGB(255, 222, 110), {
+			textScaled = true,
+			minTextSize = 30,
+			maxTextSize = 200,
+			font = Enum.Font.GothamBlack,
+			textStrokeTransparency = 0.4,
+		}, archSignSurface)
+	-- Glow inside the arch
+	local archGlowAnchor = make("Part", {
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Transparency = 1, Size = Vector3.new(1, 1, 1),
+		CFrame = baseCFrame * CFrame.new(entrancePillarX, archBeamY, 0),
+	}, model)
+	make("PointLight", { Brightness = 1.4, Range = 24, Color = trimNeon }, archGlowAnchor)
+
+	-- ── Front Corner Floodlights ────────────────────────────────────────────────
+	-- Adds 2 more tall lighting poles at the front corners (back corners already exist)
+	local frontFloodlightOptions = {
+		poleHeight = 27, modelHeight = 29, range = 68, angle = 46,
+		brightness = 1.38, fillRange = 18, fillBrightness = 0.1,
+	}
+	local frontFloodlightX = frontEdgeX + (facingDirection * 6)
+	createFloodlightRig(model, "StadiumFloodlightFrontNorth",
+		position + Vector3.new(frontFloodlightX, 0, -((layout.PlotSize.Z / 2) + 10)),
+		position + Vector3.new(0, 3, 0),
+		frontFloodlightOptions)
+	createFloodlightRig(model, "StadiumFloodlightFrontSouth",
+		position + Vector3.new(frontFloodlightX, 0, ((layout.PlotSize.Z / 2) + 10)),
+		position + Vector3.new(0, 3, 0),
+		frontFloodlightOptions)
 
 	local starterStadiumFolder = make("Folder", {
 		Name = "StarterStadium",
