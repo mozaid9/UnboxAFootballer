@@ -356,8 +356,8 @@ local function createStadiumTier(parent, size, cframe)
 		CanCollide = true,
 		CanTouch = true,
 		CanQuery = true,
-		Material = Enum.Material.Concrete,
-		Color = Color3.fromRGB(112, 124, 148),
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(172, 28, 28),
 		Size = size,
 		CFrame = cframe,
 	}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
@@ -369,8 +369,8 @@ local function createStadiumWedge(parent, size, cframe)
 		CanCollide = true,
 		CanTouch = true,
 		CanQuery = true,
-		Material = Enum.Material.Concrete,
-		Color = Color3.fromRGB(78, 88, 108),
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(136, 20, 20),
 		Size = size,
 		CFrame = cframe,
 	}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
@@ -4203,8 +4203,8 @@ local function createPlot(plotId, side, laneIndex, position)
 	local floor = make("Part", {
 		Name = "Floor",
 		Anchored = true,
-		Material = Enum.Material.Grass,
-		Color = Color3.fromRGB(76, 158, 82),
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(22, 28, 38),
 		Size = layout.PlotSize,
 		CFrame = baseCFrame,
 	}, model)
@@ -4222,9 +4222,9 @@ local function createPlot(plotId, side, laneIndex, position)
 	createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2,  (entranceWidth / 2)))
 
 	-- ── Neon gold trim along wall tops (positions computed, no Part refs needed) ─
-	local trimH    = 0.12
-	local trimNeon = Color3.fromRGB(255, 210, 50)
-	local trimTransp = 0.58
+	local trimH    = 0.28
+	local trimNeon = Color3.fromRGB(255, 215, 0)
+	local trimTransp = 0.06
 	local wallTopLocalY = wallY + wallHeight / 2 + trimH / 2
 	local plotX  = layout.PlotSize.X
 	local plotZ  = layout.PlotSize.Z
@@ -4276,17 +4276,48 @@ local function createPlot(plotId, side, laneIndex, position)
 		Name = "StarterStadium",
 	}, model)
 
-	local standRise = 0.9
+	local standRise  = 0.9
 	local standDepth = 4.8
+	local standNeon  = Color3.fromRGB(255, 215, 0)
+	local standW     = layout.PlotSize.X - 10
+	local standBackZ = layout.PlotSize.Z + 8
+	local edgeH      = 0.20
+	local edgeOff    = standRise / 2 + edgeH / 2
+
 	for step = 1, 3 do
 		local levelOffset = (step - 1) * 2.9
 		local levelY = layout.PlotSize.Y / 2 + (standRise / 2) + ((step - 1) * standRise)
 		local sideZ = (layout.PlotSize.Z / 2) + 2.2 + levelOffset
-		createStadiumTier(starterStadiumFolder, Vector3.new(layout.PlotSize.X - 10, standRise, standDepth), baseCFrame * CFrame.new(0, levelY, sideZ))
-		createStadiumTier(starterStadiumFolder, Vector3.new(layout.PlotSize.X - 10, standRise, standDepth), baseCFrame * CFrame.new(0, levelY, -sideZ))
+		local innerZ = sideZ - standDepth / 2
 
-		local backX = backEdgeX - (facingDirection * (2.6 + levelOffset))
-		createStadiumTier(starterStadiumFolder, Vector3.new(standDepth, standRise, layout.PlotSize.Z + 8), baseCFrame * CFrame.new(backX, levelY, 0))
+		-- South stand
+		createStadiumTier(starterStadiumFolder, Vector3.new(standW, standRise, standDepth), baseCFrame * CFrame.new(0, levelY, sideZ))
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon, Color = standNeon, Transparency = 0.08,
+			Size = Vector3.new(standW + 0.2, edgeH, edgeH),
+			CFrame = baseCFrame * CFrame.new(0, levelY + edgeOff, innerZ),
+		}, starterStadiumFolder)
+
+		-- North stand
+		createStadiumTier(starterStadiumFolder, Vector3.new(standW, standRise, standDepth), baseCFrame * CFrame.new(0, levelY, -sideZ))
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon, Color = standNeon, Transparency = 0.08,
+			Size = Vector3.new(standW + 0.2, edgeH, edgeH),
+			CFrame = baseCFrame * CFrame.new(0, levelY + edgeOff, -innerZ),
+		}, starterStadiumFolder)
+
+		-- Back stand
+		local backX    = backEdgeX - (facingDirection * (2.6 + levelOffset))
+		local innerBX  = backX + facingDirection * (standDepth / 2)
+		createStadiumTier(starterStadiumFolder, Vector3.new(standDepth, standRise, standBackZ), baseCFrame * CFrame.new(backX, levelY, 0))
+		make("Part", {
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon, Color = standNeon, Transparency = 0.08,
+			Size = Vector3.new(edgeH, edgeH, standBackZ + 0.2),
+			CFrame = baseCFrame * CFrame.new(innerBX, levelY + edgeOff, 0),
+		}, starterStadiumFolder)
 	end
 
 	createStadiumWedge(
