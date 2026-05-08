@@ -738,7 +738,11 @@ local function tryCreateImportedFloodlight(parent, name, position, targetPositio
 	return loaded
 end
 
-local function tryCreateImportedDecor(parent, name, assetId, position, facingPos, targetHeight)
+-- extraYawDeg: optional extra Y-axis rotation applied AFTER lookAt.
+-- Useful when a model's long axis is perpendicular to its pivot forward
+-- direction (e.g. hedge rows, wall segments) — pass 90 to spin it along
+-- the row rather than across it.
+local function tryCreateImportedDecor(parent, name, assetId, position, facingPos, targetHeight, extraYawDeg)
 	if type(assetId) ~= "number" or assetId <= 0 then
 		return nil
 	end
@@ -763,7 +767,11 @@ local function tryCreateImportedDecor(parent, name, assetId, position, facingPos
 	end)
 
 	local lookAt = facingPos or (position + Vector3.new(0, 0, -1))
-	loaded:PivotTo(CFrame.lookAt(position, Vector3.new(lookAt.X, position.Y, lookAt.Z)))
+	local baseCF = CFrame.lookAt(position, Vector3.new(lookAt.X, position.Y, lookAt.Z))
+	if extraYawDeg and extraYawDeg ~= 0 then
+		baseCF = baseCF * CFrame.Angles(0, math.rad(extraYawDeg), 0)
+	end
+	loaded:PivotTo(baseCF)
 
 	local boundsCFrame, boundsSize = loaded:GetBoundingBox()
 	local bottomY = boundsCFrame.Position.Y - (boundsSize.Y / 2)
@@ -2596,25 +2604,29 @@ local function createFanZone(mapWidth, mapLength)
 		local wallAsset  = modelAssets.StoneWall
 
 		-- North hedge row  (deck north edge z = -23, placed at z = -27)
-		-- Face INWARD (toward z = 0) so the trimmed face shows to players
-		for hx = -21, 21, 7 do
+		-- extraYawDeg=90 spins each segment so its long axis runs east-west
+		-- (along the row) instead of perpendicular to it.
+		-- Spacing 5 studs keeps segments touching with no visible gaps.
+		for hx = -22, 22, 5 do
 			tryCreateImportedDecor(
 				plaza, "HedgeNorth" .. hx,
 				hedgeAsset,
 				Vector3.new(hx, 0, -27),
 				Vector3.new(hx, 0, 0),
-				2.0   -- was 3.2 — shorter so they look neat not chunky
+				2.0,
+				90    -- rotate along the row
 			)
 		end
 
-		-- South hedge row  (deck south edge z = 23, placed at z = 27)
-		for hx = -21, 21, 7 do
+		-- South hedge row
+		for hx = -22, 22, 5 do
 			tryCreateImportedDecor(
 				plaza, "HedgeSouth" .. hx,
 				hedgeAsset,
 				Vector3.new(hx, 0, 27),
 				Vector3.new(hx, 0, 0),
-				2.0   -- was 3.2
+				2.0,
+				90
 			)
 		end
 
@@ -2635,22 +2647,24 @@ local function createFanZone(mapWidth, mapLength)
 		end
 
 		-- Low stone wall segments along west / east edges of the deck
-		-- They run north-south at x = ±31, skipping the very centre so
-		-- the main walkway (width 54, ±27) stays clear.
-		for wz = -18, 18, 9 do
+		-- extraYawDeg=90 orients each segment along the north-south run.
+		-- Spacing 5 studs keeps them touching.
+		for wz = -20, 20, 5 do
 			tryCreateImportedDecor(
 				plaza, "StoneWallWest" .. wz,
 				wallAsset,
 				Vector3.new(-31, 0, wz),
 				Vector3.new(-31, 0, wz + 1),
-				2.2
+				2.2,
+				90
 			)
 			tryCreateImportedDecor(
 				plaza, "StoneWallEast" .. wz,
 				wallAsset,
 				Vector3.new(31, 0, wz),
 				Vector3.new(31, 0, wz + 1),
-				2.2
+				2.2,
+				90
 			)
 		end
 
