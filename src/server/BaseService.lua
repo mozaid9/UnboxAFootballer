@@ -5968,6 +5968,8 @@ function BaseService.UpdateStadiumTier(plot, tier)
 		"Z"
 	)
 
+	tryAddStadiumSeats(parent, plot.baseCFrame, fd, Constants.FanZone.ModelAssets.StadiumSeats)
+
 	createStadiumRoof()
 
 	-- Rebirth display slots 7-18 live on this raised terrace. Keeping the
