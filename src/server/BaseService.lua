@@ -3892,24 +3892,23 @@ local ALL_SLOT_OFFSETS = {
 	Vector3.new(-12, 1.75,  14),  -- 4
 	Vector3.new(  0, 1.75,  14),  -- 5
 	Vector3.new( 12, 1.75,  14),  -- 6
-	-- Rebirth Terrace row 1 — closest to pitch.
-	-- Pedestals are 3 studs deep (Z) instead of 5, spaced every 6 studs.
-	-- This leaves a clear 3-stud walkable aisle between every adjacent pedestal.
-	-- Outermost pedestal edge is at Z=±16.5, giving 3.5 studs of clearance to
-	-- the side staircases at Z=±20.
-	Vector3.new(-27, 17.75, -15), -- 7
-	Vector3.new(-27, 17.75,  -9), -- 8
-	Vector3.new(-27, 17.75,  -3), -- 9
-	Vector3.new(-27, 17.75,   3), -- 10
-	Vector3.new(-27, 17.75,   9), -- 11
-	Vector3.new(-27, 17.75,  15), -- 12
-	-- Rebirth Terrace row 2 — further back, same Z layout.
-	Vector3.new(-35, 17.75, -15), -- 13
-	Vector3.new(-35, 17.75,  -9), -- 14
-	Vector3.new(-35, 17.75,  -3), -- 15
-	Vector3.new(-35, 17.75,   3), -- 16
-	Vector3.new(-35, 17.75,   9), -- 17
-	Vector3.new(-35, 17.75,  15), -- 18
+	-- Rebirth Terrace row 1 — 3 studs from the deck front edge (X=-29).
+	-- Pedestals are 3 studs deep (Z), spaced every 6 studs, giving a clear
+	-- 3-stud walkable aisle between every adjacent pedestal on the deck.
+	-- Outermost pedestal edge is at Z=±16.5; staircases are at Z=±20 (3.5-stud gap).
+	Vector3.new(-32, 17.75, -15), -- 7
+	Vector3.new(-32, 17.75,  -9), -- 8
+	Vector3.new(-32, 17.75,  -3), -- 9
+	Vector3.new(-32, 17.75,   3), -- 10
+	Vector3.new(-32, 17.75,   9), -- 11
+	Vector3.new(-32, 17.75,  15), -- 12
+	-- Rebirth Terrace row 2 — 8-stud walkable gap between rows.
+	Vector3.new(-40, 17.75, -15), -- 13
+	Vector3.new(-40, 17.75,  -9), -- 14
+	Vector3.new(-40, 17.75,  -3), -- 15
+	Vector3.new(-40, 17.75,   3), -- 16
+	Vector3.new(-40, 17.75,   9), -- 17
+	Vector3.new(-40, 17.75,  15), -- 18
 }
 
 local function slotLookDir(localOffset, facingDirection)
@@ -3930,15 +3929,17 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	local gold         = Color3.fromRGB(255, 210, 55)
 	local stepColor    = Color3.fromRGB(18, 24, 35)
 
-	-- Keep the terrace well behind the pack pad. The pack pad is centred at
-	-- local X = -16, and the terrace now starts at local X = -24.
+	-- Terrace sits 5 studs further back than before so the first row of slots
+	-- is clearly above and on the deck, not at the very front edge where they
+	-- appeared to be underneath the structure.
+	-- Pack pad is at local X = -16; terrace front edge is now at local X = -29.
 	local deckLocalY       = 15.72   -- centre; top surface = local Y 16.0
-	local deckCenterX      = (-33) * facingDirection
+	local deckCenterX      = (-38) * facingDirection
 	local deckSize         = Vector3.new(18, 0.56, 43)
 	local deckTopLocalY    = deckLocalY + (deckSize.Y / 2)    -- 16.0
 	local deckBottomLocalY = deckLocalY - (deckSize.Y / 2)    -- 15.44
-	local deckFrontLocalX  = (-24) * facingDirection           -- entrance-facing edge
-	local deckBackLocalX   = (-42) * facingDirection           -- back edge
+	local deckFrontLocalX  = (-29) * facingDirection           -- entrance-facing edge
+	local deckBackLocalX   = (-47) * facingDirection           -- back edge
 	local supportHeight    = deckBottomLocalY - 0.5
 	local supportCenterY   = 0.5 + (supportHeight / 2)
 
@@ -3990,7 +3991,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	end
 
 	-- Support pillars — three columns × three Z rows, tucked behind the pack.
-	for _, x in ipairs({ -25, -33, -41 }) do
+	for _, x in ipairs({ -30, -38, -46 }) do
 		for _, z in ipairs({ -18, 0, 18 }) do
 			make("Part", {
 				Name = "RebirthTerraceSupport",
