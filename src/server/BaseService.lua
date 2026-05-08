@@ -781,63 +781,51 @@ local function tryCreateImportedDecor(parent, name, assetId, position, facingPos
 	return loaded
 end
 
--- Loads the shared stadium seats/bleacher model and places one copy on each
--- of the three stand sides (north, south, back).  Scales by the widest
--- horizontal axis so the seats span the full stand width.  Fails silently.
--- rowHeight: how many studs above floorY the seat bottom should sit (= top of first stand row)
-local function tryAddStadiumSeats(parent, baseCFrame, facingDirection, assetId, rowHeight)
-	if type(assetId) ~= "number" or assetId <= 0 then return end
-	rowHeight = rowHeight or 0
+local function createCompactStadiumTree(parent, name, position, facingPos)
+	local model = make("Model", {
+		Name = name,
+	}, parent)
 
-	local ok, loaded = pcall(function()
-		return InsertService:LoadAsset(assetId)
-	end)
-	if not ok or not loaded then
-		warn("[BaseService] Stadium seats load failed:", assetId, loaded)
-		return
-	end
-	prepareImportedModel(loaded)
+	local lookAt = facingPos or (position + Vector3.new(0, 0, -1))
+	local baseCF = CFrame.lookAt(position, Vector3.new(lookAt.X, position.Y, lookAt.Z))
+	local trunkHeight = 3.4
 
-	local _, rawSize = loaded:GetBoundingBox()
-	local rawW = math.max(rawSize.X, rawSize.Z, 0.1)
-	if rawW <= 0.1 then loaded:Destroy() return end
+	configureCollisionPart(make("Part", {
+		Name = "Trunk",
+		Anchored = true,
+		CanCollide = false,
+		CanTouch = false,
+		CanQuery = false,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Wood,
+		Color = Color3.fromRGB(94, 56, 28),
+		Size = Vector3.new(trunkHeight, 0.6, 0.6),
+		CFrame = baseCF * CFrame.new(0, trunkHeight / 2, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, model), COLLISION_GROUPS.Props, false, false, false)
 
-	local pitchPos   = baseCFrame.Position
-	local floorY     = pitchPos.Y + layout.PlotSize.Y / 2
-	local seatBaseY  = floorY + rowHeight
-	local sideWidth  = layout.PlotSize.X - 10
-	local backWidth  = layout.PlotSize.Z + 8
-	local sideStandZ = layout.PlotSize.Z / 2 + 9
-	local backStandX = layout.PlotSize.X / 2 + 7
+	local canopyLayers = {
+		{ y = 3.8, size = Vector3.new(3.8, 1.7, 3.8), color = Color3.fromRGB(35, 116, 50), yaw = 12 },
+		{ y = 4.75, size = Vector3.new(3.0, 1.45, 3.0), color = Color3.fromRGB(45, 138, 58), yaw = 48 },
+		{ y = 5.55, size = Vector3.new(2.15, 1.15, 2.15), color = Color3.fromRGB(58, 158, 72), yaw = 22 },
+	}
 
-	-- Tiles multiple seat copies at natural-ish scale along the given world axis
-	local function tileSide(name, centerPos, lookTarget, standWidth, tileAxis)
-		local scaleF = math.clamp(4 / rawW, 0.05, 2.0)
-		local scaledW = rawW * scaleF
-		local count = math.max(1, math.floor(standWidth / (scaledW + 0.4)))
-		local spacing = standWidth / count
-		for i = 1, count do
-			local offset = (i - (count + 1) / 2) * spacing
-			local tilePos = centerPos + tileAxis * offset
-			local clone = loaded:Clone()
-			clone.Name = name .. tostring(i)
-			clone.Parent = parent
-			pcall(function() clone:ScaleTo(scaleF) end)
-			clone:PivotTo(CFrame.lookAt(tilePos, Vector3.new(lookTarget.X, tilePos.Y, lookTarget.Z)))
-			local bc, bs = clone:GetBoundingBox()
-			clone:PivotTo(clone:GetPivot() + Vector3.new(0, seatBaseY - (bc.Position.Y - bs.Y * 0.5), 0))
-			createModelBoundsBlocker(clone, clone.Name .. "Blocker", clone, COLLISION_GROUPS.Seats, Vector3.new(1.2, 0.3, 1.2), 2.5, 8)
-		end
+	for index, layer in ipairs(canopyLayers) do
+		configureCollisionPart(make("Part", {
+			Name = "Canopy" .. tostring(index),
+			Anchored = true,
+			CanCollide = false,
+			CanTouch = false,
+			CanQuery = false,
+			Material = Enum.Material.Grass,
+			Color = layer.color,
+			Size = layer.size,
+			CFrame = baseCF
+				* CFrame.new(0, layer.y, 0)
+				* CFrame.Angles(math.rad(index % 2 == 0 and -5 or 5), math.rad(layer.yaw), math.rad(index % 2 == 0 and 3 or -3)),
+		}, model), COLLISION_GROUPS.Props, false, false, false)
 	end
 
-	tileSide("SeatsNorth", pitchPos + Vector3.new(0, 0, -sideStandZ), pitchPos, sideWidth, Vector3.new(1, 0, 0))
-	tileSide("SeatsSouth", pitchPos + Vector3.new(0, 0,  sideStandZ), pitchPos, sideWidth, Vector3.new(1, 0, 0))
-	tileSide("SeatsBack",
-		pitchPos + Vector3.new(-facingDirection * backStandX, 0, 0),
-		pitchPos + Vector3.new(facingDirection * 20, 0, 0),
-		backWidth, Vector3.new(0, 0, 1))
-
-	loaded:Destroy()
+	return model
 end
 
 local function createFloodlightBeam(parent, name, position, targetPosition, poleHeight, options)
@@ -5090,29 +5078,19 @@ local function createPlot(plotId, side, laneIndex, position)
 	createSoftFillLight(model, "NorthStandFill", position + Vector3.new(0, 7, -(layout.PlotSize.Z / 2 + 7)), 25, 0.14, Color3.fromRGB(255, 226, 170))
 	createSoftFillLight(model, "SouthStandFill", position + Vector3.new(0, 7, layout.PlotSize.Z / 2 + 7), 25, 0.14, Color3.fromRGB(255, 226, 170))
 
-	-- ── Corner trees: flank the entrance + sit at the back stand corners ───────
-	local plotModelAssets = fanZoneConfig.ModelAssets or {}
-	local treeAsset = plotModelAssets.Tree
-	if treeAsset then
-		local treeSpots = {
-			-- Entrance-side, flanking the stadium archway
-			{ x = frontEdgeX + facingDirection * 6,  z = -(layout.PlotSize.Z / 2 + 4) },
-			{ x = frontEdgeX + facingDirection * 6,  z =  (layout.PlotSize.Z / 2 + 4) },
-			-- Back stand corners
-			{ x = backEdgeX  - facingDirection * 6,  z = -(layout.PlotSize.Z / 2 + 4) },
-			{ x = backEdgeX  - facingDirection * 6,  z =  (layout.PlotSize.Z / 2 + 4) },
-		}
-		for index, spot in ipairs(treeSpots) do
-			local treePos = position + Vector3.new(spot.x, 0, spot.z)
-			tryCreateImportedDecor(
-				model,
-				"PlotCornerTree" .. tostring(index),
-				treeAsset,
-				treePos,
-				position,
-				8
-			)
-		end
+	-- Compact entrance trees.  The imported tree asset was too wide for the
+	-- plot footprint and clipped through stands, roofs, and paths.
+	local treeSpots = {
+		{ x = frontEdgeX + facingDirection * 12.5, z = -(layout.PlotSize.Z / 2 + 7) },
+		{ x = frontEdgeX + facingDirection * 12.5, z =  (layout.PlotSize.Z / 2 + 7) },
+	}
+	for index, spot in ipairs(treeSpots) do
+		createCompactStadiumTree(
+			model,
+			"PlotEntranceTree" .. tostring(index),
+			position + Vector3.new(spot.x, 0, spot.z),
+			position
+		)
 	end
 
 	-- ── Rebirth Machine ─────────────────────────────────────────────────────────
@@ -5866,6 +5844,72 @@ function BaseService.UpdateStadiumTier(plot, tier)
 		)
 	end
 
+	local function createVisualSeatBench(standName, row, seatIndex, sitPosition, lookDirection, moduleWidth)
+		local flatLook = Vector3.new(lookDirection.X, 0, lookDirection.Z)
+		if flatLook.Magnitude < 0.05 then
+			return
+		end
+		flatLook = flatLook.Unit
+
+		local baseCF = CFrame.lookAt(Vector3.new(sitPosition.X, sitPosition.Y, sitPosition.Z), sitPosition + flatLook)
+		local seatColor = (row % 2 == 1) and Color3.fromRGB(190, 38, 38) or Color3.fromRGB(145, 28, 28)
+		local backColor = Color3.fromRGB(98, 18, 18)
+		local trimColor = Color3.fromRGB(255, 211, 58)
+		local benchName = string.format("VisualSeat_%s_%02d_%02d", standName, row, seatIndex)
+
+		configureCollisionPart(make("Part", {
+			Name = benchName .. "_Cushion",
+			Anchored = true,
+			CanCollide = false,
+			CanTouch = false,
+			CanQuery = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = seatColor,
+			Size = Vector3.new(moduleWidth, 0.3, 1.1),
+			CFrame = baseCF * CFrame.new(0, 0.18, 0),
+		}, parent), COLLISION_GROUPS.Seats, false, false, false)
+
+		configureCollisionPart(make("Part", {
+			Name = benchName .. "_Back",
+			Anchored = true,
+			CanCollide = false,
+			CanTouch = false,
+			CanQuery = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = backColor,
+			Size = Vector3.new(moduleWidth, 0.9, 0.24),
+			CFrame = baseCF * CFrame.new(0, 0.64, 0.56),
+		}, parent), COLLISION_GROUPS.Seats, false, false, false)
+
+		configureCollisionPart(make("Part", {
+			Name = benchName .. "_Trim",
+			Anchored = true,
+			CanCollide = false,
+			CanTouch = false,
+			CanQuery = false,
+			Material = Enum.Material.Neon,
+			Color = trimColor,
+			Transparency = 0.2,
+			Size = Vector3.new(moduleWidth + 0.15, 0.09, 0.09),
+			CFrame = baseCF * CFrame.new(0, 0.36, -0.58),
+		}, parent), COLLISION_GROUPS.Seats, false, false, false)
+
+		for dividerIndex = 1, 2 do
+			local dividerX = ((dividerIndex / 3) - 0.5) * moduleWidth
+			configureCollisionPart(make("Part", {
+				Name = benchName .. "_Divider" .. tostring(dividerIndex),
+				Anchored = true,
+				CanCollide = false,
+				CanTouch = false,
+				CanQuery = false,
+				Material = Enum.Material.SmoothPlastic,
+				Color = Color3.fromRGB(255, 195, 58),
+				Size = Vector3.new(0.08, 0.38, 1.18),
+				CFrame = baseCF * CFrame.new(dividerX, 0.31, 0),
+			}, parent), COLLISION_GROUPS.Seats, false, false, false)
+		end
+	end
+
 	-- Build one bleacher face.
 	-- fencePos  : world XZ of the fence line (floor height; this becomes the stand's front face)
 	-- awayX/awayZ: unit step direction going away from the pitch per row
@@ -5922,16 +5966,24 @@ function BaseService.UpdateStadiumTier(plot, tier)
 					approachX = backAisleX
 				end
 
-				local approachPosition = Vector3.new(approachX, crowdPivotY, approachZ)
-				createCrowdSeatPoint(
-					standName,
-					row,
-					seatIndex,
-					sitPosition,
-					lookDirection,
-					approachPosition,
-					makeSeatRoutePoints(standName, seatX, seatZ, approachPosition)
-				)
+					local approachPosition = Vector3.new(approachX, crowdPivotY, approachZ)
+					createVisualSeatBench(
+						standName,
+						row,
+						seatIndex,
+						Vector3.new(seatX, topY + 0.04, seatZ),
+						lookDirection,
+						math.clamp((span / (seatsInRow + 1)) * 0.7, 3.6, 4.8)
+					)
+					createCrowdSeatPoint(
+						standName,
+						row,
+						seatIndex,
+						sitPosition,
+						lookDirection,
+						approachPosition,
+						makeSeatRoutePoints(standName, seatX, seatZ, approachPosition)
+					)
 			end
 		end
 	end
@@ -5967,8 +6019,6 @@ function BaseService.UpdateStadiumTier(plot, tier)
 		Vector3.new(fd, 0, 0),
 		"Z"
 	)
-
-	tryAddStadiumSeats(parent, plot.baseCFrame, fd, Constants.FanZone.ModelAssets.StadiumSeats, tierH)
 
 	createStadiumRoof()
 
