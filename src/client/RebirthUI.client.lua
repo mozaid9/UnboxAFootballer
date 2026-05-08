@@ -268,71 +268,26 @@ local fansCheckLabel = makeLabel({
 }, fansSection)
 
 -- ── 2. REQUIRED PLAYERS section ───────────────────────────────────────────────
-local cardSection = section("PLAYER CHECK", 2, 82)
+-- Height auto-expands via AutomaticSize so multiple card slots fit cleanly.
+local cardSection = section("PLAYER CHECK", 2, 36)
+cardSection.AutomaticSize = Enum.AutomaticSize.Y
 
--- Card requirement slot (built dynamically in populate())
+-- Dynamic container — rows are created/destroyed in populate()
 local cardSlotContainer = make("Frame", {
-	Size = UDim2.new(1, -16, 0, 48),
-	Position = UDim2.new(0, 8, 0, 28),
+	Size = UDim2.new(1, -16, 0, 0),
+	Position = UDim2.new(0, 8, 0, 30),
 	BackgroundTransparency = 1,
+	AutomaticSize = Enum.AutomaticSize.Y,
 	ZIndex = 4,
 }, cardSection)
 
-local cardSlotFrame = make("Frame", {
-	Size = UDim2.new(1, 0, 1, 0),
-	BackgroundColor3 = Color3.fromRGB(30, 22, 50),
-	BorderSizePixel = 0,
-	ZIndex = 4,
+make("UIListLayout", {
+	SortOrder        = Enum.SortOrder.LayoutOrder,
+	Padding          = UDim.new(0, 6),
+	FillDirection    = Enum.FillDirection.Vertical,
 }, cardSlotContainer)
-addCorner(cardSlotFrame, 10)
 
-local cardSlotIcon = makeLabel({
-	Text = "?",
-	Size = UDim2.new(0, 38, 1, -10),
-	Position = UDim2.new(0, 5, 0, 5),
-	Font = Enum.Font.GothamBlack,
-	TextColor3 = Color3.fromRGB(120, 100, 160),
-	TextSize = 24,
-	TextScaled = false,
-	BackgroundColor3 = Color3.fromRGB(22, 16, 38),
-	BackgroundTransparency = 0,
-	ZIndex = 5,
-}, cardSlotFrame)
-addCorner(cardSlotIcon, 6)
-
-local cardSlotName = makeLabel({
-	Text = "Not owned",
-	Size = UDim2.new(1, -124, 0, 24),
-	Position = UDim2.new(0, 58, 0, 5),
-	Font = Enum.Font.GothamBlack,
-	TextColor3 = Color3.fromRGB(150, 130, 190),
-	TextSize = 14,
-	TextScaled = false,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	ZIndex = 5,
-}, cardSlotFrame)
-
-local cardSlotCount = makeLabel({
-	Text = "0 / 1",
-	Size = UDim2.new(1, -124, 0, 20),
-	Position = UDim2.new(0, 58, 0, 27),
-	Font = Enum.Font.Gotham,
-	TextColor3 = Color3.fromRGB(130, 110, 170),
-	TextSize = 13,
-	TextScaled = false,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	ZIndex = 5,
-}, cardSlotFrame)
-
-local cardSlotCheck = makeLabel({
-	Text = "",
-	Size = UDim2.new(0, 38, 1, -10),
-	Position = UDim2.new(1, -44, 0, 5),
-	Font = Enum.Font.GothamBlack,
-	TextSize = 28,
-	TextScaled = false,
-	ZIndex = 5,
-}, cardSlotFrame)
+make("UIPadding", { PaddingBottom = UDim.new(0, 8) }, cardSection)
 
 -- ── 3. LOSE / GAIN section ────────────────────────────────────────────────────
 local infoSection = section("WHAT CHANGES", 3, 160)
@@ -475,48 +430,88 @@ local function populate(status)
 	fansCheckLabel.Text = enoughFans and "OK" or "X"
 	fansCheckLabel.TextColor3 = enoughFans and REBIRTH_GREEN or REBIRTH_RED
 
-	-- Card requirement (first group, or combined if multiple)
-	local cardGroups = status.cardStatus or {}
-	if #cardGroups > 0 then
-		local g       = cardGroups[1]
-		local rarStyle = RarityStyles[g.rarity] or RarityStyles["Talisman"]
-		local met      = g.met
-		local example  = g.example  -- { name, rarity, id } or nil
-
-		for _, child in ipairs(cardSlotFrame:GetChildren()) do
-			if child:IsA("UIStroke") then child:Destroy() end
+	-- Card requirements — one row per required slot so "need 2 Immortals"
+	-- shows two separate rows, each named individually.
+	for _, child in ipairs(cardSlotContainer:GetChildren()) do
+		if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
+			child:Destroy()
 		end
+	end
 
-		-- Slot background colour: grey if not met, rarity primary if met
-		cardSlotFrame.BackgroundColor3 = met
-			and rarStyle.dark
-			or  Color3.fromRGB(30, 22, 50)
+	local cardGroups = status.cardStatus or {}
+	for gi, g in ipairs(cardGroups) do
+		local rarStyle = RarityStyles[g.rarity] or RarityStyles["Talisman"]
+		local examples = g.examples or (g.example and { g.example } or {})
 
-		-- Icon background + text
-		cardSlotIcon.BackgroundColor3 = met
-			and rarStyle.secondary
-			or  Color3.fromRGB(22, 16, 38)
-		cardSlotIcon.Text      = met and "OK" or "?"
-		cardSlotIcon.TextColor3 = met and rarStyle.primary or Color3.fromRGB(120, 100, 160)
+		for i = 1, g.needed do
+			local ex     = examples[i]          -- may be nil if slot not filled yet
+			local slotMet = ex ~= nil
 
-		-- Player name
-		cardSlotName.Text = met and (example and example.name or "Requirement met") or "Not owned"
-		cardSlotName.TextColor3 = met and rarStyle.text or Color3.fromRGB(150, 130, 190)
+			local row = make("Frame", {
+				Size             = UDim2.new(1, 0, 0, 50),
+				BackgroundColor3 = slotMet and rarStyle.dark or Color3.fromRGB(30, 22, 50),
+				BorderSizePixel  = 0,
+				LayoutOrder      = (gi - 1) * 100 + i,
+				ZIndex           = 4,
+			}, cardSlotContainer)
+			addCorner(row, 10)
+			if slotMet then
+				addStroke(row, rarStyle.primary, 1.5, 0.3)
+			end
 
-		-- Count / rarity label
-		cardSlotCount.Text = g.owned .. " / " .. g.needed .. "  " .. g.rarity .. "+"
-		cardSlotCount.TextColor3 = met
-			and rarStyle.primary
-			or  Color3.fromRGB(130, 110, 170)
+			-- Badge (OK / slot number)
+			local badge = makeLabel({
+				Text             = slotMet and "OK" or tostring(i),
+				Size             = UDim2.new(0, 38, 1, -10),
+				Position         = UDim2.new(0, 5, 0, 5),
+				Font             = Enum.Font.GothamBlack,
+				TextColor3       = slotMet and rarStyle.primary or Color3.fromRGB(120, 100, 160),
+				TextSize         = 13,
+				TextScaled       = false,
+				BackgroundColor3 = slotMet and rarStyle.secondary or Color3.fromRGB(22, 16, 38),
+				BackgroundTransparency = 0,
+				ZIndex           = 5,
+			}, row)
+			addCorner(badge, 6)
 
-		-- Tick
-		cardSlotCheck.Text       = met and "OK" or "X"
-		cardSlotCheck.TextColor3 = met
-			and REBIRTH_GREEN
-			or  REBIRTH_RED
+			-- Player name
+			makeLabel({
+				Text             = slotMet and ex.name or ("Need " .. g.rarity .. "+"),
+				Size             = UDim2.new(1, -124, 0, 24),
+				Position         = UDim2.new(0, 58, 0, 5),
+				Font             = Enum.Font.GothamBlack,
+				TextColor3       = slotMet and rarStyle.text or Color3.fromRGB(150, 130, 190),
+				TextSize         = 14,
+				TextScaled       = false,
+				TextXAlignment   = Enum.TextXAlignment.Left,
+				ZIndex           = 5,
+			}, row)
 
-		if met then
-			addStroke(cardSlotFrame, rarStyle.primary, 1.5, 0.3)
+			-- Sub-label: rarity or "card N of M"
+			makeLabel({
+				Text           = slotMet and ex.rarity
+				                 or ("Card " .. i .. " of " .. g.needed .. "  •  " .. g.rarity .. "+"),
+				Size           = UDim2.new(1, -124, 0, 18),
+				Position       = UDim2.new(0, 58, 0, 28),
+				Font           = Enum.Font.Gotham,
+				TextColor3     = slotMet and rarStyle.primary or Color3.fromRGB(130, 110, 170),
+				TextSize       = 12,
+				TextScaled     = false,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				ZIndex         = 5,
+			}, row)
+
+			-- OK / X check
+			makeLabel({
+				Text       = slotMet and "OK" or "✗",
+				Size       = UDim2.new(0, 38, 1, -10),
+				Position   = UDim2.new(1, -44, 0, 5),
+				Font       = Enum.Font.GothamBlack,
+				TextColor3 = slotMet and REBIRTH_GREEN or REBIRTH_RED,
+				TextSize   = slotMet and 18 or 24,
+				TextScaled = false,
+				ZIndex     = 5,
+			}, row)
 		end
 	end
 

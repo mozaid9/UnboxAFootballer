@@ -49,21 +49,26 @@ local function getRequirementForTier(targetTier)
 	return { fans = fans, cards = base.cards }
 end
 
--- Count cards at or above rarity, and return the first qualifying card as an example.
-local function countCardsAtOrAboveRarity(data, rarity)
-	local minRank = RARITY_RANK[rarity] or 99
-	local count   = 0
-	local example = nil
+-- Count cards at or above rarity and collect up to maxExamples qualifying
+-- cards so the UI can show one row per required slot.
+local function countCardsAtOrAboveRarity(data, rarity, maxExamples)
+	local minRank  = RARITY_RANK[rarity] or 99
+	local count    = 0
+	local examples = {}
+	maxExamples    = maxExamples or 1
 
 	for _, card in ipairs(CardData.Pool) do
 		local rank = RARITY_RANK[card.rarity] or 0
 		if rank >= minRank then
-			local key = tostring(card.id)
+			local key   = tostring(card.id)
 			local owned = data.inventory and data.inventory[key] or 0
 			if owned > 0 then
 				count += owned
-				if not example then
-					example = { name = card.name, rarity = card.rarity, id = card.id }
+				-- Collect up to maxExamples copies (same card can fill multiple slots)
+				for _ = 1, owned do
+					if #examples < maxExamples then
+						table.insert(examples, { name = card.name, rarity = card.rarity, id = card.id })
+					end
 				end
 			end
 		end
@@ -76,14 +81,14 @@ local function countCardsAtOrAboveRarity(data, rarity)
 			local rank = RARITY_RANK[card.rarity] or 0
 			if rank >= minRank then
 				count += 1
-				if not example then
-					example = { name = card.name, rarity = card.rarity, id = card.id }
+				if #examples < maxExamples then
+					table.insert(examples, { name = card.name, rarity = card.rarity, id = card.id })
 				end
 			end
 		end
 	end
 
-	return count, example
+	return count, examples
 end
 
 -- ── Public API ────────────────────────────────────────────────────────────────
@@ -168,15 +173,16 @@ function RebirthService.GetStatus(player)
 	local cardsMet   = true
 	local cardStatus = {}
 	for _, group in ipairs(req.cards) do
-		local owned, example = countCardsAtOrAboveRarity(data, group.rarity)
-		local met   = owned >= group.count
+		local owned, examples = countCardsAtOrAboveRarity(data, group.rarity, group.count)
+		local met = owned >= group.count
 		if not met then cardsMet = false end
 		table.insert(cardStatus, {
-			rarity  = group.rarity,
-			needed  = group.count,
-			owned   = owned,
-			met     = met,
-			example = example,   -- { name, rarity, id } of first qualifying card owned, or nil
+			rarity   = group.rarity,
+			needed   = group.count,
+			owned    = owned,
+			met      = met,
+			examples = examples,     -- up to group.count qualifying cards [{name,rarity,id}]
+			example  = examples[1],  -- backward-compat: first example or nil
 		})
 	end
 
