@@ -5090,6 +5090,31 @@ local function createPlot(plotId, side, laneIndex, position)
 	createSoftFillLight(model, "NorthStandFill", position + Vector3.new(0, 7, -(layout.PlotSize.Z / 2 + 7)), 25, 0.14, Color3.fromRGB(255, 226, 170))
 	createSoftFillLight(model, "SouthStandFill", position + Vector3.new(0, 7, layout.PlotSize.Z / 2 + 7), 25, 0.14, Color3.fromRGB(255, 226, 170))
 
+	-- ── Corner trees: flank the entrance + sit at the back stand corners ───────
+	local plotModelAssets = fanZoneConfig.ModelAssets or {}
+	local treeAsset = plotModelAssets.Tree
+	if treeAsset then
+		local treeSpots = {
+			-- Entrance-side, flanking the stadium archway
+			{ x = frontEdgeX + facingDirection * 6,  z = -(layout.PlotSize.Z / 2 + 4) },
+			{ x = frontEdgeX + facingDirection * 6,  z =  (layout.PlotSize.Z / 2 + 4) },
+			-- Back stand corners
+			{ x = backEdgeX  - facingDirection * 6,  z = -(layout.PlotSize.Z / 2 + 4) },
+			{ x = backEdgeX  - facingDirection * 6,  z =  (layout.PlotSize.Z / 2 + 4) },
+		}
+		for index, spot in ipairs(treeSpots) do
+			local treePos = position + Vector3.new(spot.x, 0, spot.z)
+			tryCreateImportedDecor(
+				model,
+				"PlotCornerTree" .. tostring(index),
+				treeAsset,
+				treePos,
+				position,
+				16
+			)
+		end
+	end
+
 	-- ── Rebirth Machine ─────────────────────────────────────────────────────────
 	-- Placed outside the entrance so it reads like a stadium add-on instead of
 	-- fighting for space with the pack pad and display slots.
