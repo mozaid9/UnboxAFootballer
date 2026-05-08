@@ -2610,50 +2610,43 @@ local function createFanZone(mapWidth, mapLength)
 		-- Stone walls removed — they sat on the stadium-access paths and
 		-- blocked players from reaching their plots.
 
-		local HEDGE_GREEN  = Color3.fromRGB(28, 92, 40)
-		local KERB_GREY    = Color3.fromRGB(72, 76, 84)
+		-- Hedge rows sit at z=±31, clear of the benches at z=±25.
+		-- No neon strip, no PointLights — the surrounding plaza lights
+		-- are enough to read them; we don't want them glowing.
+		local HEDGE_GREEN = Color3.fromRGB(22, 80, 32)   -- dark natural green
+		local KERB_GREY   = Color3.fromRGB(68, 72, 80)
 
-		for _, side in ipairs({ -1, 1 }) do   -- -1 = north (z<0), 1 = south (z>0)
-			local rowZ = side * 27
+		for _, side in ipairs({ -1, 1 }) do  -- -1 = north, 1 = south
+			local rowZ = side * 31
+			local label = side == -1 and "North" or "South"
 
-			-- Stone kerb at base
+			-- Low stone kerb
 			make("Part", {
-				Name = "HedgeKerb" .. (side == -1 and "North" or "South"),
+				Name = "HedgeKerb" .. label,
 				Anchored = true, CanCollide = true,
 				Material = Enum.Material.SmoothPlastic,
 				Color = KERB_GREY,
-				Size = Vector3.new(52, 0.45, 3.6),
-				CFrame = CFrame.new(0, 0.225, rowZ),
+				Size = Vector3.new(52, 0.4, 3.8),
+				CFrame = CFrame.new(0, 0.2, rowZ),
 			}, plaza)
 
-			-- Hedge body
+			-- Hedge body — solid dark green, no glow
 			make("Part", {
-				Name = "HedgeRow" .. (side == -1 and "North" or "South"),
+				Name = "HedgeRow" .. label,
 				Anchored = true, CanCollide = true,
 				Material = Enum.Material.SmoothPlastic,
 				Color = HEDGE_GREEN,
-				Size = Vector3.new(50, 2.8, 3.0),
-				CFrame = CFrame.new(0, 1.85, rowZ),
-			}, plaza)
-
-			-- Thin bright-green neon top edge — gives the "trimmed hedge" look
-			make("Part", {
-				Name = "HedgeTopGlow" .. (side == -1 and "North" or "South"),
-				Anchored = true, CanCollide = false,
-				Material = Enum.Material.Neon,
-				Color = Color3.fromRGB(56, 196, 84),
-				Transparency = 0.55,
-				Size = Vector3.new(50.2, 0.18, 3.1),
-				CFrame = CFrame.new(0, 3.24, rowZ),
+				Size = Vector3.new(50, 2.6, 3.2),
+				CFrame = CFrame.new(0, 1.5, rowZ),
 			}, plaza)
 		end
 
-		-- Bush corner accents (individual plants — no linking needed)
+		-- Bush corner accents — pushed out to match the new hedge position
 		for _, bp in ipairs({
-			Vector3.new(-25, 0, -25),
-			Vector3.new( 25, 0, -25),
-			Vector3.new(-25, 0,  25),
-			Vector3.new( 25, 0,  25),
+			Vector3.new(-26, 0, -29),
+			Vector3.new( 26, 0, -29),
+			Vector3.new(-26, 0,  29),
+			Vector3.new( 26, 0,  29),
 		}) do
 			tryCreateImportedDecor(
 				plaza, "BushCorner" .. bp.X .. "_" .. bp.Z,
@@ -2662,31 +2655,6 @@ local function createFanZone(mapWidth, mapLength)
 				Vector3.new(0, 0, 0),
 				1.2
 			)
-		end
-
-		-- Green ambient wash so hedges glow at night
-		local GREEN_HEDGE = Color3.fromRGB(38, 168, 72)
-		for _, lightPos in ipairs({
-			Vector3.new(-14, 3.5, -27),
-			Vector3.new(  0, 3.5, -27),
-			Vector3.new( 14, 3.5, -27),
-			Vector3.new(-14, 3.5,  27),
-			Vector3.new(  0, 3.5,  27),
-			Vector3.new( 14, 3.5,  27),
-		}) do
-			local gAnchor = make("Part", {
-				Name = "HedgeGreenLight",
-				Anchored = true, CanCollide = false,
-				Transparency = 1,
-				Size = Vector3.new(1, 1, 1),
-				CFrame = CFrame.new(lightPos),
-			}, plaza)
-			make("PointLight", {
-				Color = GREEN_HEDGE,
-				Range = 18,
-				Brightness = 0.32,
-				Shadows = false,
-			}, gAnchor)
 		end
 	end
 
