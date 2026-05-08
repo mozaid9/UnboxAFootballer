@@ -3754,12 +3754,27 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	createSignLabel("+" .. tostring(incomePerSecond) .. " fans/s", UDim2.fromScale(0.9, 0.72), UDim2.fromScale(0.05, 0.14), Color3.fromRGB(228, 255, 220), incomePill)
 end
 
+local SLOT_HALO_EMPTY    = Color3.fromRGB(60, 230, 110)
+local SLOT_HALO_OCCUPIED = Color3.fromRGB(218, 168, 40)
+
+local function setSlotHalo(slot, color)
+	if not slot or not slot.halo then
+		return
+	end
+	slot.halo.Color = color
+	local light = slot.halo:FindFirstChild("HaloLight")
+	if light then
+		light.Color = color
+	end
+end
+
 local function clearDisplayCard(slot)
 	if slot.cardModel and slot.cardModel.Parent then
 		slot.cardModel:Destroy()
 	end
 	slot.cardModel = nil
 	slot.model:SetAttribute("Occupied", false)
+	setSlotHalo(slot, SLOT_HALO_EMPTY)
 end
 
 local function setSlotPrompt(slot, actionText, objectText, enabled)
@@ -3791,12 +3806,30 @@ local function createDisplaySlot(parent, index, cframe, lookDirection, pedestalS
 		CFrame = cframe,
 	}, model)
 
-	-- Slim gold neon rim around the top edge (4 strips)
-	local rimThickness = 0.22
-	local rimHeight    = 0.28
+	-- Green glow halo on the floor under the pedestal — marks the slot as
+	-- available. When a card is placed it will be colour-shifted to gold.
+	local haloColorEmpty = Color3.fromRGB(60, 230, 110)
+	local halo = make("Part", {
+		Name = "GlowHalo",
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = haloColorEmpty,
+		Transparency = 0.30,
+		Size = Vector3.new(slotW + 1.4, 0.08, slotD + 1.4),
+		CFrame = cframe + Vector3.new(0, -(slotH / 2) + 0.04, 0),
+	}, model)
+	make("PointLight", {
+		Name = "HaloLight",
+		Color = haloColorEmpty,
+		Brightness = 1.4, Range = 9, Shadows = false,
+	}, halo)
+
+	-- Slim refined gold rim around the top edge (4 strips, more subtle now)
+	local rimThickness = 0.18
+	local rimHeight    = 0.22
 	local rimY         = topY + rimHeight / 2
-	local rimColor     = Color3.fromRGB(255, 210, 60)
-	local rimTransp    = 0.28
+	local rimColor     = Color3.fromRGB(218, 168, 40)
+	local rimTransp    = 0.42
 	for _, axis in ipairs({
 		{ Vector3.new(slotW, rimHeight, rimThickness), Vector3.new(0,  rimY, -(slotD / 2)) },
 		{ Vector3.new(slotW, rimHeight, rimThickness), Vector3.new(0,  rimY,  (slotD / 2)) },
@@ -3817,16 +3850,16 @@ local function createDisplaySlot(parent, index, cframe, lookDirection, pedestalS
 		}, model)
 	end
 
-	-- Gold glow display pad on top
+	-- Soft top glow plate (toned down, no longer screaming gold)
 	local top = make("Part", {
 		Name = "Top",
 		Anchored = true,
 		CanCollide = false,
 		Material = Enum.Material.Neon,
-		Color = Color3.fromRGB(255, 205, 50),
-		Transparency = 0.52,
-		Size = Vector3.new(slotW - 1.6, 0.14, slotD - 1.6),
-		CFrame = base.CFrame + Vector3.new(0, topY + 0.08, 0),
+		Color = Color3.fromRGB(218, 168, 40),
+		Transparency = 0.62,
+		Size = Vector3.new(slotW - 1.6, 0.12, slotD - 1.6),
+		CFrame = base.CFrame + Vector3.new(0, topY + 0.07, 0),
 	}, model)
 
 	-- Slot number on the player-facing face. Ground slots face across Z; upper
@@ -3872,6 +3905,7 @@ local function createDisplaySlot(parent, index, cframe, lookDirection, pedestalS
 		model = model,
 		base = base,
 		top = top,
+		halo = halo,
 		prompt = prompt,
 		slotIndex = index,
 		lookDirection = lookDirection,
@@ -3926,7 +3960,7 @@ local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirecti
 	local deckColor    = Color3.fromRGB(14, 19, 31)
 	local railColor    = Color3.fromRGB(26, 36, 54)
 	local supportColor = Color3.fromRGB(18, 26, 40)
-	local gold         = Color3.fromRGB(255, 210, 55)
+	local gold         = Color3.fromRGB(218, 168, 40)
 	local stepColor    = Color3.fromRGB(18, 24, 35)
 
 	-- Terrace shifted 5 studs toward the entrance (less negative X) so the deck
@@ -4222,9 +4256,9 @@ local function createPlot(plotId, side, laneIndex, position)
 	createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2,  (entranceWidth / 2)))
 
 	-- ── Neon gold trim along wall tops (positions computed, no Part refs needed) ─
-	local trimH    = 0.28
-	local trimNeon = Color3.fromRGB(255, 215, 0)
-	local trimTransp = 0.06
+	local trimH    = 0.22
+	local trimNeon = Color3.fromRGB(218, 168, 40)
+	local trimTransp = 0.22
 	local wallTopLocalY = wallY + wallHeight / 2 + trimH / 2
 	local plotX  = layout.PlotSize.X
 	local plotZ  = layout.PlotSize.Z
@@ -4278,7 +4312,7 @@ local function createPlot(plotId, side, laneIndex, position)
 
 	local standRise  = 0.9
 	local standDepth = 4.8
-	local standNeon  = Color3.fromRGB(255, 215, 0)
+	local standNeon  = Color3.fromRGB(218, 168, 40)
 	local standW     = layout.PlotSize.X - 10
 	local standBackZ = layout.PlotSize.Z + 8
 	local edgeH      = 0.20
@@ -4294,7 +4328,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		createStadiumTier(starterStadiumFolder, Vector3.new(standW, standRise, standDepth), baseCFrame * CFrame.new(0, levelY, sideZ))
 		make("Part", {
 			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Material = Enum.Material.Neon, Color = standNeon, Transparency = 0.08,
+			Material = Enum.Material.Neon, Color = standNeon, Transparency = 0.30,
 			Size = Vector3.new(standW + 0.2, edgeH, edgeH),
 			CFrame = baseCFrame * CFrame.new(0, levelY + edgeOff, innerZ),
 		}, starterStadiumFolder)
@@ -4303,7 +4337,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		createStadiumTier(starterStadiumFolder, Vector3.new(standW, standRise, standDepth), baseCFrame * CFrame.new(0, levelY, -sideZ))
 		make("Part", {
 			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Material = Enum.Material.Neon, Color = standNeon, Transparency = 0.08,
+			Material = Enum.Material.Neon, Color = standNeon, Transparency = 0.30,
 			Size = Vector3.new(standW + 0.2, edgeH, edgeH),
 			CFrame = baseCFrame * CFrame.new(0, levelY + edgeOff, -innerZ),
 		}, starterStadiumFolder)
@@ -4314,7 +4348,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		createStadiumTier(starterStadiumFolder, Vector3.new(standDepth, standRise, standBackZ), baseCFrame * CFrame.new(backX, levelY, 0))
 		make("Part", {
 			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Material = Enum.Material.Neon, Color = standNeon, Transparency = 0.08,
+			Material = Enum.Material.Neon, Color = standNeon, Transparency = 0.30,
 			Size = Vector3.new(edgeH, edgeH, standBackZ + 0.2),
 			CFrame = baseCFrame * CFrame.new(innerBX, levelY + edgeOff, 0),
 		}, starterStadiumFolder)
@@ -4338,25 +4372,84 @@ local function createPlot(plotId, side, laneIndex, position)
 
 	createFootballPitchDetails(model, baseCFrame)
 
+	-- ── Pack Pad: layered octagonal-feel podium with red glow halo ──────────────
+	local packPadCenter = baseCFrame * CFrame.new(-facingDirection * padOffset, 0.45, 0)
+	local packPadW = layout.PackPadSize.X
+	local packPadD = layout.PackPadSize.Z
+
+	-- Outer red glow ring on the floor (the "halo" under the podium)
+	make("Part", {
+		Name = "PackPadHalo",
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 60, 60),
+		Transparency = 0.22,
+		Size = Vector3.new(0.18, packPadW + 5.5, packPadD + 5.5),
+		CFrame = (packPadCenter - Vector3.new(0, 0.36, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+	}, model)
+	make("PointLight", {
+		Name = "PackPadHaloLight",
+		Color = Color3.fromRGB(255, 80, 80),
+		Brightness = 2.4, Range = 18, Shadows = false,
+	}, model:FindFirstChild("PackPadHalo"))
+
+	-- Dark base ring sitting on top of the halo (gives the podium depth)
+	make("Part", {
+		Name = "PackPadBaseRing",
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(10, 14, 22),
+		Size = Vector3.new(0.32, packPadW + 4, packPadD + 4),
+		CFrame = (packPadCenter - Vector3.new(0, 0.20, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+	}, model)
+
+	-- Octagonal corner-cut wedges turn the square pad into an octagon-feel.
+	-- 4 wedges shave the corners; viewed from above the result is an octagon.
+	local cornerCut = 1.6
+	for _, corner in ipairs({
+		{ x =  packPadW / 2, z =  packPadD / 2, yaw =   0 },
+		{ x = -packPadW / 2, z =  packPadD / 2, yaw =  90 },
+		{ x = -packPadW / 2, z = -packPadD / 2, yaw = 180 },
+		{ x =  packPadW / 2, z = -packPadD / 2, yaw = 270 },
+	}) do
+		make("WedgePart", {
+			Name = "PackPadCorner",
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = Color3.fromRGB(10, 14, 22),
+			Size = Vector3.new(cornerCut, layout.PackPadSize.Y + 0.05, cornerCut),
+			CFrame = packPadCenter
+				* CFrame.new(corner.x - cornerCut / 2 * math.sign(corner.x),
+				             0,
+				             corner.z - cornerCut / 2 * math.sign(corner.z))
+				* CFrame.Angles(0, math.rad(corner.yaw), 0),
+		}, model)
+	end
+
+	-- Main interactive pack pad (kept rectangular for clean prompt geometry,
+	-- but visually trimmed by the octagon corner wedges above + neon edges).
 	local packPad = make("Part", {
 		Name = "PackPad",
 		Anchored = true,
 		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(221, 49, 49),
+		Color = Color3.fromRGB(176, 28, 28),
 		Size = layout.PackPadSize,
-		CFrame = baseCFrame * CFrame.new(-facingDirection * padOffset, 0.45, 0),
+		CFrame = packPadCenter,
 	}, model)
 
-	local packPadBorder = make("Part", {
-		Name = "PackPadBorder",
-		Anchored = true,
-		CanCollide = false,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(86, 16, 16),
-		Size = Vector3.new(layout.PackPadSize.X + 2, 0.2, layout.PackPadSize.Z + 2),
-		CFrame = packPad.CFrame - Vector3.new(0, 0.22, 0),
+	-- Bright red neon top accent — a thinner glow strip running just above
+	-- the pad surface (gives the "lit pack pedestal" look).
+	make("Part", {
+		Name = "PackPadTopGlow",
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 70, 70),
+		Transparency = 0.45,
+		Size = Vector3.new(packPadW - 1.6, 0.14, packPadD - 1.6),
+		CFrame = packPadCenter + Vector3.new(0, layout.PackPadSize.Y / 2 + 0.07, 0),
 	}, model)
-	_ = packPadBorder
 
 
 	local spawnPad = make("Part", {
@@ -6254,6 +6347,7 @@ function BaseService.UpdateDisplaySlot(slot, card, incomePerSecond)
 
 	slot.cardModel = cardModel
 	slot.model:SetAttribute("Occupied", true)
+	setSlotHalo(slot, SLOT_HALO_OCCUPIED)
 	setSlotPrompt(slot, "Remove Player", card.name, true)
 end
 
