@@ -2318,7 +2318,7 @@ local function createFanZone(mapWidth, mapLength)
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Neon,
 		Color = PODIUM_GOLD,
-		Transparency = 0.70,
+		Transparency = 0.88,
 		Size = Vector3.new(0.18, 24.6, 24.6),
 		CFrame = CFrame.new(0, 3.15, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
@@ -2351,7 +2351,7 @@ local function createFanZone(mapWidth, mapLength)
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Neon,
 		Color = PODIUM_GOLD,
-		Transparency = 0.70,
+		Transparency = 0.88,
 		Size = Vector3.new(0.16, 16.6, 16.6),
 		CFrame = CFrame.new(0, 5.85, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
@@ -2373,7 +2373,7 @@ local function createFanZone(mapWidth, mapLength)
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Neon,
 		Color = PODIUM_GOLD,
-		Transparency = 0.70,
+		Transparency = 0.88,
 		Size = Vector3.new(0.14, 10.6, 10.6),
 		CFrame = CFrame.new(0, 8.42, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
@@ -2451,7 +2451,7 @@ local function createFanZone(mapWidth, mapLength)
 				Anchored = true, CanCollide = false,
 				Material = Enum.Material.Neon,
 				Color = PODIUM_GOLD,
-				Transparency = 0.70,
+				Transparency = 0.88,
 				Size = Vector3.new(0.5, 0.5, 0.5),
 				CFrame = CFrame.new(rx, 0.3, rz),
 			}, plaza)
@@ -2603,34 +2603,52 @@ local function createFanZone(mapWidth, mapLength)
 		local bushAsset  = modelAssets.Bush
 		local wallAsset  = modelAssets.StoneWall
 
-		-- North hedge row  (deck north edge z = -23, placed at z = -27)
-		-- extraYawDeg=90 spins each segment so its long axis runs east-west
-		-- (along the row) instead of perpendicular to it.
-		-- Spacing 5 studs keeps segments touching with no visible gaps.
-		for hx = -22, 22, 5 do
-			tryCreateImportedDecor(
-				plaza, "HedgeNorth" .. hx,
-				hedgeAsset,
-				Vector3.new(hx, 0, -27),
-				Vector3.new(hx, 0, 0),
-				2.0,
-				90    -- rotate along the row
-			)
+		-- ── Hedge rows — built from solid Parts so there are zero gaps and
+		-- no model-pivot rotation fights.  Two layers each side:
+		--   1. Low stone kerb  (grey SmoothPlastic, slightly wider)
+		--   2. Green hedge body on top
+		-- Stone walls removed — they sat on the stadium-access paths and
+		-- blocked players from reaching their plots.
+
+		local HEDGE_GREEN  = Color3.fromRGB(28, 92, 40)
+		local KERB_GREY    = Color3.fromRGB(72, 76, 84)
+
+		for _, side in ipairs({ -1, 1 }) do   -- -1 = north (z<0), 1 = south (z>0)
+			local rowZ = side * 27
+
+			-- Stone kerb at base
+			make("Part", {
+				Name = "HedgeKerb" .. (side == -1 and "North" or "South"),
+				Anchored = true, CanCollide = true,
+				Material = Enum.Material.SmoothPlastic,
+				Color = KERB_GREY,
+				Size = Vector3.new(52, 0.45, 3.6),
+				CFrame = CFrame.new(0, 0.225, rowZ),
+			}, plaza)
+
+			-- Hedge body
+			make("Part", {
+				Name = "HedgeRow" .. (side == -1 and "North" or "South"),
+				Anchored = true, CanCollide = true,
+				Material = Enum.Material.SmoothPlastic,
+				Color = HEDGE_GREEN,
+				Size = Vector3.new(50, 2.8, 3.0),
+				CFrame = CFrame.new(0, 1.85, rowZ),
+			}, plaza)
+
+			-- Thin bright-green neon top edge — gives the "trimmed hedge" look
+			make("Part", {
+				Name = "HedgeTopGlow" .. (side == -1 and "North" or "South"),
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Neon,
+				Color = Color3.fromRGB(56, 196, 84),
+				Transparency = 0.55,
+				Size = Vector3.new(50.2, 0.18, 3.1),
+				CFrame = CFrame.new(0, 3.24, rowZ),
+			}, plaza)
 		end
 
-		-- South hedge row
-		for hx = -22, 22, 5 do
-			tryCreateImportedDecor(
-				plaza, "HedgeSouth" .. hx,
-				hedgeAsset,
-				Vector3.new(hx, 0, 27),
-				Vector3.new(hx, 0, 0),
-				2.0,
-				90
-			)
-		end
-
-		-- Bush clusters at each corner of the deck
+		-- Bush corner accents (individual plants — no linking needed)
 		for _, bp in ipairs({
 			Vector3.new(-25, 0, -25),
 			Vector3.new( 25, 0, -25),
@@ -2641,43 +2659,20 @@ local function createFanZone(mapWidth, mapLength)
 				plaza, "BushCorner" .. bp.X .. "_" .. bp.Z,
 				bushAsset,
 				bp,
-				Vector3.new(0, 0, 0),  -- face podium
-				1.2   -- was 2.4 — compact accent bush, not a tree
+				Vector3.new(0, 0, 0),
+				1.2
 			)
 		end
 
-		-- Low stone wall segments along west / east edges of the deck
-		-- extraYawDeg=90 orients each segment along the north-south run.
-		-- Spacing 5 studs keeps them touching.
-		for wz = -20, 20, 5 do
-			tryCreateImportedDecor(
-				plaza, "StoneWallWest" .. wz,
-				wallAsset,
-				Vector3.new(-31, 0, wz),
-				Vector3.new(-31, 0, wz + 1),
-				2.2,
-				90
-			)
-			tryCreateImportedDecor(
-				plaza, "StoneWallEast" .. wz,
-				wallAsset,
-				Vector3.new(31, 0, wz),
-				Vector3.new(31, 0, wz + 1),
-				2.2,
-				90
-			)
-		end
-
-		-- Green ambient wash lights behind each hedge row so the greenery
-		-- glows softly at night (matches the concept-art look)
+		-- Green ambient wash so hedges glow at night
 		local GREEN_HEDGE = Color3.fromRGB(38, 168, 72)
 		for _, lightPos in ipairs({
-			Vector3.new(-14, 2.5, -27),
-			Vector3.new(  0, 2.5, -27),
-			Vector3.new( 14, 2.5, -27),
-			Vector3.new(-14, 2.5,  27),
-			Vector3.new(  0, 2.5,  27),
-			Vector3.new( 14, 2.5,  27),
+			Vector3.new(-14, 3.5, -27),
+			Vector3.new(  0, 3.5, -27),
+			Vector3.new( 14, 3.5, -27),
+			Vector3.new(-14, 3.5,  27),
+			Vector3.new(  0, 3.5,  27),
+			Vector3.new( 14, 3.5,  27),
 		}) do
 			local gAnchor = make("Part", {
 				Name = "HedgeGreenLight",
@@ -2689,7 +2684,7 @@ local function createFanZone(mapWidth, mapLength)
 			make("PointLight", {
 				Color = GREEN_HEDGE,
 				Range = 18,
-				Brightness = 0.35,
+				Brightness = 0.32,
 				Shadows = false,
 			}, gAnchor)
 		end
@@ -4413,7 +4408,7 @@ local function createPlot(plotId, side, laneIndex, position)
 			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
 			Material = Enum.Material.Neon,
 			Color = Color3.fromRGB(255, 210, 50),
-			Transparency = 0.70,
+			Transparency = 0.88,
 			Size = Vector3.new(beamW, 0.16, beamD),
 			CFrame = baseCFrame * CFrame.new(beamLocalX, beamCenterY + ySign * (2.6 / 2 + 0.14), 0),
 		}, model)
