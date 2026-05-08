@@ -356,8 +356,8 @@ local function createStadiumTier(parent, size, cframe)
 		CanCollide = true,
 		CanTouch = true,
 		CanQuery = true,
-		Material = Enum.Material.Slate,
-		Color = Color3.fromRGB(42, 46, 54),
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(172, 28, 28),
 		Size = size,
 		CFrame = cframe,
 	}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
@@ -369,8 +369,8 @@ local function createStadiumWedge(parent, size, cframe)
 		CanCollide = true,
 		CanTouch = true,
 		CanQuery = true,
-		Material = Enum.Material.Slate,
-		Color = Color3.fromRGB(32, 36, 44),
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(136, 20, 20),
 		Size = size,
 		CFrame = cframe,
 	}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
@@ -4222,13 +4222,29 @@ local function createPlot(plotId, side, laneIndex, position)
 	local frontEdgeX = facingDirection * (layout.PlotSize.X / 2)
 	local backEdgeX = -frontEdgeX
 
+	-- Outer flooring: dark stone tile (concept art base)
 	local floor = make("Part", {
 		Name = "Floor",
 		Anchored = true,
-		Material = Enum.Material.Grass,
-		Color = Color3.fromRGB(48, 110, 52),
+		Material = Enum.Material.Slate,
+		Color = Color3.fromRGB(38, 42, 50),
 		Size = layout.PlotSize,
 		CFrame = baseCFrame,
+	}, model)
+
+	-- Central football pitch: green grass rectangle on top of stone floor
+	local pitchInsetX = 10
+	local pitchInsetZ = 8
+	make("Part", {
+		Name = "PitchSurface",
+		Anchored = true,
+		CanCollide = false,
+		CanTouch = false,
+		CanQuery = false,
+		Material = Enum.Material.Grass,
+		Color = Color3.fromRGB(48, 110, 52),
+		Size = Vector3.new(layout.PlotSize.X - pitchInsetX, 0.4, layout.PlotSize.Z - pitchInsetZ),
+		CFrame = baseCFrame * CFrame.new(0, layout.PlotSize.Y / 2 + 0.2, 0),
 	}, model)
 
 	createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, -layout.PlotSize.Z / 2))
@@ -5619,9 +5635,9 @@ function BaseService.UpdateStadiumTier(plot, tier)
 	local sideW = PlotX + 2   -- 58 studs east-west
 	local backW = PlotZ + 2   -- 46 studs north-south
 
-	-- Alternating seat colours per row (dark charcoal stadium walls per concept art)
-	local colA = Color3.fromRGB(46, 50, 58)
-	local colB = Color3.fromRGB(34, 38, 46)
+	-- Alternating seat colours per row
+	local colA = Color3.fromRGB(198, 44, 44)
+	local colB = Color3.fromRGB(158, 30, 30)
 	local crowdPivotY = 3.1
 	local seatPointsFolder = make("Folder", { Name = "CrowdSeatPoints" }, parent)
 	local fanAisleY = floorY + 0.07
