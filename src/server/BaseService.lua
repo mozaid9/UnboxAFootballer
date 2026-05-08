@@ -356,8 +356,8 @@ local function createStadiumTier(parent, size, cframe)
 		CanCollide = true,
 		CanTouch = true,
 		CanQuery = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(172, 28, 28),
+		Material = Enum.Material.Slate,
+		Color = Color3.fromRGB(42, 46, 54),
 		Size = size,
 		CFrame = cframe,
 	}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
@@ -369,8 +369,8 @@ local function createStadiumWedge(parent, size, cframe)
 		CanCollide = true,
 		CanTouch = true,
 		CanQuery = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(136, 20, 20),
+		Material = Enum.Material.Slate,
+		Color = Color3.fromRGB(32, 36, 44),
 		Size = size,
 		CFrame = cframe,
 	}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
@@ -4225,8 +4225,8 @@ local function createPlot(plotId, side, laneIndex, position)
 	local floor = make("Part", {
 		Name = "Floor",
 		Anchored = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(22, 28, 38),
+		Material = Enum.Material.Grass,
+		Color = Color3.fromRGB(48, 110, 52),
 		Size = layout.PlotSize,
 		CFrame = baseCFrame,
 	}, model)
@@ -5619,9 +5619,9 @@ function BaseService.UpdateStadiumTier(plot, tier)
 	local sideW = PlotX + 2   -- 58 studs east-west
 	local backW = PlotZ + 2   -- 46 studs north-south
 
-	-- Alternating seat colours per row
-	local colA = Color3.fromRGB(198, 44, 44)
-	local colB = Color3.fromRGB(158, 30, 30)
+	-- Alternating seat colours per row (dark charcoal stadium walls per concept art)
+	local colA = Color3.fromRGB(46, 50, 58)
+	local colB = Color3.fromRGB(34, 38, 46)
 	local crowdPivotY = 3.1
 	local seatPointsFolder = make("Folder", { Name = "CrowdSeatPoints" }, parent)
 	local fanAisleY = floorY + 0.07
