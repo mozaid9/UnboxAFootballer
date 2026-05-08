@@ -226,7 +226,7 @@ Constants.FanZone = {
 		-- Plaza greenery & border
 		Hedge      = 65660592,
 		Bush       = 8647777369,
-		StoneWall  = 3310830189,
+		StoneWall  = 82892525621750,
 	},
 	FansPerVisibleNpc = 75000,
 	FansPerStadiumVisitor = 10000000,

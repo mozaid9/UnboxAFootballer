@@ -2310,7 +2310,7 @@ local function createFanZone(mapWidth, mapLength)
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Neon,
 		Color = PODIUM_GOLD,
-		Transparency = 0.45,
+		Transparency = 0.70,
 		Size = Vector3.new(0.18, 24.6, 24.6),
 		CFrame = CFrame.new(0, 3.15, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
@@ -2321,7 +2321,7 @@ local function createFanZone(mapWidth, mapLength)
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Neon,
 		Color = PODIUM_RED,
-		Transparency = 0.72,
+		Transparency = 0.82,
 		Size = Vector3.new(0.10, 28, 28),
 		CFrame = CFrame.new(0, 0.12, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
@@ -2343,7 +2343,7 @@ local function createFanZone(mapWidth, mapLength)
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Neon,
 		Color = PODIUM_GOLD,
-		Transparency = 0.45,
+		Transparency = 0.70,
 		Size = Vector3.new(0.16, 16.6, 16.6),
 		CFrame = CFrame.new(0, 5.85, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
@@ -2365,7 +2365,7 @@ local function createFanZone(mapWidth, mapLength)
 		Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Neon,
 		Color = PODIUM_GOLD,
-		Transparency = 0.45,
+		Transparency = 0.70,
 		Size = Vector3.new(0.14, 10.6, 10.6),
 		CFrame = CFrame.new(0, 8.42, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, plaza)
@@ -2603,7 +2603,7 @@ local function createFanZone(mapWidth, mapLength)
 				hedgeAsset,
 				Vector3.new(hx, 0, -27),
 				Vector3.new(hx, 0, 0),
-				3.2
+				2.0   -- was 3.2 — shorter so they look neat not chunky
 			)
 		end
 
@@ -2614,7 +2614,7 @@ local function createFanZone(mapWidth, mapLength)
 				hedgeAsset,
 				Vector3.new(hx, 0, 27),
 				Vector3.new(hx, 0, 0),
-				3.2
+				2.0   -- was 3.2
 			)
 		end
 
@@ -2630,7 +2630,7 @@ local function createFanZone(mapWidth, mapLength)
 				bushAsset,
 				bp,
 				Vector3.new(0, 0, 0),  -- face podium
-				2.4
+				1.2   -- was 2.4 — compact accent bush, not a tree
 			)
 		end
 
@@ -4399,7 +4399,7 @@ local function createPlot(plotId, side, laneIndex, position)
 			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
 			Material = Enum.Material.Neon,
 			Color = Color3.fromRGB(255, 210, 50),
-			Transparency = 0.45,
+			Transparency = 0.70,
 			Size = Vector3.new(beamW, 0.16, beamD),
 			CFrame = baseCFrame * CFrame.new(beamLocalX, beamCenterY + ySign * (2.6 / 2 + 0.14), 0),
 		}, model)
