@@ -1054,6 +1054,13 @@ local function updateCoach(data)
 		return
 	end
 
+	-- Players who have rebirthed at least once already know the basics —
+	-- don't show the intro tutorial steps after each rebirth resets the counters.
+	if (tonumber(data.rebirthTier) or 0) > 0 then
+		setCoachStep(nil)
+		return
+	end
+
 	local totalPacks = math.max(0, tonumber(data.totalPacksOpened) or 0)
 	local passiveFans = math.max(0, tonumber(data.passiveCoinsPerSecond) or 0)
 	local storedCount = countInventoryCards(data.inventoryCounts)

@@ -3768,7 +3768,7 @@ local function setSlotPrompt(slot, actionText, objectText, enabled)
 	slot.prompt.Enabled = enabled
 end
 
-local function createDisplaySlot(parent, index, cframe, lookDirection)
+local function createDisplaySlot(parent, index, cframe, lookDirection, noCollide)
 	local model = make("Model", {
 		Name = "DisplaySlot" .. index,
 	}, parent)
@@ -3778,10 +3778,14 @@ local function createDisplaySlot(parent, index, cframe, lookDirection)
 	local slotD = layout.DisplaySlotSize.Z
 	local topY  = slotH / 2
 
-	-- Pedestal body — dark polished concrete
+	-- Pedestal body — dark polished concrete.
+	-- Terrace pedestals are non-colliding so players can walk freely between
+	-- all 12 slots without being blocked by the pedestal geometry.
 	local base = make("Part", {
 		Name = "Base",
 		Anchored = true,
+		CanCollide = not noCollide,
+		CanTouch = not noCollide,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(14, 19, 30),
 		Size = layout.DisplaySlotSize,
@@ -4915,10 +4919,14 @@ local function createPlot(plotId, side, laneIndex, position)
 	for slotIndex = 1, layout.DisplaySlotCount do
 		local localOffset = ALL_SLOT_OFFSETS[slotIndex]
 		local worldOffset = Vector3.new(localOffset.X * facingDirection, localOffset.Y, localOffset.Z)
+		-- Terrace slots (7+) use non-colliding pedestals so players can walk
+		-- freely past any pedestal to reach every slot on the terrace.
+		local isTerrace = slotIndex > 6
 		displaySlots[slotIndex] = createDisplaySlot(
 			displayFolder, slotIndex,
 			baseCFrame * CFrame.new(worldOffset),
-			slotLookDir(localOffset, facingDirection)
+			slotLookDir(localOffset, facingDirection),
+			isTerrace
 		)
 	end
 
@@ -5964,10 +5972,12 @@ function BaseService.AddDisplaySlot(plot, slotIndex)
 
 	local fd  = plot.facingDirection
 	local worldOffset = Vector3.new(localOffset.X * fd, localOffset.Y, localOffset.Z)
+	local isTerrace = slotIndex > 6
 	local slot = createDisplaySlot(
 		displayFolder, slotIndex,
 		plot.baseCFrame * CFrame.new(worldOffset),
-		slotLookDir(localOffset, fd)
+		slotLookDir(localOffset, fd),
+		isTerrace
 	)
 	plot.displaySlots[slotIndex] = slot
 	return slot

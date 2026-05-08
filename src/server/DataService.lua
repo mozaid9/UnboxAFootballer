@@ -760,7 +760,9 @@ function DataService.ResetForRebirth(player, startingFans)
 		data.totalCardsOpened = 0
 		data.totalPacksOpened = 0
 		data.claimedMilestones = {}
-		data.queuedMilestoneRewards = {}
+		-- NOTE: queuedMilestoneRewards intentionally NOT cleared —
+		-- packs purchased from the shop or earned via milestones/quests
+		-- should survive rebirth since the player already paid for them.
 		DataService.MarkDirty(player)
 		return true
 	end
