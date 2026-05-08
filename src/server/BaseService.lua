@@ -3768,27 +3768,26 @@ local function setSlotPrompt(slot, actionText, objectText, enabled)
 	slot.prompt.Enabled = enabled
 end
 
-local function createDisplaySlot(parent, index, cframe, lookDirection, noCollide)
+-- pedestalSizeZ: optional override for the pedestal's Z (depth) dimension.
+-- Terrace slots pass 3 here so the pedestal is slender enough to leave a
+-- clear 3-stud walkable aisle between every adjacent slot on the terrace.
+local function createDisplaySlot(parent, index, cframe, lookDirection, pedestalSizeZ)
 	local model = make("Model", {
 		Name = "DisplaySlot" .. index,
 	}, parent)
 
 	local slotW = layout.DisplaySlotSize.X
 	local slotH = layout.DisplaySlotSize.Y
-	local slotD = layout.DisplaySlotSize.Z
+	local slotD = pedestalSizeZ or layout.DisplaySlotSize.Z
 	local topY  = slotH / 2
 
 	-- Pedestal body — dark polished concrete.
-	-- Terrace pedestals are non-colliding so players can walk freely between
-	-- all 12 slots without being blocked by the pedestal geometry.
 	local base = make("Part", {
 		Name = "Base",
 		Anchored = true,
-		CanCollide = not noCollide,
-		CanTouch = not noCollide,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(14, 19, 30),
-		Size = layout.DisplaySlotSize,
+		Size = Vector3.new(slotW, slotH, slotD),
 		CFrame = cframe,
 	}, model)
 
@@ -3893,23 +3892,24 @@ local ALL_SLOT_OFFSETS = {
 	Vector3.new(-12, 1.75,  14),  -- 4
 	Vector3.new(  0, 1.75,  14),  -- 5
 	Vector3.new( 12, 1.75,  14),  -- 6
-	-- Rebirth Terrace row 1 — closest to pitch, six slots across the back.
-	-- Slots are now 5-wide (down from 7) with 5-stud spacing so each slot is
-	-- visually distinct.  Outer slots sit at Z=±14 leaving ~3 studs of clear
-	-- walkway between the slot edge and the side staircase corridor at Z=±20.
-	Vector3.new(-27, 17.75, -14), -- 7
+	-- Rebirth Terrace row 1 — closest to pitch.
+	-- Pedestals are 3 studs deep (Z) instead of 5, spaced every 6 studs.
+	-- This leaves a clear 3-stud walkable aisle between every adjacent pedestal.
+	-- Outermost pedestal edge is at Z=±16.5, giving 3.5 studs of clearance to
+	-- the side staircases at Z=±20.
+	Vector3.new(-27, 17.75, -15), -- 7
 	Vector3.new(-27, 17.75,  -9), -- 8
-	Vector3.new(-27, 17.75,  -4), -- 9
-	Vector3.new(-27, 17.75,   4), -- 10
+	Vector3.new(-27, 17.75,  -3), -- 9
+	Vector3.new(-27, 17.75,   3), -- 10
 	Vector3.new(-27, 17.75,   9), -- 11
-	Vector3.new(-27, 17.75,  14), -- 12
-	-- Rebirth Terrace row 2 — further back, matching row-1 Z positions.
-	Vector3.new(-35, 17.75, -14), -- 13
+	Vector3.new(-27, 17.75,  15), -- 12
+	-- Rebirth Terrace row 2 — further back, same Z layout.
+	Vector3.new(-35, 17.75, -15), -- 13
 	Vector3.new(-35, 17.75,  -9), -- 14
-	Vector3.new(-35, 17.75,  -4), -- 15
-	Vector3.new(-35, 17.75,   4), -- 16
+	Vector3.new(-35, 17.75,  -3), -- 15
+	Vector3.new(-35, 17.75,   3), -- 16
 	Vector3.new(-35, 17.75,   9), -- 17
-	Vector3.new(-35, 17.75,  14), -- 18
+	Vector3.new(-35, 17.75,  15), -- 18
 }
 
 local function slotLookDir(localOffset, facingDirection)
@@ -4919,14 +4919,15 @@ local function createPlot(plotId, side, laneIndex, position)
 	for slotIndex = 1, layout.DisplaySlotCount do
 		local localOffset = ALL_SLOT_OFFSETS[slotIndex]
 		local worldOffset = Vector3.new(localOffset.X * facingDirection, localOffset.Y, localOffset.Z)
-		-- Terrace slots (7+) use non-colliding pedestals so players can walk
-		-- freely past any pedestal to reach every slot on the terrace.
-		local isTerrace = slotIndex > 6
+		-- Terrace slots (7+) use a narrower pedestal (3 studs in Z instead of 5)
+		-- so the 6-stud Z spacing leaves a clear 3-stud walkable aisle between
+		-- every adjacent pedestal on the terrace deck.
+		local pedestalSizeZ = slotIndex > 6 and 3 or nil
 		displaySlots[slotIndex] = createDisplaySlot(
 			displayFolder, slotIndex,
 			baseCFrame * CFrame.new(worldOffset),
 			slotLookDir(localOffset, facingDirection),
-			isTerrace
+			pedestalSizeZ
 		)
 	end
 
@@ -5972,12 +5973,12 @@ function BaseService.AddDisplaySlot(plot, slotIndex)
 
 	local fd  = plot.facingDirection
 	local worldOffset = Vector3.new(localOffset.X * fd, localOffset.Y, localOffset.Z)
-	local isTerrace = slotIndex > 6
+	local pedestalSizeZ = slotIndex > 6 and 3 or nil
 	local slot = createDisplaySlot(
 		displayFolder, slotIndex,
 		plot.baseCFrame * CFrame.new(worldOffset),
 		slotLookDir(localOffset, fd),
-		isTerrace
+		pedestalSizeZ
 	)
 	plot.displaySlots[slotIndex] = slot
 	return slot

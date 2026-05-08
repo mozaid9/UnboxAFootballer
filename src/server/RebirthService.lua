@@ -51,21 +51,33 @@ end
 
 -- Count cards at or above rarity and collect up to maxExamples qualifying
 -- cards so the UI can show one row per required slot.
+--
+-- Vault-kept cards (carried over from the previous rebirth cycle) are NOT
+-- counted — the player must earn fresh qualifying cards in the current cycle
+-- to progress.  vaultKeptInventory is a {[cardIdStr] = count} map set by
+-- PerformRebirth; it drains naturally as the player earns new copies and
+-- removes vault copies.
 local function countCardsAtOrAboveRarity(data, rarity, maxExamples)
 	local minRank  = RARITY_RANK[rarity] or 99
 	local count    = 0
 	local examples = {}
 	maxExamples    = maxExamples or 1
 
+	-- Cards that were carried over from the vault do not count toward the
+	-- next rebirth requirement.
+	local vaultKept = data.vaultKeptInventory or {}
+
 	for _, card in ipairs(CardData.Pool) do
 		local rank = RARITY_RANK[card.rarity] or 0
 		if rank >= minRank then
 			local key   = tostring(card.id)
-			local owned = data.inventory and data.inventory[key] or 0
-			if owned > 0 then
-				count += owned
+			local ownedTotal = data.inventory and data.inventory[key] or 0
+			-- Subtract any copies that came from the vault; they don't count.
+			local ownedNew = math.max(0, ownedTotal - (vaultKept[key] or 0))
+			if ownedNew > 0 then
+				count += ownedNew
 				-- Collect up to maxExamples copies (same card can fill multiple slots)
-				for _ = 1, owned do
+				for _ = 1, ownedNew do
 					if #examples < maxExamples then
 						table.insert(examples, { name = card.name, rarity = card.rarity, id = card.id })
 					end
@@ -80,9 +92,16 @@ local function countCardsAtOrAboveRarity(data, rarity, maxExamples)
 		if card then
 			local rank = RARITY_RANK[card.rarity] or 0
 			if rank >= minRank then
-				count += 1
-				if #examples < maxExamples then
-					table.insert(examples, { name = card.name, rarity = card.rarity, id = card.id })
+				-- A displayed card was placed from the current-cycle inventory.
+				-- Check whether the underlying inventory copy is a new card.
+				local key = tostring(card.id)
+				local inv = data.inventory and data.inventory[key] or 0
+				local kept = vaultKept[key] or 0
+				if inv > kept then
+					count += 1
+					if #examples < maxExamples then
+						table.insert(examples, { name = card.name, rarity = card.rarity, id = card.id })
+					end
 				end
 			end
 		end
@@ -263,9 +282,17 @@ function RebirthService.PerformRebirth(player)
 	data.rebirthTokens = nextTokens
 	data.totalRebirths = nextTotal
 	data.baseSlots     = nextSlots
+
+	-- Re-add vault-kept cards and record which ones they are so that
+	-- countCardsAtOrAboveRarity can exclude them from the next rebirth check.
+	local vaultKeptInventory = {}
 	for _, cardId in ipairs(keepers) do
 		DataService.AddCard(player, cardId, 1)
+		local key = tostring(cardId)
+		vaultKeptInventory[key] = (vaultKeptInventory[key] or 0) + 1
 	end
+	data.vaultKeptInventory = vaultKeptInventory
+
 	DataService.ClearRebirthVault(player)
 	DataService.MarkDirty(player)
 
