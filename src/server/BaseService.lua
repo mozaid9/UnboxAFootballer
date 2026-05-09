@@ -4681,10 +4681,16 @@ local function createPlot(plotId, side, laneIndex, position)
 		)
 	end
 
-	local entranceLightX = frontEdgeX + (facingDirection * 22)
-	createLightPost(model, "EntranceLightNorth", position + Vector3.new(entranceLightX, 0, -6.8), packPad.Position + Vector3.new(0, 2, 0))
-	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0,  6.8), packPad.Position + Vector3.new(0, 2, 0))
-	createSoftFillLight(model, "EntrancePathFill", position + Vector3.new(entranceLightX + (facingDirection * 2.5), 5.2, 0), 24, 0.16, Color3.fromRGB(255, 232, 180))
+	-- Pathway lamps: pulled further out so the long approach is properly lit.
+	-- Two pairs along the path (closer + further) instead of one pair near the gate.
+	local pathLightX1 = frontEdgeX + (facingDirection * 38)
+	createLightPost(model, "PathLightNorth1", position + Vector3.new(pathLightX1, 0, -6.8), packPad.Position + Vector3.new(0, 2, 0))
+	createLightPost(model, "PathLightSouth1", position + Vector3.new(pathLightX1, 0,  6.8), packPad.Position + Vector3.new(0, 2, 0))
+	local pathLightX2 = frontEdgeX + (facingDirection * 64)
+	createLightPost(model, "PathLightNorth2", position + Vector3.new(pathLightX2, 0, -6.8), packPad.Position + Vector3.new(0, 2, 0))
+	createLightPost(model, "PathLightSouth2", position + Vector3.new(pathLightX2, 0,  6.8), packPad.Position + Vector3.new(0, 2, 0))
+	createSoftFillLight(model, "EntrancePathFill1", position + Vector3.new(pathLightX1 + (facingDirection * 2.5), 5.2, 0), 24, 0.16, Color3.fromRGB(255, 232, 180))
+	createSoftFillLight(model, "EntrancePathFill2", position + Vector3.new(pathLightX2 + (facingDirection * 2.5), 5.2, 0), 24, 0.14, Color3.fromRGB(255, 232, 180))
 
 	-- Decorative side banners flanking the entrance
 	local bannerX = frontEdgeX + (facingDirection * 3.5)
@@ -4733,12 +4739,13 @@ local function createPlot(plotId, side, laneIndex, position)
 	end
 
 	-- ── Rebirth Machine ─────────────────────────────────────────────────────────
-	-- Placed on the entrance-right exterior pad so it reads like a stadium add-on
-	-- instead of fighting for space with the pack pad, display slots, or frontage.
+	-- Tucked flush against the LEFT-side wall near the entrance so it reads as
+	-- planted on the wall rather than floating off to one side.
+	-- (Was on the right at z=35.5; now on the opposite side, closer to the wall.)
 	-- Y offsets are from baseCFrame (floor centre = local Y 0; floor top = local Y 0.5).
-	local rightSideSign = -facingDirection
+	local leftSideSign  = facingDirection
 	local machineLocalX = facingDirection * 39
-	local machineLocalZ = rightSideSign * 35.5
+	local machineLocalZ = leftSideSign * 43
 	local machineCF     = baseCFrame * CFrame.new(machineLocalX, 0.4, machineLocalZ)
 	local machinePos = machineCF.Position
 	local machineFacingCF = CFrame.lookAt(machinePos, Vector3.new(position.X, machinePos.Y, position.Z))

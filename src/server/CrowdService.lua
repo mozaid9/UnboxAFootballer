@@ -589,8 +589,20 @@ local function makeRoute(laneXOffset, laneZOffset)
 					})
 				end
 			end
-			table.insert(route, { position = jitterPosition(entranceLanePoint, 3.6), pause = math.random(0, 1) == 1 and 0.05 or nil })
-			table.insert(route, { position = jitterPosition(stadiumPathPoint, 3.0) })
+			-- ── Exit dispersion ─────────────────────────────────────────────
+			-- Pre-exit dispersion point: pulls NPCs to a fresh randomised lane
+			-- INSIDE the stadium before they squeeze through the entrance gap,
+			-- preventing the pile-up at the gate when many fans leave at once.
+			local exitLaneZ = (math.random(0, 6) - 3) * 1.7   -- random fresh lane in [-5.1, 5.1]
+			local preExitPoint = Vector3.new(
+				plot.floor.Position.X + (laneXOffset > 0 and 1 or -1) * 14,
+				STANDING_PIVOT_HEIGHT,
+				plot.floor.Position.Z + math.clamp(exitLaneZ, -8, 8)
+			)
+			local exitLanePoint = getPlotEntranceLanePoint(plot, exitLaneZ)
+			table.insert(route, { position = jitterPosition(preExitPoint, 4.5), pause = math.random(2, 7) / 10 })
+			table.insert(route, { position = jitterPosition(exitLanePoint, 4.0), pause = math.random(0, 1) == 1 and 0.05 or nil })
+			table.insert(route, { position = jitterPosition(stadiumPathPoint, 3.5) })
 		end
 	end
 
