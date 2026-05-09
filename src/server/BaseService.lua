@@ -6471,97 +6471,122 @@ local function createConceptTestStadium(parent, position)
 	buildBleacherSide(-1) -- North
 	buildBleacherSide( 1) -- South
 
-	-- ── Premium hexagonal central podium with multiple display slots ────────
-	local podiumY = floorH + 1.2
-	-- Hex base (use 6 wedges in a circle to fake hex feel via square approximation)
+	-- ── Central octagonal pack-opening podium (focal point only) ───────────
+	-- Per concept brief: raised octagonal podium with layered glowing steps,
+	-- with the main pack pedestal as the focal point. Card slots are placed
+	-- AROUND the pitch perimeter, not on this podium.
+	local podiumY = floorH + 0.5
+	-- Build octagonal podium using 8 wedges/parts arranged in a ring
+	local function octRing(radius, height, yCenter, color, mat, transparency)
+		for i = 0, 7 do
+			local a1 = (i / 8) * math.pi * 2
+			local a2 = ((i + 1) / 8) * math.pi * 2
+			local x1, z1 = math.cos(a1) * radius, math.sin(a1) * radius
+			local x2, z2 = math.cos(a2) * radius, math.sin(a2) * radius
+			local segLen = math.sqrt((x2 - x1) ^ 2 + (z2 - z1) ^ 2)
+			local cx, cz = (x1 + x2) / 2, (z1 + z2) / 2
+			local segAngle = math.atan2(z2 - z1, x2 - x1)
+			make("Part", {
+				Anchored = true, CanCollide = (transparency or 0) < 0.5,
+				Material = mat, Color = color,
+				Transparency = transparency or 0,
+				Size = Vector3.new(segLen, height, radius * 0.45),
+				CFrame = baseCFrame * CFrame.new(cx * 0.78, yCenter, cz * 0.78) * CFrame.Angles(0, -segAngle, 0),
+			}, model)
+		end
+	end
+	-- 3 layered octagonal steps (lower → upper)
+	octRing(7.5, 1.6, podiumY + 0.8, stoneMid, Enum.Material.Slate)
+	octRing(6.0, 1.4, podiumY + 2.2, stoneLite, Enum.Material.Slate)
+	octRing(4.6, 1.0, podiumY + 3.4, stoneDark, Enum.Material.Slate)
+	-- Gold trim glowing rings on each step edge
+	octRing(7.6, 0.18, podiumY + 1.65, goldCol, Enum.Material.Neon, 0.18)
+	octRing(6.1, 0.18, podiumY + 2.95, goldCol, Enum.Material.Neon, 0.18)
+	octRing(4.7, 0.18, podiumY + 3.95, goldCol, Enum.Material.Neon, 0.18)
+	-- Underglow ring beneath the podium (red/orange focal point)
+	octRing(8.5, 0.14, floorH + 0.18, Color3.fromRGB(255, 90, 40), Enum.Material.Neon, 0.45)
+	-- Top platform circle
 	make("Part", {
-		Name = "PodiumBase", Anchored = true, CanCollide = true,
-		Material = Enum.Material.Slate, Color = stoneMid,
-		Size = Vector3.new(20, 2.4, 14),
-		CFrame = baseCFrame * CFrame.new(0, podiumY, 0),
-	}, model)
-	-- Inner darker step
-	make("Part", {
-		Anchored = true, CanCollide = true,
+		Anchored = true, CanCollide = true, Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Slate, Color = stoneDark,
-		Size = Vector3.new(17, 0.8, 11),
-		CFrame = baseCFrame * CFrame.new(0, podiumY + 1.6, 0),
+		Size = Vector3.new(0.8, 7, 7),
+		CFrame = baseCFrame * CFrame.new(0, podiumY + 4.4, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, model)
-	-- Gold trim around base perimeter
-	for _, dz in ipairs({-1, 1}) do
-		make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.22,
-			Size = Vector3.new(20.4, 0.18, 0.3),
-			CFrame = baseCFrame * CFrame.new(0, podiumY + 1.22, dz * 7),
-		}, model)
-	end
-	for _, dx in ipairs({-1, 1}) do
-		make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.22,
-			Size = Vector3.new(0.3, 0.18, 14.4),
-			CFrame = baseCFrame * CFrame.new(dx * 10, podiumY + 1.22, 0),
-		}, model)
-	end
-	-- Underglow ring beneath podium
-	make("Part", {
-		Anchored = true, CanCollide = false,
-		Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 200, 80), Transparency = 0.55,
-		Size = Vector3.new(22, 0.1, 16),
-		CFrame = baseCFrame * CFrame.new(0, floorH + 0.12, 0),
-	}, model)
-	-- Center pack pillar (the FOOTBALLER PACK presentation column)
+	-- Pack pillar (the FOOTBALLER PACK presentation column) on top
 	local packPillar = make("Part", {
 		Name = "PackPillar", Anchored = true, CanCollide = false,
 		Material = Enum.Material.Neon, Color = Color3.fromRGB(220, 70, 35), Transparency = 0.05,
-		Size = Vector3.new(2.6, 6.4, 1.8),
-		CFrame = baseCFrame * CFrame.new(0, podiumY + 2 + 3.2, 0),
+		Size = Vector3.new(3, 7, 2),
+		CFrame = baseCFrame * CFrame.new(0, podiumY + 4.4 + 3.5, 0),
 	}, model)
-	-- Pack pillar light
-	make("PointLight", { Brightness = 2, Range = 22, Color = Color3.fromRGB(255, 100, 60) }, packPillar)
-	-- 4 premium card display columns (2 per side) — tall display cases
-	local slotXs = { -7.5, -3, 3, 7.5 }
-	for slotI, sx in ipairs(slotXs) do
-		local pedTopY = podiumY + 2.3
-		-- Hex-feel chunky stone pedestal
+	make("PointLight", { Brightness = 3, Range = 28, Color = Color3.fromRGB(255, 110, 70) }, packPillar)
+	-- Strong red glow column under the pack pillar (focal effect)
+	make("Part", {
+		Anchored = true, CanCollide = false, Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 60, 20), Transparency = 0.55,
+		Size = Vector3.new(8, 9, 9),
+		CFrame = baseCFrame * CFrame.new(0, podiumY + 4.4 + 4, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, model)
+
+	-- ── Card display podiums positioned AROUND the pitch perimeter ─────────
+	-- 6 slots: 3 along each long side of the pitch, between pitch and bleachers
+	local slotPositions = {
+		{ x = -pitchW / 2 - 4, z = -pitchD / 4, dir = Vector3.new(1, 0, 0) },   -- west side, front
+		{ x = -pitchW / 2 - 4, z =  pitchD / 4, dir = Vector3.new(1, 0, 0) },   -- west side, back
+		{ x =  pitchW / 2 + 4, z = -pitchD / 4, dir = Vector3.new(-1, 0, 0) },  -- east side, front
+		{ x =  pitchW / 2 + 4, z =  pitchD / 4, dir = Vector3.new(-1, 0, 0) },  -- east side, back
+		{ x = -pitchW / 4, z = pitchD / 2 + 1.8, dir = Vector3.new(0, 0, -1) }, -- south, west
+		{ x =  pitchW / 4, z = pitchD / 2 + 1.8, dir = Vector3.new(0, 0, -1) }, -- south, east
+	}
+	for slotI, slot in ipairs(slotPositions) do
+		local sx, sz = slot.x, slot.z
+		-- Thick layered base (octagonal feel via 2 stacked parts)
 		make("Part", {
 			Anchored = true, CanCollide = true,
 			Material = Enum.Material.Slate, Color = stoneDark,
-			Size = Vector3.new(2.6, 1.4, 2.6),
-			CFrame = baseCFrame * CFrame.new(sx, pedTopY - 0.7, 0),
+			Size = Vector3.new(3.4, 1.2, 3.4),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + 0.6, sz),
 		}, model)
-		-- Stone trim ring at top of pedestal
+		make("Part", {
+			Anchored = true, CanCollide = true,
+			Material = Enum.Material.Slate, Color = stoneMid,
+			Size = Vector3.new(2.8, 0.6, 2.8),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + 1.5, sz),
+		}, model)
+		-- Gold trim ring at top of base
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = stoneLite,
-			Size = Vector3.new(2.85, 0.18, 2.85),
-			CFrame = baseCFrame * CFrame.new(sx, pedTopY - 0.05, 0),
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.22,
+			Size = Vector3.new(3.0, 0.16, 3.0),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + 1.85, sz),
 		}, model)
-		-- Bright green underglow ring beneath the pedestal
+		-- Bright green neon underglow plate beneath base
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = Color3.fromRGB(40, 230, 90), Transparency = 0.32,
-			Size = Vector3.new(3.4, 0.18, 3.4),
-			CFrame = baseCFrame * CFrame.new(sx, podiumY + 1.32, 0),
+			Material = Enum.Material.Neon, Color = Color3.fromRGB(40, 230, 90), Transparency = 0.28,
+			Size = Vector3.new(4.2, 0.16, 4.2),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + 0.12, sz),
 		}, model)
-		-- Tall vertical display "card" column (placeholder for the player card)
+		-- Tall vertical card display (faces toward the pitch center)
+		local cardYaw = math.atan2(slot.dir.X, slot.dir.Z)
 		local cardCol = make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(20, 22, 30),
-			Size = Vector3.new(1.8, 4.6, 0.4),
-			CFrame = baseCFrame * CFrame.new(sx, pedTopY + 2.4, 0),
+			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(18, 20, 28),
+			Size = Vector3.new(2.2, 5.4, 0.45),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + 1.85 + 2.7, sz) * CFrame.Angles(0, cardYaw, 0),
 		}, model)
-		-- Gold trim around the card
+		-- Gold trim around card (slightly behind the card)
 		make("Part", {
 			Anchored = true, CanCollide = false,
 			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.25,
-			Size = Vector3.new(2.1, 4.9, 0.16),
-			CFrame = baseCFrame * CFrame.new(sx, pedTopY + 2.4, -0.16),
+			Size = Vector3.new(2.5, 5.7, 0.18),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + 1.85 + 2.7, sz)
+				* CFrame.Angles(0, cardYaw, 0)
+				* CFrame.new(0, 0, 0.2),
 		}, model)
-		-- Slot number on the front face of the card column
+		-- Slot number SurfaceGui on the pitch-facing side of the card
 		local numGui = make("SurfaceGui", {
-			Face = Enum.NormalId.Back,
+			Face = Enum.NormalId.Front,
 			LightInfluence = 0, PixelsPerStud = 80,
 		}, cardCol)
 		make("TextLabel", {
@@ -6573,13 +6598,24 @@ local function createConceptTestStadium(parent, position)
 			TextStrokeColor3 = Color3.fromRGB(0, 0, 0), TextStrokeTransparency = 0.3,
 			TextScaled = true, Font = Enum.Font.GothamBlack,
 		}, numGui)
-		-- PointLight under each card for glow effect
+		-- Dedicated spotlight aimed at each card from above
+		local spotAnchor = make("Part", {
+			Anchored = true, CanCollide = false, Transparency = 1,
+			Size = Vector3.new(1, 1, 1),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + 12, sz),
+		}, model)
+		make("SpotLight", {
+			Brightness = 3, Range = 16, Angle = 60,
+			Face = Enum.NormalId.Bottom,
+			Color = goldHot,
+		}, spotAnchor)
+		-- PointLight under each card for green ambient glow
 		local underAnchor = make("Part", {
 			Anchored = true, CanCollide = false, Transparency = 1,
 			Size = Vector3.new(1, 1, 1),
-			CFrame = baseCFrame * CFrame.new(sx, podiumY + 1.4, 0),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + 0.6, sz),
 		}, model)
-		make("PointLight", { Brightness = 1.6, Range = 8, Color = Color3.fromRGB(60, 230, 110) }, underAnchor)
+		make("PointLight", { Brightness = 1.4, Range = 8, Color = Color3.fromRGB(60, 230, 110) }, underAnchor)
 	end
 
 	-- ── Tunnel-style entrance: thicker frame, side columns, recessed depth ──
@@ -6640,22 +6676,27 @@ local function createConceptTestStadium(parent, position)
 		Size = Vector3.new(frameW * 2 + 0.3, 0.3, archWidth + frameW * 2 + 0.3),
 		CFrame = baseCFrame * CFrame.new(archX, archHeight + 2.3 + 2.55, 0),
 	}, model)
-	-- "ZAID'S STADIUM" big sign on outward face (the +X face, NormalId.Right)
-	local archGui = make("SurfaceGui", {
-		Name = "ArchSign", Face = Enum.NormalId.Right,
-		LightInfluence = 0, PixelsPerStud = 70,
-	}, archBeam)
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(0.94, 0.7),
-		Position = UDim2.fromScale(0.03, 0.15),
-		Text = "ZAID'S STADIUM",
-		TextColor3 = goldHot,
-		TextStrokeColor3 = Color3.fromRGB(8, 12, 20),
-		TextStrokeTransparency = 0.35,
-		TextScaled = true,
-		Font = Enum.Font.GothamBlack,
-	}, archGui)
+	-- "ZAID'S STADIUM" sign — SurfaceGuis on BOTH long faces (Right + Left)
+	-- so it's readable whether you're approaching from outside or leaving the stadium.
+	for _, signFace in ipairs({ Enum.NormalId.Right, Enum.NormalId.Left }) do
+		local archGui = make("SurfaceGui", {
+			Name = "ArchSign_" .. tostring(signFace),
+			Face = signFace,
+			LightInfluence = 0,
+			PixelsPerStud = 70,
+		}, archBeam)
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(0.94, 0.7),
+			Position = UDim2.fromScale(0.03, 0.15),
+			Text = "ZAID'S STADIUM",
+			TextColor3 = goldHot,
+			TextStrokeColor3 = Color3.fromRGB(8, 12, 20),
+			TextStrokeTransparency = 0.35,
+			TextScaled = true,
+			Font = Enum.Font.GothamBlack,
+		}, archGui)
+	end
 	-- Gold ball ornaments flanking the sign
 	for _, sz in ipairs({-archWidth / 2 + 1.8, archWidth / 2 - 1.8}) do
 		local ball = make("Part", {
@@ -6683,10 +6724,10 @@ local function createConceptTestStadium(parent, position)
 		CFrame = baseCFrame * CFrame.new(archX, archHeight - 0.3, 0),
 	}, model)
 
-	-- ── 4 corner floodlight poles (imported asset model, same as main bases) ─
+	-- ── 4 tall corner floodlight poles (much taller so they shine from above) ─
 	local testFloodlightOptions = {
-		poleHeight = 27, modelHeight = 29, range = 72, angle = 50,
-		brightness = 1.6, fillRange = 22, fillBrightness = 0.14,
+		poleHeight = 48, modelHeight = 52, range = 110, angle = 60,
+		brightness = 2.2, fillRange = 32, fillBrightness = 0.18,
 	}
 	for _, dx in ipairs({-1, 1}) do
 		for _, dz in ipairs({-1, 1}) do
@@ -6694,7 +6735,7 @@ local function createConceptTestStadium(parent, position)
 			local pz = dz * (size / 2 + 4)
 			createFloodlightRig(model, "TestFloodlight" .. (dx > 0 and "E" or "W") .. (dz > 0 and "S" or "N"),
 				position + Vector3.new(px, 0, pz),
-				position + Vector3.new(0, 6, 0),
+				position + Vector3.new(0, 8, 0),
 				testFloodlightOptions)
 		end
 	end
@@ -6761,6 +6802,27 @@ local function createConceptTestStadium(parent, position)
 				CFrame = baseCFrame * CFrame.new(archX + 4 + i * 3, floorH + 0.9, dz * (archWidth / 2 - 1)),
 			}, model)
 		end
+	end
+
+	-- ── Wide entrance stairs (per concept brief: stairs leading upward) ─────
+	-- 4 step-down blocks descending from the floor level out to the plaza
+	for stepI = 1, 4 do
+		local stepDepth = 2.4
+		local stepX = archX + 11 + (stepI - 1) * stepDepth
+		local stepHeight = floorH - (stepI - 1) * 0.22
+		make("Part", {
+			Name = "EntranceStep" .. stepI, Anchored = true, CanCollide = true,
+			Material = Enum.Material.Slate, Color = stoneMid,
+			Size = Vector3.new(stepDepth, stepHeight, archWidth + frameW * 2),
+			CFrame = baseCFrame * CFrame.new(stepX, stepHeight / 2, 0),
+		}, model)
+		-- Gold trim along front edge of each step
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.28,
+			Size = Vector3.new(0.16, 0.16, archWidth + frameW * 2 + 0.1),
+			CFrame = baseCFrame * CFrame.new(stepX + stepDepth / 2, stepHeight + 0.08, 0),
+		}, model)
 	end
 
 	-- ── Floating "TEST" billboard above the arch ────────────────────────────
