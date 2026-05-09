@@ -6201,8 +6201,10 @@ local function createConceptTestStadium(parent, position)
 	local goldHot   = Color3.fromRGB(255, 220, 120)
 	local pitchCol  = Color3.fromRGB(46, 108, 52)
 	local pitchEdge = Color3.fromRGB(58, 122, 60)
-	local redSeat   = Color3.fromRGB(178, 32, 32)
-	local redSeatLo = Color3.fromRGB(132, 22, 22)
+	-- Darker, more premium seat tones (was bright red, now dark with red accent role)
+	local redSeat   = Color3.fromRGB(88, 24, 24)
+	local redSeatLo = Color3.fromRGB(54, 14, 14)
+	local redAccent = Color3.fromRGB(180, 30, 30)  -- only used for thin highlight strips
 	local lineCol   = Color3.fromRGB(232, 232, 232)
 
 	-- ── Tiered tile floor with neon edge strips ─────────────────────────────
@@ -6591,12 +6593,19 @@ local function createConceptTestStadium(parent, position)
 			local y = floorH + 0.6 + (r - 1) * rowRise + h / 2
 			local zPos = startZ + zSignParam * ((r - 1) * rowDepth + rowDepth / 2)
 			local color = (r % 2 == 0) and redSeatLo or redSeat
-			-- Main seat row block
+			-- Main seat row block (now dark — premium feel)
 			make("Part", {
 				Anchored = true, CanCollide = true,
 				Material = Enum.Material.SmoothPlastic, Color = color,
 				Size = Vector3.new(rowWidth, h, rowDepth),
 				CFrame = baseCFrame * CFrame.new(0, y, zPos),
+			}, bleacherFolder)
+			-- Thin RED ACCENT strip on the front edge of each row (the only red highlight)
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.SmoothPlastic, Color = redAccent,
+				Size = Vector3.new(rowWidth, 0.18, 0.16),
+				CFrame = baseCFrame * CFrame.new(0, y + h / 2 + 0.05, zPos - zSignParam * rowDepth / 2),
 			}, bleacherFolder)
 			-- Seat back: thin vertical lip at the back of each row (gives visible 3D depth)
 			make("Part", {
@@ -6605,24 +6614,24 @@ local function createConceptTestStadium(parent, position)
 				Size = Vector3.new(rowWidth, 0.6, 0.2),
 				CFrame = baseCFrame * CFrame.new(0, y + h / 2 + 0.3, zPos + zSignParam * (rowDepth / 2 - 0.1)),
 			}, bleacherFolder)
-			-- Individual seat dividers along the row (every 2.4 studs)
+			-- Individual seat dividers along the row (every 2.4 studs) — black tone
 			local divCount = math.floor(rowWidth / 2.4)
 			local divSpacing = rowWidth / divCount
 			for d = 0, divCount do
 				local divX = -rowWidth / 2 + d * divSpacing
 				make("Part", {
 					Anchored = true, CanCollide = false,
-					Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(70, 12, 12),
+					Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(20, 22, 28),
 					Size = Vector3.new(0.18, 0.7, rowDepth - 0.2),
 					CFrame = baseCFrame * CFrame.new(divX, y + h / 2 - 0.05, zPos),
 				}, bleacherFolder)
 			end
-			-- Gold trim along front edge of seat row
+			-- Subtle gold trim along front edge of seat row (toned down)
 			make("Part", {
 				Anchored = true, CanCollide = false,
-				Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.32,
-				Size = Vector3.new(rowWidth + 0.1, 0.16, 0.16),
-				CFrame = baseCFrame * CFrame.new(0, y + h / 2 + 0.08, zPos - zSignParam * rowDepth / 2),
+				Material = Enum.Material.SmoothPlastic, Color = goldCol,
+				Size = Vector3.new(rowWidth + 0.1, 0.1, 0.1),
+				CFrame = baseCFrame * CFrame.new(0, y + h / 2 + 0.18, zPos - zSignParam * rowDepth / 2),
 			}, bleacherFolder)
 		end
 		-- Side staircase access (light-coloured stair blocks at each end)
@@ -6699,27 +6708,101 @@ local function createConceptTestStadium(parent, position)
 		Size = Vector3.new(0.8, 8.4, 8.4),
 		CFrame = baseCFrame * CFrame.new(0, podiumY + 7.4, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, model)
-	-- Pack pillar — taller and more dramatic
+	-- ── Proper FOOTBALLER PACK monolith (rectangular black/gold card box) ──
+	local packBaseY = podiumY + 7.8
+	local packW, packH, packD = 4.6, 9.5, 1.4   -- tall, narrow, like a card pack
 	local packPillar = make("Part", {
-		Name = "PackPillar", Anchored = true, CanCollide = false,
-		Material = Enum.Material.Neon, Color = Color3.fromRGB(230, 75, 35), Transparency = 0.05,
-		Size = Vector3.new(3.6, 9, 2.4),
-		CFrame = baseCFrame * CFrame.new(0, podiumY + 7.4 + 4.5, 0),
+		Name = "FootballerPackMonolith", Anchored = true, CanCollide = true,
+		Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(12, 14, 20),
+		Size = Vector3.new(packW, packH, packD),
+		CFrame = baseCFrame * CFrame.new(0, packBaseY + packH / 2, 0),
 	}, model)
-	make("PointLight", { Brightness = 4, Range = 36, Color = Color3.fromRGB(255, 110, 70) }, packPillar)
-	-- Subtle red glow column wrapping the pack pillar (toned down)
+	-- Gold border frame around the front face of the pack
+	for _, sy in ipairs({-1, 1}) do
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.35,
+			Size = Vector3.new(packW + 0.18, 0.18, packD + 0.05),
+			CFrame = baseCFrame * CFrame.new(0, packBaseY + packH / 2 + sy * (packH / 2 - 0.1), 0),
+		}, model)
+	end
+	for _, sx in ipairs({-1, 1}) do
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.35,
+			Size = Vector3.new(0.18, packH - 0.05, packD + 0.05),
+			CFrame = baseCFrame * CFrame.new(sx * (packW / 2 - 0.05), packBaseY + packH / 2, 0),
+		}, model)
+	end
+	-- Inner gold trim line (forms double border like a premium card)
+	for _, sy in ipairs({-1, 1}) do
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = goldCol,
+			Size = Vector3.new(packW - 0.8, 0.08, packD + 0.05),
+			CFrame = baseCFrame * CFrame.new(0, packBaseY + packH / 2 + sy * (packH / 2 - 0.55), 0),
+		}, model)
+	end
+	for _, sx in ipairs({-1, 1}) do
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = goldCol,
+			Size = Vector3.new(0.08, packH - 1.1, packD + 0.05),
+			CFrame = baseCFrame * CFrame.new(sx * (packW / 2 - 0.45), packBaseY + packH / 2, 0),
+		}, model)
+	end
+	-- "FOOTBALLER PACK" text + football emblem on both wide faces
+	for _, packFace in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local packGui = make("SurfaceGui", {
+			Name = "PackFace_" .. tostring(packFace), Face = packFace,
+			LightInfluence = 0, PixelsPerStud = 80,
+		}, packPillar)
+		-- Football emblem (placeholder = circle TextLabel with ball emoji)
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(0.5, 0.32),
+			Position = UDim2.fromScale(0.25, 0.18),
+			Text = "⚽",
+			TextColor3 = goldHot,
+			TextStrokeColor3 = Color3.fromRGB(0, 0, 0), TextStrokeTransparency = 0.3,
+			TextScaled = true, Font = Enum.Font.GothamBlack,
+		}, packGui)
+		-- "FOOTBALLER" line
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(0.86, 0.12),
+			Position = UDim2.fromScale(0.07, 0.56),
+			Text = "FOOTBALLER",
+			TextColor3 = goldHot,
+			TextStrokeColor3 = Color3.fromRGB(0, 0, 0), TextStrokeTransparency = 0.3,
+			TextScaled = true, Font = Enum.Font.GothamBlack,
+		}, packGui)
+		-- "PACK" line
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(0.86, 0.16),
+			Position = UDim2.fromScale(0.07, 0.7),
+			Text = "PACK",
+			TextColor3 = goldHot,
+			TextStrokeColor3 = Color3.fromRGB(0, 0, 0), TextStrokeTransparency = 0.3,
+			TextScaled = true, Font = Enum.Font.GothamBlack,
+		}, packGui)
+	end
+	-- Subtle warm light from the pack (focal point — but not blinding)
+	make("PointLight", { Brightness = 1.6, Range = 22, Color = Color3.fromRGB(255, 200, 120) }, packPillar)
+	-- Soft red/orange focal underglow at the top platform around the pack
 	make("Part", {
 		Anchored = true, CanCollide = false, Shape = Enum.PartType.Cylinder,
-		Material = Enum.Material.Neon, Color = Color3.fromRGB(220, 60, 20), Transparency = 0.7,
-		Size = Vector3.new(11, 10, 10),
-		CFrame = baseCFrame * CFrame.new(0, podiumY + 7.4 + 5, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Material = Enum.Material.Neon, Color = Color3.fromRGB(220, 90, 40), Transparency = 0.7,
+		Size = Vector3.new(0.18, 8, 8),
+		CFrame = baseCFrame * CFrame.new(0, packBaseY - 0.05, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, model)
-	-- Ground-level halo glow plate (much softer)
+	-- Ground-level red halo plate beneath podium (much softer)
 	make("Part", {
 		Anchored = true, CanCollide = false, Shape = Enum.PartType.Cylinder,
-		Material = Enum.Material.Neon, Color = Color3.fromRGB(220, 70, 35), Transparency = 0.7,
-		Size = Vector3.new(0.2, 18, 18),
-		CFrame = baseCFrame * CFrame.new(0, floorH + 0.13, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Material = Enum.Material.Neon, Color = Color3.fromRGB(220, 90, 50), Transparency = 0.78,
+		Size = Vector3.new(0.18, 18, 18),
+		CFrame = baseCFrame * CFrame.new(0, floorH + 0.12, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, model)
 	-- 4 SpotLights aimed inward at the podium from above (drama lighting)
 	for _, dx in ipairs({-1, 1}) do
@@ -6919,24 +7002,24 @@ local function createConceptTestStadium(parent, position)
 		Size = Vector3.new(frameW * 2 + 0.3, 0.3, archWidth + frameW * 2 + 0.3),
 		CFrame = baseCFrame * CFrame.new(archX, archHeight + 2.3 + 2.55, 0),
 	}, model)
-	-- "ZAID'S STADIUM" sign: dedicated signboard plate that DEFINITELY faces outward.
-	-- Built as a separate flat Part with the wide face oriented in +X direction.
-	-- Size (X=thickness=0.4, Y=height=3, Z=width=14) — the +X face is 3×14, the visible signboard.
+	-- ── "ZAID'S STADIUM" sign — thinner, sharper, less neon-overpowering ───
+	-- A slim signboard that reads as architectural trim, not a giant glowing slab.
 	local signPlate = make("Part", {
 		Name = "ArchStadiumSignPlate",
 		Anchored = true, CanCollide = false,
-		Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(8, 12, 20),
-		Size = Vector3.new(0.4, 3, 14),
+		Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(10, 12, 18),
+		Size = Vector3.new(0.4, 2.2, 11),
 		CFrame = baseCFrame * CFrame.new(archX + frameW + 0.6, archHeight + 2.3, 0),
 	}, model)
-	-- Gold backing plate (slightly larger, behind sign)
-	make("Part", {
-		Name = "ArchStadiumSignBacking",
-		Anchored = true, CanCollide = false,
-		Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.32,
-		Size = Vector3.new(0.18, 3.4, 14.4),
-		CFrame = baseCFrame * CFrame.new(archX + frameW + 0.4, archHeight + 2.3, 0),
-	}, model)
+	-- Thin gold trim line above and below (sharper, not a glowing backplate)
+	for _, sy in ipairs({-1, 1}) do
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = goldCol,
+			Size = Vector3.new(0.42, 0.12, 11.3),
+			CFrame = baseCFrame * CFrame.new(archX + frameW + 0.6, archHeight + 2.3 + sy * 1.2, 0),
+		}, model)
+	end
 	-- Sign text on the OUTWARD-facing side (+X = Right face)
 	local signGuiOutward = make("SurfaceGui", {
 		Name = "StadiumSignFront",
@@ -6945,16 +7028,16 @@ local function createConceptTestStadium(parent, position)
 	}, signPlate)
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(0.92, 0.78),
-		Position = UDim2.fromScale(0.04, 0.11),
+		Size = UDim2.fromScale(0.94, 0.7),
+		Position = UDim2.fromScale(0.03, 0.15),
 		Text = "ZAID'S STADIUM",
-		TextColor3 = goldHot,
+		TextColor3 = goldCol,
 		TextStrokeColor3 = Color3.fromRGB(8, 12, 20),
-		TextStrokeTransparency = 0.3,
+		TextStrokeTransparency = 0.5,
 		TextScaled = true,
-		Font = Enum.Font.GothamBlack,
+		Font = Enum.Font.GothamBold,
 	}, signGuiOutward)
-	-- Same sign on the INWARD face (-X = Left) so it's readable when leaving stadium
+	-- Inward face (visible when leaving stadium)
 	local signGuiInward = make("SurfaceGui", {
 		Name = "StadiumSignBack",
 		Face = Enum.NormalId.Left,
@@ -6962,16 +7045,15 @@ local function createConceptTestStadium(parent, position)
 	}, signPlate)
 	make("TextLabel", {
 		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(0.92, 0.78),
-		Position = UDim2.fromScale(0.04, 0.11),
+		Size = UDim2.fromScale(0.94, 0.7),
+		Position = UDim2.fromScale(0.03, 0.15),
 		Text = "ZAID'S STADIUM",
-		TextColor3 = goldHot,
+		TextColor3 = goldCol,
 		TextStrokeColor3 = Color3.fromRGB(8, 12, 20),
-		TextStrokeTransparency = 0.3,
+		TextStrokeTransparency = 0.5,
 		TextScaled = true,
-		Font = Enum.Font.GothamBlack,
+		Font = Enum.Font.GothamBold,
 	}, signGuiInward)
-	-- (Removed the floating BillboardGui — sign on the architectural plate is enough)
 	-- Gold ball ornaments flanking the sign
 	for _, sz in ipairs({-archWidth / 2 + 1.8, archWidth / 2 - 1.8}) do
 		local ball = make("Part", {
@@ -7148,10 +7230,10 @@ local function createConceptTestStadium(parent, position)
 			CFrame = baseCFrame * CFrame.new(spot.x, floorH + 1.6, spot.z),
 		}, model)
 	end
-	-- ── Improved banners on inner side walls (alternating red/dark, gold trim) ─
+	-- ── Improved banners on inner side walls (now dark navy, gold trim) ────
 	for _, dz in ipairs({-1, 1}) do
 		for bIdx, bx in ipairs({-size / 4, 0, size / 4}) do
-			local bannerCol = (bIdx % 2 == 0) and stoneDark or redSeat
+			local bannerCol = (bIdx % 2 == 0) and stoneDark or Color3.fromRGB(30, 35, 50)
 			-- Banner cloth
 			make("Part", {
 				Anchored = true, CanCollide = false,
