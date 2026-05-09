@@ -6694,10 +6694,10 @@ local function createConceptTestStadium(parent, position)
 			}, model)
 		end
 	end
-	-- Single small flat octagonal pad (no glow at all)
-	octRing(5.5, 0.6, podiumY + 0.3, stoneMid, Enum.Material.Slate)
-	-- Sharp dark gold trim around the pad edge (no glow — just architectural)
-	octRing(5.6, 0.08, podiumY + 0.65, Color3.fromRGB(140, 102, 28), Enum.Material.SmoothPlastic, 0)
+	-- Single small flat octagonal pad — dark stone, no glow
+	octRing(5.5, 0.6, podiumY + 0.3, stoneDark, Enum.Material.Slate)
+	-- Sharp dark gold trim around the pad edge (matte, architectural)
+	octRing(5.6, 0.08, podiumY + 0.65, Color3.fromRGB(110, 82, 22), Enum.Material.SmoothPlastic, 0)
 	-- ── Proper FOOTBALLER PACK monolith (rectangular black/gold card box) ──
 	local packBaseY = podiumY + 0.6
 	local packW, packH, packD = 4.6, 9.5, 1.4   -- tall, narrow, like a card pack
@@ -6707,20 +6707,20 @@ local function createConceptTestStadium(parent, position)
 		Size = Vector3.new(packW, packH, packD),
 		CFrame = baseCFrame * CFrame.new(0, packBaseY + packH / 2, 0),
 	}, model)
-	-- Gold border frame around the front face of the pack
+	-- Gold border frame around the pack — matte gold, NOT neon (no light spill)
 	for _, sy in ipairs({-1, 1}) do
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.35,
-			Size = Vector3.new(packW + 0.18, 0.18, packD + 0.05),
+			Material = Enum.Material.SmoothPlastic, Color = goldCol,
+			Size = Vector3.new(packW + 0.18, 0.2, packD + 0.05),
 			CFrame = baseCFrame * CFrame.new(0, packBaseY + packH / 2 + sy * (packH / 2 - 0.1), 0),
 		}, model)
 	end
 	for _, sx in ipairs({-1, 1}) do
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.35,
-			Size = Vector3.new(0.18, packH - 0.05, packD + 0.05),
+			Material = Enum.Material.SmoothPlastic, Color = goldCol,
+			Size = Vector3.new(0.2, packH - 0.05, packD + 0.05),
 			CFrame = baseCFrame * CFrame.new(sx * (packW / 2 - 0.05), packBaseY + packH / 2, 0),
 		}, model)
 	end
@@ -6778,8 +6778,7 @@ local function createConceptTestStadium(parent, position)
 			TextScaled = true, Font = Enum.Font.GothamBlack,
 		}, packGui)
 	end
-	-- Subtle warm light from the pack (very dim — just enough to feel important)
-	make("PointLight", { Brightness = 0.8, Range = 14, Color = Color3.fromRGB(255, 200, 120) }, packPillar)
+	-- (Removed PointLight on the pack — was creating a yellow pool on the pad)
 	-- 4 SpotLights aimed at the central pack from above (drama lighting)
 	for _, dx in ipairs({-1, 1}) do
 		for _, dz in ipairs({-1, 1}) do
@@ -6815,28 +6814,29 @@ local function createConceptTestStadium(parent, position)
 	--   Dark navy cubic base + gold pad on top + black inner border + gold rim trim.
 	local slotNavyCol  = Color3.fromRGB(28, 34, 56)
 	local slotInnerCol = Color3.fromRGB(8, 10, 16)
+	local slotH = 3.0   -- taller (was 1.8) so they read as proper plinths from a distance
 	for slotI, _slot in ipairs(slotPositions) do
 		local sx, sz = _slot.x, _slot.z
 		-- Dark navy cubic base
 		make("Part", {
 			Name = "Slot" .. slotI .. "Base", Anchored = true, CanCollide = true,
 			Material = Enum.Material.SmoothPlastic, Color = slotNavyCol,
-			Size = Vector3.new(3.4, 1.8, 3.4),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 0.9, sz),
+			Size = Vector3.new(3.4, slotH, 3.4),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH / 2, sz),
 		}, model)
 		-- Black inner recess on the top face (gives depth around the gold pad)
 		make("Part", {
 			Anchored = true, CanCollide = false,
 			Material = Enum.Material.SmoothPlastic, Color = slotInnerCol,
 			Size = Vector3.new(3, 0.18, 3),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 1.85, sz),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH + 0.05, sz),
 		}, model)
 		-- Gold pad inside the recess (matte, not glowing)
 		make("Part", {
 			Name = "Slot" .. slotI .. "Pad", Anchored = true, CanCollide = false,
 			Material = Enum.Material.SmoothPlastic, Color = goldCol,
 			Size = Vector3.new(2.5, 0.16, 2.5),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 1.86, sz),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH + 0.06, sz),
 		}, model)
 		-- Gold rim trim along the top edges of the cube (4 thin strips)
 		for _, sxRim in ipairs({-1, 1}) do
@@ -6844,7 +6844,7 @@ local function createConceptTestStadium(parent, position)
 				Anchored = true, CanCollide = false,
 				Material = Enum.Material.SmoothPlastic, Color = goldCol,
 				Size = Vector3.new(0.18, 0.18, 3.4),
-				CFrame = baseCFrame * CFrame.new(sx + sxRim * 1.71, floorH + 1.81, sz),
+				CFrame = baseCFrame * CFrame.new(sx + sxRim * 1.71, floorH + slotH + 0.01, sz),
 			}, model)
 		end
 		for _, szRim in ipairs({-1, 1}) do
@@ -6852,7 +6852,7 @@ local function createConceptTestStadium(parent, position)
 				Anchored = true, CanCollide = false,
 				Material = Enum.Material.SmoothPlastic, Color = goldCol,
 				Size = Vector3.new(3.4, 0.18, 0.18),
-				CFrame = baseCFrame * CFrame.new(sx, floorH + 1.81, sz + szRim * 1.71),
+				CFrame = baseCFrame * CFrame.new(sx, floorH + slotH + 0.01, sz + szRim * 1.71),
 			}, model)
 		end
 	end
