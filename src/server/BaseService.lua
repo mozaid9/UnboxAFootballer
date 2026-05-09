@@ -6797,100 +6797,101 @@ local function createConceptTestStadium(parent, position)
 		end
 	end
 
-	-- ── Card display slots: simple cubic style, north + south sides only ───
-	-- Placed along the long sides of the pitch (away from entrance to avoid
-	-- blocking the player walking in). 6 slots total, 3 per side.
+	-- ── Card display slots — DIRECT COPY of the original createDisplaySlot ──
+	-- Same dimensions (DisplaySlotSize 5 × 3.5 × 5), materials, colors, halo, rim.
 	local slotPositions = {
-		-- North side (z negative) — 3 slots evenly spaced
-		{ x = -pitchW / 3, z = -pitchD / 2 + 2.5, dir = Vector3.new(0, 0, 1) },
-		{ x = 0,           z = -pitchD / 2 + 2.5, dir = Vector3.new(0, 0, 1) },
-		{ x =  pitchW / 3, z = -pitchD / 2 + 2.5, dir = Vector3.new(0, 0, 1) },
-		-- South side (z positive) — 3 slots evenly spaced
-		{ x = -pitchW / 3, z =  pitchD / 2 - 2.5, dir = Vector3.new(0, 0, -1) },
-		{ x = 0,           z =  pitchD / 2 - 2.5, dir = Vector3.new(0, 0, -1) },
-		{ x =  pitchW / 3, z =  pitchD / 2 - 2.5, dir = Vector3.new(0, 0, -1) },
+		-- North side (z negative); player approaches from +Z (the pitch side)
+		{ x = -pitchW / 3, z = -pitchD / 2 + 3, dir = Vector3.new(0, 0, 1) },
+		{ x = 0,           z = -pitchD / 2 + 3, dir = Vector3.new(0, 0, 1) },
+		{ x =  pitchW / 3, z = -pitchD / 2 + 3, dir = Vector3.new(0, 0, 1) },
+		-- South side (z positive); player approaches from -Z (the pitch side)
+		{ x = -pitchW / 3, z =  pitchD / 2 - 3, dir = Vector3.new(0, 0, -1) },
+		{ x = 0,           z =  pitchD / 2 - 3, dir = Vector3.new(0, 0, -1) },
+		{ x =  pitchW / 3, z =  pitchD / 2 - 3, dir = Vector3.new(0, 0, -1) },
 	}
-	-- Slot style matches the original UnboxAFootballer base:
-	--   Dark navy cubic base + gold pad on top + black inner border + gold rim trim.
-	local slotNavyCol  = Color3.fromRGB(28, 34, 56)
-	local slotInnerCol = Color3.fromRGB(8, 10, 16)
-	local slotH = 3.0   -- taller (was 1.8) so they read as proper plinths from a distance
+	local slotW, slotH, slotDDim = 5, 3.5, 5
+	local slotTopY = slotH / 2
 	for slotI, _slot in ipairs(slotPositions) do
 		local sx, sz = _slot.x, _slot.z
-		-- Dark navy cubic base
+		local cframe = baseCFrame * CFrame.new(sx, floorH + slotH / 2, sz)
+		-- Pedestal body — dark polished concrete (same colour as createDisplaySlot)
 		local slotBase = make("Part", {
 			Name = "Slot" .. slotI .. "Base", Anchored = true, CanCollide = true,
-			Material = Enum.Material.SmoothPlastic, Color = slotNavyCol,
-			Size = Vector3.new(3.4, slotH, 3.4),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH / 2, sz),
+			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(14, 19, 30),
+			Size = Vector3.new(slotW, slotH, slotDDim),
+			CFrame = cframe,
 		}, model)
-		-- Slot number on the FRONT and BACK faces of the cube (readable both sides)
-		for _, faceSide in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
-			local faceGui = make("SurfaceGui", {
-				Name = "SlotNum_" .. tostring(faceSide),
-				Face = faceSide,
-				LightInfluence = 0,
-				PixelsPerStud = 80,
+		-- Green glow halo on the floor under the pedestal (marks slot as available)
+		local halo = make("Part", {
+			Name = "GlowHalo", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(60, 230, 110), Transparency = 0.30,
+			Size = Vector3.new(slotW + 1.4, 0.08, slotDDim + 1.4),
+			CFrame = cframe + Vector3.new(0, -(slotH / 2) + 0.04, 0),
+		}, model)
+		make("PointLight", {
+			Color = Color3.fromRGB(60, 230, 110),
+			Brightness = 1.4, Range = 9, Shadows = false,
+		}, halo)
+		-- 4 slim gold rim strips around the top edges
+		local rimThickness = 0.18
+		local rimHeight = 0.22
+		local rimY = slotTopY + rimHeight / 2
+		local rimColor = Color3.fromRGB(218, 168, 40)
+		local rimTransp = 0.42
+		for _, axis in ipairs({
+			{ Vector3.new(slotW, rimHeight, rimThickness),     Vector3.new(0, rimY, -(slotDDim / 2)) },
+			{ Vector3.new(slotW, rimHeight, rimThickness),     Vector3.new(0, rimY,  (slotDDim / 2)) },
+			{ Vector3.new(rimThickness, rimHeight, slotDDim),  Vector3.new(-(slotW / 2), rimY, 0)    },
+			{ Vector3.new(rimThickness, rimHeight, slotDDim),  Vector3.new( (slotW / 2), rimY, 0)    },
+		}) do
+			make("Part", {
+				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+				Material = Enum.Material.Neon, Color = rimColor, Transparency = rimTransp,
+				Size = axis[1],
+				CFrame = cframe + axis[2],
+			}, model)
+		end
+		-- Soft top glow plate (the visible "pad")
+		make("Part", {
+			Name = "Slot" .. slotI .. "Top", Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = Color3.fromRGB(218, 168, 40), Transparency = 0.62,
+			Size = Vector3.new(slotW - 1.6, 0.12, slotDDim - 1.6),
+			CFrame = slotBase.CFrame + Vector3.new(0, slotTopY + 0.07, 0),
+		}, model)
+		-- Slot number on the player-facing face (matches createDisplaySlot logic)
+		local lookDirection = _slot.dir
+		local numFace
+		if math.abs(lookDirection.X) > math.abs(lookDirection.Z) then
+			numFace = lookDirection.X > 0 and Enum.NormalId.Right or Enum.NormalId.Left
+		else
+			numFace = lookDirection.Z > 0 and Enum.NormalId.Back or Enum.NormalId.Front
+		end
+		local function attachNumber(face)
+			local gui = make("SurfaceGui", {
+				Name = "SlotNum_" .. tostring(face), Face = face,
+				AlwaysOnTop = false,
+				SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+				PixelsPerStud = 30,
 			}, slotBase)
 			make("TextLabel", {
+				Size = UDim2.fromScale(1, 1),
 				BackgroundTransparency = 1,
-				Size = UDim2.fromScale(0.7, 0.7),
-				Position = UDim2.fromScale(0.15, 0.15),
 				Text = tostring(slotI),
-				TextColor3 = goldCol,
-				TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
-				TextStrokeTransparency = 0.4,
+				TextColor3 = Color3.fromRGB(255, 210, 60),
+				TextTransparency = 0.36,
 				TextScaled = true,
 				Font = Enum.Font.GothamBlack,
-			}, faceGui)
+			}, gui)
 		end
-		-- Dark top cap on the cube — full top size, thin, gives the recessed-pad look
-		make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = slotInnerCol,
-			Size = Vector3.new(3.0, 0.12, 3.0),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH + 0.06, sz),
-		}, model)
-		-- Gold pad RAISED clearly above the dark cap (no z-fighting, top is visible)
-		local slotPad = make("Part", {
-			Name = "Slot" .. slotI .. "Pad", Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = goldCol,
-			Size = Vector3.new(2.5, 0.18, 2.5),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH + 0.21, sz),
-		}, model)
-		-- Number on the pad's top surface (LightInfluence=0 so always readable)
-		local padGui = make("SurfaceGui", {
-			Name = "SlotNum", Face = Enum.NormalId.Top,
-			LightInfluence = 0, PixelsPerStud = 80,
-		}, slotPad)
-		make("TextLabel", {
-			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(0.8, 0.8),
-			Position = UDim2.fromScale(0.1, 0.1),
-			Text = tostring(slotI),
-			TextColor3 = Color3.fromRGB(20, 22, 32),
-			TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
-			TextStrokeTransparency = 0.7,
-			TextScaled = true,
-			Font = Enum.Font.GothamBlack,
-		}, padGui)
-		-- Gold rim trim along the very top edges of the cube (just below cap)
-		for _, sxRim in ipairs({-1, 1}) do
-			make("Part", {
-				Anchored = true, CanCollide = false,
-				Material = Enum.Material.SmoothPlastic, Color = goldCol,
-				Size = Vector3.new(0.18, 0.12, 3.4),
-				CFrame = baseCFrame * CFrame.new(sx + sxRim * 1.71, floorH + slotH - 0.01, sz),
-			}, model)
-		end
-		for _, szRim in ipairs({-1, 1}) do
-			make("Part", {
-				Anchored = true, CanCollide = false,
-				Material = Enum.Material.SmoothPlastic, Color = goldCol,
-				Size = Vector3.new(3.4, 0.12, 0.18),
-				CFrame = baseCFrame * CFrame.new(sx, floorH + slotH - 0.01, sz + szRim * 1.71),
-			}, model)
-		end
+		attachNumber(numFace)
+		-- Mirror on the opposite face so number reads from both sides
+		local oppositeFace
+		if numFace == Enum.NormalId.Front then oppositeFace = Enum.NormalId.Back
+		elseif numFace == Enum.NormalId.Back then oppositeFace = Enum.NormalId.Front
+		elseif numFace == Enum.NormalId.Left then oppositeFace = Enum.NormalId.Right
+		else oppositeFace = Enum.NormalId.Left end
+		attachNumber(oppositeFace)
 	end
 
 	-- ── Tunnel-style entrance: thicker frame, side columns, recessed depth ──
