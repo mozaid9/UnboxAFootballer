@@ -6818,12 +6818,32 @@ local function createConceptTestStadium(parent, position)
 	for slotI, _slot in ipairs(slotPositions) do
 		local sx, sz = _slot.x, _slot.z
 		-- Dark navy cubic base
-		make("Part", {
+		local slotBase = make("Part", {
 			Name = "Slot" .. slotI .. "Base", Anchored = true, CanCollide = true,
 			Material = Enum.Material.SmoothPlastic, Color = slotNavyCol,
 			Size = Vector3.new(3.4, slotH, 3.4),
 			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH / 2, sz),
 		}, model)
+		-- Slot number on the FRONT and BACK faces of the cube (readable both sides)
+		for _, faceSide in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+			local faceGui = make("SurfaceGui", {
+				Name = "SlotNum_" .. tostring(faceSide),
+				Face = faceSide,
+				LightInfluence = 0,
+				PixelsPerStud = 80,
+			}, slotBase)
+			make("TextLabel", {
+				BackgroundTransparency = 1,
+				Size = UDim2.fromScale(0.7, 0.7),
+				Position = UDim2.fromScale(0.15, 0.15),
+				Text = tostring(slotI),
+				TextColor3 = goldCol,
+				TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
+				TextStrokeTransparency = 0.4,
+				TextScaled = true,
+				Font = Enum.Font.GothamBlack,
+			}, faceGui)
+		end
 		-- Dark top cap on the cube — full top size, thin, gives the recessed-pad look
 		make("Part", {
 			Anchored = true, CanCollide = false,
