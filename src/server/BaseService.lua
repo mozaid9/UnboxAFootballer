@@ -6824,51 +6824,51 @@ local function createConceptTestStadium(parent, position)
 			Size = Vector3.new(3.4, slotH, 3.4),
 			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH / 2, sz),
 		}, model)
-		-- Black inner recess on the top face (gives depth around the gold pad)
+		-- Dark top cap on the cube — full top size, thin, gives the recessed-pad look
 		make("Part", {
 			Anchored = true, CanCollide = false,
 			Material = Enum.Material.SmoothPlastic, Color = slotInnerCol,
-			Size = Vector3.new(3, 0.18, 3),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH + 0.05, sz),
+			Size = Vector3.new(3.0, 0.12, 3.0),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH + 0.06, sz),
 		}, model)
-		-- Gold pad inside the recess (matte, not glowing)
+		-- Gold pad RAISED clearly above the dark cap (no z-fighting, top is visible)
 		local slotPad = make("Part", {
 			Name = "Slot" .. slotI .. "Pad", Anchored = true, CanCollide = false,
 			Material = Enum.Material.SmoothPlastic, Color = goldCol,
-			Size = Vector3.new(2.5, 0.16, 2.5),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH + 0.06, sz),
+			Size = Vector3.new(2.5, 0.18, 2.5),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH + 0.21, sz),
 		}, model)
-		-- Number label on the pad's top surface (matches the original)
+		-- Number on the pad's top surface (LightInfluence=0 so always readable)
 		local padGui = make("SurfaceGui", {
 			Name = "SlotNum", Face = Enum.NormalId.Top,
-			LightInfluence = 1, PixelsPerStud = 80,
+			LightInfluence = 0, PixelsPerStud = 80,
 		}, slotPad)
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(0.85, 0.85),
-			Position = UDim2.fromScale(0.075, 0.075),
+			Size = UDim2.fromScale(0.8, 0.8),
+			Position = UDim2.fromScale(0.1, 0.1),
 			Text = tostring(slotI),
-			TextColor3 = Color3.fromRGB(15, 18, 28),
+			TextColor3 = Color3.fromRGB(20, 22, 32),
 			TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
-			TextStrokeTransparency = 0.6,
+			TextStrokeTransparency = 0.7,
 			TextScaled = true,
 			Font = Enum.Font.GothamBlack,
 		}, padGui)
-		-- Gold rim trim along the top edges of the cube (4 thin strips)
+		-- Gold rim trim along the very top edges of the cube (just below cap)
 		for _, sxRim in ipairs({-1, 1}) do
 			make("Part", {
 				Anchored = true, CanCollide = false,
 				Material = Enum.Material.SmoothPlastic, Color = goldCol,
-				Size = Vector3.new(0.18, 0.18, 3.4),
-				CFrame = baseCFrame * CFrame.new(sx + sxRim * 1.71, floorH + slotH + 0.01, sz),
+				Size = Vector3.new(0.18, 0.12, 3.4),
+				CFrame = baseCFrame * CFrame.new(sx + sxRim * 1.71, floorH + slotH - 0.01, sz),
 			}, model)
 		end
 		for _, szRim in ipairs({-1, 1}) do
 			make("Part", {
 				Anchored = true, CanCollide = false,
 				Material = Enum.Material.SmoothPlastic, Color = goldCol,
-				Size = Vector3.new(3.4, 0.18, 0.18),
-				CFrame = baseCFrame * CFrame.new(sx, floorH + slotH + 0.01, sz + szRim * 1.71),
+				Size = Vector3.new(3.4, 0.12, 0.18),
+				CFrame = baseCFrame * CFrame.new(sx, floorH + slotH - 0.01, sz + szRim * 1.71),
 			}, model)
 		end
 	end
