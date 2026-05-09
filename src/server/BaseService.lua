@@ -6251,6 +6251,70 @@ local function createConceptTestStadium(parent, position)
 		}, model)
 	end
 
+	-- ── Concrete walkways forming a perimeter ring inside the arena ─────────
+	-- Raised slightly so they read as a walkway level, with subtle gold edge trim
+	local walkwayY = floorH + 0.12
+	local walkwayWidth = 5
+	local walkwayInset = pitchW / 2 + 8
+	-- North walkway (in front of north bleachers)
+	make("Part", {
+		Name = "WalkwayNorth", Anchored = true, CanCollide = false,
+		Material = Enum.Material.Concrete, Color = stoneLite,
+		Size = Vector3.new(size - 30, 0.18, walkwayWidth),
+		CFrame = baseCFrame * CFrame.new(0, walkwayY, -pitchD / 2 - walkwayWidth / 2 - 2),
+	}, model)
+	make("Part", {
+		Anchored = true, CanCollide = false,
+		Material = Enum.Material.SmoothPlastic, Color = goldCol,
+		Size = Vector3.new(size - 30, 0.06, 0.22),
+		CFrame = baseCFrame * CFrame.new(0, walkwayY + 0.13, -pitchD / 2 - walkwayWidth - 2),
+	}, model)
+	-- South walkway
+	make("Part", {
+		Name = "WalkwaySouth", Anchored = true, CanCollide = false,
+		Material = Enum.Material.Concrete, Color = stoneLite,
+		Size = Vector3.new(size - 30, 0.18, walkwayWidth),
+		CFrame = baseCFrame * CFrame.new(0, walkwayY, pitchD / 2 + walkwayWidth / 2 + 2),
+	}, model)
+	make("Part", {
+		Anchored = true, CanCollide = false,
+		Material = Enum.Material.SmoothPlastic, Color = goldCol,
+		Size = Vector3.new(size - 30, 0.06, 0.22),
+		CFrame = baseCFrame * CFrame.new(0, walkwayY + 0.13, pitchD / 2 + walkwayWidth + 2),
+	}, model)
+	-- West walkway (back of stadium)
+	make("Part", {
+		Name = "WalkwayWest", Anchored = true, CanCollide = false,
+		Material = Enum.Material.Concrete, Color = stoneLite,
+		Size = Vector3.new(walkwayWidth, 0.18, pitchD + walkwayWidth * 2 + 8),
+		CFrame = baseCFrame * CFrame.new(-walkwayInset, walkwayY, 0),
+	}, model)
+	make("Part", {
+		Anchored = true, CanCollide = false,
+		Material = Enum.Material.SmoothPlastic, Color = goldCol,
+		Size = Vector3.new(0.22, 0.06, pitchD + walkwayWidth * 2 + 8),
+		CFrame = baseCFrame * CFrame.new(-walkwayInset - walkwayWidth / 2, walkwayY + 0.13, 0),
+	}, model)
+	-- Pitch-side barrier railings (low metal posts every few studs)
+	for _, dz in ipairs({-1, 1}) do
+		for railX = -pitchW / 2 + 2, pitchW / 2 - 2, 4 do
+			-- Railing posts
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Metal, Color = Color3.fromRGB(60, 65, 75),
+				Size = Vector3.new(0.3, 1.2, 0.3),
+				CFrame = baseCFrame * CFrame.new(railX, floorH + 0.6, dz * (pitchD / 2 + 1)),
+			}, model)
+		end
+		-- Horizontal rail
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Metal, Color = Color3.fromRGB(70, 75, 85),
+			Size = Vector3.new(pitchW - 2, 0.18, 0.18),
+			CFrame = baseCFrame * CFrame.new(0, floorH + 1.1, dz * (pitchD / 2 + 1)),
+		}, model)
+	end
+
 	-- ── Central pitch with full markings ────────────────────────────────────
 	local pitchY = floorH + 0.05
 	-- Pitch border (slightly raised, slightly darker green)
@@ -6438,21 +6502,59 @@ local function createConceptTestStadium(parent, position)
 		end
 	end
 
-	-- ── Detailed red bleachers (5 tiers, individual seat backs, aisles) ─────
+	-- ── Detailed red bleachers (5 tiers, structural depth, backing walls) ───
 	local function buildBleacherSide(zSignParam)
 		local bleacherFolder = make("Folder", { Name = "Bleachers" .. (zSignParam > 0 and "South" or "North") }, model)
 		local rows = 5
 		local rowDepth = 2.6
 		local rowRise = 1.5
 		local rowWidth = pitchW + 6
-		local startZ = zSignParam * (pitchD / 2 + 2.5)
-		-- Dark underside support structure
+		local startZ = zSignParam * (pitchD / 2 + 5)
+		-- Dark underside support structure (extends across the full bleacher footprint)
 		make("Part", {
 			Anchored = true, CanCollide = true,
-			Material = Enum.Material.Concrete, Color = Color3.fromRGB(20, 24, 32),
+			Material = Enum.Material.Concrete, Color = Color3.fromRGB(18, 22, 30),
 			Size = Vector3.new(rowWidth + 0.4, 0.6, rowDepth * rows + 1),
 			CFrame = baseCFrame * CFrame.new(0, floorH + 0.3, startZ + zSignParam * (rowDepth * rows / 2 - rowDepth / 2)),
 		}, bleacherFolder)
+		-- Vertical structural support beams under the bleachers (every 6 studs)
+		for beamX = -rowWidth / 2 + 3, rowWidth / 2 - 3, 6 do
+			for r = 1, rows - 1 do
+				local beamY = floorH + 0.6 + r * rowRise / 2
+				local beamH = r * rowRise * 0.8
+				make("Part", {
+					Anchored = true, CanCollide = false,
+					Material = Enum.Material.Concrete, Color = Color3.fromRGB(28, 32, 40),
+					Size = Vector3.new(0.6, beamH, 0.8),
+					CFrame = baseCFrame * CFrame.new(beamX, beamY, startZ + zSignParam * ((r - 0.5) * rowDepth)),
+				}, bleacherFolder)
+			end
+		end
+		-- Backing wall behind the stands (rises tall behind the top row)
+		local backWallY = floorH + 0.6 + rows * rowRise / 2 + 2
+		local backWallH = rows * rowRise + 4
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Slate, Color = stoneDark,
+			Size = Vector3.new(rowWidth + 1, backWallH, 0.8),
+			CFrame = baseCFrame * CFrame.new(0, backWallY, startZ + zSignParam * (rowDepth * rows + 0.4)),
+		}, bleacherFolder)
+		-- Subtle gold cap on the backing wall
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.55,
+			Size = Vector3.new(rowWidth + 1, 0.18, 0.9),
+			CFrame = baseCFrame * CFrame.new(0, backWallY + backWallH / 2 + 0.1, startZ + zSignParam * (rowDepth * rows + 0.4)),
+		}, bleacherFolder)
+		-- Side end-caps (dark slate walls at each end of the bleachers)
+		for _, sx in ipairs({-rowWidth / 2 - 0.5, rowWidth / 2 + 0.5}) do
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Slate, Color = stoneDark,
+				Size = Vector3.new(0.8, rows * rowRise + 1, rowDepth * rows + 1),
+				CFrame = baseCFrame * CFrame.new(sx, floorH + 0.3 + (rows * rowRise + 1) / 2, startZ + zSignParam * (rowDepth * rows / 2 - rowDepth / 2)),
+			}, bleacherFolder)
+		end
 		for r = 1, rows do
 			local h = rowRise
 			local y = floorH + 0.6 + (r - 1) * rowRise + h / 2
@@ -6517,12 +6619,10 @@ local function createConceptTestStadium(parent, position)
 	buildBleacherSide(-1) -- North
 	buildBleacherSide( 1) -- South
 
-	-- ── Central octagonal pack-opening podium (focal point only) ───────────
-	-- Per concept brief: raised octagonal podium with layered glowing steps,
-	-- with the main pack pedestal as the focal point. Card slots are placed
-	-- AROUND the pitch perimeter, not on this podium.
+	-- ── Central octagonal pack-opening podium (the dominating focal point) ──
+	-- Bigger, taller, more layered — the centre should visually own the stadium.
 	local podiumY = floorH + 0.5
-	-- Build octagonal podium using 8 wedges/parts arranged in a ring
+	-- Build octagonal podium ring helper
 	local function octRing(radius, height, yCenter, color, mat, transparency)
 		for i = 0, 7 do
 			local a1 = (i / 8) * math.pi * 2
@@ -6536,43 +6636,72 @@ local function createConceptTestStadium(parent, position)
 				Anchored = true, CanCollide = (transparency or 0) < 0.5,
 				Material = mat, Color = color,
 				Transparency = transparency or 0,
-				Size = Vector3.new(segLen, height, radius * 0.45),
+				Size = Vector3.new(segLen, height, radius * 0.5),
 				CFrame = baseCFrame * CFrame.new(cx * 0.78, yCenter, cz * 0.78) * CFrame.Angles(0, -segAngle, 0),
 			}, model)
 		end
 	end
-	-- 3 layered octagonal steps (lower → upper)
-	octRing(7.5, 1.6, podiumY + 0.8, stoneMid, Enum.Material.Slate)
-	octRing(6.0, 1.4, podiumY + 2.2, stoneLite, Enum.Material.Slate)
-	octRing(4.6, 1.0, podiumY + 3.4, stoneDark, Enum.Material.Slate)
-	-- Gold trim glowing rings on each step edge
-	octRing(7.6, 0.18, podiumY + 1.65, goldCol, Enum.Material.Neon, 0.18)
-	octRing(6.1, 0.18, podiumY + 2.95, goldCol, Enum.Material.Neon, 0.18)
-	octRing(4.7, 0.18, podiumY + 3.95, goldCol, Enum.Material.Neon, 0.18)
-	-- Underglow ring beneath the podium (red/orange focal point)
-	octRing(8.5, 0.14, floorH + 0.18, Color3.fromRGB(255, 90, 40), Enum.Material.Neon, 0.45)
-	-- Top platform circle
+	-- 5 layered octagonal steps — wider and taller (was 3 layers)
+	octRing(11.5, 1.4, podiumY + 0.7, stoneMid,  Enum.Material.Slate)
+	octRing(9.6,  1.4, podiumY + 2.1, stoneLite, Enum.Material.Slate)
+	octRing(7.8,  1.4, podiumY + 3.5, stoneMid,  Enum.Material.Slate)
+	octRing(6.0,  1.4, podiumY + 4.9, stoneLite, Enum.Material.Slate)
+	octRing(4.4,  1.2, podiumY + 6.2, stoneDark, Enum.Material.Slate)
+	-- BRIGHT gold trim glowing rings on each step edge (centre dominates)
+	octRing(11.6, 0.22, podiumY + 1.45, goldCol, Enum.Material.Neon, 0.1)
+	octRing(9.7,  0.22, podiumY + 2.85, goldCol, Enum.Material.Neon, 0.1)
+	octRing(7.9,  0.22, podiumY + 4.25, goldCol, Enum.Material.Neon, 0.1)
+	octRing(6.1,  0.22, podiumY + 5.65, goldCol, Enum.Material.Neon, 0.1)
+	octRing(4.5,  0.2,  podiumY + 6.85, goldCol, Enum.Material.Neon, 0.08)
+	-- Strong red/orange focal underglow ring beneath the podium
+	octRing(13, 0.16, floorH + 0.18, Color3.fromRGB(255, 90, 40), Enum.Material.Neon, 0.3)
+	-- Wider underglow halo
+	octRing(15, 0.1, floorH + 0.15, Color3.fromRGB(255, 130, 70), Enum.Material.Neon, 0.65)
+	-- Top platform disc
 	make("Part", {
 		Anchored = true, CanCollide = true, Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Slate, Color = stoneDark,
-		Size = Vector3.new(0.8, 7, 7),
-		CFrame = baseCFrame * CFrame.new(0, podiumY + 4.4, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Size = Vector3.new(0.8, 8.4, 8.4),
+		CFrame = baseCFrame * CFrame.new(0, podiumY + 7.4, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, model)
-	-- Pack pillar (the FOOTBALLER PACK presentation column) on top
+	-- Pack pillar — taller and more dramatic
 	local packPillar = make("Part", {
 		Name = "PackPillar", Anchored = true, CanCollide = false,
-		Material = Enum.Material.Neon, Color = Color3.fromRGB(220, 70, 35), Transparency = 0.05,
-		Size = Vector3.new(3, 7, 2),
-		CFrame = baseCFrame * CFrame.new(0, podiumY + 4.4 + 3.5, 0),
+		Material = Enum.Material.Neon, Color = Color3.fromRGB(230, 75, 35), Transparency = 0.05,
+		Size = Vector3.new(3.6, 9, 2.4),
+		CFrame = baseCFrame * CFrame.new(0, podiumY + 7.4 + 4.5, 0),
 	}, model)
-	make("PointLight", { Brightness = 3, Range = 28, Color = Color3.fromRGB(255, 110, 70) }, packPillar)
-	-- Strong red glow column under the pack pillar (focal effect)
+	make("PointLight", { Brightness = 4, Range = 36, Color = Color3.fromRGB(255, 110, 70) }, packPillar)
+	-- Massive red glow column wrapping the pack pillar
 	make("Part", {
 		Anchored = true, CanCollide = false, Shape = Enum.PartType.Cylinder,
 		Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 60, 20), Transparency = 0.55,
-		Size = Vector3.new(8, 9, 9),
-		CFrame = baseCFrame * CFrame.new(0, podiumY + 4.4 + 4, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Size = Vector3.new(11, 10, 10),
+		CFrame = baseCFrame * CFrame.new(0, podiumY + 7.4 + 5, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, model)
+	-- Ground-level halo glow plate beneath pack pillar
+	make("Part", {
+		Anchored = true, CanCollide = false, Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 80, 40), Transparency = 0.5,
+		Size = Vector3.new(0.2, 18, 18),
+		CFrame = baseCFrame * CFrame.new(0, floorH + 0.13, 0) * CFrame.Angles(0, 0, math.rad(90)),
+	}, model)
+	-- 4 SpotLights aimed inward at the podium from above (drama lighting)
+	for _, dx in ipairs({-1, 1}) do
+		for _, dz in ipairs({-1, 1}) do
+			local sa = make("Part", {
+				Anchored = true, CanCollide = false, Transparency = 1,
+				Size = Vector3.new(1, 1, 1),
+				CFrame = baseCFrame * CFrame.new(dx * 14, floorH + 18, dz * 12)
+					* CFrame.Angles(math.rad(-60) * dz, 0, math.rad(40) * dx),
+			}, model)
+			make("SpotLight", {
+				Brightness = 4, Range = 32, Angle = 45,
+				Face = Enum.NormalId.Front,
+				Color = Color3.fromRGB(255, 220, 160),
+			}, sa)
+		end
+	end
 
 	-- ── Card display podiums positioned AROUND the pitch perimeter ─────────
 	-- 6 slots: 3 along each long side of the pitch, between pitch and bleachers
@@ -6586,6 +6715,39 @@ local function createConceptTestStadium(parent, position)
 	}
 	for slotI, slot in ipairs(slotPositions) do
 		local sx, sz = slot.x, slot.z
+		local slotYaw = math.atan2(slot.dir.X, slot.dir.Z)
+		-- Slot bay: a small framed alcove built into the architecture
+		-- Backing wall behind the slot (frame the presentation)
+		local bayCFrame = baseCFrame * CFrame.new(sx, floorH + 4, sz) * CFrame.Angles(0, slotYaw, 0)
+		make("Part", {
+			Name = "SlotBay" .. slotI .. "Back", Anchored = true, CanCollide = false,
+			Material = Enum.Material.Slate, Color = stoneDark,
+			Size = Vector3.new(5.4, 8, 0.5),
+			CFrame = bayCFrame * CFrame.new(0, 0, 0.6),
+		}, model)
+		-- Bay side jambs (frame the slot)
+		for _, sxJamb in ipairs({-2.6, 2.6}) do
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Slate, Color = Color3.fromRGB(50, 56, 68),
+				Size = Vector3.new(0.45, 7.5, 1.2),
+				CFrame = bayCFrame * CFrame.new(sxJamb, 0, 0.2),
+			}, model)
+		end
+		-- Bay top header
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Slate, Color = stoneDark,
+			Size = Vector3.new(5.6, 0.7, 1.4),
+			CFrame = bayCFrame * CFrame.new(0, 3.6, 0.2),
+		}, model)
+		-- Subtle gold trim on the bay header
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.45,
+			Size = Vector3.new(5.6, 0.18, 1.42),
+			CFrame = bayCFrame * CFrame.new(0, 4.05, 0.2),
+		}, model)
 		-- Thick layered base (octagonal feel via 2 stacked parts)
 		make("Part", {
 			Anchored = true, CanCollide = true,
