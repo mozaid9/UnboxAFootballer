@@ -6695,27 +6695,78 @@ local function createConceptTestStadium(parent, position)
 		Size = Vector3.new(frameW * 2 + 0.3, 0.3, archWidth + frameW * 2 + 0.3),
 		CFrame = baseCFrame * CFrame.new(archX, archHeight + 2.3 + 2.55, 0),
 	}, model)
-	-- "ZAID'S STADIUM" sign — SurfaceGuis on BOTH long faces (Right + Left)
-	-- so it's readable whether you're approaching from outside or leaving the stadium.
-	for _, signFace in ipairs({ Enum.NormalId.Right, Enum.NormalId.Left }) do
-		local archGui = make("SurfaceGui", {
-			Name = "ArchSign_" .. tostring(signFace),
-			Face = signFace,
-			LightInfluence = 0,
-			PixelsPerStud = 70,
-		}, archBeam)
-		make("TextLabel", {
-			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(0.94, 0.7),
-			Position = UDim2.fromScale(0.03, 0.15),
-			Text = "ZAID'S STADIUM",
-			TextColor3 = goldHot,
-			TextStrokeColor3 = Color3.fromRGB(8, 12, 20),
-			TextStrokeTransparency = 0.35,
-			TextScaled = true,
-			Font = Enum.Font.GothamBlack,
-		}, archGui)
-	end
+	-- "ZAID'S STADIUM" sign: dedicated signboard plate that DEFINITELY faces outward.
+	-- Built as a separate flat Part with the wide face oriented in +X direction.
+	-- Size (X=thickness=0.4, Y=height=3, Z=width=14) — the +X face is 3×14, the visible signboard.
+	local signPlate = make("Part", {
+		Name = "ArchStadiumSignPlate",
+		Anchored = true, CanCollide = false,
+		Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(8, 12, 20),
+		Size = Vector3.new(0.4, 3, 14),
+		CFrame = baseCFrame * CFrame.new(archX + frameW + 0.6, archHeight + 2.3, 0),
+	}, model)
+	-- Gold backing plate (slightly larger, behind sign)
+	make("Part", {
+		Name = "ArchStadiumSignBacking",
+		Anchored = true, CanCollide = false,
+		Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.32,
+		Size = Vector3.new(0.18, 3.4, 14.4),
+		CFrame = baseCFrame * CFrame.new(archX + frameW + 0.4, archHeight + 2.3, 0),
+	}, model)
+	-- Sign text on the OUTWARD-facing side (+X = Right face)
+	local signGuiOutward = make("SurfaceGui", {
+		Name = "StadiumSignFront",
+		Face = Enum.NormalId.Right,
+		LightInfluence = 0, PixelsPerStud = 80,
+	}, signPlate)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(0.92, 0.78),
+		Position = UDim2.fromScale(0.04, 0.11),
+		Text = "ZAID'S STADIUM",
+		TextColor3 = goldHot,
+		TextStrokeColor3 = Color3.fromRGB(8, 12, 20),
+		TextStrokeTransparency = 0.3,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+	}, signGuiOutward)
+	-- Same sign on the INWARD face (-X = Left) so it's readable when leaving stadium
+	local signGuiInward = make("SurfaceGui", {
+		Name = "StadiumSignBack",
+		Face = Enum.NormalId.Left,
+		LightInfluence = 0, PixelsPerStud = 80,
+	}, signPlate)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(0.92, 0.78),
+		Position = UDim2.fromScale(0.04, 0.11),
+		Text = "ZAID'S STADIUM",
+		TextColor3 = goldHot,
+		TextStrokeColor3 = Color3.fromRGB(8, 12, 20),
+		TextStrokeTransparency = 0.3,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+	}, signGuiInward)
+	-- BillboardGui as a guaranteed-readable backup (always faces camera)
+	local nameAnchor = make("Part", {
+		Anchored = true, CanCollide = false, Transparency = 1,
+		Size = Vector3.new(1, 1, 1),
+		CFrame = baseCFrame * CFrame.new(archX + frameW + 1, archHeight + 4.6, 0),
+	}, model)
+	local nameBB = make("BillboardGui", {
+		Name = "StadiumNameBillboard",
+		Size = UDim2.fromOffset(560, 100),
+		AlwaysOnTop = false,
+		LightInfluence = 0,
+		MaxDistance = 200,
+	}, nameAnchor)
+	make("TextLabel", {
+		BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
+		Text = "ZAID'S STADIUM",
+		TextColor3 = goldHot,
+		TextStrokeColor3 = Color3.fromRGB(8, 12, 20), TextStrokeTransparency = 0.25,
+		TextScaled = true, Font = Enum.Font.GothamBlack,
+	}, nameBB)
 	-- Gold ball ornaments flanking the sign
 	for _, sz in ipairs({-archWidth / 2 + 1.8, archWidth / 2 - 1.8}) do
 		local ball = make("Part", {
@@ -6743,19 +6794,63 @@ local function createConceptTestStadium(parent, position)
 		CFrame = baseCFrame * CFrame.new(archX, archHeight - 0.3, 0),
 	}, model)
 
-	-- ── 4 tall corner floodlight poles (much taller so they shine from above) ─
-	local testFloodlightOptions = {
-		poleHeight = 48, modelHeight = 52, range = 110, angle = 60,
-		brightness = 2.2, fillRange = 32, fillBrightness = 0.18,
-	}
+	-- ── 4 corner floodlight poles — explicitly tall (tall pole + light head) ─
+	-- Built as discrete parts so the pole height is guaranteed (the imported asset
+	-- doesn't always scale predictably).
+	local floodPoleHeight = 70
 	for _, dx in ipairs({-1, 1}) do
 		for _, dz in ipairs({-1, 1}) do
 			local px = dx * (size / 2 + 4)
 			local pz = dz * (size / 2 + 4)
-			createFloodlightRig(model, "TestFloodlight" .. (dx > 0 and "E" or "W") .. (dz > 0 and "S" or "N"),
-				position + Vector3.new(px, 0, pz),
-				position + Vector3.new(0, 8, 0),
-				testFloodlightOptions)
+			-- Concrete pole base
+			make("Part", {
+				Anchored = true, CanCollide = true,
+				Material = Enum.Material.Concrete, Color = stoneDark,
+				Size = Vector3.new(4, 1.8, 4),
+				CFrame = baseCFrame * CFrame.new(px, floorH + 0.9, pz),
+			}, model)
+			-- Tall metal pole
+			make("Part", {
+				Name = "FloodlightPole_" .. (dx > 0 and "E" or "W") .. (dz > 0 and "S" or "N"),
+				Anchored = true, CanCollide = true,
+				Material = Enum.Material.Metal, Color = Color3.fromRGB(38, 42, 50),
+				Size = Vector3.new(1.4, floodPoleHeight, 1.4),
+				CFrame = baseCFrame * CFrame.new(px, floorH + 1.8 + floodPoleHeight / 2, pz),
+			}, model)
+			-- Bracket arm extending toward the stadium center
+			local headOffsetX = -dx * 2
+			local headOffsetZ = -dz * 2
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Metal, Color = Color3.fromRGB(50, 55, 65),
+				Size = Vector3.new(2.4, 0.8, 2.4),
+				CFrame = baseCFrame * CFrame.new(px + headOffsetX / 2, floorH + 1.8 + floodPoleHeight, pz + headOffsetZ / 2),
+			}, model)
+			-- Light fixture housing
+			local headPos = baseCFrame * CFrame.new(px + headOffsetX, floorH + 1.8 + floodPoleHeight - 0.2, pz + headOffsetZ)
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Metal, Color = Color3.fromRGB(60, 65, 75),
+				Size = Vector3.new(4.2, 1.8, 3.2),
+				CFrame = headPos,
+			}, model)
+			-- Glowing white light panel (faces down toward the stadium)
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 240, 210),
+				Size = Vector3.new(3.8, 0.5, 2.7),
+				CFrame = headPos * CFrame.new(0, -1.1, 0),
+			}, model)
+			-- Aimed SpotLight pointing inward toward the arena centre
+			local lightAnchor = make("Part", {
+				Anchored = true, CanCollide = false, Transparency = 1,
+				Size = Vector3.new(1, 1, 1), CFrame = headPos * CFrame.new(0, -1.5, 0),
+			}, model)
+			make("SpotLight", {
+				Brightness = 4, Range = 120, Angle = 75,
+				Face = Enum.NormalId.Bottom,
+				Color = Color3.fromRGB(255, 240, 210),
+			}, lightAnchor)
 		end
 	end
 
@@ -6932,61 +7027,7 @@ local function createConceptTestStadium(parent, position)
 		end
 	end
 
-	-- ── Mini kiosks / vendor stalls (corner concession booths) ──────────────
-	-- 4 small wooden-roof booths in the corners of the arena floor
-	local kioskPositions = {
-		{ x = -size / 2 + 9, z = -size / 2 + 9 },
-		{ x =  size / 2 - 9, z = -size / 2 + 9 },
-		{ x = -size / 2 + 9, z =  size / 2 - 9 },
-		{ x =  size / 2 - 9, z =  size / 2 - 9 },
-	}
-	for kI, kPos in ipairs(kioskPositions) do
-		-- Counter / base
-		make("Part", {
-			Name = "Kiosk" .. kI .. "Counter", Anchored = true, CanCollide = true,
-			Material = Enum.Material.Wood, Color = Color3.fromRGB(78, 50, 32),
-			Size = Vector3.new(4, 2.4, 3),
-			CFrame = baseCFrame * CFrame.new(kPos.x, floorH + 1.2, kPos.z),
-		}, model)
-		-- 2 corner posts
-		for _, dx in ipairs({-1.9, 1.9}) do
-			for _, dzp in ipairs({-1.4, 1.4}) do
-				make("Part", {
-					Anchored = true, CanCollide = false,
-					Material = Enum.Material.Wood, Color = Color3.fromRGB(60, 38, 24),
-					Size = Vector3.new(0.4, 4.2, 0.4),
-					CFrame = baseCFrame * CFrame.new(kPos.x + dx, floorH + 2.5, kPos.z + dzp),
-				}, model)
-			end
-		end
-		-- Slanted red roof (use 2 wedges for a peaked roof)
-		make("WedgePart", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = redSeat,
-			Size = Vector3.new(3.4, 1, 4.6),
-			CFrame = baseCFrame * CFrame.new(kPos.x - 1.2, floorH + 5, kPos.z) * CFrame.Angles(0, 0, math.rad(-90)),
-		}, model)
-		make("WedgePart", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = redSeat,
-			Size = Vector3.new(3.4, 1, 4.6),
-			CFrame = baseCFrame * CFrame.new(kPos.x + 1.2, floorH + 5, kPos.z) * CFrame.Angles(0, math.rad(180), math.rad(-90)),
-		}, model)
-		-- Gold roof trim
-		make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.3,
-			Size = Vector3.new(4.4, 0.18, 4.7),
-			CFrame = baseCFrame * CFrame.new(kPos.x, floorH + 4.55, kPos.z),
-		}, model)
-		-- Warm glow under the kiosk awning
-		local kAnchor = make("Part", {
-			Anchored = true, CanCollide = false, Transparency = 1,
-			Size = Vector3.new(1, 1, 1),
-			CFrame = baseCFrame * CFrame.new(kPos.x, floorH + 3.5, kPos.z),
-		}, model)
-		make("PointLight", { Brightness = 1.4, Range = 10, Color = Color3.fromRGB(255, 220, 160) }, kAnchor)
-	end
+	-- (Kiosks removed — were not adding value to the arena)
 	-- Crowd barriers along walkway entrance
 	for _, dz in ipairs({-1, 1}) do
 		for i = 0, 3 do
