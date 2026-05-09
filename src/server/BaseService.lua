@@ -6408,6 +6408,37 @@ local function createConceptTestStadium(parent, position)
 			Size = Vector3.new(pillarW + 0.3, 0.1, pillarW + 0.3),
 			CFrame = baseCFrame * CFrame.new(px, floorH + pillarH - 0.1, pz),
 		}, model)
+		-- Pillar architectural base (chunky concrete plinth)
+		make("Part", {
+			Anchored = true, CanCollide = true,
+			Material = Enum.Material.Concrete, Color = stoneMid,
+			Size = Vector3.new(pillarW + 1, 1.6, pillarW + 1),
+			CFrame = baseCFrame * CFrame.new(px, floorH + 0.8, pz),
+		}, model)
+		-- Decorative trim ring at base
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = stoneLite,
+			Size = Vector3.new(pillarW + 1.2, 0.18, pillarW + 1.2),
+			CFrame = baseCFrame * CFrame.new(px, floorH + 1.7, pz),
+		}, model)
+		-- Mid-height architectural trim band on pillar
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = stoneLite,
+			Size = Vector3.new(pillarW + 0.5, 0.3, pillarW + 0.5),
+			CFrame = baseCFrame * CFrame.new(px, floorH + pillarH * 0.4, pz),
+		}, model)
+		-- Vertical inset gold accent line on outward face of pillar
+		local outwardAngle = (i / 8) * math.pi * 2 + angleOffset
+		local outX = math.cos(outwardAngle)
+		local outZ = math.sin(outwardAngle)
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.55,
+			Size = Vector3.new(0.18, pillarH * 0.7, 0.18),
+			CFrame = baseCFrame * CFrame.new(px + outX * (pillarW / 2 + 0.05), floorH + pillarH * 0.55, pz + outZ * (pillarW / 2 + 0.05)),
+		}, model)
 		-- Pillar uplight glow (subtle warm)
 		local lightAnchor = make("Part", {
 			Anchored = true, CanCollide = false, Transparency = 1,
@@ -6647,16 +6678,20 @@ local function createConceptTestStadium(parent, position)
 	octRing(7.8,  1.4, podiumY + 3.5, stoneMid,  Enum.Material.Slate)
 	octRing(6.0,  1.4, podiumY + 4.9, stoneLite, Enum.Material.Slate)
 	octRing(4.4,  1.2, podiumY + 6.2, stoneDark, Enum.Material.Slate)
-	-- BRIGHT gold trim glowing rings on each step edge (centre dominates)
-	octRing(11.6, 0.22, podiumY + 1.45, goldCol, Enum.Material.Neon, 0.1)
-	octRing(9.7,  0.22, podiumY + 2.85, goldCol, Enum.Material.Neon, 0.1)
-	octRing(7.9,  0.22, podiumY + 4.25, goldCol, Enum.Material.Neon, 0.1)
-	octRing(6.1,  0.22, podiumY + 5.65, goldCol, Enum.Material.Neon, 0.1)
-	octRing(4.5,  0.2,  podiumY + 6.85, goldCol, Enum.Material.Neon, 0.08)
-	-- Strong red/orange focal underglow ring beneath the podium
-	octRing(13, 0.16, floorH + 0.18, Color3.fromRGB(255, 90, 40), Enum.Material.Neon, 0.3)
-	-- Wider underglow halo
-	octRing(15, 0.1, floorH + 0.15, Color3.fromRGB(255, 130, 70), Enum.Material.Neon, 0.65)
+	-- Subtle gold edge trim on each step (only the EDGES glow, structure stays dark)
+	octRing(11.6, 0.16, podiumY + 1.45, goldCol, Enum.Material.Neon, 0.45)
+	octRing(9.7,  0.16, podiumY + 2.85, goldCol, Enum.Material.Neon, 0.45)
+	octRing(7.9,  0.16, podiumY + 4.25, goldCol, Enum.Material.Neon, 0.4)
+	octRing(6.1,  0.16, podiumY + 5.65, goldCol, Enum.Material.Neon, 0.35)
+	octRing(4.5,  0.16, podiumY + 6.85, goldCol, Enum.Material.Neon, 0.3)
+	-- Dark gold step accent layers between trims (architectural depth, no glow)
+	octRing(11.5, 0.2, podiumY + 1.6, Color3.fromRGB(110, 84, 26), Enum.Material.SmoothPlastic, 0)
+	octRing(9.6,  0.2, podiumY + 3.0, Color3.fromRGB(110, 84, 26), Enum.Material.SmoothPlastic, 0)
+	octRing(7.8,  0.2, podiumY + 4.4, Color3.fromRGB(110, 84, 26), Enum.Material.SmoothPlastic, 0)
+	-- Focal red underglow ring beneath podium (toned down)
+	octRing(13, 0.14, floorH + 0.18, Color3.fromRGB(220, 80, 30), Enum.Material.Neon, 0.5)
+	-- Wider, much softer halo
+	octRing(15, 0.08, floorH + 0.15, Color3.fromRGB(200, 100, 50), Enum.Material.Neon, 0.78)
 	-- Top platform disc
 	make("Part", {
 		Anchored = true, CanCollide = true, Shape = Enum.PartType.Cylinder,
@@ -6672,17 +6707,17 @@ local function createConceptTestStadium(parent, position)
 		CFrame = baseCFrame * CFrame.new(0, podiumY + 7.4 + 4.5, 0),
 	}, model)
 	make("PointLight", { Brightness = 4, Range = 36, Color = Color3.fromRGB(255, 110, 70) }, packPillar)
-	-- Massive red glow column wrapping the pack pillar
+	-- Subtle red glow column wrapping the pack pillar (toned down)
 	make("Part", {
 		Anchored = true, CanCollide = false, Shape = Enum.PartType.Cylinder,
-		Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 60, 20), Transparency = 0.55,
+		Material = Enum.Material.Neon, Color = Color3.fromRGB(220, 60, 20), Transparency = 0.7,
 		Size = Vector3.new(11, 10, 10),
 		CFrame = baseCFrame * CFrame.new(0, podiumY + 7.4 + 5, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, model)
-	-- Ground-level halo glow plate beneath pack pillar
+	-- Ground-level halo glow plate (much softer)
 	make("Part", {
 		Anchored = true, CanCollide = false, Shape = Enum.PartType.Cylinder,
-		Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 80, 40), Transparency = 0.5,
+		Material = Enum.Material.Neon, Color = Color3.fromRGB(220, 70, 35), Transparency = 0.7,
 		Size = Vector3.new(0.2, 18, 18),
 		CFrame = baseCFrame * CFrame.new(0, floorH + 0.13, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, model)
@@ -6964,62 +6999,117 @@ local function createConceptTestStadium(parent, position)
 		CFrame = baseCFrame * CFrame.new(archX, archHeight - 0.3, 0),
 	}, model)
 
-	-- ── 4 corner floodlight poles — explicitly tall (tall pole + light head) ─
-	-- Built as discrete parts so the pole height is guaranteed (the imported asset
-	-- doesn't always scale predictably).
+	-- ── 4 corner stadium floodlights — proper multi-bulb panel arrays ───────
+	-- These are real stadium floodlights: tall pole + truss bracket + big rectangular
+	-- panel housing with a 4×2 grid of individual bulbs, all aimed inward.
 	local floodPoleHeight = 38
 	for _, dx in ipairs({-1, 1}) do
 		for _, dz in ipairs({-1, 1}) do
 			local px = dx * (size / 2 + 4)
 			local pz = dz * (size / 2 + 4)
-			-- Concrete pole base
+			-- Concrete pole base (chunky)
 			make("Part", {
 				Anchored = true, CanCollide = true,
 				Material = Enum.Material.Concrete, Color = stoneDark,
-				Size = Vector3.new(4, 1.8, 4),
+				Size = Vector3.new(4.4, 1.8, 4.4),
 				CFrame = baseCFrame * CFrame.new(px, floorH + 0.9, pz),
 			}, model)
-			-- Tall metal pole
+			-- Concrete pole base trim (slightly raised)
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Concrete, Color = stoneMid,
+				Size = Vector3.new(4.6, 0.3, 4.6),
+				CFrame = baseCFrame * CFrame.new(px, floorH + 1.95, pz),
+			}, model)
+			-- Tall metal pole (matte dark)
 			make("Part", {
 				Name = "FloodlightPole_" .. (dx > 0 and "E" or "W") .. (dz > 0 and "S" or "N"),
 				Anchored = true, CanCollide = true,
-				Material = Enum.Material.Metal, Color = Color3.fromRGB(38, 42, 50),
-				Size = Vector3.new(1.4, floodPoleHeight, 1.4),
-				CFrame = baseCFrame * CFrame.new(px, floorH + 1.8 + floodPoleHeight / 2, pz),
+				Material = Enum.Material.DiamondPlate, Color = Color3.fromRGB(36, 40, 48),
+				Size = Vector3.new(1.5, floodPoleHeight, 1.5),
+				CFrame = baseCFrame * CFrame.new(px, floorH + 2.1 + floodPoleHeight / 2, pz),
 			}, model)
-			-- Bracket arm extending toward the stadium center
-			local headOffsetX = -dx * 2
-			local headOffsetZ = -dz * 2
+			-- Pole reinforcing collar near top
 			make("Part", {
 				Anchored = true, CanCollide = false,
 				Material = Enum.Material.Metal, Color = Color3.fromRGB(50, 55, 65),
-				Size = Vector3.new(2.4, 0.8, 2.4),
-				CFrame = baseCFrame * CFrame.new(px + headOffsetX / 2, floorH + 1.8 + floodPoleHeight, pz + headOffsetZ / 2),
+				Size = Vector3.new(2, 0.5, 2),
+				CFrame = baseCFrame * CFrame.new(px, floorH + 2.1 + floodPoleHeight - 1.5, pz),
 			}, model)
-			-- Light fixture housing
-			local headPos = baseCFrame * CFrame.new(px + headOffsetX, floorH + 1.8 + floodPoleHeight - 0.2, pz + headOffsetZ)
+			-- Bracket arm extending toward the stadium center (truss feel)
+			local armDX = -dx * 2.6
+			local armDZ = -dz * 2.6
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Metal, Color = Color3.fromRGB(50, 55, 65),
+				Size = Vector3.new(3, 1, 3),
+				CFrame = baseCFrame * CFrame.new(px + armDX / 2, floorH + 2.1 + floodPoleHeight + 0.5, pz + armDZ / 2),
+			}, model)
+			-- Big rectangular floodlight panel housing (the wide stadium-style head)
+			local headPos = baseCFrame * CFrame.new(px + armDX, floorH + 2.1 + floodPoleHeight + 0.3, pz + armDZ)
+			-- Aim toward arena center (compute yaw)
+			local toCenter = Vector3.new(-px - armDX, 0, -pz - armDZ)
+			local headYaw = math.atan2(toCenter.X, toCenter.Z)
+			local headCFrame = baseCFrame * CFrame.new(px + armDX, floorH + 2.1 + floodPoleHeight + 0.3, pz + armDZ) * CFrame.Angles(0, headYaw, 0) * CFrame.Angles(math.rad(-25), 0, 0)
+			-- Housing frame (wide rectangle)
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.DiamondPlate, Color = Color3.fromRGB(46, 50, 60),
+				Size = Vector3.new(7, 4.2, 1.4),
+				CFrame = headCFrame,
+			}, model)
+			-- Inner darker housing recess
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(14, 16, 22),
+				Size = Vector3.new(6.4, 3.6, 0.6),
+				CFrame = headCFrame * CFrame.new(0, 0, -0.5),
+			}, model)
+			-- 4×2 grid of individual bulbs (8 total per floodlight)
+			for bulbCol = 1, 4 do
+				for bulbRow = 1, 2 do
+					local bulbX = -2.4 + (bulbCol - 1) * 1.6
+					local bulbY = -0.85 + (bulbRow - 1) * 1.7
+					-- Bulb housing (small dark ring)
+					make("Part", {
+						Anchored = true, CanCollide = false,
+						Material = Enum.Material.Metal, Color = Color3.fromRGB(60, 65, 75),
+						Size = Vector3.new(1.3, 1.3, 0.4),
+						CFrame = headCFrame * CFrame.new(bulbX, bulbY, -0.55),
+					}, model)
+					-- Bulb itself (neon)
+					make("Part", {
+						Anchored = true, CanCollide = false, Shape = Enum.PartType.Cylinder,
+						Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 245, 220),
+						Size = Vector3.new(0.3, 1.05, 1.05),
+						CFrame = headCFrame * CFrame.new(bulbX, bulbY, -0.7) * CFrame.Angles(0, 0, math.rad(90)),
+					}, model)
+				end
+			end
+			-- Top frame trim
 			make("Part", {
 				Anchored = true, CanCollide = false,
 				Material = Enum.Material.Metal, Color = Color3.fromRGB(60, 65, 75),
-				Size = Vector3.new(4.2, 1.8, 3.2),
-				CFrame = headPos,
+				Size = Vector3.new(7.2, 0.4, 1.6),
+				CFrame = headCFrame * CFrame.new(0, 2.05, 0),
 			}, model)
-			-- Glowing white light panel (faces down toward the stadium)
+			-- Bottom frame trim
 			make("Part", {
 				Anchored = true, CanCollide = false,
-				Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 240, 210),
-				Size = Vector3.new(3.8, 0.5, 2.7),
-				CFrame = headPos * CFrame.new(0, -1.1, 0),
+				Material = Enum.Material.Metal, Color = Color3.fromRGB(60, 65, 75),
+				Size = Vector3.new(7.2, 0.4, 1.6),
+				CFrame = headCFrame * CFrame.new(0, -2.05, 0),
 			}, model)
-			-- Aimed SpotLight pointing inward toward the arena centre
+			-- Aimed SpotLight from the panel
 			local lightAnchor = make("Part", {
 				Anchored = true, CanCollide = false, Transparency = 1,
-				Size = Vector3.new(1, 1, 1), CFrame = headPos * CFrame.new(0, -1.5, 0),
+				Size = Vector3.new(1, 1, 1),
+				CFrame = headCFrame * CFrame.new(0, 0, -1),
 			}, model)
 			make("SpotLight", {
-				Brightness = 4, Range = 120, Angle = 75,
-				Face = Enum.NormalId.Bottom,
-				Color = Color3.fromRGB(255, 240, 210),
+				Brightness = 5, Range = 130, Angle = 80,
+				Face = Enum.NormalId.Front,
+				Color = Color3.fromRGB(255, 245, 220),
 			}, lightAnchor)
 		end
 	end
