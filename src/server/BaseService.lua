@@ -6218,24 +6218,24 @@ local function createConceptTestStadium(parent, position)
 		Size = Vector3.new(size - 6, floorH * 0.9, size - 6),
 		CFrame = baseCFrame * CFrame.new(0, floorH / 2 + 0.04, 0),
 	}, model)
-	-- Neon edge strip running along the inner floor border
+	-- Subtle gold edge strip along inner floor border (toned down)
 	for _, dz in ipairs({-1, 1}) do
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.25,
-			Size = Vector3.new(size - 6, 0.06, 0.4),
-			CFrame = baseCFrame * CFrame.new(0, floorH + 0.07, dz * (size / 2 - 4)),
+			Material = Enum.Material.SmoothPlastic, Color = goldCol,
+			Size = Vector3.new(size - 6, 0.04, 0.3),
+			CFrame = baseCFrame * CFrame.new(0, floorH + 0.06, dz * (size / 2 - 4)),
 		}, model)
 	end
 	for _, dx in ipairs({-1, 1}) do
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.25,
-			Size = Vector3.new(0.4, 0.06, size - 6),
-			CFrame = baseCFrame * CFrame.new(dx * (size / 2 - 4), floorH + 0.07, 0),
+			Material = Enum.Material.SmoothPlastic, Color = goldCol,
+			Size = Vector3.new(0.3, 0.04, size - 6),
+			CFrame = baseCFrame * CFrame.new(dx * (size / 2 - 4), floorH + 0.06, 0),
 		}, model)
 	end
-	-- Pathway from entrance to podium (lighter tile)
+	-- Pathway from entrance to podium (lighter tile, no neon glow)
 	make("Part", {
 		Anchored = true, CanCollide = false,
 		Material = Enum.Material.SmoothPlastic, Color = stoneLite,
@@ -6245,9 +6245,9 @@ local function createConceptTestStadium(parent, position)
 	for _, dz in ipairs({-1, 1}) do
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.22,
-			Size = Vector3.new(0.18, 0.05, size - 12),
-			CFrame = baseCFrame * CFrame.new(dz * 4, floorH + 0.08, 0),
+			Material = Enum.Material.SmoothPlastic, Color = goldCol,
+			Size = Vector3.new(0.18, 0.04, size - 12),
+			CFrame = baseCFrame * CFrame.new(dz * 4, floorH + 0.07, 0),
 		}, model)
 	end
 
@@ -6330,53 +6330,80 @@ local function createConceptTestStadium(parent, position)
 			Size = Vector3.new(pillarW, pillarH, pillarW),
 			CFrame = baseCFrame * CFrame.new(px, floorH + pillarH / 2, pz),
 		}, model)
-		-- Gold cap on top of pillar
+		-- Stone cap on top of pillar (architectural, not neon)
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.12,
-			Size = Vector3.new(pillarW + 0.4, 0.45, pillarW + 0.4),
-			CFrame = baseCFrame * CFrame.new(px, floorH + pillarH + 0.2, pz),
+			Material = Enum.Material.SmoothPlastic, Color = stoneLite,
+			Size = Vector3.new(pillarW + 0.6, 0.6, pillarW + 0.6),
+			CFrame = baseCFrame * CFrame.new(px, floorH + pillarH + 0.3, pz),
 		}, model)
-		-- Pillar uplight glow
+		-- Subtle gold accent line just below cap (much dimmer)
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.6,
+			Size = Vector3.new(pillarW + 0.3, 0.1, pillarW + 0.3),
+			CFrame = baseCFrame * CFrame.new(px, floorH + pillarH - 0.1, pz),
+		}, model)
+		-- Pillar uplight glow (subtle warm)
 		local lightAnchor = make("Part", {
 			Anchored = true, CanCollide = false, Transparency = 1,
 			Size = Vector3.new(1, 1, 1),
 			CFrame = baseCFrame * CFrame.new(px, floorH + pillarH + 1, pz),
 		}, model)
-		make("PointLight", { Brightness = 1.4, Range = 18, Color = goldCol }, lightAnchor)
+		make("PointLight", { Brightness = 0.6, Range = 12, Color = goldCol }, lightAnchor)
 	end
-	-- Helper that builds one wall segment with full layering at any position
+	-- Helper that builds one wall segment with structural depth (recessed layers,
+	-- inner ledge, support beam, embedded glow strip — but neon trim toned down)
 	local function buildWallPiece(centerX, centerZ, length, yawAngle, nameSuffix)
 		local cf = baseCFrame * CFrame.new(centerX, wallY, centerZ) * CFrame.Angles(0, -yawAngle, 0)
+		-- Outer thick wall (main shell)
 		make("Part", {
 			Name = "Wall" .. nameSuffix, Anchored = true,
 			Material = Enum.Material.Slate, Color = stoneDark,
 			Size = Vector3.new(length, wallH, wallT),
 			CFrame = cf,
 		}, model)
+		-- Inner recessed panel (slightly lighter mid-stone)
 		make("Part", {
 			Anchored = true, CanCollide = false,
 			Material = Enum.Material.SmoothPlastic, Color = stoneMid,
-			Size = Vector3.new(length - 0.4, wallH - 4, wallT * 0.4),
-			CFrame = cf * CFrame.new(0, 0, -wallT * 0.3 - 0.05),
+			Size = Vector3.new(length - 1.2, wallH - 5.5, wallT * 0.3),
+			CFrame = cf * CFrame.new(0, 0, -wallT * 0.4 - 0.05),
 		}, model)
+		-- Inner ledge / horizontal trim band at mid-height (architectural depth)
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.25,
-			Size = Vector3.new(math.max(0.2, length - 1.2), 0.35, 0.18),
-			CFrame = cf * CFrame.new(0, 0, -wallT * 0.5 - 0.1),
+			Material = Enum.Material.SmoothPlastic, Color = stoneLite,
+			Size = Vector3.new(length - 0.6, 0.4, wallT * 0.5 + 0.2),
+			CFrame = cf * CFrame.new(0, -1, -wallT * 0.5 - 0.05),
 		}, model)
+		-- Subtle embedded gold glow strip (much dimmer)
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.18,
-			Size = Vector3.new(length + 0.2, 0.32, wallT + 0.3),
-			CFrame = cf * CFrame.new(0, wallH / 2 + 0.16, 0),
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.65,
+			Size = Vector3.new(math.max(0.2, length - 2), 0.18, 0.12),
+			CFrame = cf * CFrame.new(0, -0.7, -wallT * 0.5 - 0.12),
 		}, model)
+		-- Top ledge cap (architectural, NOT glowing)
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.4,
-			Size = Vector3.new(length + 0.2, 0.18, wallT + 0.2),
-			CFrame = cf * CFrame.new(0, -wallH / 2 + 0.09, 0),
+			Material = Enum.Material.SmoothPlastic, Color = stoneLite,
+			Size = Vector3.new(length + 0.4, 0.5, wallT + 0.5),
+			CFrame = cf * CFrame.new(0, wallH / 2 + 0.25, 0),
+		}, model)
+		-- Subtle gold trim line just below top cap (dimmer)
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.55,
+			Size = Vector3.new(length + 0.1, 0.12, wallT + 0.15),
+			CFrame = cf * CFrame.new(0, wallH / 2 - 0.1, 0),
+		}, model)
+		-- Subtle bottom floor glow (dim warm)
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.7,
+			Size = Vector3.new(length + 0.1, 0.1, wallT + 0.1),
+			CFrame = cf * CFrame.new(0, -wallH / 2 + 0.05, 0),
 		}, model)
 	end
 	-- Wall segments between pillars; the front-facing wall (i=7 wraparound)
@@ -6747,26 +6774,7 @@ local function createConceptTestStadium(parent, position)
 		TextScaled = true,
 		Font = Enum.Font.GothamBlack,
 	}, signGuiInward)
-	-- BillboardGui as a guaranteed-readable backup (always faces camera)
-	local nameAnchor = make("Part", {
-		Anchored = true, CanCollide = false, Transparency = 1,
-		Size = Vector3.new(1, 1, 1),
-		CFrame = baseCFrame * CFrame.new(archX + frameW + 1, archHeight + 4.6, 0),
-	}, model)
-	local nameBB = make("BillboardGui", {
-		Name = "StadiumNameBillboard",
-		Size = UDim2.fromOffset(560, 100),
-		AlwaysOnTop = false,
-		LightInfluence = 0,
-		MaxDistance = 200,
-	}, nameAnchor)
-	make("TextLabel", {
-		BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
-		Text = "ZAID'S STADIUM",
-		TextColor3 = goldHot,
-		TextStrokeColor3 = Color3.fromRGB(8, 12, 20), TextStrokeTransparency = 0.25,
-		TextScaled = true, Font = Enum.Font.GothamBlack,
-	}, nameBB)
+	-- (Removed the floating BillboardGui — sign on the architectural plate is enough)
 	-- Gold ball ornaments flanking the sign
 	for _, sz in ipairs({-archWidth / 2 + 1.8, archWidth / 2 - 1.8}) do
 		local ball = make("Part", {
@@ -6797,7 +6805,7 @@ local function createConceptTestStadium(parent, position)
 	-- ── 4 corner floodlight poles — explicitly tall (tall pole + light head) ─
 	-- Built as discrete parts so the pole height is guaranteed (the imported asset
 	-- doesn't always scale predictably).
-	local floodPoleHeight = 70
+	local floodPoleHeight = 38
 	for _, dx in ipairs({-1, 1}) do
 		for _, dz in ipairs({-1, 1}) do
 			local px = dx * (size / 2 + 4)
