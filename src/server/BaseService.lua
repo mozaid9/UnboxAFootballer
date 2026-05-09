@@ -6315,12 +6315,13 @@ local function createConceptTestStadium(parent, position)
 	-- ── Layered octagonal walls with support pillars + neon strips ──────────
 	local wallY = floorH + wallH / 2
 	local octRadius = size / 2 - 2
-	-- Pillars sit at each octagon vertex (0..7)
+	-- Rotate octagon by π/8 so a FLAT side faces the entrance (+X), and pillars
+	-- sit at the corners flanking the entrance opening.
+	local angleOffset = math.pi / 8
 	local pillarW = 3.6
 	local pillarH = wallH + 3.4
 	for i = 0, 7 do
-		-- Skip pillars flanking the entrance gap (front side, indices 0)
-		local angle = (i / 8) * math.pi * 2
+		local angle = (i / 8) * math.pi * 2 + angleOffset
 		local px = math.cos(angle) * octRadius
 		local pz = math.sin(angle) * octRadius
 		make("Part", {
@@ -6344,52 +6345,70 @@ local function createConceptTestStadium(parent, position)
 		}, model)
 		make("PointLight", { Brightness = 1.4, Range = 18, Color = goldCol }, lightAnchor)
 	end
-	-- Wall segments between pillars (skip front-facing one for the entrance)
-	for i = 0, 7 do
-		if i == 0 then continue end -- open front
-		local a1 = (i / 8) * math.pi * 2
-		local a2 = ((i + 1) / 8) * math.pi * 2
-		local x1, z1 = math.cos(a1) * octRadius, math.sin(a1) * octRadius
-		local x2, z2 = math.cos(a2) * octRadius, math.sin(a2) * octRadius
-		local cx, cz = (x1 + x2) / 2, (z1 + z2) / 2
-		local segLen = math.sqrt((x2 - x1) ^ 2 + (z2 - z1) ^ 2) - pillarW + 0.1
-		local segAngle = math.atan2(z2 - z1, x2 - x1)
-		local cf = baseCFrame * CFrame.new(cx, wallY, cz) * CFrame.Angles(0, -segAngle, 0)
-		-- Outer thick wall
+	-- Helper that builds one wall segment with full layering at any position
+	local function buildWallPiece(centerX, centerZ, length, yawAngle, nameSuffix)
+		local cf = baseCFrame * CFrame.new(centerX, wallY, centerZ) * CFrame.Angles(0, -yawAngle, 0)
 		make("Part", {
-			Name = "Wall" .. i, Anchored = true,
+			Name = "Wall" .. nameSuffix, Anchored = true,
 			Material = Enum.Material.Slate, Color = stoneDark,
-			Size = Vector3.new(segLen, wallH, wallT),
+			Size = Vector3.new(length, wallH, wallT),
 			CFrame = cf,
 		}, model)
-		-- Inner stone bevel (slightly lighter)
 		make("Part", {
 			Anchored = true, CanCollide = false,
 			Material = Enum.Material.SmoothPlastic, Color = stoneMid,
-			Size = Vector3.new(segLen - 0.4, wallH - 4, wallT * 0.4),
+			Size = Vector3.new(length - 0.4, wallH - 4, wallT * 0.4),
 			CFrame = cf * CFrame.new(0, 0, -wallT * 0.3 - 0.05),
 		}, model)
-		-- Embedded glowing strip at mid-height
 		make("Part", {
 			Anchored = true, CanCollide = false,
 			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.25,
-			Size = Vector3.new(segLen - 1.2, 0.35, 0.18),
+			Size = Vector3.new(math.max(0.2, length - 1.2), 0.35, 0.18),
 			CFrame = cf * CFrame.new(0, 0, -wallT * 0.5 - 0.1),
 		}, model)
-		-- Gold trim along top
 		make("Part", {
 			Anchored = true, CanCollide = false,
 			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.18,
-			Size = Vector3.new(segLen + 0.2, 0.32, wallT + 0.3),
+			Size = Vector3.new(length + 0.2, 0.32, wallT + 0.3),
 			CFrame = cf * CFrame.new(0, wallH / 2 + 0.16, 0),
 		}, model)
-		-- Gold trim along bottom (floor-level light)
 		make("Part", {
 			Anchored = true, CanCollide = false,
 			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.4,
-			Size = Vector3.new(segLen + 0.2, 0.18, wallT + 0.2),
+			Size = Vector3.new(length + 0.2, 0.18, wallT + 0.2),
 			CFrame = cf * CFrame.new(0, -wallH / 2 + 0.09, 0),
 		}, model)
+	end
+	-- Wall segments between pillars; the front-facing wall (i=7 wraparound)
+	-- builds two shoulder pieces flanking a centered entrance opening.
+	local entranceOpeningW = 18
+	for i = 0, 7 do
+		local a1 = (i / 8) * math.pi * 2 + angleOffset
+		local a2 = ((i + 1) / 8) * math.pi * 2 + angleOffset
+		local x1, z1 = math.cos(a1) * octRadius, math.sin(a1) * octRadius
+		local x2, z2 = math.cos(a2) * octRadius, math.sin(a2) * octRadius
+		local fullLen = math.sqrt((x2 - x1) ^ 2 + (z2 - z1) ^ 2)
+		local cx, cz = (x1 + x2) / 2, (z1 + z2) / 2
+		local segAngle = math.atan2(z2 - z1, x2 - x1)
+		if i == 7 then
+			-- Front: split into two shoulder walls leaving entranceOpeningW gap in centre
+			local shoulderLen = (fullLen - entranceOpeningW - pillarW) / 2
+			if shoulderLen > 1 then
+				local dx = (x2 - x1) / fullLen
+				local dz = (z2 - z1) / fullLen
+				-- Left shoulder (between pillar 7 and entrance opening)
+				local lcx = x1 + dx * (pillarW / 2 + shoulderLen / 2)
+				local lcz = z1 + dz * (pillarW / 2 + shoulderLen / 2)
+				buildWallPiece(lcx, lcz, shoulderLen, segAngle, "FrontL")
+				-- Right shoulder (between entrance opening and pillar 0)
+				local rcx = x2 - dx * (pillarW / 2 + shoulderLen / 2)
+				local rcz = z2 - dz * (pillarW / 2 + shoulderLen / 2)
+				buildWallPiece(rcx, rcz, shoulderLen, segAngle, "FrontR")
+			end
+		else
+			local segLen = fullLen - pillarW + 0.1
+			buildWallPiece(cx, cz, segLen, segAngle, tostring(i))
+		end
 	end
 
 	-- ── Detailed red bleachers (5 tiers, individual seat backs, aisles) ─────
@@ -6824,23 +6843,6 @@ local function createConceptTestStadium(parent, position)
 			CFrame = baseCFrame * CFrame.new(stepX + stepDepth / 2, stepHeight + 0.08, 0),
 		}, model)
 	end
-
-	-- ── Floating "TEST" billboard above the arch ────────────────────────────
-	local labelAnchor = make("Part", {
-		Anchored = true, CanCollide = false, Transparency = 1,
-		Size = Vector3.new(1, 1, 1),
-		CFrame = baseCFrame * CFrame.new(archX, archHeight + 12, 0),
-	}, model)
-	local bb = make("BillboardGui", {
-		Size = UDim2.fromOffset(420, 90), AlwaysOnTop = true, LightInfluence = 0,
-	}, labelAnchor)
-	make("TextLabel", {
-		BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
-		Text = "🚧 CONCEPT TEST BASE 🚧",
-		TextColor3 = goldHot,
-		TextStrokeColor3 = Color3.fromRGB(0, 0, 0), TextStrokeTransparency = 0.2,
-		TextScaled = true, Font = Enum.Font.GothamBlack,
-	}, bb)
 
 	return model
 end
