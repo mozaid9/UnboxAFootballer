@@ -6541,7 +6541,7 @@ local function createConceptTestStadium(parent, position)
 		local rows = 5
 		local rowDepth = 2.6
 		local rowRise = 1.5
-		local rowWidth = pitchW + 6
+		local rowWidth = pitchW - 4   -- narrower so they don't poke through corner walls
 		local startZ = zSignParam * (pitchD / 2 + 9)
 		-- Dark underside support structure (extends across the full bleacher footprint)
 		make("Part", {
@@ -6563,9 +6563,9 @@ local function createConceptTestStadium(parent, position)
 				}, bleacherFolder)
 			end
 		end
-		-- Backing wall behind the stands (rises tall behind the top row, FLUSH so no gap)
+		-- Backing wall pushed RIGHT against the top row (no gap, no falling through)
 		local topRowZ = startZ + zSignParam * ((rows - 1) * rowDepth + rowDepth / 2)
-		local backWallZ = topRowZ + zSignParam * (rowDepth / 2 + 0.4)  -- flush against top row
+		local backWallZ = topRowZ + zSignParam * (rowDepth / 2 + 0.4)
 		local backWallY = floorH + 0.6 + rows * rowRise / 2 + 2
 		local backWallH = rows * rowRise + 4
 		make("Part", {
@@ -6574,13 +6574,16 @@ local function createConceptTestStadium(parent, position)
 			Size = Vector3.new(rowWidth + 1, backWallH, 0.8),
 			CFrame = baseCFrame * CFrame.new(0, backWallY, backWallZ),
 		}, bleacherFolder)
-		-- Top deck: a flat surface filling the gap behind the top row up to the back wall
-		-- so players can't fall between the seats and the wall.
+		-- Solid filler block: covers the entire space from the top of the top row
+		-- to the back wall AND seals downward so nothing can drop through.
+		local fillerDepth = rowDepth + 1.4
+		local fillerY = floorH + 0.6 + rows * rowRise / 2  -- mid-height of bleacher stack
+		local fillerH = rows * rowRise                       -- full bleacher height
 		make("Part", {
 			Anchored = true, CanCollide = true,
 			Material = Enum.Material.SmoothPlastic, Color = stoneDark,
-			Size = Vector3.new(rowWidth, 0.4, rowDepth + 0.4),
-			CFrame = baseCFrame * CFrame.new(0, floorH + 0.6 + rows * rowRise + 0.2, topRowZ + zSignParam * (rowDepth / 2 + 0.2)),
+			Size = Vector3.new(rowWidth, fillerH, fillerDepth),
+			CFrame = baseCFrame * CFrame.new(0, fillerY, topRowZ + zSignParam * (fillerDepth / 2)),
 		}, bleacherFolder)
 		-- Subtle gold cap on the backing wall
 		make("Part", {
@@ -6691,17 +6694,10 @@ local function createConceptTestStadium(parent, position)
 			}, model)
 		end
 	end
-	-- Single small flat octagonal pad
+	-- Single small flat octagonal pad (no glow at all)
 	octRing(5.5, 0.6, podiumY + 0.3, stoneMid, Enum.Material.Slate)
-	-- Sharp gold trim around the pad edge (no glow — just architectural)
-	octRing(5.6, 0.1, podiumY + 0.65, goldCol, Enum.Material.SmoothPlastic, 0)
-	-- Very soft red underglow halo plate (much dimmer than before)
-	make("Part", {
-		Anchored = true, CanCollide = false, Shape = Enum.PartType.Cylinder,
-		Material = Enum.Material.Neon, Color = Color3.fromRGB(180, 60, 30), Transparency = 0.88,
-		Size = Vector3.new(0.18, 11, 11),
-		CFrame = baseCFrame * CFrame.new(0, floorH + 0.13, 0) * CFrame.Angles(0, 0, math.rad(90)),
-	}, model)
+	-- Sharp dark gold trim around the pad edge (no glow — just architectural)
+	octRing(5.6, 0.08, podiumY + 0.65, Color3.fromRGB(140, 102, 28), Enum.Material.SmoothPlastic, 0)
 	-- ── Proper FOOTBALLER PACK monolith (rectangular black/gold card box) ──
 	local packBaseY = podiumY + 0.6
 	local packW, packH, packD = 4.6, 9.5, 1.4   -- tall, narrow, like a card pack
@@ -6782,22 +6778,8 @@ local function createConceptTestStadium(parent, position)
 			TextScaled = true, Font = Enum.Font.GothamBlack,
 		}, packGui)
 	end
-	-- Subtle warm light from the pack (focal point — but not blinding)
-	make("PointLight", { Brightness = 1.6, Range = 22, Color = Color3.fromRGB(255, 200, 120) }, packPillar)
-	-- Soft red/orange focal underglow at the top platform around the pack
-	make("Part", {
-		Anchored = true, CanCollide = false, Shape = Enum.PartType.Cylinder,
-		Material = Enum.Material.Neon, Color = Color3.fromRGB(220, 90, 40), Transparency = 0.7,
-		Size = Vector3.new(0.18, 8, 8),
-		CFrame = baseCFrame * CFrame.new(0, packBaseY - 0.05, 0) * CFrame.Angles(0, 0, math.rad(90)),
-	}, model)
-	-- Ground-level red halo plate beneath podium (much softer)
-	make("Part", {
-		Anchored = true, CanCollide = false, Shape = Enum.PartType.Cylinder,
-		Material = Enum.Material.Neon, Color = Color3.fromRGB(220, 90, 50), Transparency = 0.78,
-		Size = Vector3.new(0.18, 18, 18),
-		CFrame = baseCFrame * CFrame.new(0, floorH + 0.12, 0) * CFrame.Angles(0, 0, math.rad(90)),
-	}, model)
+	-- Subtle warm light from the pack (very dim — just enough to feel important)
+	make("PointLight", { Brightness = 0.8, Range = 14, Color = Color3.fromRGB(255, 200, 120) }, packPillar)
 	-- 4 SpotLights aimed at the central pack from above (drama lighting)
 	for _, dx in ipairs({-1, 1}) do
 		for _, dz in ipairs({-1, 1}) do
@@ -6816,133 +6798,74 @@ local function createConceptTestStadium(parent, position)
 		end
 	end
 
-	-- ── Card display podiums spread out around the pitch perimeter (bigger) ─
-	-- 8 slots: 3 along each long side + 2 along the back. More spread, larger pedestals.
+	-- ── Card display slots: simple cubic style, north + south sides only ───
+	-- Placed along the long sides of the pitch (away from entrance to avoid
+	-- blocking the player walking in). 6 slots total, 3 per side.
 	local slotPositions = {
-		-- West (back) side of pitch — 3 slots
-		{ x = -pitchW / 2 - 4, z = -pitchD / 3,    dir = Vector3.new(1, 0, 0) },
-		{ x = -pitchW / 2 - 4, z =  0,             dir = Vector3.new(1, 0, 0) },
-		{ x = -pitchW / 2 - 4, z =  pitchD / 3,    dir = Vector3.new(1, 0, 0) },
-		-- East (front) side of pitch — 3 slots
-		{ x =  pitchW / 2 + 4, z = -pitchD / 3,    dir = Vector3.new(-1, 0, 0) },
-		{ x =  pitchW / 2 + 4, z =  0,             dir = Vector3.new(-1, 0, 0) },
-		{ x =  pitchW / 2 + 4, z =  pitchD / 3,    dir = Vector3.new(-1, 0, 0) },
-		-- North (long) side of pitch — 1 slot center
-		{ x = 0, z = -pitchD / 2 - 4,              dir = Vector3.new(0, 0, 1) },
-		-- South (long) side of pitch — 1 slot center
-		{ x = 0, z =  pitchD / 2 + 4,              dir = Vector3.new(0, 0, -1) },
+		-- North side (z negative) — 3 slots evenly spaced
+		{ x = -pitchW / 3, z = -pitchD / 2 + 2.5, dir = Vector3.new(0, 0, 1) },
+		{ x = 0,           z = -pitchD / 2 + 2.5, dir = Vector3.new(0, 0, 1) },
+		{ x =  pitchW / 3, z = -pitchD / 2 + 2.5, dir = Vector3.new(0, 0, 1) },
+		-- South side (z positive) — 3 slots evenly spaced
+		{ x = -pitchW / 3, z =  pitchD / 2 - 2.5, dir = Vector3.new(0, 0, -1) },
+		{ x = 0,           z =  pitchD / 2 - 2.5, dir = Vector3.new(0, 0, -1) },
+		{ x =  pitchW / 3, z =  pitchD / 2 - 2.5, dir = Vector3.new(0, 0, -1) },
 	}
-	for slotI, slot in ipairs(slotPositions) do
-		local sx, sz = slot.x, slot.z
-		local slotYaw = math.atan2(slot.dir.X, slot.dir.Z)
-		-- Slot bay: bigger, more imposing framed alcove
-		local bayCFrame = baseCFrame * CFrame.new(sx, floorH + 5, sz) * CFrame.Angles(0, slotYaw, 0)
-		-- Backing wall (taller, wider)
+	for slotI, _slot in ipairs(slotPositions) do
+		local sx, sz = _slot.x, _slot.z
+		-- Cubic dark base (low-profile, like the original game's slots)
 		make("Part", {
-			Name = "SlotBay" .. slotI .. "Back", Anchored = true, CanCollide = false,
-			Material = Enum.Material.Slate, Color = stoneDark,
-			Size = Vector3.new(7, 10, 0.5),
-			CFrame = bayCFrame * CFrame.new(0, 0, 0.7),
-		}, model)
-		-- Bay side jambs
-		for _, sxJamb in ipairs({-3.4, 3.4}) do
-			make("Part", {
-				Anchored = true, CanCollide = false,
-				Material = Enum.Material.Slate, Color = Color3.fromRGB(50, 56, 68),
-				Size = Vector3.new(0.6, 9.4, 1.4),
-				CFrame = bayCFrame * CFrame.new(sxJamb, 0, 0.3),
-			}, model)
-		end
-		-- Bay top header
-		make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Slate, Color = stoneDark,
-			Size = Vector3.new(7.4, 0.9, 1.6),
-			CFrame = bayCFrame * CFrame.new(0, 4.7, 0.3),
-		}, model)
-		-- Sharp gold trim on the bay header
-		make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.4,
-			Size = Vector3.new(7.4, 0.2, 1.62),
-			CFrame = bayCFrame * CFrame.new(0, 5.2, 0.3),
-		}, model)
-		-- Thick layered base (bigger)
-		make("Part", {
-			Anchored = true, CanCollide = true,
-			Material = Enum.Material.Slate, Color = stoneDark,
-			Size = Vector3.new(4.4, 1.6, 4.4),
+			Name = "Slot" .. slotI .. "Base", Anchored = true, CanCollide = true,
+			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(20, 24, 32),
+			Size = Vector3.new(3.2, 1.6, 3.2),
 			CFrame = baseCFrame * CFrame.new(sx, floorH + 0.8, sz),
 		}, model)
+		-- Gold pad on top (the card slot itself)
 		make("Part", {
-			Anchored = true, CanCollide = true,
-			Material = Enum.Material.Slate, Color = stoneMid,
-			Size = Vector3.new(3.6, 0.8, 3.6),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 2, sz),
+			Name = "Slot" .. slotI .. "Pad", Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.18,
+			Size = Vector3.new(2.4, 0.16, 2.4),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + 1.7, sz),
 		}, model)
-		-- Gold trim ring at top of base
-		make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.3,
-			Size = Vector3.new(3.85, 0.18, 3.85),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 2.45, sz),
+		-- Sharp gold border trim around the pad (architectural edge, no glow)
+		for _, sxBorder in ipairs({-1, 1}) do
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.SmoothPlastic, Color = goldCol,
+				Size = Vector3.new(0.18, 0.22, 2.6),
+				CFrame = baseCFrame * CFrame.new(sx + sxBorder * 1.21, floorH + 1.72, sz),
+			}, model)
+		end
+		for _, szBorder in ipairs({-1, 1}) do
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.SmoothPlastic, Color = goldCol,
+				Size = Vector3.new(2.6, 0.22, 0.18),
+				CFrame = baseCFrame * CFrame.new(sx, floorH + 1.72, sz + szBorder * 1.21),
+			}, model)
+		end
+	end
+	-- Slot number labels (BillboardGui above each slot)
+	for slotI, _slot in ipairs(slotPositions) do
+		local sx, sz = _slot.x, _slot.z
+		-- Number label anchor (BillboardGui shows from above for readability)
+		local labelAnchor = make("Part", {
+			Anchored = true, CanCollide = false, Transparency = 1,
+			Size = Vector3.new(1, 1, 1),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + 2.6, sz),
 		}, model)
-		-- Bright green neon underglow plate (bigger)
-		make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = Color3.fromRGB(40, 230, 90), Transparency = 0.32,
-			Size = Vector3.new(5.4, 0.18, 5.4),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 0.13, sz),
-		}, model)
-		-- Tall vertical card display (bigger)
-		local cardYaw = math.atan2(slot.dir.X, slot.dir.Z)
-		local cardCol = make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(18, 20, 28),
-			Size = Vector3.new(3, 6.8, 0.5),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 2.45 + 3.4, sz) * CFrame.Angles(0, cardYaw, 0),
-		}, model)
-		-- Gold trim around card
-		make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.3,
-			Size = Vector3.new(3.4, 7.2, 0.18),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 2.45 + 3.4, sz)
-				* CFrame.Angles(0, cardYaw, 0)
-				* CFrame.new(0, 0, 0.22),
-		}, model)
-		-- Slot number on the pitch-facing side
-		local numGui = make("SurfaceGui", {
-			Face = Enum.NormalId.Front,
-			LightInfluence = 0, PixelsPerStud = 80,
-		}, cardCol)
+		local labelBB = make("BillboardGui", {
+			Size = UDim2.fromOffset(60, 60),
+			AlwaysOnTop = false, LightInfluence = 0,
+			MaxDistance = 60,
+		}, labelAnchor)
 		make("TextLabel", {
-			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(0.9, 0.18),
-			Position = UDim2.fromScale(0.05, 0.78),
+			BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
 			Text = tostring(slotI),
 			TextColor3 = goldHot,
-			TextStrokeColor3 = Color3.fromRGB(0, 0, 0), TextStrokeTransparency = 0.3,
+			TextStrokeColor3 = Color3.fromRGB(0, 0, 0), TextStrokeTransparency = 0.4,
 			TextScaled = true, Font = Enum.Font.GothamBlack,
-		}, numGui)
-		-- Dedicated spotlight aimed at each card from above
-		local spotAnchor = make("Part", {
-			Anchored = true, CanCollide = false, Transparency = 1,
-			Size = Vector3.new(1, 1, 1),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 14, sz),
-		}, model)
-		make("SpotLight", {
-			Brightness = 3, Range = 18, Angle = 60,
-			Face = Enum.NormalId.Bottom,
-			Color = goldHot,
-		}, spotAnchor)
-		-- PointLight under each card for green ambient glow
-		local underAnchor = make("Part", {
-			Anchored = true, CanCollide = false, Transparency = 1,
-			Size = Vector3.new(1, 1, 1),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 0.6, sz),
-		}, model)
-		make("PointLight", { Brightness = 1.4, Range = 9, Color = Color3.fromRGB(60, 230, 110) }, underAnchor)
+		}, labelBB)
 	end
 
 	-- ── Tunnel-style entrance: thicker frame, side columns, recessed depth ──
