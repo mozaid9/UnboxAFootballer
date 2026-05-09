@@ -6392,7 +6392,7 @@ local function createConceptTestStadium(parent, position)
 		}, model)
 	end
 
-	-- ── Layered red bleachers (5 tiers, dark underside, aisles) ─────────────
+	-- ── Detailed red bleachers (5 tiers, individual seat backs, aisles) ─────
 	local function buildBleacherSide(zSignParam)
 		local bleacherFolder = make("Folder", { Name = "Bleachers" .. (zSignParam > 0 and "South" or "North") }, model)
 		local rows = 5
@@ -6412,12 +6412,32 @@ local function createConceptTestStadium(parent, position)
 			local y = floorH + 0.6 + (r - 1) * rowRise + h / 2
 			local zPos = startZ + zSignParam * ((r - 1) * rowDepth + rowDepth / 2)
 			local color = (r % 2 == 0) and redSeatLo or redSeat
+			-- Main seat row block
 			make("Part", {
 				Anchored = true, CanCollide = true,
 				Material = Enum.Material.SmoothPlastic, Color = color,
 				Size = Vector3.new(rowWidth, h, rowDepth),
 				CFrame = baseCFrame * CFrame.new(0, y, zPos),
 			}, bleacherFolder)
+			-- Seat back: thin vertical lip at the back of each row (gives visible 3D depth)
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.SmoothPlastic, Color = redSeatLo,
+				Size = Vector3.new(rowWidth, 0.6, 0.2),
+				CFrame = baseCFrame * CFrame.new(0, y + h / 2 + 0.3, zPos + zSignParam * (rowDepth / 2 - 0.1)),
+			}, bleacherFolder)
+			-- Individual seat dividers along the row (every 2.4 studs)
+			local divCount = math.floor(rowWidth / 2.4)
+			local divSpacing = rowWidth / divCount
+			for d = 0, divCount do
+				local divX = -rowWidth / 2 + d * divSpacing
+				make("Part", {
+					Anchored = true, CanCollide = false,
+					Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(70, 12, 12),
+					Size = Vector3.new(0.18, 0.7, rowDepth - 0.2),
+					CFrame = baseCFrame * CFrame.new(divX, y + h / 2 - 0.05, zPos),
+				}, bleacherFolder)
+			end
 			-- Gold trim along front edge of seat row
 			make("Part", {
 				Anchored = true, CanCollide = false,
@@ -6426,7 +6446,7 @@ local function createConceptTestStadium(parent, position)
 				CFrame = baseCFrame * CFrame.new(0, y + h / 2 + 0.08, zPos - zSignParam * rowDepth / 2),
 			}, bleacherFolder)
 		end
-		-- Side staircase access (a little block staircase at each end)
+		-- Side staircase access (light-coloured stair blocks at each end)
 		for _, sx in ipairs({-rowWidth / 2 + 1, rowWidth / 2 - 1}) do
 			for r = 1, rows do
 				local h = rowRise
@@ -6437,6 +6457,13 @@ local function createConceptTestStadium(parent, position)
 					Material = Enum.Material.SmoothPlastic, Color = stoneLite,
 					Size = Vector3.new(1.6, h, rowDepth - 0.2),
 					CFrame = baseCFrame * CFrame.new(sx, y, zPos),
+				}, bleacherFolder)
+				-- Gold rail along stairs
+				make("Part", {
+					Anchored = true, CanCollide = false,
+					Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.3,
+					Size = Vector3.new(0.16, 0.16, rowDepth - 0.2),
+					CFrame = baseCFrame * CFrame.new(sx, y + h / 2 + 0.1, zPos),
 				}, bleacherFolder)
 			end
 		end
@@ -6493,38 +6520,66 @@ local function createConceptTestStadium(parent, position)
 	}, model)
 	-- Pack pillar light
 	make("PointLight", { Brightness = 2, Range = 22, Color = Color3.fromRGB(255, 100, 60) }, packPillar)
-	-- 4 card slot pedestals (2 per side) with green glow
+	-- 4 premium card display columns (2 per side) — tall display cases
 	local slotXs = { -7.5, -3, 3, 7.5 }
 	for slotI, sx in ipairs(slotXs) do
-		-- Slot base
+		local pedTopY = podiumY + 2.3
+		-- Hex-feel chunky stone pedestal
 		make("Part", {
 			Anchored = true, CanCollide = true,
-			Material = Enum.Material.SmoothPlastic, Color = stoneLite,
-			Size = Vector3.new(2.4, 0.6, 2.4),
-			CFrame = baseCFrame * CFrame.new(sx, podiumY + 2.3, 0),
+			Material = Enum.Material.Slate, Color = stoneDark,
+			Size = Vector3.new(2.6, 1.4, 2.6),
+			CFrame = baseCFrame * CFrame.new(sx, pedTopY - 0.7, 0),
 		}, model)
-		-- Green underglow plate
+		-- Stone trim ring at top of pedestal
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = Color3.fromRGB(40, 230, 90), Transparency = 0.4,
-			Size = Vector3.new(2.7, 0.14, 2.7),
-			CFrame = baseCFrame * CFrame.new(sx, podiumY + 2.05, 0),
+			Material = Enum.Material.SmoothPlastic, Color = stoneLite,
+			Size = Vector3.new(2.85, 0.18, 2.85),
+			CFrame = baseCFrame * CFrame.new(sx, pedTopY - 0.05, 0),
 		}, model)
-		-- Slot number BillboardGui
-		local slotNumAnchor = make("Part", {
-			Anchored = true, CanCollide = false, Transparency = 1,
-			Size = Vector3.new(1, 1, 1),
-			CFrame = baseCFrame * CFrame.new(sx, podiumY + 2.7, 0),
+		-- Bright green underglow ring beneath the pedestal
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = Color3.fromRGB(40, 230, 90), Transparency = 0.32,
+			Size = Vector3.new(3.4, 0.18, 3.4),
+			CFrame = baseCFrame * CFrame.new(sx, podiumY + 1.32, 0),
 		}, model)
-		local nbb = make("BillboardGui", {
-			Size = UDim2.fromOffset(80, 80), AlwaysOnTop = false, LightInfluence = 0,
-		}, slotNumAnchor)
+		-- Tall vertical display "card" column (placeholder for the player card)
+		local cardCol = make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(20, 22, 30),
+			Size = Vector3.new(1.8, 4.6, 0.4),
+			CFrame = baseCFrame * CFrame.new(sx, pedTopY + 2.4, 0),
+		}, model)
+		-- Gold trim around the card
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.25,
+			Size = Vector3.new(2.1, 4.9, 0.16),
+			CFrame = baseCFrame * CFrame.new(sx, pedTopY + 2.4, -0.16),
+		}, model)
+		-- Slot number on the front face of the card column
+		local numGui = make("SurfaceGui", {
+			Face = Enum.NormalId.Back,
+			LightInfluence = 0, PixelsPerStud = 80,
+		}, cardCol)
 		make("TextLabel", {
-			BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
-			Text = tostring(slotI), TextColor3 = goldHot,
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(0.9, 0.18),
+			Position = UDim2.fromScale(0.05, 0.78),
+			Text = tostring(slotI),
+			TextColor3 = goldHot,
 			TextStrokeColor3 = Color3.fromRGB(0, 0, 0), TextStrokeTransparency = 0.3,
 			TextScaled = true, Font = Enum.Font.GothamBlack,
-		}, nbb)
+		}, numGui)
+		-- PointLight under each card for glow effect
+		local underAnchor = make("Part", {
+			Anchored = true, CanCollide = false, Transparency = 1,
+			Size = Vector3.new(1, 1, 1),
+			CFrame = baseCFrame * CFrame.new(sx, podiumY + 1.4, 0),
+		}, model)
+		make("PointLight", { Brightness = 1.6, Range = 8, Color = Color3.fromRGB(60, 230, 110) }, underAnchor)
 	end
 
 	-- ── Tunnel-style entrance: thicker frame, side columns, recessed depth ──
@@ -6585,9 +6640,9 @@ local function createConceptTestStadium(parent, position)
 		Size = Vector3.new(frameW * 2 + 0.3, 0.3, archWidth + frameW * 2 + 0.3),
 		CFrame = baseCFrame * CFrame.new(archX, archHeight + 2.3 + 2.55, 0),
 	}, model)
-	-- "ZAID'S STADIUM" big sign on outward face
+	-- "ZAID'S STADIUM" big sign on outward face (the +X face, NormalId.Right)
 	local archGui = make("SurfaceGui", {
-		Name = "ArchSign", Face = Enum.NormalId.Front,
+		Name = "ArchSign", Face = Enum.NormalId.Right,
 		LightInfluence = 0, PixelsPerStud = 70,
 	}, archBeam)
 	make("TextLabel", {
@@ -6628,50 +6683,19 @@ local function createConceptTestStadium(parent, position)
 		CFrame = baseCFrame * CFrame.new(archX, archHeight - 0.3, 0),
 	}, model)
 
-	-- ── 4 corner floodlight poles ───────────────────────────────────────────
+	-- ── 4 corner floodlight poles (imported asset model, same as main bases) ─
+	local testFloodlightOptions = {
+		poleHeight = 27, modelHeight = 29, range = 72, angle = 50,
+		brightness = 1.6, fillRange = 22, fillBrightness = 0.14,
+	}
 	for _, dx in ipairs({-1, 1}) do
 		for _, dz in ipairs({-1, 1}) do
 			local px = dx * (size / 2 + 4)
 			local pz = dz * (size / 2 + 4)
-			-- Pole base
-			make("Part", {
-				Anchored = true, CanCollide = true,
-				Material = Enum.Material.Concrete, Color = stoneDark,
-				Size = Vector3.new(3.4, 1.6, 3.4),
-				CFrame = baseCFrame * CFrame.new(px, floorH + 0.8, pz),
-			}, model)
-			-- Pole
-			make("Part", {
-				Anchored = true, CanCollide = true,
-				Material = Enum.Material.Metal, Color = Color3.fromRGB(45, 50, 60),
-				Size = Vector3.new(1.2, 30, 1.2),
-				CFrame = baseCFrame * CFrame.new(px, floorH + 16.4, pz),
-			}, model)
-			local headPos = baseCFrame * CFrame.new(px - dx * 1.2, floorH + 31.2, pz - dz * 1.2)
-			-- Head bracket
-			make("Part", {
-				Anchored = true, CanCollide = false,
-				Material = Enum.Material.Metal, Color = Color3.fromRGB(60, 65, 75),
-				Size = Vector3.new(4, 1.8, 3),
-				CFrame = headPos,
-			}, model)
-			-- Light panel (neon)
-			make("Part", {
-				Anchored = true, CanCollide = false,
-				Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 240, 210),
-				Size = Vector3.new(3.6, 0.5, 2.5),
-				CFrame = headPos * CFrame.new(0, -1.05, 0),
-			}, model)
-			-- Aimed spotlight
-			local lightAnchor = make("Part", {
-				Anchored = true, CanCollide = false, Transparency = 1,
-				Size = Vector3.new(1, 1, 1), CFrame = headPos * CFrame.new(0, -1.5, 0),
-			}, model)
-			make("SpotLight", {
-				Brightness = 5, Range = 80, Angle = 80,
-				Face = Enum.NormalId.Bottom,
-				Color = Color3.fromRGB(255, 240, 210),
-			}, lightAnchor)
+			createFloodlightRig(model, "TestFloodlight" .. (dx > 0 and "E" or "W") .. (dz > 0 and "S" or "N"),
+				position + Vector3.new(px, 0, pz),
+				position + Vector3.new(0, 6, 0),
+				testFloodlightOptions)
 		end
 	end
 
