@@ -6542,7 +6542,7 @@ local function createConceptTestStadium(parent, position)
 		local rowDepth = 2.6
 		local rowRise = 1.5
 		local rowWidth = pitchW + 6
-		local startZ = zSignParam * (pitchD / 2 + 5)
+		local startZ = zSignParam * (pitchD / 2 + 9)
 		-- Dark underside support structure (extends across the full bleacher footprint)
 		make("Part", {
 			Anchored = true, CanCollide = true,
@@ -6659,10 +6659,10 @@ local function createConceptTestStadium(parent, position)
 	buildBleacherSide(-1) -- North
 	buildBleacherSide( 1) -- South
 
-	-- ── Central octagonal pack-opening podium (the dominating focal point) ──
-	-- Bigger, taller, more layered — the centre should visually own the stadium.
-	local podiumY = floorH + 0.5
-	-- Build octagonal podium ring helper
+	-- ── Central pack-opening pad (flat, simple, like the original base) ────
+	-- Just a small octagonal pad in the centre with the FOOTBALLER PACK on top.
+	-- No more layered pyramid — keep it clean and let the pack itself be the focus.
+	local podiumY = floorH + 0.2
 	local function octRing(radius, height, yCenter, color, mat, transparency)
 		for i = 0, 7 do
 			local a1 = (i / 8) * math.pi * 2
@@ -6681,35 +6681,19 @@ local function createConceptTestStadium(parent, position)
 			}, model)
 		end
 	end
-	-- 5 layered octagonal steps — wider and taller (was 3 layers)
-	octRing(11.5, 1.4, podiumY + 0.7, stoneMid,  Enum.Material.Slate)
-	octRing(9.6,  1.4, podiumY + 2.1, stoneLite, Enum.Material.Slate)
-	octRing(7.8,  1.4, podiumY + 3.5, stoneMid,  Enum.Material.Slate)
-	octRing(6.0,  1.4, podiumY + 4.9, stoneLite, Enum.Material.Slate)
-	octRing(4.4,  1.2, podiumY + 6.2, stoneDark, Enum.Material.Slate)
-	-- Subtle gold edge trim on each step (only the EDGES glow, structure stays dark)
-	octRing(11.6, 0.16, podiumY + 1.45, goldCol, Enum.Material.Neon, 0.45)
-	octRing(9.7,  0.16, podiumY + 2.85, goldCol, Enum.Material.Neon, 0.45)
-	octRing(7.9,  0.16, podiumY + 4.25, goldCol, Enum.Material.Neon, 0.4)
-	octRing(6.1,  0.16, podiumY + 5.65, goldCol, Enum.Material.Neon, 0.35)
-	octRing(4.5,  0.16, podiumY + 6.85, goldCol, Enum.Material.Neon, 0.3)
-	-- Dark gold step accent layers between trims (architectural depth, no glow)
-	octRing(11.5, 0.2, podiumY + 1.6, Color3.fromRGB(110, 84, 26), Enum.Material.SmoothPlastic, 0)
-	octRing(9.6,  0.2, podiumY + 3.0, Color3.fromRGB(110, 84, 26), Enum.Material.SmoothPlastic, 0)
-	octRing(7.8,  0.2, podiumY + 4.4, Color3.fromRGB(110, 84, 26), Enum.Material.SmoothPlastic, 0)
-	-- Focal red underglow ring beneath podium (toned down)
-	octRing(13, 0.14, floorH + 0.18, Color3.fromRGB(220, 80, 30), Enum.Material.Neon, 0.5)
-	-- Wider, much softer halo
-	octRing(15, 0.08, floorH + 0.15, Color3.fromRGB(200, 100, 50), Enum.Material.Neon, 0.78)
-	-- Top platform disc
+	-- Single small flat octagonal pad
+	octRing(5.5, 0.6, podiumY + 0.3, stoneMid, Enum.Material.Slate)
+	-- Subtle gold trim around the pad edge (sharp, not glowing)
+	octRing(5.6, 0.12, podiumY + 0.65, goldCol, Enum.Material.Neon, 0.5)
+	-- Soft red underglow halo plate beneath the pad (focal hint)
 	make("Part", {
-		Anchored = true, CanCollide = true, Shape = Enum.PartType.Cylinder,
-		Material = Enum.Material.Slate, Color = stoneDark,
-		Size = Vector3.new(0.8, 8.4, 8.4),
-		CFrame = baseCFrame * CFrame.new(0, podiumY + 7.4, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Anchored = true, CanCollide = false, Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Neon, Color = Color3.fromRGB(220, 80, 40), Transparency = 0.78,
+		Size = Vector3.new(0.18, 14, 14),
+		CFrame = baseCFrame * CFrame.new(0, floorH + 0.13, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, model)
 	-- ── Proper FOOTBALLER PACK monolith (rectangular black/gold card box) ──
-	local packBaseY = podiumY + 7.8
+	local packBaseY = podiumY + 0.6
 	local packW, packH, packD = 4.6, 9.5, 1.4   -- tall, narrow, like a card pack
 	local packPillar = make("Part", {
 		Name = "FootballerPackMonolith", Anchored = true, CanCollide = true,
@@ -6804,17 +6788,18 @@ local function createConceptTestStadium(parent, position)
 		Size = Vector3.new(0.18, 18, 18),
 		CFrame = baseCFrame * CFrame.new(0, floorH + 0.12, 0) * CFrame.Angles(0, 0, math.rad(90)),
 	}, model)
-	-- 4 SpotLights aimed inward at the podium from above (drama lighting)
+	-- 4 SpotLights aimed at the central pack from above (drama lighting)
 	for _, dx in ipairs({-1, 1}) do
 		for _, dz in ipairs({-1, 1}) do
+			local saPos = (baseCFrame * CFrame.new(dx * 12, floorH + 16, dz * 10)).Position
+			local packPos = (baseCFrame * CFrame.new(0, packBaseY + packH / 2, 0)).Position
 			local sa = make("Part", {
 				Anchored = true, CanCollide = false, Transparency = 1,
 				Size = Vector3.new(1, 1, 1),
-				CFrame = baseCFrame * CFrame.new(dx * 14, floorH + 18, dz * 12)
-					* CFrame.Angles(math.rad(-60) * dz, 0, math.rad(40) * dx),
+				CFrame = CFrame.lookAt(saPos, packPos),
 			}, model)
 			make("SpotLight", {
-				Brightness = 4, Range = 32, Angle = 45,
+				Brightness = 3, Range = 28, Angle = 50,
 				Face = Enum.NormalId.Front,
 				Color = Color3.fromRGB(255, 220, 160),
 			}, sa)
@@ -7128,11 +7113,10 @@ local function createConceptTestStadium(parent, position)
 				CFrame = baseCFrame * CFrame.new(px + armDX / 2, floorH + 2.1 + floodPoleHeight + 0.5, pz + armDZ / 2),
 			}, model)
 			-- Big rectangular floodlight panel housing (the wide stadium-style head)
-			local headPos = baseCFrame * CFrame.new(px + armDX, floorH + 2.1 + floodPoleHeight + 0.3, pz + armDZ)
-			-- Aim toward arena center (compute yaw)
-			local toCenter = Vector3.new(-px - armDX, 0, -pz - armDZ)
-			local headYaw = math.atan2(toCenter.X, toCenter.Z)
-			local headCFrame = baseCFrame * CFrame.new(px + armDX, floorH + 2.1 + floodPoleHeight + 0.3, pz + armDZ) * CFrame.Angles(0, headYaw, 0) * CFrame.Angles(math.rad(-25), 0, 0)
+			-- Use CFrame.lookAt to GUARANTEE it points toward the centre, then tilt down.
+			local headWorldPos = (baseCFrame * CFrame.new(px + armDX, floorH + 2.1 + floodPoleHeight + 0.3, pz + armDZ)).Position
+			local centerWorldPos = (baseCFrame * CFrame.new(0, floorH + 6, 0)).Position
+			local headCFrame = CFrame.lookAt(headWorldPos, centerWorldPos) * CFrame.Angles(math.rad(15), 0, 0)
 			-- Housing frame (wide rectangle)
 			make("Part", {
 				Anchored = true, CanCollide = false,
