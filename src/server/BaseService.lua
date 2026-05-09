@@ -6447,7 +6447,7 @@ local function createConceptTestStadium(parent, position)
 			Size = Vector3.new(1, 1, 1),
 			CFrame = baseCFrame * CFrame.new(px, floorH + pillarH + 1, pz),
 		}, model)
-		make("PointLight", { Brightness = 0.6, Range = 12, Color = goldCol }, lightAnchor)
+		make("PointLight", { Brightness = 0.3, Range = 8, Color = goldCol }, lightAnchor)
 	end
 	-- Helper that builds one wall segment with structural depth (recessed layers,
 	-- inner ledge, support beam, embedded glow strip — but neon trim toned down)
@@ -6790,7 +6790,7 @@ local function createConceptTestStadium(parent, position)
 				CFrame = CFrame.lookAt(saPos, packPos),
 			}, model)
 			make("SpotLight", {
-				Brightness = 3, Range = 28, Angle = 50,
+				Brightness = 1.4, Range = 22, Angle = 50,
 				Face = Enum.NormalId.Front,
 				Color = Color3.fromRGB(255, 220, 160),
 			}, sa)
@@ -6832,12 +6832,28 @@ local function createConceptTestStadium(parent, position)
 			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH + 0.05, sz),
 		}, model)
 		-- Gold pad inside the recess (matte, not glowing)
-		make("Part", {
+		local slotPad = make("Part", {
 			Name = "Slot" .. slotI .. "Pad", Anchored = true, CanCollide = false,
 			Material = Enum.Material.SmoothPlastic, Color = goldCol,
 			Size = Vector3.new(2.5, 0.16, 2.5),
 			CFrame = baseCFrame * CFrame.new(sx, floorH + slotH + 0.06, sz),
 		}, model)
+		-- Number label on the pad's top surface (matches the original)
+		local padGui = make("SurfaceGui", {
+			Name = "SlotNum", Face = Enum.NormalId.Top,
+			LightInfluence = 1, PixelsPerStud = 80,
+		}, slotPad)
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(0.85, 0.85),
+			Position = UDim2.fromScale(0.075, 0.075),
+			Text = tostring(slotI),
+			TextColor3 = Color3.fromRGB(15, 18, 28),
+			TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
+			TextStrokeTransparency = 0.6,
+			TextScaled = true,
+			Font = Enum.Font.GothamBlack,
+		}, padGui)
 		-- Gold rim trim along the top edges of the cube (4 thin strips)
 		for _, sxRim in ipairs({-1, 1}) do
 			make("Part", {
@@ -7101,29 +7117,14 @@ local function createConceptTestStadium(parent, position)
 				CFrame = headCFrame * CFrame.new(0, 0, -1),
 			}, model)
 			make("SpotLight", {
-				Brightness = 5, Range = 130, Angle = 80,
+				Brightness = 2.2, Range = 90, Angle = 70,
 				Face = Enum.NormalId.Front,
 				Color = Color3.fromRGB(255, 245, 220),
 			}, lightAnchor)
 		end
 	end
 
-	-- ── Ground spotlights aimed at the podium ───────────────────────────────
-	for _, dz in ipairs({-1, 1}) do
-		local sx = -size / 2 + 14
-		local sz = dz * 14
-		local sa = make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.25,
-			Size = Vector3.new(1.4, 0.3, 1.4),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 0.16, sz),
-		}, model)
-		make("SpotLight", {
-			Brightness = 2.4, Range = 30, Angle = 60,
-			Face = Enum.NormalId.Top,
-			Color = goldHot,
-		}, sa)
-	end
+	-- (Removed ground spotlights aimed at podium — were over-illuminating the slots)
 
 	-- ── Decorative props: bushes, banners, benches ─────────────────────────
 	-- Bushes outside the entrance side
