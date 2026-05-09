@@ -192,10 +192,10 @@ Constants.MarketCeilingMultiplier = 5
 Constants.BaseLayout = {
 	MaxPlots = 6,
 	PlotsPerSide = 3,
-	SideOffset = 94,
-	StartZ = -104,
-	PlotSpacing = 104,
-	PlotSize = Vector3.new(56, 1, 44),
+	SideOffset = 165,
+	StartZ = -180,
+	PlotSpacing = 180,
+	PlotSize = Vector3.new(100, 1, 100),
 	FenceHeight = 4.5,
 	WallThickness = 1.2,
 	EntranceWidth = 16,
@@ -297,7 +297,7 @@ Constants.Rebirth = {
 	-- Display slots
 	BaseSlots      = 6,   -- every player starts with this many
 	SlotsPerRebirth = 1,  -- +1 slot per rebirth
-	MaxSlots       = 18,  -- hard cap; rebirth terrace supports 12 upper slots
+	MaxSlots       = 18,  -- hard cap; rebirth gallery supports 12 extra slots
 
 	MultiplierMilestones = {
 		{ tier = 0,  multiplier = 1   },

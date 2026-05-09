@@ -374,6 +374,15 @@ local function getPlotEntrancePoint(plot)
 	return Vector3.new(frontX, STANDING_PIVOT_HEIGHT, floorPosition.Z)
 end
 
+local function getPlotEntranceLanePoint(plot, laneZOffset)
+	local entrance = getPlotEntrancePoint(plot)
+	return Vector3.new(
+		entrance.X,
+		entrance.Y,
+		entrance.Z + math.clamp(laneZOffset or 0, -7.5, 7.5)
+	)
+end
+
 local function getPlotSeatPoint(plot)
 	local floorPosition = plot.floor.Position
 	local tier = STAND_TIERS[math.random(1, #STAND_TIERS)]
@@ -540,8 +549,9 @@ local function makeRoute(laneXOffset, laneZOffset)
 			local reservedSeat = type(BaseService.ReserveCrowdSeat) == "function" and BaseService.ReserveCrowdSeat(plot) or nil
 			-- Stadium sub-path: carry the NPC's 2-D lane offset into the approach point
 			local stadiumPathPoint = Vector3.new(laneXOffset, STANDING_PIVOT_HEIGHT, plot.floor.Position.Z + math.clamp(laneZOffset, -5.8, 5.8))
+			local entranceLanePoint = getPlotEntranceLanePoint(plot, laneZOffset)
 			table.insert(route, { position = jitterPosition(stadiumPathPoint, 2.8) })
-			table.insert(route, { position = jitterPosition(getPlotEntrancePoint(plot), 2.2), pause = math.random(2, 6) / 10 })
+			table.insert(route, { position = jitterPosition(entranceLanePoint, 3.4), pause = math.random(1, 3) / 10 })
 			if reservedSeat then
 				route.reservedSeat = reservedSeat
 				for _, routePoint in ipairs(reservedSeat.routePoints or {}) do
@@ -579,8 +589,8 @@ local function makeRoute(laneXOffset, laneZOffset)
 					})
 				end
 			end
-			table.insert(route, { position = jitterPosition(getPlotEntrancePoint(plot), 2.2), pause = 0.2 })
-			table.insert(route, { position = jitterPosition(stadiumPathPoint, 2.2) })
+			table.insert(route, { position = jitterPosition(entranceLanePoint, 3.6), pause = math.random(0, 1) == 1 and 0.05 or nil })
+			table.insert(route, { position = jitterPosition(stadiumPathPoint, 3.0) })
 		end
 	end
 
