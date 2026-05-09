@@ -3772,8 +3772,8 @@ local function setSlotPrompt(slot, actionText, objectText, enabled)
 end
 
 -- pedestalSizeZ: optional override for the pedestal's Z (depth) dimension.
--- Terrace slots pass 3 here so the pedestal is slender enough to leave a
--- clear 3-stud walkable aisle between every adjacent slot on the terrace.
+-- Rebirth gallery slots pass 3 here so the pedestal is slender enough to leave
+-- clean walkable space between adjacent slots.
 local function createDisplaySlot(parent, index, cframe, lookDirection, pedestalSizeZ)
 	local model = make("Model", {
 		Name = "DisplaySlot" .. index,
@@ -3850,30 +3850,42 @@ local function createDisplaySlot(parent, index, cframe, lookDirection, pedestalS
 		CFrame = base.CFrame + Vector3.new(0, topY + 0.07, 0),
 	}, model)
 
-	-- Slot number on the player-facing face. Ground slots face across Z; upper
-	-- terrace slots face across X toward the pitch.
+	-- Slot number on the player-facing face. Ground slots face across Z; rebirth
+	-- gallery slots face across X toward the pitch.
 	local numFace
 	if math.abs(lookDirection.X) > math.abs(lookDirection.Z) then
 		numFace = lookDirection.X > 0 and Enum.NormalId.Right or Enum.NormalId.Left
 	else
 		numFace = lookDirection.Z > 0 and Enum.NormalId.Back or Enum.NormalId.Front
 	end
-	local numGui = make("SurfaceGui", {
-		Name = "SlotNum",
-		Face = numFace,
-		AlwaysOnTop = false,
-		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
-		PixelsPerStud = 30,
-	}, base)
-	make("TextLabel", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
-		Text = tostring(index),
-		TextColor3 = Color3.fromRGB(255, 210, 60),
-		TextTransparency = 0.36,
-		TextScaled = true,
-		Font = Enum.Font.GothamBlack,
-	}, numGui)
+	local function attachSlotNumber(face)
+		local numGui = make("SurfaceGui", {
+			Name = "SlotNum_" .. tostring(face),
+			Face = face,
+			AlwaysOnTop = false,
+			SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+			PixelsPerStud = 30,
+		}, base)
+		make("TextLabel", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Text = tostring(index),
+			TextColor3 = Color3.fromRGB(255, 210, 60),
+			TextTransparency = 0.36,
+			TextScaled = true,
+			Font = Enum.Font.GothamBlack,
+		}, numGui)
+	end
+	attachSlotNumber(numFace)
+	if numFace == Enum.NormalId.Front then
+		attachSlotNumber(Enum.NormalId.Back)
+	elseif numFace == Enum.NormalId.Back then
+		attachSlotNumber(Enum.NormalId.Front)
+	elseif numFace == Enum.NormalId.Left then
+		attachSlotNumber(Enum.NormalId.Right)
+	else
+		attachSlotNumber(Enum.NormalId.Left)
+	end
 
 	local prompt = make("ProximityPrompt", {
 		Name = "SlotPrompt",
@@ -3903,39 +3915,36 @@ end
 
 -- ── Display-slot world offsets (local space, X scaled by facingDirection) ─────
 -- Slots 1-6  : base layout (every player starts with these)
--- Slots 7-18 : unlocked one-per-rebirth on the raised Rebirth Terrace.
+-- Slots 7-18 : unlocked one-per-rebirth on the back-wall Rebirth Gallery.
 -- Slot X values are multiplied by facingDirection later, so negative X means
 -- "toward the back wall" for both left- and right-side plots.
 local ALL_SLOT_OFFSETS = {
 	-- Ground floor (always present) — 2 rows of 3 across the pitch
-	Vector3.new(-12, 1.75, -14),  -- 1
-	Vector3.new(  0, 1.75, -14),  -- 2
-	Vector3.new( 12, 1.75, -14),  -- 3
-	Vector3.new(-12, 1.75,  14),  -- 4
-	Vector3.new(  0, 1.75,  14),  -- 5
-	Vector3.new( 12, 1.75,  14),  -- 6
-	-- Rebirth Terrace row 1 — 3 studs from the deck front edge (X=-19).
-	-- Pedestals are 3 studs deep (Z), spaced every 6 studs, giving a clear
-	-- 3-stud walkable aisle between every adjacent pedestal on the deck.
-	-- Outermost pedestal edge is at Z=±16.5; staircases are at Z=±20 (3.5-stud gap).
-	Vector3.new(-22, 17.75, -15), -- 7
-	Vector3.new(-22, 17.75,  -9), -- 8
-	Vector3.new(-22, 17.75,  -3), -- 9
-	Vector3.new(-22, 17.75,   3), -- 10
-	Vector3.new(-22, 17.75,   9), -- 11
-	Vector3.new(-22, 17.75,  15), -- 12
-	-- Rebirth Terrace row 2 — further back, same Z layout.
-	Vector3.new(-30, 17.75, -15), -- 13
-	Vector3.new(-30, 17.75,  -9), -- 14
-	Vector3.new(-30, 17.75,  -3), -- 15
-	Vector3.new(-30, 17.75,   3), -- 16
-	Vector3.new(-30, 17.75,   9), -- 17
-	Vector3.new(-30, 17.75,  15), -- 18
+	Vector3.new(-21.3, 2.75, -21),  -- 1
+	Vector3.new(  0.0, 2.75, -21),  -- 2
+	Vector3.new( 21.3, 2.75, -21),  -- 3
+	Vector3.new(-21.3, 2.75,  21),  -- 4
+	Vector3.new(  0.0, 2.75,  21),  -- 5
+	Vector3.new( 21.3, 2.75,  21),  -- 6
+	-- Rebirth Gallery row 1 — attached to the back wall, clear of seats.
+	Vector3.new(-36, 3.2, -25), -- 7
+	Vector3.new(-36, 3.2, -15), -- 8
+	Vector3.new(-36, 3.2,  -5), -- 9
+	Vector3.new(-36, 3.2,   5), -- 10
+	Vector3.new(-36, 3.2,  15), -- 11
+	Vector3.new(-36, 3.2,  25), -- 12
+	-- Rebirth Gallery row 2 — closer to the rear wall as the stadium grows.
+	Vector3.new(-44, 3.2, -25), -- 13
+	Vector3.new(-44, 3.2, -15), -- 14
+	Vector3.new(-44, 3.2,  -5), -- 15
+	Vector3.new(-44, 3.2,   5), -- 16
+	Vector3.new(-44, 3.2,  15), -- 17
+	Vector3.new(-44, 3.2,  25), -- 18
 }
 
-local function slotLookDir(localOffset, facingDirection)
-	if localOffset.Y > 5 then
-		-- Upper terrace cards face inward toward the pitch/entrance.
+local function slotLookDir(localOffset, facingDirection, slotIndex)
+	if slotIndex and slotIndex > layout.DisplaySlotCount then
+		-- Rebirth gallery cards face inward toward the pitch.
 		return Vector3.new(facingDirection, 0, 0)
 	end
 
@@ -3944,265 +3953,12 @@ local function slotLookDir(localOffset, facingDirection)
 	return localOffset.Z < 0 and Vector3.new(0, 0, 1) or Vector3.new(0, 0, -1)
 end
 
-local function createSecondFloorDisplayGallery(parent, baseCFrame, facingDirection)
-	local deckColor    = Color3.fromRGB(14, 19, 31)
-	local railColor    = Color3.fromRGB(26, 36, 54)
-	local supportColor = Color3.fromRGB(18, 26, 40)
-	local gold         = Color3.fromRGB(218, 168, 40)
-	local stepColor    = Color3.fromRGB(18, 24, 35)
-
-	-- Terrace shifted 5 studs toward the entrance (less negative X) so the deck
-	-- is visible and above the player rather than feeling overhead.
-	-- Pack pad is at local X = -16; terrace front edge is now at local X = -19.
-	local deckLocalY       = 15.72   -- centre; top surface = local Y 16.0
-	local deckCenterX      = (-28) * facingDirection
-	local deckSize         = Vector3.new(18, 0.56, 43)
-	local deckTopLocalY    = deckLocalY + (deckSize.Y / 2)    -- 16.0
-	local deckBottomLocalY = deckLocalY - (deckSize.Y / 2)    -- 15.44
-	local deckFrontLocalX  = (-19) * facingDirection           -- entrance-facing edge
-	local deckBackLocalX   = (-37) * facingDirection           -- back edge
-	local supportHeight    = deckBottomLocalY - 0.5
-	local supportCenterY   = 0.5 + (supportHeight / 2)
-
-	-- ── Deck platform ──────────────────────────────────────────────────────────
-	make("Part", {
-		Name = "RebirthTerraceDeck",
-		Anchored = true,
-		CanCollide = true,   -- walkable
-		CanQuery = true,
-		CanTouch = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = deckColor,
-		Size = deckSize,
-		CFrame = baseCFrame * CFrame.new(deckCenterX, deckLocalY, 0),
-	}, parent)
-
-	-- Gold Neon trim along the entrance-facing edge
-	make("Part", {
-		Name = "RebirthTerraceFrontGlow",
-		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-		Material = Enum.Material.Neon,
-		Color = gold, Transparency = 0.5,
-		Size = Vector3.new(0.18, 0.1, deckSize.Z - 2),
-		-- Offset toward the pitch so the trim reads as an outside edge, not an
-		-- embedded strip inside the deck surface.
-		CFrame = baseCFrame * CFrame.new(deckFrontLocalX + facingDirection * 0.16, deckTopLocalY + 0.08, 0),
-	}, parent)
-
-	-- Back guard-rail
-	make("Part", {
-		Name = "RebirthTerraceBackRail",
-		Anchored = true, CanCollide = true, CanQuery = true, CanTouch = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = railColor,
-		Size = Vector3.new(0.45, 1.25, deckSize.Z),
-		CFrame = baseCFrame * CFrame.new(deckBackLocalX, deckLocalY + 0.98, 0),
-	}, parent)
-
-	-- Side guard-rails (north & south edges)
-	for _, z in ipairs({ -21.8, 21.8 }) do
-		make("Part", {
-			Name = "RebirthTerraceSideRail",
-			Anchored = true, CanCollide = true, CanQuery = true, CanTouch = true,
-			Material = Enum.Material.SmoothPlastic,
-			Color = railColor,
-			Size = Vector3.new(deckSize.X, 1.1, 0.35),
-			CFrame = baseCFrame * CFrame.new(deckCenterX, deckLocalY + 0.92, z),
-		}, parent)
-	end
-
-	-- Support pillars — three columns × three Z rows, tucked behind the pack.
-	for _, x in ipairs({ -20, -28, -36 }) do
-		for _, z in ipairs({ -18, 0, 18 }) do
-			make("Part", {
-				Name = "RebirthTerraceSupport",
-				Anchored = true, CanCollide = true, CanQuery = true, CanTouch = true,
-				Material = Enum.Material.SmoothPlastic,
-				Color = supportColor,
-				Size = Vector3.new(0.55, supportHeight, 0.55),
-				CFrame = baseCFrame * CFrame.new(x * facingDirection, supportCenterY, z),
-			}, parent)
-		end
-	end
-
-	-- ── Staircases ──────────────────────────────────────────────────────────────
-	-- Grid-snapped block stairs: 16 × 1-stud rises. The final top surface is
-	-- exactly local Y = 16, matching the terrace deck surface with no overlap.
-	local stairCount = 16
-	local stepHeight = 1
-	local treadD = 2
-	local stairW = 3
-	local stairTopSurfaceY = deckTopLocalY -- 16
-	local stairTopX = deckFrontLocalX + facingDirection * (treadD / 2)
-	local stairBottomX = stairTopX + facingDirection * (treadD * (stairCount - 1))
-
-	for _, zSign in ipairs({ -1, 1 }) do
-		local stairZ = zSign * 20
-		local railOuterOffset = (stairW / 2) + 0.45
-
-		for i = 1, stairCount do
-			local surfaceY = i * stepHeight
-			local stepCenterY = surfaceY - (stepHeight / 2)
-			local stepCenterX = stairBottomX - facingDirection * (treadD * (i - 1))
-
-			make("Part", {
-				Name = "RebirthTerraceStair",
-				Anchored = true,
-				CanCollide = true,
-				CanQuery = true,
-				CanTouch = true,
-				Material = Enum.Material.SmoothPlastic,
-				Color = stepColor,
-				Size = Vector3.new(treadD, stepHeight, stairW),
-				CFrame = baseCFrame * CFrame.new(stepCenterX, stepCenterY, stairZ),
-			}, parent)
-
-			make("Part", {
-				Name = "RebirthTerraceStairGoldLip",
-				Anchored = true,
-				CanCollide = false,
-				CanQuery = false,
-				CanTouch = false,
-				Material = Enum.Material.Neon,
-				Color = gold,
-				Transparency = 0.2,
-				Size = Vector3.new(treadD - 0.35, 0.08, stairW + 0.12),
-				CFrame = baseCFrame * CFrame.new(stepCenterX, surfaceY + 0.05, stairZ),
-			}, parent)
-		end
-
-		-- Thin non-colliding top glow sits on the terrace edge without becoming
-		-- part of the collision path or clipping under the final step.
-		make("Part", {
-			Name = "RebirthTerraceStairTopGlow",
-			Anchored = true,
-			CanCollide = false,
-			CanQuery = false,
-			CanTouch = false,
-			Material = Enum.Material.Neon,
-			Color = gold,
-			Transparency = 0.38,
-			Size = Vector3.new(0.16, 0.08, stairW + 0.2),
-			CFrame = baseCFrame * CFrame.new(deckFrontLocalX + facingDirection * 0.1, stairTopSurfaceY + 0.08, stairZ),
-		}, parent)
-
-		for _, sideOffset in ipairs({ -1, 1 }) do
-			local railZ = stairZ + sideOffset * railOuterOffset
-			local railStart = (baseCFrame * CFrame.new(stairBottomX, 3, railZ)).Position
-			local railEnd = (baseCFrame * CFrame.new(stairTopX, stairTopSurfaceY + 2, railZ)).Position
-			local railMid = (railStart + railEnd) / 2
-			local railLength = (railEnd - railStart).Magnitude
-
-			make("Part", {
-				Name = "RebirthTerraceStairRail",
-				Anchored = true,
-				CanCollide = true,
-				CanQuery = true,
-				CanTouch = true,
-				Material = Enum.Material.Neon,
-				Color = gold,
-				Transparency = 0.18,
-				Size = Vector3.new(0.16, 0.16, railLength),
-				CFrame = CFrame.lookAt(railMid, railEnd),
-			}, parent)
-
-			for _, stepIndex in ipairs({ 1, 5, 9, 13, 16 }) do
-				local postSurfaceY = stepIndex * stepHeight
-				local postCenterX = stairBottomX - facingDirection * (treadD * (stepIndex - 1))
-				make("Part", {
-					Name = "RebirthTerraceStairRailPost",
-					Anchored = true,
-					CanCollide = true,
-					CanQuery = true,
-					CanTouch = true,
-					Material = Enum.Material.SmoothPlastic,
-					Color = gold,
-					Size = Vector3.new(0.18, 2, 0.18),
-					CFrame = baseCFrame * CFrame.new(postCenterX, postSurfaceY + 1, railZ),
-				}, parent)
-			end
-		end
-	end
-
-	-- ── "REBIRTH TERRACE" sign mounted on the entrance-facing edge ─────────────
-	local signPosition = baseCFrame.Position + Vector3.new(deckFrontLocalX, deckLocalY + 1.8, 0)
-	local signLookAt   = signPosition + Vector3.new(facingDirection, 0, 0)
-	local sign = make("Part", {
-		Name = "RebirthTerraceSign",
-		Anchored = true, CanCollide = true, CanQuery = true, CanTouch = true,
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(6, 8, 13),
-		Size = Vector3.new(17, 2.2, 0.35),
-		CFrame = CFrame.lookAt(signPosition, signLookAt),
-	}, parent)
-
-	local gui = make("SurfaceGui", {
-		Name = "TerraceGui",
-		Face = Enum.NormalId.Front,
-		AlwaysOnTop = false,
-		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
-		PixelsPerStud = 28,
-	}, sign)
-	local signFrame = make("Frame", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(1, 1),
-	}, gui)
-	make("UIStroke", { Color = gold, Thickness = 2, Transparency = 0.25 }, signFrame)
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(1, 0.56),
-		Position = UDim2.fromScale(0, 0.05),
-		Text = "REBIRTH TERRACE",
-		TextColor3 = Color3.fromRGB(255, 215, 72),
-		TextScaled = true,
-		Font = Enum.Font.GothamBlack,
-	}, signFrame)
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(1, 0.32),
-		Position = UDim2.fromScale(0, 0.62),
-		Text = "SECOND FLOOR SLOTS",
-		TextColor3 = Color3.fromRGB(245, 238, 210),
-		TextScaled = true,
-		Font = Enum.Font.GothamBold,
-	}, signFrame)
-
-	-- ── Deck lamps at the front corners ────────────────────────────────────────
-	for _, z in ipairs({ -19.8, 19.8 }) do
-		make("Part", {
-			Name = "RebirthTerraceLamp",
-			Anchored = true, CanCollide = true, CanQuery = true, CanTouch = true,
-			Material = Enum.Material.SmoothPlastic,
-			Color = supportColor,
-			Size = Vector3.new(0.45, 2.4, 0.45),
-			CFrame = baseCFrame * CFrame.new(deckFrontLocalX, deckLocalY + 1.5, z),
-		}, parent)
-		local bulb = make("Part", {
-			Name = "RebirthTerraceLampBulb",
-			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Material = Enum.Material.Neon,
-			Color = Color3.fromRGB(255, 226, 135),
-			Shape = Enum.PartType.Ball,
-			Size = Vector3.new(0.8, 0.8, 0.8),
-			CFrame = baseCFrame * CFrame.new(deckFrontLocalX, deckLocalY + 2.9, z),
-		}, parent)
-		make("PointLight", {
-			Brightness = 0.45, Range = 15,
-			Color = Color3.fromRGB(255, 226, 160),
-		}, bulb)
-	end
-
-	for _, descendant in ipairs(parent:GetDescendants()) do
-		if descendant:IsA("BasePart") and string.find(descendant.Name, "RebirthTerrace", 1, true) then
-			local isDecorGlow = descendant.Name:find("Glow", 1, true) or descendant.Name:find("GoldLip", 1, true) or descendant.Name:find("Bulb", 1, true)
-			if isDecorGlow then
-				setPartCollisionGroup(descendant, COLLISION_GROUPS.StadiumGeometry)
-			else
-				configureCollisionPart(descendant, COLLISION_GROUPS.StadiumGeometry, true, true, true)
-			end
-		end
-	end
+local function resolveDisplaySlotOffset(localOffset, facingDirection, slotIndex)
+	return Vector3.new(localOffset.X * facingDirection, localOffset.Y, localOffset.Z)
 end
+
+
+local createConceptTestStadium
 
 local function createPlot(plotId, side, laneIndex, position)
 	local model = make("Model", {
@@ -4212,241 +3968,39 @@ local function createPlot(plotId, side, laneIndex, position)
 	local facingDirection = side == "Left" and 1 or -1
 	local baseCFrame = CFrame.new(position)
 	local centerDirection = Vector3.new(facingDirection, 0, 0)
-	local padOffset = 16
 	local wallHeight = layout.FenceHeight or 4.5
-	local wallThickness = layout.WallThickness or 1.2
 	local entranceWidth = layout.EntranceWidth or 16
 	local entrancePillarWidth = layout.EntrancePillarWidth or 2.2
 	local padInfoMaxDistance = layout.PadInfoMaxDistance or 22
-	local wallY = wallHeight / 2 + layout.PlotSize.Y / 2
 	local frontEdgeX = facingDirection * (layout.PlotSize.X / 2)
 	local backEdgeX = -frontEdgeX
+	local entrancePillarHeight = wallHeight + 5.6
 
-	-- Outer flooring: dark stone tile (concept art base)
 	local floor = make("Part", {
 		Name = "Floor",
 		Anchored = true,
-		Material = Enum.Material.Slate,
-		Color = Color3.fromRGB(38, 42, 50),
+		CanCollide = false,
+		CanTouch = false,
+		CanQuery = false,
+		Transparency = 1,
 		Size = layout.PlotSize,
 		CFrame = baseCFrame,
 	}, model)
 
-	-- Central football pitch: thin grass rectangle (lines render above it)
-	local pitchInsetX = 10
-	local pitchInsetZ = 8
-	make("Part", {
-		Name = "PitchSurface",
-		Anchored = true,
-		CanCollide = false,
-		CanTouch = false,
-		CanQuery = false,
-		Material = Enum.Material.Grass,
-		Color = Color3.fromRGB(48, 110, 52),
-		Size = Vector3.new(layout.PlotSize.X - pitchInsetX, 0.08, layout.PlotSize.Z - pitchInsetZ),
-		CFrame = baseCFrame * CFrame.new(0, layout.PlotSize.Y / 2 + 0.04, 0),
-	}, model)
-
-	createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY, -layout.PlotSize.Z / 2))
-	createFence(model, Vector3.new(layout.PlotSize.X + wallThickness, wallHeight, wallThickness), baseCFrame * CFrame.new(0, wallY,  layout.PlotSize.Z / 2))
-	createFence(model, Vector3.new(wallThickness, wallHeight, layout.PlotSize.Z + wallThickness), baseCFrame * CFrame.new(backEdgeX, wallY, 0))
-	local frontWallSegmentLength = math.max(8, (layout.PlotSize.Z - entranceWidth) / 2)
-	local frontWallZOffset = (entranceWidth / 2) + (frontWallSegmentLength / 2)
-	createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY, -frontWallZOffset))
-	createFence(model, Vector3.new(wallThickness, wallHeight, frontWallSegmentLength), baseCFrame * CFrame.new(frontEdgeX, wallY,  frontWallZOffset))
-	local entrancePillarHeight = wallHeight + 5.6
-	local entrancePillarX = frontEdgeX + (facingDirection * ((entrancePillarWidth - wallThickness) / 2))
-	createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2, -(entranceWidth / 2)))
-	createFence(model, Vector3.new(entrancePillarWidth, entrancePillarHeight, wallThickness + 0.8), baseCFrame * CFrame.new(entrancePillarX, entrancePillarHeight / 2 + layout.PlotSize.Y / 2,  (entranceWidth / 2)))
-
-	-- ── Neon gold trim along wall tops (positions computed, no Part refs needed) ─
-	local trimH    = 0.22
-	local trimNeon = Color3.fromRGB(218, 168, 40)
-	local trimTransp = 0.22
-	local wallTopLocalY = wallY + wallHeight / 2 + trimH / 2
-	local plotX  = layout.PlotSize.X
-	local plotZ  = layout.PlotSize.Z
-
-	-- Side walls
-	for _, zSign in ipairs({-1, 1}) do
-		make("Part", {
-			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Material = Enum.Material.Neon, Color = trimNeon, Transparency = trimTransp,
-			Size = Vector3.new(plotX + wallThickness + 0.1, trimH, wallThickness + 0.1),
-			CFrame = baseCFrame * CFrame.new(0, wallTopLocalY, zSign * plotZ / 2),
-		}, model)
-	end
-	-- Back wall
-	make("Part", {
-		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-		Material = Enum.Material.Neon, Color = trimNeon, Transparency = trimTransp,
-		Size = Vector3.new(wallThickness + 0.1, trimH, plotZ + wallThickness + 0.1),
-		CFrame = baseCFrame * CFrame.new(backEdgeX, wallTopLocalY, 0),
-	}, model)
-	-- Front wall segments
-	for _, zSign in ipairs({-1, 1}) do
-		make("Part", {
-			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Material = Enum.Material.Neon, Color = trimNeon, Transparency = trimTransp,
-			Size = Vector3.new(wallThickness + 0.1, trimH, frontWallSegmentLength + 0.1),
-			CFrame = baseCFrame * CFrame.new(frontEdgeX, wallTopLocalY, zSign * frontWallZOffset),
-		}, model)
-	end
-
-	-- ── Gold PointLights + Neon caps on entrance pillar tops ─────────────────────
-	local pillarCapLocalY = entrancePillarHeight + layout.PlotSize.Y / 2
-	for _, zSign in ipairs({-1, 1}) do
-		local capCF = baseCFrame * CFrame.new(entrancePillarX, pillarCapLocalY, zSign * (entranceWidth / 2))
-		local anchor = make("Part", {
-			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Transparency = 1, Size = Vector3.new(1, 1, 1), CFrame = capCF,
-		}, model)
-		make("PointLight", { Brightness = 0.8, Range = 16, Color = trimNeon }, anchor)
-		make("Part", {
-			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Material = Enum.Material.Neon, Color = trimNeon, Transparency = 0.35,
-			Size = Vector3.new(entrancePillarWidth + 0.3, 0.30, wallThickness + 1.1),
-			CFrame = baseCFrame * CFrame.new(entrancePillarX, pillarCapLocalY - 0.18, zSign * (entranceWidth / 2)),
-		}, model)
-	end
-
-	-- ── Entrance Archway: horizontal beam connecting pillars with STADIUM sign ───
-	local archBeamHeight = 3.6
-	local archBeamY = pillarCapLocalY - archBeamHeight / 2 - 0.1
-	local archBeam = make("Part", {
-		Name = "EntranceArchBeam",
-		Anchored = true,
-		CanCollide = false,
-		CanQuery = false,
-		CanTouch = false,
-		Material = Enum.Material.Slate,
-		Color = Color3.fromRGB(28, 32, 40),
-		Size = Vector3.new(entrancePillarWidth + 0.2, archBeamHeight, entranceWidth + entrancePillarWidth + 1),
-		CFrame = baseCFrame * CFrame.new(entrancePillarX, archBeamY, 0),
-	}, model)
-	-- Gold trim along the bottom of the arch beam
-	make("Part", {
-		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-		Material = Enum.Material.Neon, Color = trimNeon, Transparency = 0.18,
-		Size = Vector3.new(entrancePillarWidth + 0.5, 0.32, entranceWidth + entrancePillarWidth + 1.3),
-		CFrame = baseCFrame * CFrame.new(entrancePillarX, archBeamY - archBeamHeight / 2 - 0.16, 0),
-	}, model)
-	-- Gold trim along the top of the arch beam
-	make("Part", {
-		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-		Material = Enum.Material.Neon, Color = trimNeon, Transparency = 0.30,
-		Size = Vector3.new(entrancePillarWidth + 0.5, 0.22, entranceWidth + entrancePillarWidth + 1.3),
-		CFrame = baseCFrame * CFrame.new(entrancePillarX, archBeamY + archBeamHeight / 2 + 0.11, 0),
-	}, model)
-	-- "STADIUM" sign text on outward face of the arch
-	local archSignSurface = make("SurfaceGui", {
-		Name = "ArchStadiumSign",
-		Face = facingDirection > 0 and Enum.NormalId.Right or Enum.NormalId.Left,
-		LightInfluence = 0,
-		PixelsPerStud = 60,
-		AlwaysOnTop = false,
-		ClipsDescendants = true,
-	}, archBeam)
-	createOwnerSignText("STADIUM", UDim2.fromScale(0.96, 0.7), UDim2.fromScale(0.02, 0.15),
-		Color3.fromRGB(255, 222, 110), {
-			textScaled = true,
-			minTextSize = 30,
-			maxTextSize = 200,
-			font = Enum.Font.GothamBlack,
-			textStrokeTransparency = 0.4,
-		}, archSignSurface)
-	-- Glow inside the arch
-	local archGlowAnchor = make("Part", {
-		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-		Transparency = 1, Size = Vector3.new(1, 1, 1),
-		CFrame = baseCFrame * CFrame.new(entrancePillarX, archBeamY, 0),
-	}, model)
-	make("PointLight", { Brightness = 1.4, Range = 24, Color = trimNeon }, archGlowAnchor)
-
-	-- ── Front Corner Floodlights ────────────────────────────────────────────────
-	-- Adds 2 more tall lighting poles at the front corners (back corners already exist)
-	local frontFloodlightOptions = {
-		poleHeight = 27, modelHeight = 29, range = 68, angle = 46,
-		brightness = 1.38, fillRange = 18, fillBrightness = 0.1,
-	}
-	local frontFloodlightX = frontEdgeX + (facingDirection * 6)
-	createFloodlightRig(model, "StadiumFloodlightFrontNorth",
-		position + Vector3.new(frontFloodlightX, 0, -((layout.PlotSize.Z / 2) + 10)),
-		position + Vector3.new(0, 3, 0),
-		frontFloodlightOptions)
-	createFloodlightRig(model, "StadiumFloodlightFrontSouth",
-		position + Vector3.new(frontFloodlightX, 0, ((layout.PlotSize.Z / 2) + 10)),
-		position + Vector3.new(0, 3, 0),
-		frontFloodlightOptions)
+	createConceptTestStadium(model, position, {
+		name = "LiveStadiumShell",
+		facingDirection = facingDirection,
+		includeCenterPad = false,
+		includeDisplaySlots = false,
+		includeEntranceSign = false,
+	})
 
 	local starterStadiumFolder = make("Folder", {
 		Name = "StarterStadium",
 	}, model)
 
-	local standRise  = 0.9
-	local standDepth = 4.8
-	local standNeon  = Color3.fromRGB(218, 168, 40)
-	local standW     = layout.PlotSize.X - 10
-	local standBackZ = layout.PlotSize.Z + 8
-	local edgeH      = 0.20
-	local edgeOff    = standRise / 2 + edgeH / 2
-
-	for step = 1, 3 do
-		local levelOffset = (step - 1) * 2.9
-		local levelY = layout.PlotSize.Y / 2 + (standRise / 2) + ((step - 1) * standRise)
-		local sideZ = (layout.PlotSize.Z / 2) + 2.2 + levelOffset
-		local innerZ = sideZ - standDepth / 2
-
-		-- South stand
-		createStadiumTier(starterStadiumFolder, Vector3.new(standW, standRise, standDepth), baseCFrame * CFrame.new(0, levelY, sideZ))
-		make("Part", {
-			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Material = Enum.Material.Neon, Color = standNeon, Transparency = 0.30,
-			Size = Vector3.new(standW + 0.2, edgeH, edgeH),
-			CFrame = baseCFrame * CFrame.new(0, levelY + edgeOff, innerZ),
-		}, starterStadiumFolder)
-
-		-- North stand
-		createStadiumTier(starterStadiumFolder, Vector3.new(standW, standRise, standDepth), baseCFrame * CFrame.new(0, levelY, -sideZ))
-		make("Part", {
-			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Material = Enum.Material.Neon, Color = standNeon, Transparency = 0.30,
-			Size = Vector3.new(standW + 0.2, edgeH, edgeH),
-			CFrame = baseCFrame * CFrame.new(0, levelY + edgeOff, -innerZ),
-		}, starterStadiumFolder)
-
-		-- Back stand
-		local backX    = backEdgeX - (facingDirection * (2.6 + levelOffset))
-		local innerBX  = backX + facingDirection * (standDepth / 2)
-		createStadiumTier(starterStadiumFolder, Vector3.new(standDepth, standRise, standBackZ), baseCFrame * CFrame.new(backX, levelY, 0))
-		make("Part", {
-			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Material = Enum.Material.Neon, Color = standNeon, Transparency = 0.30,
-			Size = Vector3.new(edgeH, edgeH, standBackZ + 0.2),
-			CFrame = baseCFrame * CFrame.new(innerBX, levelY + edgeOff, 0),
-		}, starterStadiumFolder)
-	end
-
-	createStadiumWedge(
-		starterStadiumFolder,
-		Vector3.new(4.6, 3.2, layout.PlotSize.Z + 8),
-		baseCFrame * CFrame.new(backEdgeX - (facingDirection * 10.6), 2.1, 0) * CFrame.Angles(0, math.rad(side == "Left" and 180 or 0), math.rad(90))
-	)
-	createStadiumWedge(
-		starterStadiumFolder,
-		Vector3.new(layout.PlotSize.X - 10, 3.2, 4.6),
-		baseCFrame * CFrame.new(0, 2.1, (layout.PlotSize.Z / 2) + 10.4) * CFrame.Angles(0, 0, math.rad(180))
-	)
-	createStadiumWedge(
-		starterStadiumFolder,
-		Vector3.new(layout.PlotSize.X - 10, 3.2, 4.6),
-		baseCFrame * CFrame.new(0, 2.1, -(layout.PlotSize.Z / 2) - 10.4)
-	)
-
-	createFootballPitchDetails(model, baseCFrame)
-
 	-- ── Pack Pad: layered octagonal-feel podium with red glow halo ──────────────
-	local packPadCenter = baseCFrame * CFrame.new(-facingDirection * padOffset, 0.45, 0)
+	local packPadCenter = baseCFrame * CFrame.new(0, 1.5, 0)
 	local packPadW = layout.PackPadSize.X
 	local packPadD = layout.PackPadSize.Z
 
@@ -4535,7 +4089,7 @@ local function createPlot(plotId, side, laneIndex, position)
 		Color = Color3.fromRGB(76, 158, 82),
 		Transparency = 1,
 		Size = Vector3.new(7, 0.3, 7),
-		CFrame = baseCFrame * CFrame.new(facingDirection * padOffset, 0.45, 0),
+		CFrame = baseCFrame * CFrame.new(facingDirection * 39, 1.5, 0),
 	}, model)
 
 	local spawnCFrame = CFrame.lookAt(
@@ -4561,14 +4115,14 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, model)
 
 	local entranceBeamY = entrancePillarHeight + layout.PlotSize.Y / 2 - 0.6
-	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 2.1)) + Vector3.new(0, entranceBeamY + 5.0, 0)
+	local ownerSignPosition = position + (centerDirection * (layout.PlotSize.X / 2 + 9.8)) + Vector3.new(0, entranceBeamY + 5.0, 0)
 	createFence(
 		model,
 		Vector3.new(entrancePillarWidth + 1.6, 2.6, entranceWidth + 1.4),
-		baseCFrame * CFrame.new(frontEdgeX + (facingDirection * 0.9), entranceBeamY + 0.6, 0)
+		baseCFrame * CFrame.new(frontEdgeX + (facingDirection * 8.6), entranceBeamY + 0.6, 0)
 	)
 	-- Neon gold strips top and bottom of beam (positions computed from known values)
-	local beamLocalX   = frontEdgeX + (facingDirection * 0.9)
+	local beamLocalX   = frontEdgeX + (facingDirection * 8.6)
 	local beamCenterY  = entranceBeamY + 0.6
 	local beamW        = entrancePillarWidth + 1.6 + 0.2
 	local beamD        = entranceWidth + 1.4 + 0.1
@@ -4807,7 +4361,7 @@ local function createPlot(plotId, side, laneIndex, position)
 	}, multiplierFrame)
 
 	-- ── Pack Milestone Board ─────────────────────────────────────────────────────
-	-- Raised behind the upper terrace so the second floor no longer covers it.
+	-- Raised behind the stadium shell so it stays readable above the back wall.
 	local msW, msH = 28, 14
 	local milestoneSignPosition = position
 		+ Vector3.new(backEdgeX - (facingDirection * 18), 27, 0)
@@ -5115,22 +4669,22 @@ local function createPlot(plotId, side, laneIndex, position)
 	local displaySlots = {}
 	for slotIndex = 1, layout.DisplaySlotCount do
 		local localOffset = ALL_SLOT_OFFSETS[slotIndex]
-		local worldOffset = Vector3.new(localOffset.X * facingDirection, localOffset.Y, localOffset.Z)
-		-- Terrace slots (7+) use a narrower pedestal (3 studs in Z instead of 5)
-		-- so the 6-stud Z spacing leaves a clear 3-stud walkable aisle between
-		-- every adjacent pedestal on the terrace deck.
+		local worldOffset = resolveDisplaySlotOffset(localOffset, facingDirection, slotIndex)
+		-- Rebirth slots (7+) use a narrower pedestal (3 studs in Z instead of 5)
+		-- so the gallery rows stay clean and walkable.
 		local pedestalSizeZ = slotIndex > 6 and 3 or nil
 		displaySlots[slotIndex] = createDisplaySlot(
 			displayFolder, slotIndex,
 			baseCFrame * CFrame.new(worldOffset),
-			slotLookDir(localOffset, facingDirection),
+			slotLookDir(localOffset, facingDirection, slotIndex),
 			pedestalSizeZ
 		)
 	end
 
-	local entranceLightX = frontEdgeX + (facingDirection * 8)
-	createLightPost(model, "EntranceLightNorth", position + Vector3.new(entranceLightX, 0, -(entranceWidth / 2 + 6)), packPad.Position + Vector3.new(0, 2, 0))
-	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0,  (entranceWidth / 2 + 6)), packPad.Position + Vector3.new(0, 2, 0))
+	local entranceLightX = frontEdgeX + (facingDirection * 22)
+	createLightPost(model, "EntranceLightNorth", position + Vector3.new(entranceLightX, 0, -6.8), packPad.Position + Vector3.new(0, 2, 0))
+	createLightPost(model, "EntranceLightSouth", position + Vector3.new(entranceLightX, 0,  6.8), packPad.Position + Vector3.new(0, 2, 0))
+	createSoftFillLight(model, "EntrancePathFill", position + Vector3.new(entranceLightX + (facingDirection * 2.5), 5.2, 0), 24, 0.16, Color3.fromRGB(255, 232, 180))
 
 	-- Decorative side banners flanking the entrance
 	local bannerX = frontEdgeX + (facingDirection * 3.5)
@@ -5179,14 +4733,15 @@ local function createPlot(plotId, side, laneIndex, position)
 	end
 
 	-- ── Rebirth Machine ─────────────────────────────────────────────────────────
-	-- Placed outside the entrance so it reads like a stadium add-on instead of
-	-- fighting for space with the pack pad and display slots.
+	-- Placed on the entrance-right exterior pad so it reads like a stadium add-on
+	-- instead of fighting for space with the pack pad, display slots, or frontage.
 	-- Y offsets are from baseCFrame (floor centre = local Y 0; floor top = local Y 0.5).
-	local machineLocalX = frontEdgeX + (facingDirection * 8.5)
-	local machineLocalZ = -(entranceWidth / 2 + 12.5)
-	local machineCF     = baseCFrame * CFrame.new(machineLocalX, 0, machineLocalZ)
+	local rightSideSign = -facingDirection
+	local machineLocalX = facingDirection * 39
+	local machineLocalZ = rightSideSign * 35.5
+	local machineCF     = baseCFrame * CFrame.new(machineLocalX, 0.4, machineLocalZ)
 	local machinePos = machineCF.Position
-	local machineFacingCF = CFrame.lookAt(machinePos, machinePos + centerDirection)
+	local machineFacingCF = CFrame.lookAt(machinePos, Vector3.new(position.X, machinePos.Y, position.Z))
 	local rebirthMachine = make("Model", {
 		Name = "RebirthMachine",
 	}, model)
@@ -5664,13 +5219,9 @@ local function createPlot(plotId, side, laneIndex, position)
 end
 
 -- Called when a player is assigned a plot or completes a rebirth.
--- Rebuilds the stadium extras folder to match the given rebirth tier.
---   Tier 0: no stands
---   Tier 1+: tiered bleacher stands built from Parts (reliable, no asset loading)
---            More rows unlock as the player progresses through tiers.
---   Tier 3+: covered stands
---   Tier 4+: roof trusses and corner canopy links, so rebirth still feels
---             visually meaningful once the red seat rows reach their cap.
+-- Rebuilds the lightweight extras that sit around the concept stadium shell:
+-- crowd route points for the built-in red stands, and the back-wall rebirth
+-- gallery that supports slots 7-18 without cluttering the pitch.
 function BaseService.UpdateStadiumTier(plot, tier)
 	if not plot or not plot.stadiumExtrasFolder then return end
 	tier = tier or 0
@@ -5683,42 +5234,25 @@ function BaseService.UpdateStadiumTier(plot, tier)
 	plot.crowdPathHelpers = {}
 	setModelVisibleAndSolid(plot.starterStadiumFolder, tier < 1)
 
-	if tier < 1 then return end
+	if tier < 1 then
+		return
+	end
 
-	local parent   = plot.stadiumExtrasFolder
+	local parent = plot.stadiumExtrasFolder
 	local pitchPos = plot.baseCFrame.Position
-	local fd       = plot.facingDirection               -- 1=left plot, -1=right plot
-	local floorY   = pitchPos.Y + layout.PlotSize.Y / 2 -- top of floor (world Y ≈ 1)
-	local PlotX    = layout.PlotSize.X                  -- 56
-	local PlotZ    = layout.PlotSize.Z                  -- 44
-
-	-- Row count scales with rebirth tier so the stadium visually grows
-	local rowCount = math.min(1 + tier, 5)  -- tier1→2, tier2→3, tier3→4, tier4+→5
-
-	local tierH  = 3.0   -- vertical rise per row
-	local tierD  = 4.2   -- depth per row (away from pitch)
-	local gap    = 7.5   -- fan aisle between the fence and red seating
-	local aisleWidth = 4.8
-
-	-- Width of each stand face (slightly wider than plot for corner coverage)
-	local sideW = PlotX + 2   -- 58 studs east-west
-	local backW = PlotZ + 2   -- 46 studs north-south
-
-	-- Alternating seat colours per row
-	local colA = Color3.fromRGB(198, 44, 44)
-	local colB = Color3.fromRGB(158, 30, 30)
+	local fd = plot.facingDirection
+	local floorY = pitchPos.Y + layout.PlotSize.Y / 2
+	local conceptPitchX = 64
+	local conceptPitchZ = 48
+	local seatRowWidth = 50
+	local seatRowDepth = 2.6
+	local seatRowRise = 1.5
+	local pitchSeatGap = 3.2
 	local crowdPivotY = 3.1
 	local seatPointsFolder = make("Folder", { Name = "CrowdSeatPoints" }, parent)
-	local fanAisleY = floorY + 0.07
-	local frontAisleX = pitchPos.X + fd * (PlotX / 2 + gap + 1.5)
-	local backAisleX = pitchPos.X - fd * (PlotX / 2 + gap * 0.52)
-	local northAisleZ = pitchPos.Z - (PlotZ / 2 + gap * 0.52)
-	local southAisleZ = pitchPos.Z + (PlotZ / 2 + gap * 0.52)
-	local standDepthTotal = rowCount * tierD
-	local roofHeight = floorY + (rowCount * tierH) + 5.4
-	local roofColor = Color3.fromRGB(9, 13, 23)
-	local roofTrimColor = Color3.fromRGB(255, 211, 58)
-	local roofSupportColor = Color3.fromRGB(15, 20, 32)
+	local frontAisleX = pitchPos.X + fd * 34
+	local northAisleZ = pitchPos.Z - (conceptPitchZ / 2 + 5.2)
+	local southAisleZ = pitchPos.Z + (conceptPitchZ / 2 + 5.2)
 
 	local function createFanAisle(name, size, cframe)
 		make("Part", {
@@ -5737,37 +5271,24 @@ function BaseService.UpdateStadiumTier(plot, tier)
 
 	createFanAisle(
 		"FanAisleNorth",
-		Vector3.new(PlotX + gap * 2, 0.14, aisleWidth),
-		CFrame.new(pitchPos.X, fanAisleY, northAisleZ)
+		Vector3.new(conceptPitchX + 8, 0.14, 4.2),
+		CFrame.new(pitchPos.X, floorY + 0.07, northAisleZ)
 	)
 	createFanAisle(
 		"FanAisleSouth",
-		Vector3.new(PlotX + gap * 2, 0.14, aisleWidth),
-		CFrame.new(pitchPos.X, fanAisleY, southAisleZ)
-	)
-	createFanAisle(
-		"FanAisleBack",
-		Vector3.new(aisleWidth, 0.14, PlotZ + gap * 2),
-		CFrame.new(backAisleX, fanAisleY, pitchPos.Z)
+		Vector3.new(conceptPitchX + 8, 0.14, 4.2),
+		CFrame.new(pitchPos.X, floorY + 0.07, southAisleZ)
 	)
 
-	local function makeSeatRoutePoints(standName, seatX, seatZ, approachPosition)
-		local frontPoint = Vector3.new(frontAisleX, crowdPivotY, pitchPos.Z)
-		if standName == "North" or standName == "South" then
-			local sideAisleZ = standName == "North" and northAisleZ or southAisleZ
-			return {
-				frontPoint,
-				Vector3.new(frontAisleX, crowdPivotY, sideAisleZ),
-				Vector3.new(seatX, crowdPivotY, sideAisleZ),
-			}
-		end
-
-		local sideAisleZ = seatZ >= pitchPos.Z and southAisleZ or northAisleZ
+	local function makeSeatRoutePoints(standName, seatX, seatIndex, row)
+		local sideAisleZ = standName == "North" and northAisleZ or southAisleZ
+		local gateLaneZ = pitchPos.Z + (standName == "North" and -5.5 or 5.5)
+			+ (((seatIndex or 1) - 3.5) * 0.55)
+			+ (((row or 1) - 1) * 0.18)
 		return {
-			frontPoint,
+			Vector3.new(frontAisleX, crowdPivotY, gateLaneZ),
 			Vector3.new(frontAisleX, crowdPivotY, sideAisleZ),
-			Vector3.new(backAisleX, crowdPivotY, sideAisleZ),
-			Vector3.new(backAisleX, crowdPivotY, seatZ),
+			Vector3.new(seatX, crowdPivotY, sideAisleZ),
 		}
 	end
 
@@ -5810,306 +5331,132 @@ function BaseService.UpdateStadiumTier(plot, tier)
 		})
 	end
 
-	local function createRoofPanel(name, size, cframe)
-		local panel = configureCollisionPart(make("Part", {
-			Name = name,
-			Anchored = true,
-			CanCollide = true,
-			CanTouch = true,
-			CanQuery = true,
-			Material = Enum.Material.SmoothPlastic,
-			Color = roofColor,
-			Size = size,
-			CFrame = cframe,
-		}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
-
-		make("Part", {
-			Name = name .. "GoldLip",
-			Anchored = true,
-			CanCollide = false,
-			CanTouch = false,
-			CanQuery = false,
-			Material = Enum.Material.Neon,
-			Color = roofTrimColor,
-			Transparency = 0.25,
-			Size = Vector3.new(size.X + 0.35, 0.16, 0.22),
-			CFrame = cframe * CFrame.new(0, -size.Y / 2 - 0.03, -size.Z / 2),
-		}, parent)
-
-		return panel
-	end
-
-	local function createRoofSupport(name, position, height)
-		configureCollisionPart(make("Part", {
-			Name = name,
-			Anchored = true,
-			CanCollide = true,
-			CanTouch = true,
-			CanQuery = true,
-			Material = Enum.Material.Metal,
-			Color = roofSupportColor,
-			Size = Vector3.new(0.65, height, 0.65),
-			CFrame = CFrame.new(position + Vector3.new(0, height / 2, 0)),
-		}, parent), COLLISION_GROUPS.StadiumGeometry, true, true, true)
-	end
-
-	local function createRoofRib(name, cframe, length, alongZ)
-		make("Part", {
-			Name = name,
-			Anchored = true,
-			CanCollide = false,
-			CanTouch = false,
-			CanQuery = false,
-			Material = Enum.Material.Neon,
-			Color = roofTrimColor,
-			Transparency = 0.35,
-			Size = alongZ and Vector3.new(0.24, 0.22, length) or Vector3.new(length, 0.22, 0.24),
-			CFrame = cframe,
-		}, parent)
-	end
-
-	local function createStadiumRoof()
-		if tier < 3 then
-			return
-		end
-
-		local roofDepth = standDepthTotal + 8
-		local sideRoofWidth = sideW + 9
-		local backRoofWidth = backW + 9
-		local sideRoofY = roofHeight
-		local sideRoofCenterZ = PlotZ / 2 + gap + (standDepthTotal / 2)
-		local backRoofCenterX = -fd * (PlotX / 2 + gap + (standDepthTotal / 2))
-
-		createRoofPanel(
-			"CoveredStandNorth",
-			Vector3.new(sideRoofWidth, 0.5, roofDepth),
-			plot.baseCFrame * CFrame.new(0, sideRoofY, -sideRoofCenterZ) * CFrame.Angles(math.rad(-3), 0, 0)
-		)
-		createRoofPanel(
-			"CoveredStandSouth",
-			Vector3.new(sideRoofWidth, 0.5, roofDepth),
-			plot.baseCFrame * CFrame.new(0, sideRoofY, sideRoofCenterZ) * CFrame.Angles(math.rad(3), 0, 0)
-		)
-		createRoofPanel(
-			"CoveredStandBack",
-			Vector3.new(roofDepth, 0.5, backRoofWidth),
-			plot.baseCFrame * CFrame.new(backRoofCenterX, sideRoofY, 0) * CFrame.Angles(0, 0, math.rad(fd * 3))
-		)
-
-		local supportHeight = math.max(6, sideRoofY - floorY)
-		for _, x in ipairs({ -sideRoofWidth / 2 + 3, sideRoofWidth / 2 - 3 }) do
-			createRoofSupport("RoofSupportNorth", (plot.baseCFrame * CFrame.new(x, floorY, -sideRoofCenterZ)).Position, supportHeight)
-			createRoofSupport("RoofSupportSouth", (plot.baseCFrame * CFrame.new(x, floorY, sideRoofCenterZ)).Position, supportHeight)
-		end
-		for _, z in ipairs({ -backRoofWidth / 2 + 3, backRoofWidth / 2 - 3 }) do
-			createRoofSupport("RoofSupportBack", (plot.baseCFrame * CFrame.new(backRoofCenterX, floorY, z)).Position, supportHeight)
-		end
-
-		if tier < 4 then
-			return
-		end
-
-		for _, x in ipairs({ -sideRoofWidth / 2 + 10, 0, sideRoofWidth / 2 - 10 }) do
-			createRoofRib("RoofRibNorth", plot.baseCFrame * CFrame.new(x, sideRoofY + 0.36, -sideRoofCenterZ), roofDepth - 1.5, true)
-			createRoofRib("RoofRibSouth", plot.baseCFrame * CFrame.new(x, sideRoofY + 0.36, sideRoofCenterZ), roofDepth - 1.5, true)
-		end
-		for _, z in ipairs({ -backRoofWidth / 2 + 10, 0, backRoofWidth / 2 - 10 }) do
-			createRoofRib("RoofRibBack", plot.baseCFrame * CFrame.new(backRoofCenterX, sideRoofY + 0.36, z), roofDepth - 1.5, false)
-		end
-
-		createRoofPanel(
-			"RoofCornerNorth",
-			Vector3.new(roofDepth, 0.45, roofDepth),
-			plot.baseCFrame * CFrame.new(backRoofCenterX, sideRoofY + 0.2, -sideRoofCenterZ)
-		)
-		createRoofPanel(
-			"RoofCornerSouth",
-			Vector3.new(roofDepth, 0.45, roofDepth),
-			plot.baseCFrame * CFrame.new(backRoofCenterX, sideRoofY + 0.2, sideRoofCenterZ)
-		)
-	end
-
-	local function createVisualSeatBench(standName, row, seatIndex, sitPosition, lookDirection, moduleWidth)
-		local flatLook = Vector3.new(lookDirection.X, 0, lookDirection.Z)
-		if flatLook.Magnitude < 0.05 then
-			return
-		end
-		flatLook = flatLook.Unit
-
-		local baseCF = CFrame.lookAt(Vector3.new(sitPosition.X, sitPosition.Y, sitPosition.Z), sitPosition + flatLook)
-		local seatColor = (row % 2 == 1) and Color3.fromRGB(190, 38, 38) or Color3.fromRGB(145, 28, 28)
-		local backColor = Color3.fromRGB(98, 18, 18)
-		local trimColor = Color3.fromRGB(255, 211, 58)
-		local benchName = string.format("VisualSeat_%s_%02d_%02d", standName, row, seatIndex)
-
-		configureCollisionPart(make("Part", {
-			Name = benchName .. "_Cushion",
-			Anchored = true,
-			CanCollide = false,
-			CanTouch = false,
-			CanQuery = false,
-			Material = Enum.Material.SmoothPlastic,
-			Color = seatColor,
-			Size = Vector3.new(moduleWidth, 0.3, 1.1),
-			CFrame = baseCF * CFrame.new(0, 0.18, 0),
-		}, parent), COLLISION_GROUPS.Seats, false, false, false)
-
-		configureCollisionPart(make("Part", {
-			Name = benchName .. "_Back",
-			Anchored = true,
-			CanCollide = false,
-			CanTouch = false,
-			CanQuery = false,
-			Material = Enum.Material.SmoothPlastic,
-			Color = backColor,
-			Size = Vector3.new(moduleWidth, 0.9, 0.24),
-			CFrame = baseCF * CFrame.new(0, 0.64, 0.56),
-		}, parent), COLLISION_GROUPS.Seats, false, false, false)
-
-		configureCollisionPart(make("Part", {
-			Name = benchName .. "_Trim",
-			Anchored = true,
-			CanCollide = false,
-			CanTouch = false,
-			CanQuery = false,
-			Material = Enum.Material.Neon,
-			Color = trimColor,
-			Transparency = 0.2,
-			Size = Vector3.new(moduleWidth + 0.15, 0.09, 0.09),
-			CFrame = baseCF * CFrame.new(0, 0.36, -0.58),
-		}, parent), COLLISION_GROUPS.Seats, false, false, false)
-
-		for dividerIndex = 1, 2 do
-			local dividerX = ((dividerIndex / 3) - 0.5) * moduleWidth
-			configureCollisionPart(make("Part", {
-				Name = benchName .. "_Divider" .. tostring(dividerIndex),
-				Anchored = true,
-				CanCollide = false,
-				CanTouch = false,
-				CanQuery = false,
-				Material = Enum.Material.SmoothPlastic,
-				Color = Color3.fromRGB(255, 195, 58),
-				Size = Vector3.new(0.08, 0.38, 1.18),
-				CFrame = baseCF * CFrame.new(dividerX, 0.31, 0),
-			}, parent), COLLISION_GROUPS.Seats, false, false, false)
-		end
-	end
-
-	-- Build one bleacher face.
-	-- fencePos  : world XZ of the fence line (floor height; this becomes the stand's front face)
-	-- awayX/awayZ: unit step direction going away from the pitch per row
-	-- partSizeX/Z: horizontal dimensions of each tier Part
-	local function buildStand(standName, fencePos, awayX, awayZ, partSizeX, partSizeZ, lookDirection, spanAxis)
+	local function addConceptStandSeats(standName, zSign, lookDirection)
+		local rowCount = math.min(1 + tier, 5)
+		local seatsInRow = 6
 		for row = 1, rowCount do
-			local setback = (row - 0.5) * tierD         -- depth of row centre from fence
-			local rise    = (row - 1)   * tierH         -- height of row bottom above floor
-			local rowPart = configureCollisionPart(make("Part", {
-				Name = string.format("RebirthSeatRow_%s_%02d", standName, row),
-				Anchored = true, CanCollide = true, CanQuery = true, CanTouch = true,
-				Material = Enum.Material.SmoothPlastic,
-				Color    = (row % 2 == 1) and colA or colB,
-				Size     = Vector3.new(partSizeX, tierH, partSizeZ),
-				CFrame   = CFrame.new(
-					fencePos.X + awayX * setback,
-					floorY + rise + tierH / 2,
-					fencePos.Z + awayZ * setback
-				),
-			}, parent), COLLISION_GROUPS.Seats, true, true, true)
-
-			createCollisionBlocker(
-				parent,
-				string.format("RebirthSeatRow_%s_%02d_Blocker", standName, row),
-				rowPart.Size + Vector3.new(0.2, 0.15, 0.2),
-				rowPart.CFrame,
-				COLLISION_GROUPS.Seats
-			)
-
-			local span = spanAxis == "Z" and partSizeZ or partSizeX
-			-- Only the front row is reserved for moving NPCs until the bleachers
-			-- have full internal stair aisles. This prevents fans climbing or
-			-- cutting across higher red rows just to reach a seat.
-			local seatsInRow = row == 1 and math.clamp(math.floor(span / 7), 4, 8) or 0
-			local topY = floorY + rise + tierH
+			local topLocalY = 1 + 0.6 + ((row - 1) * seatRowRise) + seatRowRise
+			local localZ = zSign * ((conceptPitchZ / 2 + pitchSeatGap) + ((row - 0.5) * seatRowDepth))
 			for seatIndex = 1, seatsInRow do
-				local lateral = (-span / 2) + ((span / (seatsInRow + 1)) * seatIndex)
-				local seatX = fencePos.X + awayX * setback
-				local seatZ = fencePos.Z + awayZ * setback
-				if spanAxis == "Z" then
-					seatZ += lateral
-				else
-					seatX += lateral
-				end
-
-				local sitPosition = Vector3.new(seatX, topY + 1.18, seatZ)
-				local approachX = seatX + lookDirection.X * 2.2
-				local approachZ = seatZ + lookDirection.Z * 2.2
-				if standName == "North" then
-					approachZ = northAisleZ
-				elseif standName == "South" then
-					approachZ = southAisleZ
-				elseif standName == "Back" then
-					approachX = backAisleX
-				end
-
-					local approachPosition = Vector3.new(approachX, crowdPivotY, approachZ)
-					createVisualSeatBench(
-						standName,
-						row,
-						seatIndex,
-						Vector3.new(seatX, topY + 0.04, seatZ),
-						lookDirection,
-						math.clamp((span / (seatsInRow + 1)) * 0.7, 3.6, 4.8)
-					)
+				local localX = -seatRowWidth / 2 + (seatRowWidth / (seatsInRow + 1)) * seatIndex
+				local seatWorld = (plot.baseCFrame * CFrame.new(localX, topLocalY + 1.05, localZ)).Position
+				local approachZ = standName == "North" and northAisleZ or southAisleZ
+				local approachPosition = Vector3.new(seatWorld.X, crowdPivotY, approachZ)
 					createCrowdSeatPoint(
 						standName,
 						row,
 						seatIndex,
-						sitPosition,
+						seatWorld,
 						lookDirection,
 						approachPosition,
-						makeSeatRoutePoints(standName, seatX, seatZ, approachPosition)
+						makeSeatRoutePoints(standName, seatWorld.X, seatIndex, row)
 					)
 			end
 		end
 	end
 
-	-- North stand: outside north fence (−Z side), facing south toward pitch
-	buildStand(
-		"North",
-		Vector3.new(pitchPos.X, 0, pitchPos.Z - (PlotZ / 2 + gap)),
-		0, -1,
-		sideW, tierD,
-		Vector3.new(0, 0, 1),
-		"X"
-	)
+	addConceptStandSeats("North", -1, Vector3.new(0, 0, 1))
+	addConceptStandSeats("South", 1, Vector3.new(0, 0, -1))
 
-	-- South stand: outside south fence (+Z side), facing north toward pitch
-	buildStand(
-		"South",
-		Vector3.new(pitchPos.X, 0, pitchPos.Z + (PlotZ / 2 + gap)),
-		0, 1,
-		sideW, tierD,
-		Vector3.new(0, 0, -1),
-		"X"
-	)
+	local wing = make("Model", { Name = "RebirthGallery" }, parent)
+	local gold = Color3.fromRGB(255, 210, 58)
+	local wingColor = Color3.fromRGB(12, 17, 28)
+	local railColor = Color3.fromRGB(25, 32, 48)
+	local galleryCFrame = plot.baseCFrame * CFrame.new(-40.5 * fd, 1.18, 0)
 
-	-- Back stand: outside back fence (opposite the entrance), facing inward
-	-- fd=1  → back fence is at X = pitchPos.X − PlotX/2; stand steps in −X
-	-- fd=−1 → back fence is at X = pitchPos.X + PlotX/2; stand steps in +X
-	buildStand(
-		"Back",
-		Vector3.new(pitchPos.X - fd * (PlotX / 2 + gap), 0, pitchPos.Z),
-		-fd, 0,
-		tierD, backW,
-		Vector3.new(fd, 0, 0),
-		"Z"
-	)
+	configureCollisionPart(make("Part", {
+		Name = "RebirthGalleryDeck",
+		Anchored = true,
+		CanCollide = true,
+		CanTouch = true,
+		CanQuery = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = wingColor,
+		Size = Vector3.new(17, 0.5, 62),
+		CFrame = galleryCFrame,
+	}, wing), COLLISION_GROUPS.StadiumGeometry, true, true, true)
 
-	createStadiumRoof()
+	for _, xOffset in ipairs({ -8.8, 8.8 }) do
+		make("Part", {
+			Name = "RebirthGalleryGoldEdge",
+			Anchored = true,
+			CanCollide = false,
+			CanTouch = false,
+			CanQuery = false,
+			Material = Enum.Material.Neon,
+			Color = gold,
+			Transparency = 0.28,
+			Size = Vector3.new(0.16, 0.12, 62.4),
+			CFrame = galleryCFrame * CFrame.new(xOffset, 0.33, 0),
+		}, wing)
+	end
 
-	-- Rebirth display slots 7-18 live on this raised terrace. Keeping the
-	-- terrace in StadiumExtras lets it rebuild cleanly whenever the tier changes.
-	createSecondFloorDisplayGallery(parent, plot.baseCFrame, fd)
+	for _, zOffset in ipairs({ -31.2, 31.2 }) do
+		make("Part", {
+			Name = "RebirthGallerySideRail",
+			Anchored = true,
+			CanCollide = true,
+			CanTouch = true,
+			CanQuery = true,
+			Material = Enum.Material.SmoothPlastic,
+			Color = railColor,
+			Size = Vector3.new(17.4, 1.6, 0.55),
+			CFrame = galleryCFrame * CFrame.new(0, 1.0, zOffset),
+		}, wing)
+	end
+
+	make("Part", {
+		Name = "RebirthGalleryBackRail",
+		Anchored = true,
+		CanCollide = true,
+		CanTouch = true,
+		CanQuery = true,
+		Material = Enum.Material.SmoothPlastic,
+		Color = railColor,
+		Size = Vector3.new(0.55, 1.8, 62.4),
+		CFrame = galleryCFrame * CFrame.new(-8.8 * fd, 1.1, 0),
+	}, wing)
+
+	local signPosition = (plot.baseCFrame * CFrame.new(-49.6 * fd, 4.1, 0)).Position
+	local signLook = Vector3.new(pitchPos.X, signPosition.Y, pitchPos.Z)
+	local wingSign = make("Part", {
+		Name = "RebirthGallerySign",
+		Anchored = true,
+		CanCollide = false,
+		CanTouch = false,
+		CanQuery = false,
+		Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(7, 10, 18),
+		Size = Vector3.new(12, 1.9, 0.24),
+		CFrame = CFrame.lookAt(signPosition, signLook),
+	}, wing)
+	local signGui = make("SurfaceGui", {
+		Face = Enum.NormalId.Front,
+		PixelsPerStud = 70,
+		LightInfluence = 0,
+	}, wingSign)
+	local signFrame = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(7, 10, 18),
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+	}, signGui)
+	make("UIStroke", { Color = gold, Thickness = 2, Transparency = 0.15 }, signFrame)
+	createOwnerSignText("REBIRTH", UDim2.fromScale(0.9, 0.43), UDim2.fromScale(0.05, 0.08), gold, {
+		textScaled = true,
+		minTextSize = 14,
+		maxTextSize = 56,
+		textStrokeTransparency = 0.45,
+		font = Enum.Font.GothamBlack,
+	}, signFrame)
+	createOwnerSignText("GALLERY SLOTS", UDim2.fromScale(0.86, 0.32), UDim2.fromScale(0.07, 0.56), Color3.fromRGB(235, 228, 210), {
+		textScaled = true,
+		minTextSize = 8,
+		maxTextSize = 24,
+		textStrokeTransparency = 0.7,
+		font = Enum.Font.GothamBold,
+	}, signFrame)
+
+	assignCollisionGroup(wing, COLLISION_GROUPS.StadiumGeometry)
 end
 
 function BaseService.SetupCollisionGroups()
@@ -6183,29 +5530,36 @@ end
 -- Iterates on layered walls, tunnel entrance, tiled flooring, raised podium,
 -- premium lighting and decorative props without touching gameplay.
 -- ─────────────────────────────────────────────────────────────────────────────
-local function createConceptTestStadium(parent, position)
-	local model = make("Model", { Name = "ConceptTestStadium" }, parent)
+createConceptTestStadium = function(parent, position, options)
+	options = options or {}
+	local model = make("Model", { Name = options.name or "ConceptTestStadium" }, parent)
+	local facingDirection = options.facingDirection or 1
 	local baseCFrame = CFrame.new(position)
+	if facingDirection < 0 then
+		baseCFrame = baseCFrame * CFrame.Angles(0, math.rad(180), 0)
+	end
+	local includeCenterPad = options.includeCenterPad ~= false
+	local includeDisplaySlots = options.includeDisplaySlots ~= false
+	local includeEntranceSign = options.includeEntranceSign ~= false
 
 	-- ── Constants ───────────────────────────────────────────────────────────
 	local size      = 100         -- overall outer footprint (octagon bounding)
-	local pitchW    = 50          -- bigger pitch (was 40)
-	local pitchD    = 34          -- bigger pitch (was 28)
+	local pitchW    = 64          -- fills more of the open interior between walls
+	local pitchD    = 48          -- fills the blank apron between the stands
+	local pitchSeatGap = 3.2      -- small apron before the first bleacher row
 	local wallH     = 14
 	local wallT     = 3.0         -- thicker premium walls
 	local floorH    = 1
-	local stoneDark = Color3.fromRGB(28, 32, 40)
-	local stoneMid  = Color3.fromRGB(40, 46, 56)
-	local stoneLite = Color3.fromRGB(58, 66, 80)
-	local goldCol   = Color3.fromRGB(218, 168, 40)
-	local goldHot   = Color3.fromRGB(255, 220, 120)
-	local pitchCol  = Color3.fromRGB(46, 108, 52)
-	local pitchEdge = Color3.fromRGB(58, 122, 60)
-	-- Darker, more premium seat tones (was bright red, now dark with red accent role)
-	local redSeat   = Color3.fromRGB(88, 24, 24)
-	local redSeatLo = Color3.fromRGB(54, 14, 14)
-	local redAccent = Color3.fromRGB(180, 30, 30)  -- only used for thin highlight strips
-	local lineCol   = Color3.fromRGB(232, 232, 232)
+	local stoneDark = Color3.fromRGB(32, 36, 46)
+	local stoneMid  = Color3.fromRGB(42, 48, 58)
+	local stoneLite = Color3.fromRGB(64, 72, 86)
+	local goldCol   = Color3.fromRGB(255, 210, 0)
+	local pitchCol  = Color3.fromRGB(56, 132, 60)
+	local pitchEdge = Color3.fromRGB(72, 156, 76)
+	local redSeat   = Color3.fromRGB(190, 38, 38)
+	local redSeatLo = Color3.fromRGB(145, 28, 28)
+	local redAccent = Color3.fromRGB(255, 58, 42)
+	local lineCol   = Color3.fromRGB(246, 246, 236)
 
 	-- ── Tiered tile floor with neon edge strips ─────────────────────────────
 	make("Part", {
@@ -6224,7 +5578,7 @@ local function createConceptTestStadium(parent, position)
 	for _, dz in ipairs({-1, 1}) do
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = goldCol,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.22,
 			Size = Vector3.new(size - 6, 0.04, 0.3),
 			CFrame = baseCFrame * CFrame.new(0, floorH + 0.06, dz * (size / 2 - 4)),
 		}, model)
@@ -6232,7 +5586,7 @@ local function createConceptTestStadium(parent, position)
 	for _, dx in ipairs({-1, 1}) do
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = goldCol,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.22,
 			Size = Vector3.new(0.3, 0.04, size - 6),
 			CFrame = baseCFrame * CFrame.new(dx * (size / 2 - 4), floorH + 0.06, 0),
 		}, model)
@@ -6247,7 +5601,7 @@ local function createConceptTestStadium(parent, position)
 	for _, dz in ipairs({-1, 1}) do
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = goldCol,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.25,
 			Size = Vector3.new(0.18, 0.04, size - 12),
 			CFrame = baseCFrame * CFrame.new(dz * 4, floorH + 0.07, 0),
 		}, model)
@@ -6256,47 +5610,74 @@ local function createConceptTestStadium(parent, position)
 	-- ── Concrete walkways forming a perimeter ring inside the arena ─────────
 	-- Raised slightly so they read as a walkway level, with subtle gold edge trim
 	local walkwayY = floorH + 0.12
-	local walkwayWidth = 5
-	local walkwayInset = pitchW / 2 + 8
+	local walkwayWidth = 2
+	local walkwayInset = pitchW / 2 + 2.4
 	-- North walkway (in front of north bleachers)
 	make("Part", {
 		Name = "WalkwayNorth", Anchored = true, CanCollide = false,
 		Material = Enum.Material.Concrete, Color = stoneLite,
-		Size = Vector3.new(size - 30, 0.18, walkwayWidth),
-		CFrame = baseCFrame * CFrame.new(0, walkwayY, -pitchD / 2 - walkwayWidth / 2 - 2),
+		Size = Vector3.new(pitchW + 4, 0.18, walkwayWidth),
+		CFrame = baseCFrame * CFrame.new(0, walkwayY, -pitchD / 2 - walkwayWidth / 2 - 0.7),
 	}, model)
 	make("Part", {
 		Anchored = true, CanCollide = false,
-		Material = Enum.Material.SmoothPlastic, Color = goldCol,
-		Size = Vector3.new(size - 30, 0.06, 0.22),
-		CFrame = baseCFrame * CFrame.new(0, walkwayY + 0.13, -pitchD / 2 - walkwayWidth - 2),
+		Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.28,
+		Size = Vector3.new(pitchW + 4, 0.06, 0.22),
+		CFrame = baseCFrame * CFrame.new(0, walkwayY + 0.13, -pitchD / 2 - walkwayWidth - 0.7),
 	}, model)
 	-- South walkway
 	make("Part", {
 		Name = "WalkwaySouth", Anchored = true, CanCollide = false,
 		Material = Enum.Material.Concrete, Color = stoneLite,
-		Size = Vector3.new(size - 30, 0.18, walkwayWidth),
-		CFrame = baseCFrame * CFrame.new(0, walkwayY, pitchD / 2 + walkwayWidth / 2 + 2),
+		Size = Vector3.new(pitchW + 4, 0.18, walkwayWidth),
+		CFrame = baseCFrame * CFrame.new(0, walkwayY, pitchD / 2 + walkwayWidth / 2 + 0.7),
 	}, model)
 	make("Part", {
 		Anchored = true, CanCollide = false,
-		Material = Enum.Material.SmoothPlastic, Color = goldCol,
-		Size = Vector3.new(size - 30, 0.06, 0.22),
-		CFrame = baseCFrame * CFrame.new(0, walkwayY + 0.13, pitchD / 2 + walkwayWidth + 2),
+		Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.28,
+		Size = Vector3.new(pitchW + 4, 0.06, 0.22),
+		CFrame = baseCFrame * CFrame.new(0, walkwayY + 0.13, pitchD / 2 + walkwayWidth + 0.7),
 	}, model)
 	-- West walkway (back of stadium)
 	make("Part", {
 		Name = "WalkwayWest", Anchored = true, CanCollide = false,
 		Material = Enum.Material.Concrete, Color = stoneLite,
-		Size = Vector3.new(walkwayWidth, 0.18, pitchD + walkwayWidth * 2 + 8),
+		Size = Vector3.new(walkwayWidth, 0.18, pitchD + walkwayWidth * 2 + 2),
 		CFrame = baseCFrame * CFrame.new(-walkwayInset, walkwayY, 0),
 	}, model)
 	make("Part", {
 		Anchored = true, CanCollide = false,
-		Material = Enum.Material.SmoothPlastic, Color = goldCol,
-		Size = Vector3.new(0.22, 0.06, pitchD + walkwayWidth * 2 + 8),
+		Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.28,
+		Size = Vector3.new(0.22, 0.06, pitchD + walkwayWidth * 2 + 2),
 		CFrame = baseCFrame * CFrame.new(-walkwayInset - walkwayWidth / 2, walkwayY + 0.13, 0),
 	}, model)
+	-- East entry apron: this is the future NPC/player split point after the main gate.
+	make("Part", {
+		Name = "WalkwayEastEntry", Anchored = true, CanCollide = false,
+		Material = Enum.Material.Concrete, Color = stoneLite,
+		Size = Vector3.new(walkwayWidth, 0.18, pitchD + walkwayWidth * 2 + 2),
+		CFrame = baseCFrame * CFrame.new(walkwayInset, walkwayY, 0),
+	}, model)
+	make("Part", {
+		Anchored = true, CanCollide = false,
+		Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.28,
+		Size = Vector3.new(0.22, 0.06, pitchD + walkwayWidth * 2 + 2),
+		CFrame = baseCFrame * CFrame.new(walkwayInset + walkwayWidth / 2, walkwayY + 0.13, 0),
+	}, model)
+	for _, zSign in ipairs({-1, 1}) do
+		make("Part", {
+			Name = "FanRouteArrow", Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.25,
+			Size = Vector3.new(2.1, 0.08, 0.28),
+			CFrame = baseCFrame * CFrame.new(walkwayInset, walkwayY + 0.17, zSign * 12) * CFrame.Angles(0, math.rad(zSign > 0 and 45 or -45), 0),
+		}, model)
+		make("Part", {
+			Name = "FanRouteArrowHead", Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.25,
+			Size = Vector3.new(1.1, 0.08, 0.28),
+			CFrame = baseCFrame * CFrame.new(walkwayInset - 0.9, walkwayY + 0.18, zSign * (12 + 0.9)) * CFrame.Angles(0, math.rad(zSign > 0 and 135 or -135), 0),
+		}, model)
+	end
 	-- Pitch-side barrier railings (low metal posts every few studs)
 	for _, dz in ipairs({-1, 1}) do
 		for railX = -pitchW / 2 + 2, pitchW / 2 - 2, 4 do
@@ -6332,6 +5713,19 @@ local function createConceptTestStadium(parent, position)
 		Size = Vector3.new(pitchW, 0.1, pitchD),
 		CFrame = baseCFrame * CFrame.new(0, pitchY + 0.02, 0),
 	}, model)
+	local pitchFillAnchor = make("Part", {
+		Name = "PitchFillLightAnchor",
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(1, 1, 1),
+		CFrame = baseCFrame * CFrame.new(0, floorH + 8, 0),
+	}, model)
+	make("PointLight", {
+		Brightness = 0.42,
+		Range = 44,
+		Color = Color3.fromRGB(238, 246, 220),
+		Shadows = false,
+	}, pitchFillAnchor)
 	-- Helper for pitch lines
 	local function pitchLine(sz, lx, lz)
 		make("Part", {
@@ -6377,6 +5771,18 @@ local function createConceptTestStadium(parent, position)
 		pitchLine(Vector3.new(9, 0.05, 0.25), bx + sign * -4.5, -6)
 		pitchLine(Vector3.new(9, 0.05, 0.25), bx + sign * -4.5,  6)
 	end
+	-- Copy the old base's four small angled corner nets onto the raised concept pitch.
+	local conceptGoalX = pitchW / 2 - 1.7
+	local conceptGoalZ = pitchD / 2 - 1.5
+	local function createConceptCornerGoal(name, localX, localZ)
+		local worldPosition = (baseCFrame * CFrame.new(localX, pitchY + 0.13, localZ)).Position
+		local lookPosition = (baseCFrame * CFrame.new(0, pitchY + 0.13, 0)).Position
+		createCornerGoal(model, name, CFrame.lookAt(worldPosition, lookPosition))
+	end
+	createConceptCornerGoal("NorthEastCornerGoal", conceptGoalX, -conceptGoalZ)
+	createConceptCornerGoal("SouthEastCornerGoal", conceptGoalX, conceptGoalZ)
+	createConceptCornerGoal("NorthWestCornerGoal", -conceptGoalX, -conceptGoalZ)
+	createConceptCornerGoal("SouthWestCornerGoal", -conceptGoalX, conceptGoalZ)
 
 	-- ── Layered octagonal walls with support pillars + neon strips ──────────
 	local wallY = floorH + wallH / 2
@@ -6406,7 +5812,7 @@ local function createConceptTestStadium(parent, position)
 		-- Subtle gold accent line just below cap (much dimmer)
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.6,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.28,
 			Size = Vector3.new(pillarW + 0.3, 0.1, pillarW + 0.3),
 			CFrame = baseCFrame * CFrame.new(px, floorH + pillarH - 0.1, pz),
 		}, model)
@@ -6437,7 +5843,7 @@ local function createConceptTestStadium(parent, position)
 		local outZ = math.sin(outwardAngle)
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.55,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.3,
 			Size = Vector3.new(0.18, pillarH * 0.7, 0.18),
 			CFrame = baseCFrame * CFrame.new(px + outX * (pillarW / 2 + 0.05), floorH + pillarH * 0.55, pz + outZ * (pillarW / 2 + 0.05)),
 		}, model)
@@ -6447,7 +5853,7 @@ local function createConceptTestStadium(parent, position)
 			Size = Vector3.new(1, 1, 1),
 			CFrame = baseCFrame * CFrame.new(px, floorH + pillarH + 1, pz),
 		}, model)
-		make("PointLight", { Brightness = 0.3, Range = 8, Color = goldCol }, lightAnchor)
+		make("PointLight", { Brightness = 0.8, Range = 14, Color = goldCol }, lightAnchor)
 	end
 	-- Helper that builds one wall segment with structural depth (recessed layers,
 	-- inner ledge, support beam, embedded glow strip — but neon trim toned down)
@@ -6477,7 +5883,7 @@ local function createConceptTestStadium(parent, position)
 		-- Subtle embedded gold glow strip (much dimmer)
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.65,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.32,
 			Size = Vector3.new(math.max(0.2, length - 2), 0.18, 0.12),
 			CFrame = cf * CFrame.new(0, -0.7, -wallT * 0.5 - 0.12),
 		}, model)
@@ -6491,14 +5897,14 @@ local function createConceptTestStadium(parent, position)
 		-- Subtle gold trim line just below top cap (dimmer)
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.55,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.28,
 			Size = Vector3.new(length + 0.1, 0.12, wallT + 0.15),
 			CFrame = cf * CFrame.new(0, wallH / 2 - 0.1, 0),
 		}, model)
 		-- Subtle bottom floor glow (dim warm)
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.7,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.42,
 			Size = Vector3.new(length + 0.1, 0.1, wallT + 0.1),
 			CFrame = cf * CFrame.new(0, -wallH / 2 + 0.05, 0),
 		}, model)
@@ -6541,8 +5947,8 @@ local function createConceptTestStadium(parent, position)
 		local rows = 5
 		local rowDepth = 2.6
 		local rowRise = 1.5
-		local rowWidth = pitchW - 4   -- narrower so they don't poke through corner walls
-		local startZ = zSignParam * (pitchD / 2 + 9)
+		local rowWidth = math.min(pitchW - 8, 50)   -- wide, but still clear of octagon corners
+		local startZ = zSignParam * (pitchD / 2 + pitchSeatGap)
 		-- Dark underside support structure (extends across the full bleacher footprint)
 		make("Part", {
 			Anchored = true, CanCollide = true,
@@ -6588,7 +5994,7 @@ local function createConceptTestStadium(parent, position)
 		-- Subtle gold cap on the backing wall
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.55,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.24,
 			Size = Vector3.new(rowWidth + 1, 0.18, 0.9),
 			CFrame = baseCFrame * CFrame.new(0, backWallY + backWallH / 2 + 0.1, backWallZ),
 		}, bleacherFolder)
@@ -6642,7 +6048,7 @@ local function createConceptTestStadium(parent, position)
 			-- Subtle gold trim along front edge of seat row (toned down)
 			make("Part", {
 				Anchored = true, CanCollide = false,
-				Material = Enum.Material.SmoothPlastic, Color = goldCol,
+				Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.18,
 				Size = Vector3.new(rowWidth + 0.1, 0.1, 0.1),
 				CFrame = baseCFrame * CFrame.new(0, y + h / 2 + 0.18, zPos - zSignParam * rowDepth / 2),
 			}, bleacherFolder)
@@ -6662,236 +6068,91 @@ local function createConceptTestStadium(parent, position)
 				-- Gold rail along stairs
 				make("Part", {
 					Anchored = true, CanCollide = false,
-					Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.3,
+					Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.16,
 					Size = Vector3.new(0.16, 0.16, rowDepth - 0.2),
 					CFrame = baseCFrame * CFrame.new(sx, y + h / 2 + 0.1, zPos),
 				}, bleacherFolder)
 			end
 		end
+		-- Visible fan access aisles at the ends of each stand. These mirror the
+		-- hidden route points the live NPC system will use once this becomes a plot.
+		local accessLaneDepth = rowDepth * rows + 1.4
+		local accessLaneZ = startZ + zSignParam * (rowDepth * rows / 2 - rowDepth / 2)
+		for _, sx in ipairs({-rowWidth / 2 - 2.1, rowWidth / 2 + 2.1}) do
+			make("Part", {
+				Name = "FanAccessAisle", Anchored = true, CanCollide = false,
+				Material = Enum.Material.Concrete, Color = stoneLite,
+				Size = Vector3.new(2.2, 0.16, accessLaneDepth),
+				CFrame = baseCFrame * CFrame.new(sx, floorH + 0.16, accessLaneZ),
+			}, bleacherFolder)
+			for _, edgeX in ipairs({-1, 1}) do
+				make("Part", {
+					Name = "FanAccessAisleGoldEdge", Anchored = true, CanCollide = false,
+					Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.22,
+					Size = Vector3.new(0.12, 0.06, accessLaneDepth),
+					CFrame = baseCFrame * CFrame.new(sx + edgeX * 1.13, floorH + 0.28, accessLaneZ),
+				}, bleacherFolder)
+			end
+			make("Part", {
+				Name = "FanAccessLanding", Anchored = true, CanCollide = false,
+				Material = Enum.Material.Concrete, Color = stoneLite,
+				Size = Vector3.new(3.2, 0.17, 2.4),
+				CFrame = baseCFrame * CFrame.new(sx, floorH + 0.18, zSignParam * (pitchD / 2 + 1.2)),
+			}, bleacherFolder)
+		end
 	end
 	buildBleacherSide(-1) -- North
 	buildBleacherSide( 1) -- South
 
-	-- ── Central pack-opening pad (flat, simple, like the original base) ────
-	-- Just a small octagonal pad in the centre with the FOOTBALLER PACK on top.
-	-- No more layered pyramid — keep it clean and let the pack itself be the focus.
-	local podiumY = floorH + 0.2
-	local function octRing(radius, height, yCenter, color, mat, transparency)
-		for i = 0, 7 do
-			local a1 = (i / 8) * math.pi * 2
-			local a2 = ((i + 1) / 8) * math.pi * 2
-			local x1, z1 = math.cos(a1) * radius, math.sin(a1) * radius
-			local x2, z2 = math.cos(a2) * radius, math.sin(a2) * radius
-			local segLen = math.sqrt((x2 - x1) ^ 2 + (z2 - z1) ^ 2)
-			local cx, cz = (x1 + x2) / 2, (z1 + z2) / 2
-			local segAngle = math.atan2(z2 - z1, x2 - x1)
-			make("Part", {
-				Anchored = true, CanCollide = (transparency or 0) < 0.5,
-				Material = mat, Color = color,
-				Transparency = transparency or 0,
-				Size = Vector3.new(segLen, height, radius * 0.5),
-				CFrame = baseCFrame * CFrame.new(cx * 0.78, yCenter, cz * 0.78) * CFrame.Angles(0, -segAngle, 0),
-			}, model)
+	if includeCenterPad then
+		-- ── Central pack-opening pad (flat, simple, like the original base) ────
+		-- Keep this as an architectural landing spot for the real pack slot later.
+		local podiumY = floorH + 0.2
+		local function octRing(radius, height, yCenter, color, mat, transparency)
+			for i = 0, 7 do
+				local a1 = (i / 8) * math.pi * 2
+				local a2 = ((i + 1) / 8) * math.pi * 2
+				local x1, z1 = math.cos(a1) * radius, math.sin(a1) * radius
+				local x2, z2 = math.cos(a2) * radius, math.sin(a2) * radius
+				local segLen = math.sqrt((x2 - x1) ^ 2 + (z2 - z1) ^ 2)
+				local cx, cz = (x1 + x2) / 2, (z1 + z2) / 2
+				local segAngle = math.atan2(z2 - z1, x2 - x1)
+				make("Part", {
+					Anchored = true, CanCollide = (transparency or 0) < 0.5,
+					Material = mat, Color = color,
+					Transparency = transparency or 0,
+					Size = Vector3.new(segLen, height, radius * 0.5),
+					CFrame = baseCFrame * CFrame.new(cx * 0.78, yCenter, cz * 0.78) * CFrame.Angles(0, -segAngle, 0),
+				}, model)
+			end
 		end
-	end
-	-- Single small flat octagonal pad — dark stone, no glow
-	octRing(5.5, 0.6, podiumY + 0.3, stoneDark, Enum.Material.Slate)
-	-- Sharp dark gold trim around the pad edge (matte, architectural)
-	octRing(5.6, 0.08, podiumY + 0.65, Color3.fromRGB(110, 82, 22), Enum.Material.SmoothPlastic, 0)
-	-- ── Proper FOOTBALLER PACK monolith (rectangular black/gold card box) ──
-	local packBaseY = podiumY + 0.6
-	local packW, packH, packD = 4.6, 9.5, 1.4   -- tall, narrow, like a card pack
-	local packPillar = make("Part", {
-		Name = "FootballerPackMonolith", Anchored = true, CanCollide = true,
-		Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(12, 14, 20),
-		Size = Vector3.new(packW, packH, packD),
-		CFrame = baseCFrame * CFrame.new(0, packBaseY + packH / 2, 0),
-	}, model)
-	-- Gold border frame around the pack — matte gold, NOT neon (no light spill)
-	for _, sy in ipairs({-1, 1}) do
-		make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = goldCol,
-			Size = Vector3.new(packW + 0.18, 0.2, packD + 0.05),
-			CFrame = baseCFrame * CFrame.new(0, packBaseY + packH / 2 + sy * (packH / 2 - 0.1), 0),
-		}, model)
-	end
-	for _, sx in ipairs({-1, 1}) do
-		make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = goldCol,
-			Size = Vector3.new(0.2, packH - 0.05, packD + 0.05),
-			CFrame = baseCFrame * CFrame.new(sx * (packW / 2 - 0.05), packBaseY + packH / 2, 0),
-		}, model)
-	end
-	-- Inner gold trim line (forms double border like a premium card)
-	for _, sy in ipairs({-1, 1}) do
-		make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = goldCol,
-			Size = Vector3.new(packW - 0.8, 0.08, packD + 0.05),
-			CFrame = baseCFrame * CFrame.new(0, packBaseY + packH / 2 + sy * (packH / 2 - 0.55), 0),
-		}, model)
-	end
-	for _, sx in ipairs({-1, 1}) do
-		make("Part", {
-			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = goldCol,
-			Size = Vector3.new(0.08, packH - 1.1, packD + 0.05),
-			CFrame = baseCFrame * CFrame.new(sx * (packW / 2 - 0.45), packBaseY + packH / 2, 0),
-		}, model)
-	end
-	-- "FOOTBALLER PACK" text + football emblem on both wide faces
-	for _, packFace in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
-		local packGui = make("SurfaceGui", {
-			Name = "PackFace_" .. tostring(packFace), Face = packFace,
-			LightInfluence = 0, PixelsPerStud = 80,
-		}, packPillar)
-		-- Football emblem (placeholder = circle TextLabel with ball emoji)
-		make("TextLabel", {
-			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(0.5, 0.32),
-			Position = UDim2.fromScale(0.25, 0.18),
-			Text = "⚽",
-			TextColor3 = goldHot,
-			TextStrokeColor3 = Color3.fromRGB(0, 0, 0), TextStrokeTransparency = 0.3,
-			TextScaled = true, Font = Enum.Font.GothamBlack,
-		}, packGui)
-		-- "FOOTBALLER" line
-		make("TextLabel", {
-			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(0.86, 0.12),
-			Position = UDim2.fromScale(0.07, 0.56),
-			Text = "FOOTBALLER",
-			TextColor3 = goldHot,
-			TextStrokeColor3 = Color3.fromRGB(0, 0, 0), TextStrokeTransparency = 0.3,
-			TextScaled = true, Font = Enum.Font.GothamBlack,
-		}, packGui)
-		-- "PACK" line
-		make("TextLabel", {
-			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(0.86, 0.16),
-			Position = UDim2.fromScale(0.07, 0.7),
-			Text = "PACK",
-			TextColor3 = goldHot,
-			TextStrokeColor3 = Color3.fromRGB(0, 0, 0), TextStrokeTransparency = 0.3,
-			TextScaled = true, Font = Enum.Font.GothamBlack,
-		}, packGui)
-	end
-	-- (Removed PointLight on the pack — was creating a yellow pool on the pad)
-	-- 4 SpotLights aimed at the central pack from above (drama lighting)
-	for _, dx in ipairs({-1, 1}) do
-		for _, dz in ipairs({-1, 1}) do
-			local saPos = (baseCFrame * CFrame.new(dx * 12, floorH + 16, dz * 10)).Position
-			local packPos = (baseCFrame * CFrame.new(0, packBaseY + packH / 2, 0)).Position
-			local sa = make("Part", {
-				Anchored = true, CanCollide = false, Transparency = 1,
-				Size = Vector3.new(1, 1, 1),
-				CFrame = CFrame.lookAt(saPos, packPos),
-			}, model)
-			make("SpotLight", {
-				Brightness = 1.4, Range = 22, Angle = 50,
-				Face = Enum.NormalId.Front,
-				Color = Color3.fromRGB(255, 220, 160),
-			}, sa)
-		end
+		-- Single small flat octagonal pad — dark stone, no glow
+		octRing(5.5, 0.6, podiumY + 0.3, stoneDark, Enum.Material.Slate)
+		-- Low-contrast bronze trim only. The live pack slot can own the dramatic glow later.
+		octRing(5.6, 0.08, podiumY + 0.65, Color3.fromRGB(96, 68, 22), Enum.Material.SmoothPlastic)
 	end
 
-	-- ── Card display slots — DIRECT COPY of the original createDisplaySlot ──
-	-- Same dimensions (DisplaySlotSize 5 × 3.5 × 5), materials, colors, halo, rim.
-	local slotPositions = {
-		-- North side (z negative); player approaches from +Z (the pitch side)
-		{ x = -pitchW / 3, z = -pitchD / 2 + 3, dir = Vector3.new(0, 0, 1) },
-		{ x = 0,           z = -pitchD / 2 + 3, dir = Vector3.new(0, 0, 1) },
-		{ x =  pitchW / 3, z = -pitchD / 2 + 3, dir = Vector3.new(0, 0, 1) },
-		-- South side (z positive); player approaches from -Z (the pitch side)
-		{ x = -pitchW / 3, z =  pitchD / 2 - 3, dir = Vector3.new(0, 0, -1) },
-		{ x = 0,           z =  pitchD / 2 - 3, dir = Vector3.new(0, 0, -1) },
-		{ x =  pitchW / 3, z =  pitchD / 2 - 3, dir = Vector3.new(0, 0, -1) },
-	}
-	local slotW, slotH, slotDDim = 5, 3.5, 5
-	local slotTopY = slotH / 2
-	for slotI, _slot in ipairs(slotPositions) do
-		local sx, sz = _slot.x, _slot.z
-		local cframe = baseCFrame * CFrame.new(sx, floorH + slotH / 2, sz)
-		-- Pedestal body — dark polished concrete (same colour as createDisplaySlot)
-		local slotBase = make("Part", {
-			Name = "Slot" .. slotI .. "Base", Anchored = true, CanCollide = true,
-			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(14, 19, 30),
-			Size = Vector3.new(slotW, slotH, slotDDim),
-			CFrame = cframe,
-		}, model)
-		-- Green glow halo on the floor under the pedestal (marks slot as available)
-		local halo = make("Part", {
-			Name = "GlowHalo", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-			Material = Enum.Material.Neon,
-			Color = Color3.fromRGB(60, 230, 110), Transparency = 0.30,
-			Size = Vector3.new(slotW + 1.4, 0.08, slotDDim + 1.4),
-			CFrame = cframe + Vector3.new(0, -(slotH / 2) + 0.04, 0),
-		}, model)
-		make("PointLight", {
-			Color = Color3.fromRGB(60, 230, 110),
-			Brightness = 1.4, Range = 9, Shadows = false,
-		}, halo)
-		-- 4 slim gold rim strips around the top edges
-		local rimThickness = 0.18
-		local rimHeight = 0.22
-		local rimY = slotTopY + rimHeight / 2
-		local rimColor = Color3.fromRGB(218, 168, 40)
-		local rimTransp = 0.42
-		for _, axis in ipairs({
-			{ Vector3.new(slotW, rimHeight, rimThickness),     Vector3.new(0, rimY, -(slotDDim / 2)) },
-			{ Vector3.new(slotW, rimHeight, rimThickness),     Vector3.new(0, rimY,  (slotDDim / 2)) },
-			{ Vector3.new(rimThickness, rimHeight, slotDDim),  Vector3.new(-(slotW / 2), rimY, 0)    },
-			{ Vector3.new(rimThickness, rimHeight, slotDDim),  Vector3.new( (slotW / 2), rimY, 0)    },
-		}) do
-			make("Part", {
-				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-				Material = Enum.Material.Neon, Color = rimColor, Transparency = rimTransp,
-				Size = axis[1],
-				CFrame = cframe + axis[2],
-			}, model)
+	if includeDisplaySlots then
+		-- ── Card display slots — real display-slot helper, laid out like the concept ──
+		local slotPositions = {
+			-- North side (z negative); player approaches from +Z (the pitch side)
+			{ x = -pitchW / 3, z = -pitchD / 2 + 3, dir = Vector3.new(0, 0, 1) },
+			{ x = 0,           z = -pitchD / 2 + 3, dir = Vector3.new(0, 0, 1) },
+			{ x =  pitchW / 3, z = -pitchD / 2 + 3, dir = Vector3.new(0, 0, 1) },
+			-- South side (z positive); player approaches from -Z (the pitch side)
+			{ x = -pitchW / 3, z =  pitchD / 2 - 3, dir = Vector3.new(0, 0, -1) },
+			{ x = 0,           z =  pitchD / 2 - 3, dir = Vector3.new(0, 0, -1) },
+			{ x =  pitchW / 3, z =  pitchD / 2 - 3, dir = Vector3.new(0, 0, -1) },
+		}
+		local conceptSlotFolder = make("Folder", { Name = "DisplaySlots" }, model)
+		for slotI, _slot in ipairs(slotPositions) do
+			createDisplaySlot(
+				conceptSlotFolder,
+				slotI,
+				baseCFrame * CFrame.new(_slot.x, floorH + layout.DisplaySlotSize.Y / 2, _slot.z),
+				_slot.dir
+			)
 		end
-		-- Soft top glow plate (the visible "pad")
-		make("Part", {
-			Name = "Slot" .. slotI .. "Top", Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = Color3.fromRGB(218, 168, 40), Transparency = 0.62,
-			Size = Vector3.new(slotW - 1.6, 0.12, slotDDim - 1.6),
-			CFrame = slotBase.CFrame + Vector3.new(0, slotTopY + 0.07, 0),
-		}, model)
-		-- Slot number on the player-facing face (matches createDisplaySlot logic)
-		local lookDirection = _slot.dir
-		local numFace
-		if math.abs(lookDirection.X) > math.abs(lookDirection.Z) then
-			numFace = lookDirection.X > 0 and Enum.NormalId.Right or Enum.NormalId.Left
-		else
-			numFace = lookDirection.Z > 0 and Enum.NormalId.Back or Enum.NormalId.Front
-		end
-		local function attachNumber(face)
-			local gui = make("SurfaceGui", {
-				Name = "SlotNum_" .. tostring(face), Face = face,
-				AlwaysOnTop = false,
-				SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
-				PixelsPerStud = 30,
-			}, slotBase)
-			make("TextLabel", {
-				Size = UDim2.fromScale(1, 1),
-				BackgroundTransparency = 1,
-				Text = tostring(slotI),
-				TextColor3 = Color3.fromRGB(255, 210, 60),
-				TextTransparency = 0.36,
-				TextScaled = true,
-				Font = Enum.Font.GothamBlack,
-			}, gui)
-		end
-		attachNumber(numFace)
-		-- Mirror on the opposite face so number reads from both sides
-		local oppositeFace
-		if numFace == Enum.NormalId.Front then oppositeFace = Enum.NormalId.Back
-		elseif numFace == Enum.NormalId.Back then oppositeFace = Enum.NormalId.Front
-		elseif numFace == Enum.NormalId.Left then oppositeFace = Enum.NormalId.Right
-		else oppositeFace = Enum.NormalId.Left end
-		attachNumber(oppositeFace)
 	end
 
 	-- ── Tunnel-style entrance: thicker frame, side columns, recessed depth ──
@@ -6910,15 +6171,15 @@ local function createConceptTestStadium(parent, position)
 		-- Gold pillar accent strip (vertical)
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.25,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.62,
 			Size = Vector3.new(0.3, archHeight - 1, 0.3),
 			CFrame = baseCFrame * CFrame.new(archX - frameW + 0.1, archHeight / 2, sz - frameW / 2 + 0.1),
 		}, model)
 		-- Pillar top cap
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.15,
-			Size = Vector3.new(frameW * 2.4, 0.4, frameW + 0.4),
+			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(190, 138, 24),
+			Size = Vector3.new(frameW * 2.4, 0.18, frameW + 0.4),
 			CFrame = baseCFrame * CFrame.new(archX, archHeight + 2.3, sz),
 		}, model)
 	end
@@ -6941,78 +6202,79 @@ local function createConceptTestStadium(parent, position)
 	-- Gold trim under beam
 	make("Part", {
 		Anchored = true, CanCollide = false,
-		Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.12,
-		Size = Vector3.new(frameW * 2 + 0.3, 0.4, archWidth + frameW * 2 + 0.3),
+		Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(190, 138, 24),
+		Size = Vector3.new(frameW * 2 + 0.3, 0.12, archWidth + frameW * 2 + 0.3),
 		CFrame = baseCFrame * CFrame.new(archX, archHeight + 2.3 - 2.5, 0),
 	}, model)
 	-- Gold trim above beam
 	make("Part", {
 		Anchored = true, CanCollide = false,
-		Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.18,
-		Size = Vector3.new(frameW * 2 + 0.3, 0.3, archWidth + frameW * 2 + 0.3),
+		Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(190, 138, 24),
+		Size = Vector3.new(frameW * 2 + 0.3, 0.12, archWidth + frameW * 2 + 0.3),
 		CFrame = baseCFrame * CFrame.new(archX, archHeight + 2.3 + 2.55, 0),
 	}, model)
-	-- ── "ZAID'S STADIUM" sign — thinner, sharper, less neon-overpowering ───
-	-- A slim signboard that reads as architectural trim, not a giant glowing slab.
-	local signPlate = make("Part", {
-		Name = "ArchStadiumSignPlate",
-		Anchored = true, CanCollide = false,
-		Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(10, 12, 18),
-		Size = Vector3.new(0.4, 2.2, 11),
-		CFrame = baseCFrame * CFrame.new(archX + frameW + 0.6, archHeight + 2.3, 0),
-	}, model)
-	-- Thin gold trim line above and below (sharper, not a glowing backplate)
-	for _, sy in ipairs({-1, 1}) do
-		make("Part", {
+	if includeEntranceSign then
+		-- ── "ZAID'S STADIUM" sign — thinner, sharper, less neon-overpowering ───
+		-- A slim signboard that reads as architectural trim, not a giant glowing slab.
+		local signPlate = make("Part", {
+			Name = "ArchStadiumSignPlate",
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.SmoothPlastic, Color = goldCol,
-			Size = Vector3.new(0.42, 0.12, 11.3),
-			CFrame = baseCFrame * CFrame.new(archX + frameW + 0.6, archHeight + 2.3 + sy * 1.2, 0),
+			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(10, 12, 18),
+			Size = Vector3.new(0.5, 2.9, 12.8),
+			CFrame = baseCFrame * CFrame.new(archX + frameW + 0.85, archHeight + 2.3, 0),
 		}, model)
-	end
-	-- Sign text on the OUTWARD-facing side (+X = Right face)
-	local signGuiOutward = make("SurfaceGui", {
-		Name = "StadiumSignFront",
-		Face = Enum.NormalId.Right,
-		LightInfluence = 0, PixelsPerStud = 80,
-	}, signPlate)
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(0.94, 0.7),
-		Position = UDim2.fromScale(0.03, 0.15),
-		Text = "ZAID'S STADIUM",
-		TextColor3 = goldCol,
-		TextStrokeColor3 = Color3.fromRGB(8, 12, 20),
-		TextStrokeTransparency = 0.5,
-		TextScaled = true,
-		Font = Enum.Font.GothamBold,
-	}, signGuiOutward)
-	-- Inward face (visible when leaving stadium)
-	local signGuiInward = make("SurfaceGui", {
-		Name = "StadiumSignBack",
-		Face = Enum.NormalId.Left,
-		LightInfluence = 0, PixelsPerStud = 80,
-	}, signPlate)
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(0.94, 0.7),
-		Position = UDim2.fromScale(0.03, 0.15),
-		Text = "ZAID'S STADIUM",
-		TextColor3 = goldCol,
-		TextStrokeColor3 = Color3.fromRGB(8, 12, 20),
-		TextStrokeTransparency = 0.5,
-		TextScaled = true,
-		Font = Enum.Font.GothamBold,
-	}, signGuiInward)
-	-- Gold ball ornaments flanking the sign
-	for _, sz in ipairs({-archWidth / 2 + 1.8, archWidth / 2 - 1.8}) do
-		local ball = make("Part", {
-			Anchored = true, CanCollide = false, Shape = Enum.PartType.Ball,
-			Material = Enum.Material.Neon, Color = goldCol,
-			Size = Vector3.new(1.8, 1.8, 1.8),
-			CFrame = baseCFrame * CFrame.new(archX - 0.6, archHeight + 2.3, sz),
-		}, model)
-		make("PointLight", { Brightness = 1.4, Range = 18, Color = goldCol }, ball)
+		-- Thin matte-gold trim line above and below (sharper, not a glowing backplate)
+		for _, sy in ipairs({-1, 1}) do
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(206, 154, 34),
+				Size = Vector3.new(0.52, 0.1, 13.1),
+				CFrame = baseCFrame * CFrame.new(archX + frameW + 0.86, archHeight + 2.3 + sy * 1.55, 0),
+			}, model)
+		end
+		-- Sign text on the OUTWARD-facing side (+X = Right face)
+		local signGuiOutward = make("SurfaceGui", {
+			Name = "StadiumSignFront",
+			Face = Enum.NormalId.Right,
+			LightInfluence = 0, PixelsPerStud = 80,
+		}, signPlate)
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(0.94, 0.78),
+			Position = UDim2.fromScale(0.03, 0.11),
+			Text = "ZAID'S STADIUM",
+			TextColor3 = Color3.fromRGB(255, 232, 96),
+			TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
+			TextStrokeTransparency = 0.18,
+			TextScaled = true,
+			Font = Enum.Font.GothamBlack,
+		}, signGuiOutward)
+		-- Inward face (visible when leaving stadium)
+		local signGuiInward = make("SurfaceGui", {
+			Name = "StadiumSignBack",
+			Face = Enum.NormalId.Left,
+			LightInfluence = 0, PixelsPerStud = 80,
+		}, signPlate)
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(0.94, 0.78),
+			Position = UDim2.fromScale(0.03, 0.11),
+			Text = "ZAID'S STADIUM",
+			TextColor3 = Color3.fromRGB(255, 232, 96),
+			TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
+			TextStrokeTransparency = 0.18,
+			TextScaled = true,
+			Font = Enum.Font.GothamBlack,
+		}, signGuiInward)
+		-- Gold ball ornaments flanking the sign
+		for _, sz in ipairs({-archWidth / 2 + 1.8, archWidth / 2 - 1.8}) do
+			make("Part", {
+				Anchored = true, CanCollide = false, Shape = Enum.PartType.Ball,
+				Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(180, 128, 28),
+				Size = Vector3.new(1.8, 1.8, 1.8),
+				CFrame = baseCFrame * CFrame.new(archX - 0.6, archHeight + 2.3, sz),
+			}, model)
+		end
 	end
 	-- Floor strip lights running through the entrance tunnel
 	for _, dz in ipairs({-1, 1}) do
@@ -7026,10 +6288,92 @@ local function createConceptTestStadium(parent, position)
 	-- Tunnel ceiling glow strip
 	make("Part", {
 		Anchored = true, CanCollide = false,
-		Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.3,
-		Size = Vector3.new(frameW * 4, 0.18, 0.5),
+		Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.72,
+		Size = Vector3.new(frameW * 4, 0.12, 0.45),
 		CFrame = baseCFrame * CFrame.new(archX, archHeight - 0.3, 0),
 	}, model)
+
+	-- Close the side gaps between the octagon wall shoulders and the entrance tunnel.
+	-- These are structural infill pieces, leaving only the central gate open.
+	local entranceClosureZ = archWidth / 2 + frameW / 2 + 1.25
+	local entranceClosureX = size / 2 + 2.8
+	local entranceClosureLength = 10.6
+	local entranceClosureHeight = 10.2
+	for _, dz in ipairs({-1, 1}) do
+		make("Part", {
+			Name = "EntranceSideClosure" .. (dz > 0 and "South" or "North"),
+			Anchored = true, CanCollide = true,
+			Material = Enum.Material.Slate, Color = stoneDark,
+			Size = Vector3.new(entranceClosureLength, entranceClosureHeight, 2.3),
+			CFrame = baseCFrame * CFrame.new(entranceClosureX, floorH + entranceClosureHeight / 2, dz * entranceClosureZ),
+		}, model)
+		make("Part", {
+			Name = "EntranceSideClosureInset" .. (dz > 0 and "South" or "North"),
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = stoneMid,
+			Size = Vector3.new(entranceClosureLength - 1.4, entranceClosureHeight - 3.2, 0.24),
+			CFrame = baseCFrame * CFrame.new(entranceClosureX, floorH + entranceClosureHeight / 2 - 0.2, dz * (entranceClosureZ - 1.18)),
+		}, model)
+		make("Part", {
+			Name = "EntranceSideClosureCap" .. (dz > 0 and "South" or "North"),
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = stoneLite,
+			Size = Vector3.new(entranceClosureLength + 0.6, 0.42, 2.7),
+			CFrame = baseCFrame * CFrame.new(entranceClosureX, floorH + entranceClosureHeight + 0.2, dz * entranceClosureZ),
+		}, model)
+		make("Part", {
+			Name = "EntranceSideClosureTrim" .. (dz > 0 and "South" or "North"),
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(190, 138, 24),
+			Size = Vector3.new(entranceClosureLength - 0.7, 0.12, 0.16),
+			CFrame = baseCFrame * CFrame.new(entranceClosureX, floorH + entranceClosureHeight - 1.2, dz * (entranceClosureZ - 1.28)),
+		}, model)
+	end
+
+	-- Wider side wings cover the remaining sliver between the entrance tunnel
+	-- and the octagon shoulders when viewed from player height.
+	local entranceWingX = size / 2 + 1.3
+	local entranceWingZ = archWidth / 2 + frameW + 5.0
+	local entranceWingLength = 14.8
+	local entranceWingDepth = 7.0
+	local entranceWingHeight = 9.6
+	for _, dz in ipairs({-1, 1}) do
+		make("Part", {
+			Name = "EntranceSideWing" .. (dz > 0 and "South" or "North"),
+			Anchored = true, CanCollide = true,
+			Material = Enum.Material.Slate, Color = stoneDark,
+			Size = Vector3.new(entranceWingLength, entranceWingHeight, entranceWingDepth),
+			CFrame = baseCFrame * CFrame.new(entranceWingX, floorH + entranceWingHeight / 2, dz * entranceWingZ),
+		}, model)
+		make("Part", {
+			Name = "EntranceSideWingInset" .. (dz > 0 and "South" or "North"),
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = stoneMid,
+			Size = Vector3.new(entranceWingLength - 1.4, entranceWingHeight - 3.1, 0.22),
+			CFrame = baseCFrame * CFrame.new(entranceWingX, floorH + entranceWingHeight / 2 - 0.2, dz * (entranceWingZ - entranceWingDepth / 2 - 0.12)),
+		}, model)
+		make("Part", {
+			Name = "EntranceSideWingCap" .. (dz > 0 and "South" or "North"),
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = stoneLite,
+			Size = Vector3.new(entranceWingLength + 0.5, 0.42, entranceWingDepth + 0.4),
+			CFrame = baseCFrame * CFrame.new(entranceWingX, floorH + entranceWingHeight + 0.2, dz * entranceWingZ),
+		}, model)
+		make("Part", {
+			Name = "EntranceSideWingGoldLine" .. (dz > 0 and "South" or "North"),
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(190, 138, 24),
+			Size = Vector3.new(entranceWingLength - 1.0, 0.12, 0.16),
+			CFrame = baseCFrame * CFrame.new(entranceWingX, floorH + entranceWingHeight - 1.2, dz * (entranceWingZ - entranceWingDepth / 2 - 0.24)),
+		}, model)
+		make("Part", {
+			Name = "EntranceSideGapFloorSkirt" .. (dz > 0 and "South" or "North"),
+			Anchored = true, CanCollide = true,
+			Material = Enum.Material.Slate, Color = Color3.fromRGB(12, 15, 22),
+			Size = Vector3.new(entranceWingLength + 1.2, 0.55, 2.8),
+			CFrame = baseCFrame * CFrame.new(entranceWingX, floorH + 0.28, dz * (archWidth / 2 + frameW + 1.3)),
+		}, model)
+	end
 
 	-- ── 4 corner stadium floodlights — proper multi-bulb panel arrays ───────
 	-- These are real stadium floodlights: tall pole + truss bracket + big rectangular
@@ -7138,7 +6482,7 @@ local function createConceptTestStadium(parent, position)
 				CFrame = headCFrame * CFrame.new(0, 0, -1),
 			}, model)
 			make("SpotLight", {
-				Brightness = 2.2, Range = 90, Angle = 70,
+				Brightness = 3.2, Range = 115, Angle = 78,
 				Face = Enum.NormalId.Front,
 				Color = Color3.fromRGB(255, 245, 220),
 			}, lightAnchor)
@@ -7147,22 +6491,79 @@ local function createConceptTestStadium(parent, position)
 
 	-- (Removed ground spotlights aimed at podium — were over-illuminating the slots)
 
-	-- ── Decorative props: bushes, banners, benches ─────────────────────────
-	-- Bushes outside the entrance side
-	for _, spot in ipairs({
-		{ x = size / 2 + 12, z = -size / 2 + 3 },
-		{ x = size / 2 + 12, z =  size / 2 - 3 },
-		{ x = size / 2 + 22, z = -size / 2 + 3 },
-		{ x = size / 2 + 22, z =  size / 2 - 3 },
-		{ x = size / 2 + 10, z = -archWidth / 2 - 4 },
-		{ x = size / 2 + 10, z =  archWidth / 2 + 4 },
-	}) do
+	-- ── Decorative props: landscaped entrance frontage, banners, benches ───
+	local function makeConceptBush(name, localX, localZ, scale)
+		scale = scale or 1
+		local bush = make("Model", { Name = name }, model)
+		for index, layer in ipairs({
+			{ offset = Vector3.new(0, 0, 0), size = Vector3.new(3.0, 2.0, 3.0), color = Color3.fromRGB(32, 92, 38) },
+			{ offset = Vector3.new(0.55, 0.22, -0.35), size = Vector3.new(2.25, 1.45, 2.25), color = Color3.fromRGB(45, 120, 48) },
+			{ offset = Vector3.new(-0.55, 0.15, 0.45), size = Vector3.new(2.1, 1.35, 2.1), color = Color3.fromRGB(36, 104, 42) },
+		}) do
+			make("Part", {
+				Name = "LeafMass" .. tostring(index),
+				Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+				Shape = Enum.PartType.Ball,
+				Material = Enum.Material.Grass, Color = layer.color,
+				Size = layer.size * scale,
+				CFrame = baseCFrame * CFrame.new(
+					localX + layer.offset.X * scale,
+					floorH + 0.75 * scale + layer.offset.Y * scale,
+					localZ + layer.offset.Z * scale
+				),
+			}, bush)
+		end
+		return bush
+	end
+
+	local function makeFrontPlanter(name, localX, localZ, planterWidth, planterDepth)
+		local planter = make("Model", { Name = name }, model)
 		make("Part", {
-			Anchored = true, CanCollide = false, Shape = Enum.PartType.Ball,
-			Material = Enum.Material.Grass, Color = Color3.fromRGB(38, 80, 38),
-			Size = Vector3.new(3.4, 3.4, 3.4),
-			CFrame = baseCFrame * CFrame.new(spot.x, floorH + 1.6, spot.z),
-		}, model)
+			Name = "PlanterBase",
+			Anchored = true, CanCollide = true,
+			Material = Enum.Material.Slate, Color = stoneDark,
+			Size = Vector3.new(planterWidth, 0.8, planterDepth),
+			CFrame = baseCFrame * CFrame.new(localX, floorH + 0.4, localZ),
+		}, planter)
+		make("Part", {
+			Name = "PlanterSoil",
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Ground, Color = Color3.fromRGB(42, 31, 22),
+			Size = Vector3.new(planterWidth - 0.55, 0.18, planterDepth - 0.55),
+			CFrame = baseCFrame * CFrame.new(localX, floorH + 0.88, localZ),
+		}, planter)
+		for _, edgeZ in ipairs({-1, 1}) do
+			make("Part", {
+				Name = "PlanterGoldEdge",
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(190, 138, 24),
+				Size = Vector3.new(planterWidth, 0.12, 0.12),
+				CFrame = baseCFrame * CFrame.new(localX, floorH + 0.98, localZ + edgeZ * planterDepth / 2),
+			}, planter)
+		end
+		for offsetX = -planterWidth / 2 + 1.5, planterWidth / 2 - 1.5, 3 do
+			makeConceptBush(name .. "Bush" .. tostring(math.floor((offsetX + planterWidth) * 10)), localX + offsetX, localZ, 0.72)
+		end
+		return planter
+	end
+
+	for _, dz in ipairs({-1, 1}) do
+		makeFrontPlanter("FrontSidePlanter" .. (dz > 0 and "South" or "North"), archX + 14.5, dz * 15.2, 10.5, 4.2)
+		makeFrontPlanter("OuterCornerPlanter" .. (dz > 0 and "South" or "North"), archX + 25.5, dz * 22.5, 8.4, 4.0)
+		createCompactStadiumTree(
+			model,
+			"ConceptEntranceTree" .. (dz > 0 and "SouthA" or "NorthA"),
+			(baseCFrame * CFrame.new(archX + 13.5, floorH, dz * 21.2)).Position,
+			(baseCFrame * CFrame.new(0, floorH, 0)).Position
+		)
+		createCompactStadiumTree(
+			model,
+			"ConceptEntranceTree" .. (dz > 0 and "SouthB" or "NorthB"),
+			(baseCFrame * CFrame.new(archX + 27.5, floorH, dz * 13.8)).Position,
+			(baseCFrame * CFrame.new(0, floorH, 0)).Position
+		)
+		makeConceptBush("FrontRoundBush" .. (dz > 0 and "SouthInner" or "NorthInner"), archX + 9.5, dz * 12.4, 0.9)
+		makeConceptBush("FrontRoundBush" .. (dz > 0 and "SouthOuter" or "NorthOuter"), archX + 31, dz * 18.4, 1.05)
 	end
 	-- ── Improved banners on inner side walls (now dark navy, gold trim) ────
 	for _, dz in ipairs({-1, 1}) do
@@ -7331,7 +6732,7 @@ local function createConceptTestStadium(parent, position)
 		-- Gold trim along front edge of each step
 		make("Part", {
 			Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.28,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.48,
 			Size = Vector3.new(0.16, 0.16, archWidth + frameW * 2 + 0.1),
 			CFrame = baseCFrame * CFrame.new(stepX + stepDepth / 2, stepHeight + 0.08, 0),
 		}, model)
@@ -7398,9 +6799,6 @@ function BaseService.BuildBaseMap()
 		end
 	end
 
-	-- Standalone concept test base (visual sandbox, no gameplay)
-	createConceptTestStadium(basesFolder, Vector3.new(0, 0.5, 260))
-
 	return plots
 end
 
@@ -7423,12 +6821,12 @@ function BaseService.AddDisplaySlot(plot, slotIndex)
 	if not displayFolder then return end
 
 	local fd  = plot.facingDirection
-	local worldOffset = Vector3.new(localOffset.X * fd, localOffset.Y, localOffset.Z)
+	local worldOffset = resolveDisplaySlotOffset(localOffset, fd, slotIndex)
 	local pedestalSizeZ = slotIndex > 6 and 3 or nil
 	local slot = createDisplaySlot(
 		displayFolder, slotIndex,
 		plot.baseCFrame * CFrame.new(worldOffset),
-		slotLookDir(localOffset, fd),
+		slotLookDir(localOffset, fd, slotIndex),
 		pedestalSizeZ
 	)
 	plot.displaySlots[slotIndex] = slot
