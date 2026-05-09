@@ -6793,23 +6793,199 @@ local function createConceptTestStadium(parent, position)
 			CFrame = baseCFrame * CFrame.new(spot.x, floorH + 1.6, spot.z),
 		}, model)
 	end
-	-- Banners hanging on the inner faces of side walls
+	-- ── Improved banners on inner side walls (alternating red/dark, gold trim) ─
 	for _, dz in ipairs({-1, 1}) do
-		for _, bx in ipairs({-size / 4, 0, size / 4}) do
+		for bIdx, bx in ipairs({-size / 4, 0, size / 4}) do
+			local bannerCol = (bIdx % 2 == 0) and stoneDark or redSeat
+			-- Banner cloth
 			make("Part", {
 				Anchored = true, CanCollide = false,
-				Material = Enum.Material.Fabric, Color = redSeat,
-				Size = Vector3.new(2.6, 5, 0.18),
-				CFrame = baseCFrame * CFrame.new(bx, wallY + 1, dz * (size / 2 - 4)),
+				Material = Enum.Material.Fabric, Color = bannerCol,
+				Size = Vector3.new(2.8, 6, 0.18),
+				CFrame = baseCFrame * CFrame.new(bx, wallY + 1.5, dz * (size / 2 - 4)),
 			}, model)
-			-- Gold trim on banner
+			-- Gold top crossbar
 			make("Part", {
 				Anchored = true, CanCollide = false,
-				Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.3,
-				Size = Vector3.new(2.7, 0.18, 0.22),
-				CFrame = baseCFrame * CFrame.new(bx, wallY + 1 + 2.5, dz * (size / 2 - 4)),
+				Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.22,
+				Size = Vector3.new(3.0, 0.22, 0.26),
+				CFrame = baseCFrame * CFrame.new(bx, wallY + 4.5, dz * (size / 2 - 4)),
+			}, model)
+			-- Gold bottom weight bar
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.32,
+				Size = Vector3.new(3.0, 0.18, 0.24),
+				CFrame = baseCFrame * CFrame.new(bx, wallY - 1.5, dz * (size / 2 - 4)),
+			}, model)
+			-- Gold side trim strips
+			for _, sx in ipairs({-1.4, 1.4}) do
+				make("Part", {
+					Anchored = true, CanCollide = false,
+					Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.4,
+					Size = Vector3.new(0.18, 6, 0.22),
+					CFrame = baseCFrame * CFrame.new(bx + sx, wallY + 1.5, dz * (size / 2 - 4)),
+				}, model)
+			end
+			-- Center decorative emblem (small gold disc)
+			make("Part", {
+				Anchored = true, CanCollide = false, Shape = Enum.PartType.Ball,
+				Material = Enum.Material.Neon, Color = goldCol,
+				Size = Vector3.new(0.7, 0.7, 0.7),
+				CFrame = baseCFrame * CFrame.new(bx, wallY + 1.5, dz * (size / 2 - 4.05)),
 			}, model)
 		end
+	end
+
+	-- ── Inner tunnel doors (decorative crowd entrance archways) ─────────────
+	-- 4 tunnel doors: 2 along the back wall, 2 along the back-side walls
+	-- These suggest fans enter from these tunnels into the bleachers area.
+	local tunnelDoorPositions = {
+		-- Back wall (-X side): two tunnel doors flanking
+		{ x = -size / 2 + 3.5, z = -10, faceDir = Vector3.new(1, 0, 0) },
+		{ x = -size / 2 + 3.5, z =  10, faceDir = Vector3.new(1, 0, 0) },
+		-- Side back walls
+		{ x = -size / 4, z = -size / 2 + 3.5, faceDir = Vector3.new(0, 0, 1) },
+		{ x = -size / 4, z =  size / 2 - 3.5, faceDir = Vector3.new(0, 0, -1) },
+	}
+	for tdI, tdPos in ipairs(tunnelDoorPositions) do
+		local doorYaw = math.atan2(tdPos.faceDir.X, tdPos.faceDir.Z)
+		local doorCenter = baseCFrame * CFrame.new(tdPos.x, floorH + 3, tdPos.z) * CFrame.Angles(0, doorYaw, 0)
+		-- Door header (top)
+		make("Part", {
+			Name = "TunnelDoor" .. tdI .. "Header", Anchored = true, CanCollide = true,
+			Material = Enum.Material.Slate, Color = stoneDark,
+			Size = Vector3.new(5.6, 1.2, 0.7),
+			CFrame = doorCenter * CFrame.new(0, 3, 0),
+		}, model)
+		-- Door side jambs
+		for _, sx in ipairs({-2.55, 2.55}) do
+			make("Part", {
+				Anchored = true, CanCollide = true,
+				Material = Enum.Material.Slate, Color = stoneDark,
+				Size = Vector3.new(0.55, 6.5, 0.7),
+				CFrame = doorCenter * CFrame.new(sx, 0.25, 0),
+			}, model)
+		end
+		-- Inner darkness (the tunnel interior)
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(8, 10, 14),
+			Size = Vector3.new(4.5, 5.6, 0.2),
+			CFrame = doorCenter * CFrame.new(0, 0, -0.22),
+		}, model)
+		-- Warm gold underglow at the bottom of the door (tunnel light spill)
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.28,
+			Size = Vector3.new(4.5, 0.18, 0.22),
+			CFrame = doorCenter * CFrame.new(0, -2.7, -0.12),
+		}, model)
+		-- Top trim glow
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.32,
+			Size = Vector3.new(5.7, 0.2, 0.74),
+			CFrame = doorCenter * CFrame.new(0, 3.65, 0),
+		}, model)
+		-- Interior PointLight (warm spill glow)
+		local doorLightAnchor = make("Part", {
+			Anchored = true, CanCollide = false, Transparency = 1,
+			Size = Vector3.new(1, 1, 1),
+			CFrame = doorCenter * CFrame.new(0, 0, -0.5),
+		}, model)
+		make("PointLight", { Brightness = 1.2, Range = 10, Color = goldCol }, doorLightAnchor)
+	end
+
+	-- ── Wall screens / LED panels (jumbotron-style above bleachers) ─────────
+	-- Mounted high on the side walls so they read like stadium scoreboards
+	for _, dz in ipairs({-1, 1}) do
+		for _, lx in ipairs({-14, 0, 14}) do
+			-- Frame (dark stone)
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Slate, Color = stoneDark,
+				Size = Vector3.new(7.2, 3.6, 0.5),
+				CFrame = baseCFrame * CFrame.new(lx, wallY + 4.4, dz * (size / 2 - 4)),
+			}, model)
+			-- LED panel (neon emissive)
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Neon, Color = Color3.fromRGB(70, 110, 200), Transparency = 0.18,
+				Size = Vector3.new(6.6, 3, 0.22),
+				CFrame = baseCFrame * CFrame.new(lx, wallY + 4.4, dz * (size / 2 - 4.18)),
+			}, model)
+			-- Gold frame trim
+			make("Part", {
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.32,
+				Size = Vector3.new(7.4, 3.8, 0.18),
+				CFrame = baseCFrame * CFrame.new(lx, wallY + 4.4, dz * (size / 2 - 4.06)),
+			}, model)
+			-- Soft fill light cast from screen
+			local screenAnchor = make("Part", {
+				Anchored = true, CanCollide = false, Transparency = 1,
+				Size = Vector3.new(1, 1, 1),
+				CFrame = baseCFrame * CFrame.new(lx, wallY + 4.4, dz * (size / 2 - 5)),
+			}, model)
+			make("PointLight", { Brightness = 0.5, Range = 14, Color = Color3.fromRGB(120, 160, 220) }, screenAnchor)
+		end
+	end
+
+	-- ── Mini kiosks / vendor stalls (corner concession booths) ──────────────
+	-- 4 small wooden-roof booths in the corners of the arena floor
+	local kioskPositions = {
+		{ x = -size / 2 + 9, z = -size / 2 + 9 },
+		{ x =  size / 2 - 9, z = -size / 2 + 9 },
+		{ x = -size / 2 + 9, z =  size / 2 - 9 },
+		{ x =  size / 2 - 9, z =  size / 2 - 9 },
+	}
+	for kI, kPos in ipairs(kioskPositions) do
+		-- Counter / base
+		make("Part", {
+			Name = "Kiosk" .. kI .. "Counter", Anchored = true, CanCollide = true,
+			Material = Enum.Material.Wood, Color = Color3.fromRGB(78, 50, 32),
+			Size = Vector3.new(4, 2.4, 3),
+			CFrame = baseCFrame * CFrame.new(kPos.x, floorH + 1.2, kPos.z),
+		}, model)
+		-- 2 corner posts
+		for _, dx in ipairs({-1.9, 1.9}) do
+			for _, dzp in ipairs({-1.4, 1.4}) do
+				make("Part", {
+					Anchored = true, CanCollide = false,
+					Material = Enum.Material.Wood, Color = Color3.fromRGB(60, 38, 24),
+					Size = Vector3.new(0.4, 4.2, 0.4),
+					CFrame = baseCFrame * CFrame.new(kPos.x + dx, floorH + 2.5, kPos.z + dzp),
+				}, model)
+			end
+		end
+		-- Slanted red roof (use 2 wedges for a peaked roof)
+		make("WedgePart", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = redSeat,
+			Size = Vector3.new(3.4, 1, 4.6),
+			CFrame = baseCFrame * CFrame.new(kPos.x - 1.2, floorH + 5, kPos.z) * CFrame.Angles(0, 0, math.rad(-90)),
+		}, model)
+		make("WedgePart", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = redSeat,
+			Size = Vector3.new(3.4, 1, 4.6),
+			CFrame = baseCFrame * CFrame.new(kPos.x + 1.2, floorH + 5, kPos.z) * CFrame.Angles(0, math.rad(180), math.rad(-90)),
+		}, model)
+		-- Gold roof trim
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.3,
+			Size = Vector3.new(4.4, 0.18, 4.7),
+			CFrame = baseCFrame * CFrame.new(kPos.x, floorH + 4.55, kPos.z),
+		}, model)
+		-- Warm glow under the kiosk awning
+		local kAnchor = make("Part", {
+			Anchored = true, CanCollide = false, Transparency = 1,
+			Size = Vector3.new(1, 1, 1),
+			CFrame = baseCFrame * CFrame.new(kPos.x, floorH + 3.5, kPos.z),
+		}, model)
+		make("PointLight", { Brightness = 1.4, Range = 10, Color = Color3.fromRGB(255, 220, 160) }, kAnchor)
 	end
 	-- Crowd barriers along walkway entrance
 	for _, dz in ipairs({-1, 1}) do
