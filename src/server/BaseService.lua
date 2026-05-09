@@ -6811,61 +6811,50 @@ local function createConceptTestStadium(parent, position)
 		{ x = 0,           z =  pitchD / 2 - 2.5, dir = Vector3.new(0, 0, -1) },
 		{ x =  pitchW / 3, z =  pitchD / 2 - 2.5, dir = Vector3.new(0, 0, -1) },
 	}
+	-- Slot style matches the original UnboxAFootballer base:
+	--   Dark navy cubic base + gold pad on top + black inner border + gold rim trim.
+	local slotNavyCol  = Color3.fromRGB(28, 34, 56)
+	local slotInnerCol = Color3.fromRGB(8, 10, 16)
 	for slotI, _slot in ipairs(slotPositions) do
 		local sx, sz = _slot.x, _slot.z
-		-- Cubic dark base (low-profile, like the original game's slots)
+		-- Dark navy cubic base
 		make("Part", {
 			Name = "Slot" .. slotI .. "Base", Anchored = true, CanCollide = true,
-			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(20, 24, 32),
-			Size = Vector3.new(3.2, 1.6, 3.2),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 0.8, sz),
+			Material = Enum.Material.SmoothPlastic, Color = slotNavyCol,
+			Size = Vector3.new(3.4, 1.8, 3.4),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + 0.9, sz),
 		}, model)
-		-- Gold pad on top (the card slot itself)
+		-- Black inner recess on the top face (gives depth around the gold pad)
+		make("Part", {
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic, Color = slotInnerCol,
+			Size = Vector3.new(3, 0.18, 3),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + 1.85, sz),
+		}, model)
+		-- Gold pad inside the recess (matte, not glowing)
 		make("Part", {
 			Name = "Slot" .. slotI .. "Pad", Anchored = true, CanCollide = false,
-			Material = Enum.Material.Neon, Color = goldCol, Transparency = 0.18,
-			Size = Vector3.new(2.4, 0.16, 2.4),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 1.7, sz),
+			Material = Enum.Material.SmoothPlastic, Color = goldCol,
+			Size = Vector3.new(2.5, 0.16, 2.5),
+			CFrame = baseCFrame * CFrame.new(sx, floorH + 1.86, sz),
 		}, model)
-		-- Sharp gold border trim around the pad (architectural edge, no glow)
-		for _, sxBorder in ipairs({-1, 1}) do
+		-- Gold rim trim along the top edges of the cube (4 thin strips)
+		for _, sxRim in ipairs({-1, 1}) do
 			make("Part", {
 				Anchored = true, CanCollide = false,
 				Material = Enum.Material.SmoothPlastic, Color = goldCol,
-				Size = Vector3.new(0.18, 0.22, 2.6),
-				CFrame = baseCFrame * CFrame.new(sx + sxBorder * 1.21, floorH + 1.72, sz),
+				Size = Vector3.new(0.18, 0.18, 3.4),
+				CFrame = baseCFrame * CFrame.new(sx + sxRim * 1.71, floorH + 1.81, sz),
 			}, model)
 		end
-		for _, szBorder in ipairs({-1, 1}) do
+		for _, szRim in ipairs({-1, 1}) do
 			make("Part", {
 				Anchored = true, CanCollide = false,
 				Material = Enum.Material.SmoothPlastic, Color = goldCol,
-				Size = Vector3.new(2.6, 0.22, 0.18),
-				CFrame = baseCFrame * CFrame.new(sx, floorH + 1.72, sz + szBorder * 1.21),
+				Size = Vector3.new(3.4, 0.18, 0.18),
+				CFrame = baseCFrame * CFrame.new(sx, floorH + 1.81, sz + szRim * 1.71),
 			}, model)
 		end
-	end
-	-- Slot number labels (BillboardGui above each slot)
-	for slotI, _slot in ipairs(slotPositions) do
-		local sx, sz = _slot.x, _slot.z
-		-- Number label anchor (BillboardGui shows from above for readability)
-		local labelAnchor = make("Part", {
-			Anchored = true, CanCollide = false, Transparency = 1,
-			Size = Vector3.new(1, 1, 1),
-			CFrame = baseCFrame * CFrame.new(sx, floorH + 2.6, sz),
-		}, model)
-		local labelBB = make("BillboardGui", {
-			Size = UDim2.fromOffset(60, 60),
-			AlwaysOnTop = false, LightInfluence = 0,
-			MaxDistance = 60,
-		}, labelAnchor)
-		make("TextLabel", {
-			BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
-			Text = tostring(slotI),
-			TextColor3 = goldHot,
-			TextStrokeColor3 = Color3.fromRGB(0, 0, 0), TextStrokeTransparency = 0.4,
-			TextScaled = true, Font = Enum.Font.GothamBlack,
-		}, labelBB)
 	end
 
 	-- ── Tunnel-style entrance: thicker frame, side columns, recessed depth ──
