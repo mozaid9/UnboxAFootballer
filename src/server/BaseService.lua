@@ -3926,21 +3926,20 @@ local ALL_SLOT_OFFSETS = {
 	Vector3.new(-21.3, 2.75,  21),  -- 4
 	Vector3.new(  0.0, 2.75,  21),  -- 5
 	Vector3.new( 21.3, 2.75,  21),  -- 6
-	-- Rebirth Gallery row 1 — attached to the back wall, clear of seats.
-	-- z capped at ±18 so slots 7 and 12 don't clip into the bleachers.
-	Vector3.new(-36, 3.2, -18), -- 7
-	Vector3.new(-36, 3.2, -11), -- 8
-	Vector3.new(-36, 3.2,  -4), -- 9
-	Vector3.new(-36, 3.2,   4), -- 10
-	Vector3.new(-36, 3.2,  11), -- 11
-	Vector3.new(-36, 3.2,  18), -- 12
-	-- Rebirth Gallery row 2 — closer to the rear wall as the stadium grows.
-	Vector3.new(-44, 3.2, -18), -- 13
-	Vector3.new(-44, 3.2, -11), -- 14
-	Vector3.new(-44, 3.2,  -4), -- 15
-	Vector3.new(-44, 3.2,   4), -- 16
-	Vector3.new(-44, 3.2,  11), -- 17
-	Vector3.new(-44, 3.2,  18), -- 18
+	-- Rebirth Gallery row 1 — 4 centered slots only, well clear of the bleachers.
+	Vector3.new(-36, 3.2, -10.5), -- 7
+	Vector3.new(-36, 3.2,  -3.5), -- 8
+	Vector3.new(-36, 3.2,   3.5), -- 9
+	Vector3.new(-36, 3.2,  10.5), -- 10
+	-- Rebirth Gallery row 2 — slots 11-18, spread evenly within ±14 (no wall clips).
+	Vector3.new(-44, 3.2, -14), -- 11
+	Vector3.new(-44, 3.2, -10), -- 12
+	Vector3.new(-44, 3.2,  -6), -- 13
+	Vector3.new(-44, 3.2,  -2), -- 14
+	Vector3.new(-44, 3.2,   2), -- 15
+	Vector3.new(-44, 3.2,   6), -- 16
+	Vector3.new(-44, 3.2,  10), -- 17
+	Vector3.new(-44, 3.2,  14), -- 18
 }
 
 local function slotLookDir(localOffset, facingDirection, slotIndex)
