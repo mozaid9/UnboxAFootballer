@@ -3926,20 +3926,21 @@ local ALL_SLOT_OFFSETS = {
 	Vector3.new(-21.3, 2.75,  21),  -- 4
 	Vector3.new(  0.0, 2.75,  21),  -- 5
 	Vector3.new( 21.3, 2.75,  21),  -- 6
-	-- Rebirth Gallery row 1 — 4 centered slots only, well clear of the bleachers.
-	Vector3.new(-36, 3.2, -10.5), -- 7
-	Vector3.new(-36, 3.2,  -3.5), -- 8
-	Vector3.new(-36, 3.2,   3.5), -- 9
-	Vector3.new(-36, 3.2,  10.5), -- 10
-	-- Rebirth Gallery row 2 — slots 11-18, spread evenly within ±14 (no wall clips).
-	Vector3.new(-44, 3.2, -14), -- 11
-	Vector3.new(-44, 3.2, -10), -- 12
-	Vector3.new(-44, 3.2,  -6), -- 13
-	Vector3.new(-44, 3.2,  -2), -- 14
-	Vector3.new(-44, 3.2,   2), -- 15
-	Vector3.new(-44, 3.2,   6), -- 16
-	Vector3.new(-44, 3.2,  10), -- 17
-	Vector3.new(-44, 3.2,  14), -- 18
+	-- Rebirth Gallery row 1 — 4 slots spread evenly across the deck (more breathing room).
+	Vector3.new(-36, 3.2, -18), -- 7
+	Vector3.new(-36, 3.2,  -6), -- 8
+	Vector3.new(-36, 3.2,   6), -- 9
+	Vector3.new(-36, 3.2,  18), -- 10
+	-- Rebirth Terrace (slots 11-18) — elevated deck unlocked at rebirth 5+.
+	-- Y=17.75 matches the terrace deck surface built in UpdateStadiumTier.
+	Vector3.new(-36, 17.75, -21), -- 11
+	Vector3.new(-36, 17.75, -15), -- 12
+	Vector3.new(-36, 17.75,  -9), -- 13
+	Vector3.new(-36, 17.75,  -3), -- 14
+	Vector3.new(-36, 17.75,   3), -- 15
+	Vector3.new(-36, 17.75,   9), -- 16
+	Vector3.new(-36, 17.75,  15), -- 17
+	Vector3.new(-36, 17.75,  21), -- 18
 }
 
 local function slotLookDir(localOffset, facingDirection, slotIndex)
@@ -5450,6 +5451,104 @@ function BaseService.UpdateStadiumTier(plot, tier)
 	}, signFrame)
 
 	assignCollisionGroup(wing, COLLISION_GROUPS.StadiumGeometry)
+
+	-- ── Rebirth Terrace — appears at tier 5 (rebirth 5 = slot 11 unlocks) ──────
+	-- Elevated deck above the ground gallery at the same X centre.
+	-- Slots 11-18 in ALL_SLOT_OFFSETS are at Y=17.75 to sit on this surface.
+	if tier >= 5 then
+		local terrace   = make("Model", { Name = "RebirthTerrace" }, parent)
+		local tGold     = Color3.fromRGB(255, 210, 58)
+		local tDeckCol  = Color3.fromRGB(12, 17, 28)
+		local tRailCol  = Color3.fromRGB(25, 32, 48)
+		local tStepCol  = Color3.fromRGB(18, 24, 35)
+
+		local deckCenterLocalY = 15.72   -- deck centre Y offset from baseCFrame
+		local deckSizeX        = 17
+		local deckSizeZ        = 54
+		local deckHalfX        = deckSizeX / 2   -- 8.5
+		local deckHalfZ        = deckSizeZ / 2   -- 27
+
+		local terraceCFrame = plot.baseCFrame * CFrame.new(-40.5 * fd, deckCenterLocalY, 0)
+
+		-- Walking surface
+		configureCollisionPart(make("Part", {
+			Name = "RebirthTerraceDeck",
+			Anchored = true, CanCollide = true, CanTouch = true, CanQuery = true,
+			Material = Enum.Material.SmoothPlastic, Color = tDeckCol,
+			Size = Vector3.new(deckSizeX, 0.5, deckSizeZ),
+			CFrame = terraceCFrame,
+		}, terrace), COLLISION_GROUPS.StadiumGeometry, true, true, true)
+
+		-- Neon gold trim along the pitch-facing front edge
+		make("Part", {
+			Name = "RebirthTerraceFrontGlow",
+			Anchored = true, CanCollide = false, CanTouch = false, CanQuery = false,
+			Material = Enum.Material.Neon, Color = tGold, Transparency = 0.35,
+			Size = Vector3.new(0.18, 0.1, deckSizeZ - 2),
+			CFrame = terraceCFrame * CFrame.new(deckHalfX * fd, 0.33, 0),
+		}, terrace)
+
+		-- Back rail (away from pitch)
+		configureCollisionPart(make("Part", {
+			Name = "RebirthTerraceBackRail",
+			Anchored = true, CanCollide = true, CanTouch = true, CanQuery = true,
+			Material = Enum.Material.SmoothPlastic, Color = tRailCol,
+			Size = Vector3.new(0.55, 1.8, deckSizeZ + 0.6),
+			CFrame = terraceCFrame * CFrame.new(-deckHalfX * fd, 1.1, 0),
+		}, terrace), COLLISION_GROUPS.StadiumGeometry, true, true, true)
+
+		-- North and south side rails
+		for _, zSign in ipairs({-1, 1}) do
+			configureCollisionPart(make("Part", {
+				Name = "RebirthTerraceSideRail",
+				Anchored = true, CanCollide = true, CanTouch = true, CanQuery = true,
+				Material = Enum.Material.SmoothPlastic, Color = tRailCol,
+				Size = Vector3.new(deckSizeX + 0.6, 1.6, 0.55),
+				CFrame = terraceCFrame * CFrame.new(0, 1.05, zSign * (deckHalfZ + 0.3)),
+			}, terrace), COLLISION_GROUPS.StadiumGeometry, true, true, true)
+		end
+
+		-- Staircases at north and south ends, running along X from deck front toward pitch.
+		-- 10 steps × 1.5-stud rise, 2-stud tread.  Top step surface ≈ deck surface.
+		local stairSteps      = 10
+		local stepRise        = 1.5
+		local stepTread       = 2.0
+		local stairWidth      = 4.0
+		-- Front face of deck in local X (toward pitch). For fd=1: -32.  For fd=-1: +32.
+		local deckFrontLocalX = (-40.5 + deckHalfX) * fd
+
+		for _, zSign in ipairs({-1, 1}) do
+			local stairLocalZ = zSign * (deckHalfZ - 3)   -- 3 studs inside the side rail
+			for step = 1, stairSteps do
+				-- step 1 = bottom (toward pitch); step stairSteps = top (at deck face).
+				local stepLocalY = layout.PlotSize.Y / 2 + (step - 0.5) * stepRise
+				local stepLocalX = deckFrontLocalX + fd * (stairSteps - step + 0.5) * stepTread
+
+				configureCollisionPart(make("Part", {
+					Name = "RebirthTerraceStair",
+					Anchored = true, CanCollide = true, CanTouch = true, CanQuery = true,
+					Material = Enum.Material.SmoothPlastic, Color = tStepCol,
+					Size = Vector3.new(stepTread, stepRise, stairWidth),
+					CFrame = plot.baseCFrame * CFrame.new(stepLocalX, stepLocalY, stairLocalZ),
+				}, terrace), COLLISION_GROUPS.StadiumGeometry, true, true, true)
+
+				-- Gold neon lip on each step's top edge
+				make("Part", {
+					Name = "RebirthTerraceStairLip",
+					Anchored = true, CanCollide = false, CanTouch = false, CanQuery = false,
+					Material = Enum.Material.Neon, Color = tGold, Transparency = 0.3,
+					Size = Vector3.new(stepTread - 0.2, 0.08, stairWidth + 0.1),
+					CFrame = plot.baseCFrame * CFrame.new(
+						stepLocalX,
+						layout.PlotSize.Y / 2 + step * stepRise + 0.06,
+						stairLocalZ
+					),
+				}, terrace)
+			end
+		end
+
+		assignCollisionGroup(terrace, COLLISION_GROUPS.StadiumGeometry)
+	end
 end
 
 function BaseService.SetupCollisionGroups()
