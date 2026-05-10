@@ -715,7 +715,7 @@ local utilityButton = make("TextButton", {
 	AnchorPoint = Vector2.new(1, 0),
 	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
 	BackgroundTransparency = 0.02,
-	Position = UDim2.new(1, -20, 0, 56),
+	Position = UDim2.new(1, -20, 0, 10),
 	Size = UDim2.fromOffset(42, 42),
 	Text = "?",
 	TextColor3 = UI.Gold,
@@ -732,7 +732,7 @@ local utilityPanel = make("Frame", {
 	AnchorPoint = Vector2.new(1, 0),
 	BackgroundColor3 = Color3.fromRGB(6, 8, 14),
 	BackgroundTransparency = 0.02,
-	Position = UDim2.new(1, -20, 0, 104),
+	Position = UDim2.new(1, -20, 0, 58),
 	Size = UDim2.fromOffset(224, 132),
 	Visible = false,
 	ZIndex = 80,
@@ -837,7 +837,7 @@ local giftButton = make("TextButton", {
 	AnchorPoint = Vector2.new(1, 0),
 	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
 	BackgroundTransparency = 0.02,
-	Position = UDim2.new(1, -68, 0, 56),
+	Position = UDim2.new(1, -68, 0, 10),
 	Size = UDim2.fromOffset(42, 42),
 	Text = "🎁",
 	TextColor3 = UI.Gold,
@@ -854,8 +854,8 @@ local giftsPanel = make("Frame", {
 	AnchorPoint = Vector2.new(1, 0),
 	BackgroundColor3 = Color3.fromRGB(6, 8, 14),
 	BackgroundTransparency = 0.02,
-	Position = UDim2.new(1, -20, 0, 104),
-	Size = UDim2.fromOffset(340, 472),
+	Position = UDim2.new(1, -20, 0, 58),
+	Size = UDim2.fromOffset(320, 490),
 	Visible = false,
 	ZIndex = 80,
 }, screenGui)
@@ -871,12 +871,12 @@ make("UIGradient", {
 
 make("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 16, 0, 12),
-	Size = UDim2.new(1, -60, 0, 24),
+	Position = UDim2.new(0, 16, 0, 13),
+	Size = UDim2.new(1, -60, 0, 22),
 	Text = "GIFTS",
 	TextColor3 = UI.Gold,
 	TextScaled = false,
-	TextSize = 16,
+	TextSize = 15,
 	Font = Enum.Font.GothamBlack,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ZIndex = 81,
@@ -897,7 +897,6 @@ local giftsPanelClose = make("TextButton", {
 }, giftsPanel)
 addCorner(giftsPanelClose, 8)
 
--- Divider
 make("Frame", {
 	Position = UDim2.new(0, 14, 0, 46),
 	Size = UDim2.new(1, -28, 0, 1),
@@ -910,14 +909,13 @@ make("Frame", {
 
 local giftFreeSection = make("Frame", {
 	Position = UDim2.new(0, 12, 0, 52),
-	Size = UDim2.new(1, -24, 0, 108),
+	Size = UDim2.new(1, -24, 0, 126),
 	BackgroundColor3 = Color3.fromRGB(12, 21, 30),
-	ClipsDescendants = true,
+	ClipsDescendants = false,
 	ZIndex = 81,
 }, giftsPanel)
 addCorner(giftFreeSection, 14)
 local giftFreeStroke = addStroke(giftFreeSection, UI.Success, 1.5, 0.5)
-
 make("UIGradient", {
 	Color = ColorSequence.new({
 		ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 31, 23)),
@@ -927,31 +925,31 @@ make("UIGradient", {
 }, giftFreeSection)
 
 local giftFreeIcon = make("Frame", {
-	Position = UDim2.new(0, 12, 0, 16),
-	Size = UDim2.fromOffset(52, 52),
+	Position = UDim2.new(0, 12, 0, 14),
+	Size = UDim2.fromOffset(44, 44),
 	BackgroundColor3 = Color3.fromRGB(20, 69, 34),
 	ZIndex = 82,
 }, giftFreeSection)
-addCorner(giftFreeIcon, 26)
+addCorner(giftFreeIcon, 22)
 make("TextLabel", {
 	BackgroundTransparency = 1,
 	Size = UDim2.fromScale(1, 1),
 	Text = "F",
 	TextColor3 = Color3.fromRGB(84, 224, 111),
 	TextScaled = false,
-	TextSize = 26,
+	TextSize = 22,
 	Font = Enum.Font.GothamBlack,
 	ZIndex = 83,
 }, giftFreeIcon)
 
 make("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 76, 0, 14),
-	Size = UDim2.new(1, -210, 0, 24),
+	Position = UDim2.new(0, 66, 0, 12),
+	Size = UDim2.new(1, -80, 0, 20),
 	Text = "FREE GOLD PACK",
 	TextColor3 = UI.Text,
 	TextScaled = false,
-	TextSize = 16,
+	TextSize = 14,
 	Font = Enum.Font.GothamBlack,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ZIndex = 82,
@@ -959,25 +957,25 @@ make("TextLabel", {
 
 local giftFreeSubLabel = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 76, 0, 40),
-	Size = UDim2.new(1, -210, 0, 18),
+	Position = UDim2.new(0, 66, 0, 34),
+	Size = UDim2.new(1, -80, 0, 16),
 	Text = "One free pull every 4 hours",
 	TextColor3 = UI.Muted,
 	TextScaled = false,
-	TextSize = 12,
+	TextSize = 11,
 	Font = Enum.Font.GothamMedium,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ZIndex = 82,
 }, giftFreeSection)
 
 local giftFreeProgressBack = make("Frame", {
-	Position = UDim2.new(0, 76, 0, 72),
-	Size = UDim2.new(1, -222, 0, 10),
+	Position = UDim2.new(0, 14, 0, 62),
+	Size = UDim2.new(1, -28, 0, 8),
 	BackgroundColor3 = Color3.fromRGB(25, 31, 48),
 	BorderSizePixel = 0,
 	ZIndex = 82,
 }, giftFreeSection)
-addCorner(giftFreeProgressBack, 5)
+addCorner(giftFreeProgressBack, 4)
 
 local giftFreeProgressFill = make("Frame", {
 	Size = UDim2.new(0, 0, 1, 0),
@@ -985,14 +983,13 @@ local giftFreeProgressFill = make("Frame", {
 	BorderSizePixel = 0,
 	ZIndex = 84,
 }, giftFreeProgressBack)
-addCorner(giftFreeProgressFill, 5)
+addCorner(giftFreeProgressFill, 4)
 
 local giftFreeClaimBtn = make("TextButton", {
-	AnchorPoint = Vector2.new(1, 0.5),
-	Position = UDim2.new(1, -10, 0, 44),
-	Size = UDim2.fromOffset(128, 44),
+	Position = UDim2.new(0, 14, 0, 80),
+	Size = UDim2.new(1, -28, 0, 36),
 	BackgroundColor3 = Color3.fromRGB(35, 140, 65),
-	Text = "CLAIM",
+	Text = "CLAIM FREE PACK",
 	TextColor3 = Color3.fromRGB(255, 255, 255),
 	TextScaled = false,
 	TextSize = 13,
@@ -1000,19 +997,18 @@ local giftFreeClaimBtn = make("TextButton", {
 	AutoButtonColor = false,
 	ZIndex = 82,
 }, giftFreeSection)
-addCorner(giftFreeClaimBtn, 12)
+addCorner(giftFreeClaimBtn, 11)
 
 -- ── Daily Streak section ───────────────────────────────────────────────────
 
 local giftDailySection = make("Frame", {
-	Position = UDim2.new(0, 12, 0, 168),
-	Size = UDim2.new(1, -24, 0, 162),
-	BackgroundColor3 = Color3.fromRGB(36, 28, 5),
+	Position = UDim2.new(0, 12, 0, 186),
+	Size = UDim2.new(1, -24, 0, 180),
+	BackgroundColor3 = Color3.fromRGB(20, 16, 4),
 	ZIndex = 81,
 }, giftsPanel)
 addCorner(giftDailySection, 14)
 local giftDailyStroke = addStroke(giftDailySection, UI.Gold, 1.5, 0.52)
-
 make("UIGradient", {
 	Color = ColorSequence.new({
 		ColorSequenceKeypoint.new(0, Color3.fromRGB(36, 28, 5)),
@@ -1023,30 +1019,30 @@ make("UIGradient", {
 
 local giftDailyIcon = make("Frame", {
 	Position = UDim2.new(0, 12, 0, 14),
-	Size = UDim2.fromOffset(48, 48),
+	Size = UDim2.fromOffset(44, 44),
 	BackgroundColor3 = Color3.fromRGB(86, 72, 0),
 	ZIndex = 82,
 }, giftDailySection)
-addCorner(giftDailyIcon, 24)
+addCorner(giftDailyIcon, 22)
 make("TextLabel", {
 	BackgroundTransparency = 1,
 	Size = UDim2.fromScale(1, 1),
 	Text = "D",
 	TextColor3 = UI.Gold,
 	TextScaled = false,
-	TextSize = 24,
+	TextSize = 22,
 	Font = Enum.Font.GothamBlack,
 	ZIndex = 83,
 }, giftDailyIcon)
 
 make("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 72, 0, 14),
-	Size = UDim2.new(1, -220, 0, 22),
+	Position = UDim2.new(0, 66, 0, 12),
+	Size = UDim2.new(1, -80, 0, 20),
 	Text = "DAILY STREAK",
 	TextColor3 = UI.Text,
 	TextScaled = false,
-	TextSize = 16,
+	TextSize = 14,
 	Font = Enum.Font.GothamBlack,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ZIndex = 82,
@@ -1054,12 +1050,12 @@ make("TextLabel", {
 
 local giftDailySubLabel = make("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 72, 0, 38),
-	Size = UDim2.new(1, -230, 0, 30),
+	Position = UDim2.new(0, 66, 0, 34),
+	Size = UDim2.new(1, -80, 0, 28),
 	Text = "Claim to queue your next reward",
 	TextColor3 = UI.Muted,
 	TextScaled = false,
-	TextSize = 12,
+	TextSize = 11,
 	Font = Enum.Font.GothamMedium,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	TextYAlignment = Enum.TextYAlignment.Top,
@@ -1068,23 +1064,22 @@ local giftDailySubLabel = make("TextLabel", {
 }, giftDailySection)
 
 local giftDailyClaimBtn = make("TextButton", {
-	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -10, 0, 18),
-	Size = UDim2.fromOffset(140, 42),
+	Position = UDim2.new(0, 14, 0, 72),
+	Size = UDim2.new(1, -28, 0, 36),
 	BackgroundColor3 = Color3.fromRGB(140, 102, 8),
 	Text = "CLAIM",
 	TextColor3 = Color3.fromRGB(255, 255, 255),
 	TextScaled = false,
-	TextSize = 11,
+	TextSize = 12,
 	Font = Enum.Font.GothamBlack,
 	AutoButtonColor = false,
 	ZIndex = 82,
 }, giftDailySection)
-addCorner(giftDailyClaimBtn, 12)
+addCorner(giftDailyClaimBtn, 11)
 
 local giftDailyRewardRow = make("Frame", {
-	Position = UDim2.new(0, 10, 1, -70),
-	Size = UDim2.new(1, -20, 0, 58),
+	Position = UDim2.new(0, 10, 0, 118),
+	Size = UDim2.new(1, -20, 0, 52),
 	BackgroundTransparency = 1,
 	ZIndex = 82,
 }, giftDailySection)
@@ -1111,14 +1106,14 @@ for index, reward in ipairs(DAILY_REWARDS) do
 		BackgroundColor3 = Color3.fromRGB(19, 24, 39),
 		ZIndex = 82,
 	}, giftDailyRewardRow)
-	addCorner(cell, 10)
+	addCorner(cell, 9)
 	local stroke = addStroke(cell, color, 1.5, 0.72)
 	local scale = make("UIScale", { Scale = 1 }, cell)
 
 	local dayLabel = make("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 6, 0, 5),
-		Size = UDim2.new(1, -12, 0, 14),
+		Position = UDim2.new(0, 5, 0, 4),
+		Size = UDim2.new(1, -10, 0, 13),
 		Text = "DAY " .. tostring(reward.day or index),
 		TextColor3 = color,
 		TextScaled = false,
@@ -1130,14 +1125,15 @@ for index, reward in ipairs(DAILY_REWARDS) do
 
 	local packLabel = make("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 6, 0, 22),
-		Size = UDim2.new(1, -12, 0, 20),
+		Position = UDim2.new(0, 5, 0, 19),
+		Size = UDim2.new(1, -10, 0, 18),
 		Text = reward.label or reward.packId or "Pack",
 		TextColor3 = UI.Text,
 		TextScaled = false,
-		TextSize = 10,
+		TextSize = 9,
 		Font = Enum.Font.GothamBold,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		TextWrapped = true,
 		ZIndex = 83,
 	}, cell)
 
@@ -1147,14 +1143,13 @@ end
 -- ── Redeem Code section ───────────────────────────────────────────────────
 
 local giftRedeemSection = make("Frame", {
-	Position = UDim2.new(0, 12, 0, 338),
-	Size = UDim2.new(1, -24, 0, 120),
-	BackgroundColor3 = Color3.fromRGB(10, 12, 22),
+	Position = UDim2.new(0, 12, 0, 374),
+	Size = UDim2.new(1, -24, 0, 108),
+	BackgroundColor3 = Color3.fromRGB(10, 10, 20),
 	ZIndex = 81,
 }, giftsPanel)
 addCorner(giftRedeemSection, 14)
 addStroke(giftRedeemSection, Color3.fromRGB(80, 60, 180), 1.5, 0.5)
-
 make("UIGradient", {
 	Color = ColorSequence.new({
 		ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 15, 48)),
@@ -1165,47 +1160,47 @@ make("UIGradient", {
 
 make("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 14, 0, 12),
-	Size = UDim2.new(1, -28, 0, 20),
+	Position = UDim2.new(0, 14, 0, 10),
+	Size = UDim2.new(1, -28, 0, 18),
 	Text = "REDEEM CODE",
 	TextColor3 = Color3.fromRGB(190, 170, 255),
 	TextScaled = false,
-	TextSize = 14,
+	TextSize = 13,
 	Font = Enum.Font.GothamBlack,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ZIndex = 82,
 }, giftRedeemSection)
 
 local giftCodeBox = make("TextBox", {
-	Position = UDim2.new(0, 14, 0, 40),
-	Size = UDim2.new(1, -28, 0, 34),
+	Position = UDim2.new(0, 14, 0, 34),
+	Size = UDim2.new(1, -28, 0, 32),
 	BackgroundColor3 = Color3.fromRGB(18, 20, 36),
 	Text = "",
 	PlaceholderText = "Enter code...",
 	PlaceholderColor3 = Color3.fromRGB(90, 88, 110),
 	TextColor3 = Color3.fromRGB(230, 225, 255),
 	TextScaled = false,
-	TextSize = 14,
+	TextSize = 13,
 	Font = Enum.Font.GothamBold,
 	ClearTextOnFocus = false,
 	ZIndex = 82,
 }, giftRedeemSection)
-addCorner(giftCodeBox, 10)
+addCorner(giftCodeBox, 9)
 addStroke(giftCodeBox, Color3.fromRGB(80, 60, 180), 1.5, 0.5)
 
 local giftRedeemBtn = make("TextButton", {
-	Position = UDim2.new(0, 14, 0, 82),
-	Size = UDim2.new(1, -28, 0, 30),
+	Position = UDim2.new(0, 14, 0, 72),
+	Size = UDim2.new(1, -28, 0, 28),
 	BackgroundColor3 = Color3.fromRGB(80, 55, 180),
 	Text = "REDEEM",
 	TextColor3 = Color3.fromRGB(255, 255, 255),
 	TextScaled = false,
-	TextSize = 13,
+	TextSize = 12,
 	Font = Enum.Font.GothamBlack,
 	AutoButtonColor = false,
 	ZIndex = 82,
 }, giftRedeemSection)
-addCorner(giftRedeemBtn, 10)
+addCorner(giftRedeemBtn, 9)
 
 -- ── Gifts panel state/update functions ────────────────────────────────────
 

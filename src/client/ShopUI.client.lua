@@ -401,11 +401,10 @@ local function createShopTab(tabKey, label, layoutOrder)
 	end)
 end
 
-createShopTab("Rewards", "Rewards", 1)
-createShopTab("FanPacks", "Fan Packs", 2)
-createShopTab("GemPacks", "Gem Packs", 3)
-createShopTab("Cosmetics", "Cosmetics", 4)
-setSelectedShopTab("Rewards")
+createShopTab("FanPacks", "Fan Packs", 1)
+createShopTab("GemPacks", "Gem Packs", 2)
+createShopTab("Cosmetics", "Cosmetics", 3)
+setSelectedShopTab("FanPacks")
 
 scroll = make("ScrollingFrame", {
 	Name = "ContentScroll",
@@ -1256,11 +1255,12 @@ make("TextLabel", {
 rewardsLabel.Visible = false
 freeCard.Visible = false
 dailyCard.Visible = false
-shopSections.Rewards = { limitedLabel, limitedCard }
+limitedLabel.Visible = false
+limitedCard.Visible = false
 shopSections.FanPacks = { fanPacksLabel, fanPacksGrid }
 shopSections.GemPacks = gemPacksGrid and { gemPacksLabel, gemPacksGrid } or {}
 shopSections.Cosmetics = { cosmeticsLabel, futureCard }
-setSelectedShopTab("Rewards")
+setSelectedShopTab("FanPacks")
 
 make("TextLabel", {
 	BackgroundTransparency = 1,
@@ -1636,7 +1636,7 @@ local function openShop()
 	end
 	isOpen = true
 	screenGui.Enabled = true
-	setSelectedShopTab("Rewards")
+	setSelectedShopTab("FanPacks")
 	scroll.CanvasPosition = Vector2.new(0, 0)
 
 	task.spawn(function()
