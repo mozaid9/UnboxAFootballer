@@ -3927,19 +3927,20 @@ local ALL_SLOT_OFFSETS = {
 	Vector3.new(  0.0, 2.75,  21),  -- 5
 	Vector3.new( 21.3, 2.75,  21),  -- 6
 	-- Rebirth Gallery row 1 — attached to the back wall, clear of seats.
-	Vector3.new(-36, 3.2, -25), -- 7
-	Vector3.new(-36, 3.2, -15), -- 8
-	Vector3.new(-36, 3.2,  -5), -- 9
-	Vector3.new(-36, 3.2,   5), -- 10
-	Vector3.new(-36, 3.2,  15), -- 11
-	Vector3.new(-36, 3.2,  25), -- 12
+	-- z capped at ±18 so slots 7 and 12 don't clip into the bleachers.
+	Vector3.new(-36, 3.2, -18), -- 7
+	Vector3.new(-36, 3.2, -11), -- 8
+	Vector3.new(-36, 3.2,  -4), -- 9
+	Vector3.new(-36, 3.2,   4), -- 10
+	Vector3.new(-36, 3.2,  11), -- 11
+	Vector3.new(-36, 3.2,  18), -- 12
 	-- Rebirth Gallery row 2 — closer to the rear wall as the stadium grows.
-	Vector3.new(-44, 3.2, -25), -- 13
-	Vector3.new(-44, 3.2, -15), -- 14
-	Vector3.new(-44, 3.2,  -5), -- 15
-	Vector3.new(-44, 3.2,   5), -- 16
-	Vector3.new(-44, 3.2,  15), -- 17
-	Vector3.new(-44, 3.2,  25), -- 18
+	Vector3.new(-44, 3.2, -18), -- 13
+	Vector3.new(-44, 3.2, -11), -- 14
+	Vector3.new(-44, 3.2,  -4), -- 15
+	Vector3.new(-44, 3.2,   4), -- 16
+	Vector3.new(-44, 3.2,  11), -- 17
+	Vector3.new(-44, 3.2,  18), -- 18
 }
 
 local function slotLookDir(localOffset, facingDirection, slotIndex)
@@ -4689,8 +4690,8 @@ local function createPlot(plotId, side, laneIndex, position)
 	local pathLightX2 = frontEdgeX + (facingDirection * 64)
 	createLightPost(model, "PathLightNorth2", position + Vector3.new(pathLightX2, 0, -6.8), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "PathLightSouth2", position + Vector3.new(pathLightX2, 0,  6.8), packPad.Position + Vector3.new(0, 2, 0))
-	createSoftFillLight(model, "EntrancePathFill1", position + Vector3.new(pathLightX1 + (facingDirection * 2.5), 5.2, 0), 24, 0.16, Color3.fromRGB(255, 232, 180))
-	createSoftFillLight(model, "EntrancePathFill2", position + Vector3.new(pathLightX2 + (facingDirection * 2.5), 5.2, 0), 24, 0.14, Color3.fromRGB(255, 232, 180))
+	createSoftFillLight(model, "EntrancePathFill1", position + Vector3.new(pathLightX1 + (facingDirection * 2.5), 5.2, 0), 24, 0.08, Color3.fromRGB(255, 232, 180))
+	createSoftFillLight(model, "EntrancePathFill2", position + Vector3.new(pathLightX2 + (facingDirection * 2.5), 5.2, 0), 24, 0.07, Color3.fromRGB(255, 232, 180))
 
 	-- Decorative side banners flanking the entrance
 	local bannerX = frontEdgeX + (facingDirection * 3.5)
@@ -4704,20 +4705,6 @@ local function createPlot(plotId, side, laneIndex, position)
 		"FC")
 	createLightPost(model, "BackStandLightNorth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, -(layout.PlotSize.Z / 2 + 5)), packPad.Position + Vector3.new(0, 2, 0))
 	createLightPost(model, "BackStandLightSouth", position + Vector3.new(backEdgeX - (facingDirection * 8), 0, layout.PlotSize.Z / 2 + 5), packPad.Position + Vector3.new(0, 2, 0))
-	local stadiumFloodlightOptions = {
-		poleHeight = 27,
-		modelHeight = 29,
-		range = 68,
-		angle = 46,
-		brightness = 1.38,
-		fillRange = 18,
-		fillBrightness = 0.1,
-	}
-	local floodlightBackX = backEdgeX - (facingDirection * 15)
-	local floodlightSideZ = (layout.PlotSize.Z / 2) + 10
-	local floodlightTarget = position + Vector3.new(-facingDirection * 4, 3, 0)
-	createFloodlightRig(model, "StadiumFloodlightNorth", position + Vector3.new(floodlightBackX, 0, -floodlightSideZ), floodlightTarget, stadiumFloodlightOptions)
-	createFloodlightRig(model, "StadiumFloodlightSouth", position + Vector3.new(floodlightBackX, 0, floodlightSideZ), floodlightTarget, stadiumFloodlightOptions)
 	createSoftFillLight(model, "StadiumSoftFill", position + Vector3.new(0, 12, 0), 38, 0.22, Color3.fromRGB(255, 232, 184))
 	createSoftFillLight(model, "BackStandFill", position + Vector3.new(backEdgeX - (facingDirection * 6), 8, 0), 30, 0.17, Color3.fromRGB(225, 234, 255))
 	createSoftFillLight(model, "NorthStandFill", position + Vector3.new(0, 7, -(layout.PlotSize.Z / 2 + 7)), 25, 0.14, Color3.fromRGB(255, 226, 170))
