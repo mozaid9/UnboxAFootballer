@@ -17,6 +17,7 @@ local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local Constants = require(Shared:WaitForChild("Constants"))
 local CardFrames = require(Shared:WaitForChild("CardFrames"))
+local NationFlags = require(Shared:WaitForChild("NationFlags"))
 local Utils = require(Shared:WaitForChild("Utils"))
 
 local GetPlayerDataFn = Remotes:WaitForChild("GetPlayerData")
@@ -2239,6 +2240,20 @@ local function showCardReveal(payload)
 			NumberSequenceKeypoint.new(1, 0.88),
 		}),
 	}, softGlow)
+
+	-- Nation flag in blank center area
+	local centerFlagId = NationFlags[card.nation]
+	if centerFlagId then
+		make("ImageLabel", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundTransparency = 1,
+			Image = centerFlagId,
+			ScaleType = Enum.ScaleType.Fit,
+			Position = UDim2.fromScale(0.5, 0.375),
+			Size = UDim2.fromScale(0.58, 0.22),
+			ZIndex = 205,
+		}, frontGroup)
+	end
 
 	local function makeFrameLabel(labelProps, strokeThickness, strokeTransparency, minTextSize, maxTextSize)
 		local label = make("TextLabel", {

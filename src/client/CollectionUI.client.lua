@@ -12,6 +12,7 @@ local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local CardData = require(Shared:WaitForChild("CardData"))
 local Constants = require(Shared:WaitForChild("Constants"))
 local Utils = require(Shared:WaitForChild("Utils"))
+local NationFlags = require(Shared:WaitForChild("NationFlags"))
 
 local GetCollectionFn = Remotes:WaitForChild("GetCollection")
 local ClaimCollectionRewardFn = Remotes:WaitForChild("ClaimCollectionReward")
@@ -846,18 +847,42 @@ local function makeCardTile(card, packedCount, index, payload)
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	}, packedBadge)
 
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(8, 94),
-		Size = UDim2.new(1, -16, 0, 14),
-		Text = unlocked and (card.position .. " | " .. card.nation) or getRarityHint(card.rarity, card.id),
-		TextColor3 = unlocked and UI.Muted or tileText,
-		TextScaled = false,
-		TextSize = 9,
-		Font = Enum.Font.GothamBold,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-	}, tile)
+	local flagId = unlocked and NationFlags[card.nation]
+	if flagId then
+		make("ImageLabel", {
+			AnchorPoint = Vector2.new(0, 0.5),
+			BackgroundTransparency = 1,
+			Image = flagId,
+			ScaleType = Enum.ScaleType.Fit,
+			Position = UDim2.fromOffset(8, 101),
+			Size = UDim2.fromOffset(22, 14),
+		}, tile)
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(34, 94),
+			Size = UDim2.new(1, -42, 0, 14),
+			Text = card.position .. " | " .. card.nation,
+			TextColor3 = UI.Muted,
+			TextScaled = false,
+			TextSize = 9,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+		}, tile)
+	else
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(8, 94),
+			Size = UDim2.new(1, -16, 0, 14),
+			Text = unlocked and (card.position .. " | " .. card.nation) or getRarityHint(card.rarity, card.id),
+			TextColor3 = unlocked and UI.Muted or tileText,
+			TextScaled = false,
+			TextSize = 9,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+		}, tile)
+	end
 
 	make("TextLabel", {
 		BackgroundTransparency = 1,

@@ -12,6 +12,7 @@ local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local Constants = require(Shared:WaitForChild("Constants"))
 local CardData = require(Shared:WaitForChild("CardData"))
 local Utils = require(Shared:WaitForChild("Utils"))
+local NationFlags = require(Shared:WaitForChild("NationFlags"))
 
 local GetInventoryFn = Remotes:WaitForChild("GetInventory")
 local SellCardFn = Remotes:WaitForChild("SellCard")
@@ -836,16 +837,27 @@ function refreshInventory()
 			Font = Enum.Font.GothamBlack,
 		}, fansPill)
 
+		local invFlagId = NationFlags[card.nation]
+		if invFlagId then
+			make("ImageLabel", {
+				AnchorPoint = Vector2.new(0, 0.5),
+				BackgroundTransparency = 1,
+				Image = invFlagId,
+				ScaleType = Enum.ScaleType.Fit,
+				Position = UDim2.fromOffset(10, 128),
+				Size = UDim2.fromOffset(22, 14),
+			}, tile)
+		end
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(10, 120),
-			Size = UDim2.new(1, -20, 0, 16),
+			Position = UDim2.fromOffset(invFlagId and 36 or 10, 120),
+			Size = UDim2.new(1, invFlagId and -46 or -20, 0, 16),
 			Text = string.upper(tostring(card.position or "--")) .. "  •  " .. tostring(card.nation or "Unknown"),
 			TextColor3 = skin.meta,
 			TextScaled = false,
 			TextSize = 10,
 			Font = Enum.Font.GothamBold,
-			TextXAlignment = Enum.TextXAlignment.Center,
+			TextXAlignment = Enum.TextXAlignment.Left,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 		}, tile)
 

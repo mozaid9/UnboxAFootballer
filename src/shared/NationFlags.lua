@@ -1,0 +1,25 @@
+local NationFlags = {
+	["Argentina"]   = "rbxassetid://109856731260370",
+	["Belgium"]     = "rbxassetid://120327448326431",
+	["Brazil"]      = "rbxassetid://95932388484244",
+	["Croatia"]     = "rbxassetid://122695441544688",
+	["Egypt"]       = "rbxassetid://72417057019169",
+	["England"]     = "rbxassetid://101637159480408",
+	["France"]      = "rbxassetid://101628060303587",
+	["Georgia"]     = "rbxassetid://138587098476092",
+	["Germany"]     = "rbxassetid://111175336304226",
+	["Italy"]       = "rbxassetid://108660415005119",
+	["Morocco"]     = "rbxassetid://108886507394871",
+	["Netherlands"] = "rbxassetid://134140234303058",
+	["Norway"]      = "rbxassetid://113197774836919",
+	["Poland"]      = "rbxassetid://109701017021301",
+	["Portugal"]    = "rbxassetid://114329086628746",
+	["Scotland"]    = "rbxassetid://96996305218935",
+	["Serbia"]      = "rbxassetid://112031407324728",
+	["South Korea"] = "rbxassetid://106659551964354",
+	["Spain"]       = "rbxassetid://71296415244464",
+	["Sweden"]      = "rbxassetid://140002222456585",
+	["Uruguay"]     = "rbxassetid://120188989580718",
+}
+
+return NationFlags
