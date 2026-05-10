@@ -40,10 +40,10 @@ local skinColors = {
 }
 
 local STANDING_PIVOT_HEIGHT = 3.1
-local NPC_PERSONAL_SPACE = 5.6
+local NPC_PERSONAL_SPACE = 3.2
 local NPC_STUCK_CHECK_INTERVAL = 2
 local NPC_STUCK_DISTANCE = 1
-local NPC_AVOIDANCE_PAUSE_TIMEOUT = 4.5
+local NPC_AVOIDANCE_PAUSE_TIMEOUT = 2.0
 
 local WALKWAY_LANE_X_OFFSETS = { -23, -19, -15, -10, -6, 6, 10, 15, 19, 23 }
 
@@ -550,14 +550,16 @@ local function makeRoute(laneXOffset, laneZOffset)
 			-- Approach/exit point anchored to the plot's own entrance side so NPCs
 			-- never have to cross the pitch to reach a stadium on the other side.
 			local plotEntrance = getPlotEntrancePoint(plot)
+			-- Spread NPCs across a wide Z band before the entrance so they
+			-- approach through different parts of the gap rather than funnelling
+			-- to a single point. Pathfinding then routes through the gap itself.
+			local approachZ = plot.floor.Position.Z + math.clamp(laneZOffset, -18, 18)
 			local stadiumPathPoint = Vector3.new(
 				plotEntrance.X + plot.facingDirection * 30,
 				STANDING_PIVOT_HEIGHT,
-				plot.floor.Position.Z + math.clamp(laneZOffset, -5.8, 5.8)
+				approachZ
 			)
-			local entranceLanePoint = getPlotEntranceLanePoint(plot, laneZOffset)
-			table.insert(route, { position = jitterPosition(stadiumPathPoint, 2.8) })
-			table.insert(route, { position = jitterPosition(entranceLanePoint, 3.4) })
+			table.insert(route, { position = jitterPosition(stadiumPathPoint, 4.0) })
 			if reservedSeat then
 				route.reservedSeat = reservedSeat
 				for _, routePoint in ipairs(reservedSeat.routePoints or {}) do
@@ -595,15 +597,16 @@ local function makeRoute(laneXOffset, laneZOffset)
 					})
 				end
 			end
-			-- Exit: disperse NPCs far outside the stadium with wide Z spread so
-			-- they never queue at the entrance gap or block incoming NPCs.
-			local exitZ = (math.random(0, 12) - 6) * 3.0
+			-- Exit: send NPCs well past the approach point (40 studs out) with
+			-- a wide Z spread so they immediately clear the entrance zone and
+			-- don't collide with incoming NPCs near the gap.
+			local exitZ = (math.random(0, 16) - 8) * 2.5  -- ±20 stud Z spread
 			local exitPoint = Vector3.new(
-				plotEntrance.X + plot.facingDirection * 12,
+				plotEntrance.X + plot.facingDirection * 40,
 				STANDING_PIVOT_HEIGHT,
 				plot.floor.Position.Z + exitZ
 			)
-			table.insert(route, { position = jitterPosition(exitPoint, 4.5) })
+			table.insert(route, { position = jitterPosition(exitPoint, 5.0) })
 		end
 	end
 
@@ -910,7 +913,7 @@ local function runFan(model)
 					setFoodProp(model, false)
 				end
 				if routeFailed then
-					task.wait(math.random(8, 18) / 10)
+					task.wait(math.random(20, 40) / 10)
 				else
 					task.wait(math.random(6, 28) / 10)
 				end
