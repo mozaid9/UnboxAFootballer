@@ -5508,44 +5508,85 @@ function BaseService.UpdateStadiumTier(plot, tier)
 			}, terrace), COLLISION_GROUPS.StadiumGeometry, true, true, true)
 		end
 
-		-- Staircases at north and south ends, running along X from deck front toward pitch.
-		-- 10 steps × 1.5-stud rise, 2-stud tread.  Top step surface ≈ deck surface.
-		local stairSteps      = 10
-		local stepRise        = 1.5
-		local stepTread       = 2.0
-		local stairWidth      = 4.0
-		-- Front face of deck in local X (toward pitch). For fd=1: -32.  For fd=-1: +32.
-		local deckFrontLocalX = (-40.5 + deckHalfX) * fd
+		-- ── Teleporter pads — step on to travel between ground and terrace ──────
+		-- Ground pad: 5 studs in front of the terrace deck face, centre of Z.
+		-- Terrace pad: centre of the terrace deck surface.
+		local deckTopLocalY   = deckCenterLocalY + 0.25   -- 15.97
+		local deckFrontLocalX = fd * (-40.5 + deckHalfX)  -- -32*fd
 
-		for _, zSign in ipairs({-1, 1}) do
-			local stairLocalZ = zSign * (deckHalfZ - 3)   -- 3 studs inside the side rail
-			for step = 1, stairSteps do
-				-- step 1 = bottom (toward pitch); step stairSteps = top (at deck face).
-				local stepLocalY = layout.PlotSize.Y / 2 + (step - 0.5) * stepRise
-				local stepLocalX = deckFrontLocalX + fd * (stairSteps - step + 0.5) * stepTread
+		-- Player HumanoidRootPart lands ~3.5 studs above the destination floor.
+		local groundArrivalCFrame  = plot.baseCFrame * CFrame.new(deckFrontLocalX + fd * 5, layout.PlotSize.Y / 2 + 3.5, 0)
+		local terraceArrivalCFrame = plot.baseCFrame * CFrame.new(-40.5 * fd, deckTopLocalY + 3.5, 0)
 
-				configureCollisionPart(make("Part", {
-					Name = "RebirthTerraceStair",
-					Anchored = true, CanCollide = true, CanTouch = true, CanQuery = true,
-					Material = Enum.Material.SmoothPlastic, Color = tStepCol,
-					Size = Vector3.new(stepTread, stepRise, stairWidth),
-					CFrame = plot.baseCFrame * CFrame.new(stepLocalX, stepLocalY, stairLocalZ),
-				}, terrace), COLLISION_GROUPS.StadiumGeometry, true, true, true)
+		local padSize = Vector3.new(5, 0.4, 5)
+		local padCol  = Color3.fromRGB(10, 14, 24)
 
-				-- Gold neon lip on each step's top edge
+		local function makePad(name, localX, localY, localZ, labelText)
+			local padCFrame = plot.baseCFrame * CFrame.new(localX, localY, localZ)
+			local pad = make("Part", {
+				Name = name,
+				Anchored = true, CanCollide = true, CanTouch = true, CanQuery = true,
+				Material = Enum.Material.SmoothPlastic, Color = padCol,
+				Size = padSize,
+				CFrame = padCFrame,
+			}, terrace)
+			-- Gold neon border strip around the top edge
+			for _, edge in ipairs({
+				{ sz = Vector3.new(padSize.X, 0.12, 0.18), dz =  padSize.Z / 2 },
+				{ sz = Vector3.new(padSize.X, 0.12, 0.18), dz = -padSize.Z / 2 },
+				{ sz = Vector3.new(0.18, 0.12, padSize.Z), dx =  padSize.X / 2 },
+				{ sz = Vector3.new(0.18, 0.12, padSize.Z), dx = -padSize.X / 2 },
+			}) do
 				make("Part", {
-					Name = "RebirthTerraceStairLip",
 					Anchored = true, CanCollide = false, CanTouch = false, CanQuery = false,
-					Material = Enum.Material.Neon, Color = tGold, Transparency = 0.3,
-					Size = Vector3.new(stepTread - 0.2, 0.08, stairWidth + 0.1),
-					CFrame = plot.baseCFrame * CFrame.new(
-						stepLocalX,
-						layout.PlotSize.Y / 2 + step * stepRise + 0.06,
-						stairLocalZ
-					),
+					Material = Enum.Material.Neon, Color = tGold, Transparency = 0.2,
+					Size = edge.sz,
+					CFrame = padCFrame * CFrame.new(edge.dx or 0, padSize.Y / 2 + 0.06, edge.dz or 0),
 				}, terrace)
 			end
+			-- Label on the top face
+			local gui = make("SurfaceGui", {
+				Name = "TeleportLabel",
+				Face = Enum.NormalId.Top,
+				LightInfluence = 0,
+				SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+				PixelsPerStud = 50,
+			}, pad)
+			make("TextLabel", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				Text = labelText,
+				TextColor3 = tGold,
+				TextScaled = true,
+				Font = Enum.Font.GothamBlack,
+				TextStrokeTransparency = 0.4,
+			}, gui)
+			return pad
 		end
+
+		local groundPad  = makePad("TerraceLiftGround",  deckFrontLocalX + fd * 5, layout.PlotSize.Y / 2 + 0.2, 0, "▲ TERRACE")
+		local terracePad = makePad("TerraceLiftUp",       -40.5 * fd,              deckTopLocalY + 0.2,          0, "▼ GROUND")
+
+		-- Debounce table: prevents repeated teleports from a single step.
+		local Players = game:GetService("Players")
+		local debounce = {}
+
+		local function doTeleport(hit, destination)
+			local char = hit.Parent
+			if not char or debounce[char] then return end
+			local player = Players:GetPlayerFromCharacter(char)
+			if not player then return end
+			local hum  = char:FindFirstChildOfClass("Humanoid")
+			if not hum or hum.Health <= 0 then return end
+			local root = char:FindFirstChild("HumanoidRootPart")
+			if not root then return end
+			debounce[char] = true
+			root.CFrame = destination
+			task.delay(2, function() debounce[char] = nil end)
+		end
+
+		groundPad.Touched:Connect(function(hit)  doTeleport(hit, terraceArrivalCFrame) end)
+		terracePad.Touched:Connect(function(hit) doTeleport(hit, groundArrivalCFrame)  end)
 
 		assignCollisionGroup(terrace, COLLISION_GROUPS.StadiumGeometry)
 	end
