@@ -70,6 +70,7 @@ local screenGui = make("ScreenGui", {
 	Name = "PackOpeningUI",
 	ResetOnSpawn = false,
 	DisplayOrder = 8,
+	IgnoreGuiInset = true,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, playerGui)
 
@@ -699,7 +700,7 @@ end)
 
 local toastHolder = make("Frame", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(1, -20, 0, 288),
+	Position = UDim2.new(1, -20, 0, 324),
 	AnchorPoint = Vector2.new(1, 0),
 	Size = UDim2.fromOffset(320, 420),
 }, screenGui)
@@ -715,7 +716,7 @@ local utilityButton = make("TextButton", {
 	AnchorPoint = Vector2.new(1, 0),
 	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
 	BackgroundTransparency = 0.02,
-	Position = UDim2.new(1, -20, 0, 10),
+	Position = UDim2.new(1, -12, 0, 8),
 	Size = UDim2.fromOffset(42, 42),
 	Text = "?",
 	TextColor3 = UI.Gold,
@@ -732,7 +733,7 @@ local utilityPanel = make("Frame", {
 	AnchorPoint = Vector2.new(1, 0),
 	BackgroundColor3 = Color3.fromRGB(6, 8, 14),
 	BackgroundTransparency = 0.02,
-	Position = UDim2.new(1, -20, 0, 58),
+	Position = UDim2.new(1, -12, 0, 56),
 	Size = UDim2.fromOffset(224, 132),
 	Visible = false,
 	ZIndex = 80,
@@ -837,7 +838,7 @@ local giftButton = make("TextButton", {
 	AnchorPoint = Vector2.new(1, 0),
 	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
 	BackgroundTransparency = 0.02,
-	Position = UDim2.new(1, -68, 0, 10),
+	Position = UDim2.new(1, -60, 0, 8),
 	Size = UDim2.fromOffset(42, 42),
 	Text = "🎁",
 	TextColor3 = UI.Gold,
@@ -854,7 +855,7 @@ local giftsPanel = make("Frame", {
 	AnchorPoint = Vector2.new(1, 0),
 	BackgroundColor3 = Color3.fromRGB(6, 8, 14),
 	BackgroundTransparency = 0.02,
-	Position = UDim2.new(1, -20, 0, 58),
+	Position = UDim2.new(1, -12, 0, 56),
 	Size = UDim2.fromOffset(320, 490),
 	Visible = false,
 	ZIndex = 80,
@@ -1445,7 +1446,7 @@ local coachCard = make("Frame", {
 	AnchorPoint = Vector2.new(0.5, 0),
 	BackgroundColor3 = Color3.fromRGB(9, 13, 24),
 	BackgroundTransparency = 0.06,
-	Position = UDim2.new(0.5, 0, 0, 86),
+	Position = UDim2.new(0.5, 0, 0, 122),
 	Size = UDim2.new(0.9, 0, 0, 112),
 	Visible = false,
 	ZIndex = 70,
@@ -2435,7 +2436,7 @@ local function playRevealEffect(rarity)
 		local BAR_H  = 76
 		local topBar = make("Frame", {
 			AnchorPoint      = Vector2.new(0, 0),
-			Position         = UDim2.new(0, 0, 0, -BAR_H),
+			Position         = UDim2.new(0, 0, 0, 36 - BAR_H),
 			Size             = UDim2.new(1, 0, 0, BAR_H),
 			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 			BorderSizePixel  = 0,
@@ -2451,13 +2452,13 @@ local function playRevealEffect(rarity)
 		}, screenGui)
 
 		local slideIn = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-		TweenService:Create(topBar,    slideIn, { Position = UDim2.new(0, 0, 0, 0)      }):Play()
+		TweenService:Create(topBar,    slideIn, { Position = UDim2.new(0, 0, 0, 36)     }):Play()
 		TweenService:Create(bottomBar, slideIn, { Position = UDim2.new(0, 0, 1, -BAR_H) }):Play()
 
 		local barLifetime = tier == 2 and 2.4 or 2.8
 		task.delay(barLifetime, function()
 			local slideOut = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-			if topBar.Parent    then TweenService:Create(topBar,    slideOut, { Position = UDim2.new(0, 0, 0, -BAR_H) }):Play() end
+			if topBar.Parent    then TweenService:Create(topBar,    slideOut, { Position = UDim2.new(0, 0, 0, 36 - BAR_H) }):Play() end
 			if bottomBar.Parent then TweenService:Create(bottomBar, slideOut, { Position = UDim2.new(0, 0, 1,  BAR_H) }):Play() end
 			task.delay(0.40, function()
 				if topBar.Parent    then topBar:Destroy()    end
