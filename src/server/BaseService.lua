@@ -5564,8 +5564,43 @@ function BaseService.UpdateStadiumTier(plot, tier)
 			return pad
 		end
 
-		local groundPad  = makePad("TerraceLiftGround",  deckFrontLocalX + fd * 5, layout.PlotSize.Y / 2 + 0.2, 0, "▲ TERRACE")
-		local terracePad = makePad("TerraceLiftUp",       -40.5 * fd,              deckTopLocalY + 0.2,          0, "▼ GROUND")
+		local groundPadLocalX = deckFrontLocalX + fd * 5
+		local groundPadLocalY = layout.PlotSize.Y / 2 + 0.2
+		local groundPad  = makePad("TerraceLiftGround",  groundPadLocalX, groundPadLocalY, 0, "▲ TERRACE")
+		local terracePad = makePad("TerraceLiftUp",       -40.5 * fd,     deckTopLocalY + 0.2, 0, "▼ GROUND")
+
+		-- Beacon pole above the ground pad so players can spot it from across the stadium
+		local beaconHeight = 8
+		local beaconCFrame = plot.baseCFrame * CFrame.new(groundPadLocalX, groundPadLocalY + beaconHeight / 2 + 0.2, 0)
+		make("Part", {
+			Name = "TerraceLiftBeacon",
+			Anchored = true, CanCollide = false, CanTouch = false, CanQuery = false,
+			Material = Enum.Material.Neon, Color = tGold, Transparency = 0.15,
+			Size = Vector3.new(0.3, beaconHeight, 0.3),
+			CFrame = beaconCFrame,
+		}, terrace)
+		-- Arrow billboard at the top of the beacon
+		local arrowPart = make("Part", {
+			Name = "TerraceLiftArrowBase",
+			Anchored = true, CanCollide = false, CanTouch = false, CanQuery = false,
+			Transparency = 1, Size = Vector3.new(1, 1, 1),
+			CFrame = plot.baseCFrame * CFrame.new(groundPadLocalX, groundPadLocalY + beaconHeight + 1.5, 0),
+		}, terrace)
+		local bb = make("BillboardGui", {
+			Name = "TerraceLiftBB",
+			Size = UDim2.fromOffset(80, 80),
+			StudsOffset = Vector3.new(0, 0, 0),
+			AlwaysOnTop = false,
+			LightInfluence = 0,
+		}, arrowPart)
+		make("TextLabel", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Text = "▲",
+			TextColor3 = tGold,
+			TextScaled = true,
+			Font = Enum.Font.GothamBlack,
+		}, bb)
 
 		-- Debounce table: prevents repeated teleports from a single step.
 		local Players = game:GetService("Players")
