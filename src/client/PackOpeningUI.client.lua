@@ -215,107 +215,137 @@ make("UIListLayout", {
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, sidebar)
 
--- ── Wallet counters (bottom-left, concept style) ──────────────────────────────
-local COUNTER_W, COUNTER_H = 210, 64
+local walletDock = make("Frame", {
+	Name = "WalletDock",
+	AnchorPoint = Vector2.new(1, 1),
+	Size = UDim2.fromOffset(232, 98),
+	Position = UDim2.new(1, -20, 1, -20),
+	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+	BackgroundTransparency = 0.08,
+}, screenGui)
+addCorner(walletDock, 16)
+addStroke(walletDock, UI.Gold, 1.5, 0.68)
 
-local function makeCounter(yOffset, iconEmoji, iconBg, labelText, accentColor)
-	local panel = make("Frame", {
-		Name = labelText .. "Counter",
-		AnchorPoint = Vector2.new(1, 1),
-		BackgroundColor3 = Color3.fromRGB(10, 13, 22),
-		BackgroundTransparency = 0,
-		Position = UDim2.new(1, -16, 1, yOffset),
-		Size = UDim2.fromOffset(COUNTER_W, COUNTER_H),
-		ZIndex = 10,
-	}, screenGui)
-	addCorner(panel, 14)
-	addStroke(panel, accentColor, 1.5, 0.55)
-	make("UIGradient", {
-		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 22, 36)),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 10, 18)),
-		}),
-		Rotation = 135,
-	}, panel)
+local walletPadding = make("UIPadding", {
+	PaddingTop = UDim.new(0, 8),
+	PaddingBottom = UDim.new(0, 8),
+	PaddingLeft = UDim.new(0, 8),
+	PaddingRight = UDim.new(0, 8),
+}, walletDock)
+_ = walletPadding
 
-	-- Icon circle
-	local iconCircle = make("Frame", {
+make("UIListLayout", {
+	FillDirection = Enum.FillDirection.Vertical,
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	VerticalAlignment = Enum.VerticalAlignment.Top,
+	Padding = UDim.new(0, 6),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, walletDock)
+
+local function drawWalletGemIcon(parent, accentColor)
+	local gem = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = iconBg,
-		Position = UDim2.new(0, 36, 0.5, 0),
-		Size = UDim2.fromOffset(44, 44),
-		ZIndex = 11,
-	}, panel)
-	addCorner(iconCircle, 22)
+		BackgroundColor3 = accentColor,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(13, 13),
+		Rotation = 45,
+		Size = UDim2.fromOffset(16, 16),
+		ZIndex = 2,
+	}, parent)
+	addCorner(gem, 3)
+	addStroke(gem, Color3.fromRGB(169, 239, 255), 1, 0.05)
 	make("UIGradient", {
 		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, iconBg:Lerp(Color3.fromRGB(255,255,255), 0.18)),
-			ColorSequenceKeypoint.new(1, iconBg:Lerp(Color3.fromRGB(0,0,0), 0.30)),
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(176, 246, 255)),
+			ColorSequenceKeypoint.new(0.5, accentColor),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 132, 219)),
 		}),
-		Rotation = 135,
-	}, iconCircle)
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(1, 1),
-		Text = iconEmoji,
-		TextScaled = true,
-		Font = Enum.Font.GothamBlack,
-		ZIndex = 12,
-	}, iconCircle)
+		Rotation = 35,
+	}, gem)
 
-	-- Label
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 88, 0, 10),
-		Size = UDim2.new(1, -120, 0, 16),
-		Text = string.upper(labelText),
-		TextColor3 = Color3.fromRGB(160, 165, 180),
-		TextScaled = false,
-		TextSize = 11,
-		Font = Enum.Font.GothamBold,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 11,
-	}, panel)
-
-	-- Value
-	local valueLabel = make("TextLabel", {
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 88, 0, 26),
-		Size = UDim2.new(1, -120, 0, 28),
-		Text = "0",
-		TextColor3 = Color3.fromRGB(255, 252, 240),
-		TextScaled = false,
-		TextSize = 22,
-		Font = Enum.Font.GothamBlack,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 11,
-	}, panel)
-
-	-- Plus button
-	local plusBtn = make("TextButton", {
-		AnchorPoint = Vector2.new(1, 0.5),
-		BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0,0,0), 0.38),
-		Position = UDim2.new(1, -10, 0.5, 0),
-		Size = UDim2.fromOffset(28, 28),
-		Text = "+",
-		TextColor3 = Color3.fromRGB(255, 255, 255),
-		TextScaled = false,
-		TextSize = 20,
-		Font = Enum.Font.GothamBlack,
-		AutoButtonColor = true,
-		ZIndex = 12,
-	}, panel)
-	addCorner(plusBtn, 8)
-	addStroke(plusBtn, accentColor, 1.5, 0.30)
-
-	return valueLabel, plusBtn
+	make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = Color3.fromRGB(221, 255, 255),
+		BackgroundTransparency = 0.22,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(10, 8),
+		Rotation = 45,
+		Size = UDim2.fromOffset(7, 3),
+		ZIndex = 3,
+	}, parent)
 end
 
-local fansLabel, addFansButton = makeCounter(-84, "👥", Color3.fromRGB(196, 152, 18), "Fans", UI.Gold)
-local gemsLabel, addGemsButton = makeCounter(-14, "💎", Color3.fromRGB(24, 110, 196), "Gems", Color3.fromRGB(69, 207, 255))
+local function createWalletRow(parent, order, labelText, iconText, iconColor)
+	local row = make("Frame", {
+		LayoutOrder = order,
+		Size = UDim2.new(1, 0, 0, 38),
+		BackgroundColor3 = UI.Panel,
+	}, parent)
+	addCorner(row, 10)
+	addStroke(row, iconColor, 1.5, 0.7)
 
--- walletDock kept as a no-op container so old references don't break
-local walletDock = make("Frame", { BackgroundTransparency = 1, Size = UDim2.fromOffset(0,0) }, screenGui)
+	local icon = make("Frame", {
+		Size = UDim2.fromOffset(26, 26),
+		Position = UDim2.new(0, 8, 0.5, -13),
+		BackgroundColor3 = iconColor:Lerp(Color3.fromRGB(0, 0, 0), 0.72),
+	}, row)
+	addCorner(icon, 9)
+	if iconText == "Gem" then
+		drawWalletGemIcon(icon, iconColor)
+	else
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 1),
+			Text = iconText,
+			TextColor3 = iconColor,
+			TextScaled = false,
+			TextSize = 17,
+			Font = Enum.Font.GothamBlack,
+		}, icon)
+	end
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 42, 0, 3),
+		Size = UDim2.new(1, -82, 0, 12),
+		Text = labelText,
+		TextColor3 = UI.Muted,
+		TextScaled = false,
+		TextSize = 10,
+		Font = Enum.Font.GothamMedium,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, row)
+
+	local valueLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 42, 0, 14),
+		Size = UDim2.new(1, -82, 0, 22),
+		Text = "0",
+		TextColor3 = UI.Text,
+		TextScaled = false,
+		TextSize = 18,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, row)
+
+	local plusButton = make("TextButton", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Size = UDim2.fromOffset(24, 24),
+		Position = UDim2.new(1, -8, 0.5, 0),
+		BackgroundColor3 = Color3.fromRGB(32, 128, 55),
+		Text = "+",
+		TextColor3 = UI.Text,
+		TextScaled = false,
+		TextSize = 18,
+		Font = Enum.Font.GothamBlack,
+	}, row)
+	addCorner(plusButton, 8)
+
+	return valueLabel, plusButton
+end
+
+local fansLabel, addFansButton = createWalletRow(walletDock, 1, "Fans", "F", UI.Gold)
+local gemsLabel, addGemsButton = createWalletRow(walletDock, 2, "Gems", "Gem", Color3.fromRGB(69, 207, 255))
 
 local function makeIconLine(parent, position, size, color, rotation)
 	return make("Frame", {
@@ -676,101 +706,29 @@ make("UIListLayout", {
 	Padding = UDim.new(0, 10),
 }, toastHolder)
 
--- ── Top-right quick-access row (Daily Rewards / Settings / Codes) ─────────────
-local topRightRow = make("Frame", {
-	Name = "TopRightRow",
+local utilityPanelOpen = false
+local utilityButton = make("TextButton", {
 	AnchorPoint = Vector2.new(1, 0),
-	BackgroundTransparency = 1,
-	Position = UDim2.new(1, -8, 0, 8),
-	Size = UDim2.fromOffset(312, 76),
+	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+	BackgroundTransparency = 0.02,
+	Position = UDim2.new(1, -20, 0, 56),
+	Size = UDim2.fromOffset(42, 42),
+	Text = "?",
+	TextColor3 = UI.Gold,
+	TextScaled = false,
+	TextSize = 23,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = true,
 	ZIndex = 80,
 }, screenGui)
-make("UIListLayout", {
-	FillDirection = Enum.FillDirection.Horizontal,
-	HorizontalAlignment = Enum.HorizontalAlignment.Right,
-	VerticalAlignment = Enum.VerticalAlignment.Center,
-	Padding = UDim.new(0, 6),
-	SortOrder = Enum.SortOrder.LayoutOrder,
-}, topRightRow)
+addCorner(utilityButton, 13)
+addStroke(utilityButton, UI.Gold, 1.5, 0.36)
 
-local function makeTopBtn(order, icon, label, accent)
-	local btn = make("TextButton", {
-		LayoutOrder = order,
-		Size = UDim2.fromOffset(96, 72),
-		BackgroundColor3 = Color3.fromRGB(10, 13, 22),
-		BackgroundTransparency = 0,
-		Text = "",
-		AutoButtonColor = false,
-		ZIndex = 80,
-	}, topRightRow)
-	addCorner(btn, 12)
-	addStroke(btn, accent, 1.5, 0.40)
-	make("UIGradient", {
-		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 22, 36)),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 10, 18)),
-		}),
-		Rotation = 135,
-	}, btn)
-
-	-- Icon circle
-	local iconCircle = make("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundColor3 = accent:Lerp(Color3.fromRGB(0,0,0), 0.50),
-		Position = UDim2.new(0.5, 0, 0, 8),
-		Size = UDim2.fromOffset(36, 36),
-		ZIndex = 81,
-	}, btn)
-	addCorner(iconCircle, 18)
-	addStroke(iconCircle, accent, 1, 0.42)
-	make("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(1, 1),
-		Text = icon,
-		TextColor3 = accent,
-		TextScaled = true,
-		Font = Enum.Font.GothamBlack,
-		ZIndex = 82,
-	}, iconCircle)
-
-	-- Label
-	make("TextLabel", {
-		AnchorPoint = Vector2.new(0.5, 1),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0.5, 0, 1, -7),
-		Size = UDim2.new(1, -4, 0, 16),
-		Text = label,
-		TextColor3 = Color3.fromRGB(210, 215, 225),
-		TextScaled = false,
-		TextSize = 11,
-		Font = Enum.Font.GothamBold,
-		ZIndex = 81,
-	}, btn)
-
-	btn.MouseEnter:Connect(function()
-		TweenService:Create(btn, TweenInfo.new(0.1), {
-			BackgroundColor3 = accent:Lerp(Color3.fromRGB(10, 13, 22), 0.82),
-		}):Play()
-	end)
-	btn.MouseLeave:Connect(function()
-		TweenService:Create(btn, TweenInfo.new(0.1), {
-			BackgroundColor3 = Color3.fromRGB(10, 13, 22),
-		}):Play()
-	end)
-	return btn
-end
-
-local dailyRewardButton = makeTopBtn(1, "📅", "Daily Rewards", Color3.fromRGB(255, 182, 60))
-local settingsButton    = makeTopBtn(2, "⚙",  "Settings",      Color3.fromRGB(180, 190, 210))
-local codesButton       = makeTopBtn(3, "🎁", "Codes",         Color3.fromRGB(85, 226, 112))
-
--- ── Settings sub-panel (replaces old utility panel) ───────────────────────────
-local utilityPanelOpen = false
 local utilityPanel = make("Frame", {
 	AnchorPoint = Vector2.new(1, 0),
 	BackgroundColor3 = Color3.fromRGB(6, 8, 14),
 	BackgroundTransparency = 0.02,
-	Position = UDim2.new(1, -20, 0, 70),
+	Position = UDim2.new(1, -20, 0, 104),
 	Size = UDim2.fromOffset(224, 132),
 	Visible = false,
 	ZIndex = 80,
@@ -789,7 +747,7 @@ make("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.new(0, 14, 0, 10),
 	Size = UDim2.new(1, -56, 0, 22),
-	Text = "SETTINGS",
+	Text = "HELP",
 	TextColor3 = UI.Gold,
 	TextScaled = false,
 	TextSize = 14,
@@ -840,80 +798,6 @@ local popupMuteButton = make("TextButton", {
 	ZIndex = 81,
 }, utilityPanel)
 addCorner(popupMuteButton, 10)
-
--- Codes entry panel
-local codesPanelOpen = false
-local codesPanel = make("Frame", {
-	AnchorPoint = Vector2.new(1, 0),
-	BackgroundColor3 = Color3.fromRGB(6, 10, 16),
-	BackgroundTransparency = 0.02,
-	Position = UDim2.new(1, -20, 0, 70),
-	Size = UDim2.fromOffset(224, 96),
-	Visible = false,
-	ZIndex = 80,
-}, screenGui)
-addCorner(codesPanel, 16)
-addStroke(codesPanel, Color3.fromRGB(85, 226, 112), 1.5, 0.30)
-
-make("TextLabel", {
-	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 14, 0, 10),
-	Size = UDim2.new(1, -40, 0, 20),
-	Text = "ENTER CODE",
-	TextColor3 = Color3.fromRGB(85, 226, 112),
-	TextScaled = false,
-	TextSize = 13,
-	Font = Enum.Font.GothamBlack,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	ZIndex = 81,
-}, codesPanel)
-
-local codesCloseBtn = make("TextButton", {
-	AnchorPoint = Vector2.new(1, 0),
-	BackgroundColor3 = Color3.fromRGB(18, 24, 40),
-	Position = UDim2.new(1, -10, 0, 8),
-	Size = UDim2.fromOffset(28, 28),
-	Text = "X",
-	TextColor3 = UI.Text,
-	TextScaled = false,
-	TextSize = 13,
-	Font = Enum.Font.GothamBlack,
-	AutoButtonColor = true,
-	ZIndex = 82,
-}, codesPanel)
-addCorner(codesCloseBtn, 8)
-
-local codeBox = make("TextBox", {
-	BackgroundColor3 = Color3.fromRGB(14, 20, 32),
-	ClearTextOnFocus = true,
-	PlaceholderText = "e.g. FREEGEMS2025",
-	PlaceholderColor3 = Color3.fromRGB(100, 120, 100),
-	Position = UDim2.new(0, 14, 0, 36),
-	Size = UDim2.new(1, -28, 0, 28),
-	Text = "",
-	TextColor3 = UI.Text,
-	TextScaled = false,
-	TextSize = 13,
-	Font = Enum.Font.GothamMedium,
-	ZIndex = 82,
-}, codesPanel)
-addCorner(codeBox, 8)
-addStroke(codeBox, Color3.fromRGB(85, 226, 112), 1, 0.48)
-
-local redeemBtn = make("TextButton", {
-	AnchorPoint = Vector2.new(1, 1),
-	BackgroundColor3 = Color3.fromRGB(60, 180, 90),
-	Position = UDim2.new(1, -14, 1, -10),
-	Size = UDim2.fromOffset(80, 28),
-	Text = "REDEEM",
-	TextColor3 = Color3.fromRGB(8, 20, 8),
-	TextScaled = false,
-	TextSize = 12,
-	Font = Enum.Font.GothamBlack,
-	AutoButtonColor = true,
-	ZIndex = 82,
-}, codesPanel)
-addCorner(redeemBtn, 8)
 
 local popupsMuted = false
 local coachDismissed = false
@@ -1364,45 +1248,16 @@ end)
 local function setUtilityPanelOpen(open)
 	utilityPanelOpen = open
 	utilityPanel.Visible = open
-	if open then
-		codesPanelOpen = false
-		codesPanel.Visible = false
-	end
+	utilityButton.Text = open and "X" or "?"
+	utilityButton.TextColor3 = open and UI.Text or UI.Gold
 end
 
-settingsButton.MouseButton1Click:Connect(function()
+utilityButton.MouseButton1Click:Connect(function()
 	setUtilityPanelOpen(not utilityPanelOpen)
 end)
 
 utilityCloseButton.MouseButton1Click:Connect(function()
 	setUtilityPanelOpen(false)
-end)
-
-codesButton.MouseButton1Click:Connect(function()
-	codesPanelOpen = not codesPanelOpen
-	codesPanel.Visible = codesPanelOpen
-	if codesPanelOpen then
-		setUtilityPanelOpen(false)
-	end
-end)
-
-codesCloseBtn.MouseButton1Click:Connect(function()
-	codesPanelOpen = false
-	codesPanel.Visible = false
-end)
-
-redeemBtn.MouseButton1Click:Connect(function()
-	local code = codeBox.Text
-	if code == "" then
-		showToast("Enter a code first.", Color3.fromRGB(85, 226, 112))
-		return
-	end
-	showToast("Code '" .. code .. "' submitted! (Coming soon)", Color3.fromRGB(85, 226, 112))
-	codeBox.Text = ""
-end)
-
-dailyRewardButton.MouseButton1Click:Connect(function()
-	showToast("Daily Rewards coming soon! Check back each day.", Color3.fromRGB(255, 182, 60))
 end)
 
 helpButton.MouseButton1Click:Connect(function()
