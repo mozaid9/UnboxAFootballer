@@ -278,20 +278,36 @@ Constants.Rebirth = {
 	StartingFansGrowthAfterTier = 2.35,
 
 	VaultSlots = {
-		{ tier = 3, slots = 1 },
-		{ tier = 6, slots = 2 },
+		{ tier = 3,  slots = 1 },
+		{ tier = 6,  slots = 2 },
+		{ tier = 10, slots = 3 },
+		{ tier = 15, slots = 4 },
 	},
 
 	-- Requirements to go from tier N-1 → N.
-	-- cards = list of { count, rarity } where the player must own that many
-	-- cards OF THAT RARITY OR HIGHER to qualify.
+	-- cards = list of { count, rarity } groups — player must satisfy ALL groups.
+	-- Tiers  1-6:  Talisman → Maestro → Immortal grind.
+	-- Tiers  7-9:  Immortal + first POTY cards introduced.
+	-- Tiers 10-18: POTY becomes the main currency; Immortals add extra challenge.
 	TierRequirements = {
-		[1]  = { fans = 1000000,   cards = { { count = 1, rarity = "Talisman"           } } },
-		[2]  = { fans = 2000000,   cards = { { count = 1, rarity = "Maestro"            } } },
-		[3]  = { fans = 4000000,   cards = { { count = 2, rarity = "Maestro"            } } },
-		[4]  = { fans = 8000000,   cards = { { count = 1, rarity = "Immortal"           } } },
-		[5]  = { fans = 16000000,  cards = { { count = 1, rarity = "Immortal"           } } },
-		[6]  = { fans = 32000000,  cards = { { count = 2, rarity = "Immortal"           } } },
+		[1]  = { fans = 1000000,      cards = { { count = 1, rarity = "Talisman"           } } },
+		[2]  = { fans = 2000000,      cards = { { count = 1, rarity = "Maestro"            } } },
+		[3]  = { fans = 4000000,      cards = { { count = 2, rarity = "Maestro"            } } },
+		[4]  = { fans = 8000000,      cards = { { count = 1, rarity = "Immortal"           } } },
+		[5]  = { fans = 16000000,     cards = { { count = 1, rarity = "Immortal"           } } },
+		[6]  = { fans = 32000000,     cards = { { count = 2, rarity = "Immortal"           } } },
+		[7]  = { fans = 64000000,     cards = { { count = 3, rarity = "Immortal"           } } },
+		[8]  = { fans = 128000000,    cards = { { count = 2, rarity = "Immortal"           }, { count = 1, rarity = "Player of the Year" } } },
+		[9]  = { fans = 256000000,    cards = { { count = 1, rarity = "Immortal"           }, { count = 1, rarity = "Player of the Year" } } },
+		[10] = { fans = 512000000,    cards = { { count = 2, rarity = "Player of the Year" } } },
+		[11] = { fans = 1000000000,   cards = { { count = 2, rarity = "Player of the Year" }, { count = 1, rarity = "Immortal" } } },
+		[12] = { fans = 2000000000,   cards = { { count = 3, rarity = "Player of the Year" } } },
+		[13] = { fans = 4000000000,   cards = { { count = 3, rarity = "Player of the Year" }, { count = 1, rarity = "Immortal" } } },
+		[14] = { fans = 8000000000,   cards = { { count = 4, rarity = "Player of the Year" } } },
+		[15] = { fans = 16000000000,  cards = { { count = 4, rarity = "Player of the Year" }, { count = 1, rarity = "Immortal" } } },
+		[16] = { fans = 32000000000,  cards = { { count = 5, rarity = "Player of the Year" } } },
+		[17] = { fans = 64000000000,  cards = { { count = 5, rarity = "Player of the Year" }, { count = 1, rarity = "Immortal" } } },
+		[18] = { fans = 128000000000, cards = { { count = 5, rarity = "Player of the Year" }, { count = 2, rarity = "Immortal" } } },
 	},
 
 	-- Display slots
@@ -300,12 +316,14 @@ Constants.Rebirth = {
 	MaxSlots       = 18,  -- hard cap; rebirth gallery supports 12 extra slots
 
 	MultiplierMilestones = {
-		{ tier = 0,  multiplier = 1   },
+		{ tier = 0,  multiplier = 1    },
 		{ tier = 1,  multiplier = 1.25 },
 		{ tier = 2,  multiplier = 2.00 },
 		{ tier = 3,  multiplier = 3.00 },
 		{ tier = 5,  multiplier = 4.00 },
 		{ tier = 10, multiplier = 7.50 },
+		{ tier = 14, multiplier = 12.0 },
+		{ tier = 18, multiplier = 18.0 },
 	},
 }
 
