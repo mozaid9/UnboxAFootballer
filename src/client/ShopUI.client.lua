@@ -1253,7 +1253,10 @@ make("TextLabel", {
 	ZIndex = 12,
 }, futureCard)
 
-shopSections.Rewards = { rewardsLabel, freeCard, dailyCard, limitedLabel, limitedCard }
+rewardsLabel.Visible = false
+freeCard.Visible = false
+dailyCard.Visible = false
+shopSections.Rewards = { limitedLabel, limitedCard }
 shopSections.FanPacks = { fanPacksLabel, fanPacksGrid }
 shopSections.GemPacks = gemPacksGrid and { gemPacksLabel, gemPacksGrid } or {}
 shopSections.Cosmetics = { cosmeticsLabel, futureCard }

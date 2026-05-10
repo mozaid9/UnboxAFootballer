@@ -22,6 +22,9 @@ local Utils = require(Shared:WaitForChild("Utils"))
 
 local GetPlayerDataFn = Remotes:WaitForChild("GetPlayerData")
 local UpdateCoinsEvent = Remotes:WaitForChild("UpdateCoins")
+local ClaimFreePackFn = Remotes:WaitForChild("ClaimFreePack")
+local ClaimDailyRewardFn = Remotes:WaitForChild("ClaimDailyReward")
+local RedeemCodeFn = Remotes:WaitForChild("RedeemCode")
 local PackOpenedEvent = Remotes:WaitForChild("PackOpened")
 local PackOpenFailedEvent = Remotes:WaitForChild("PackOpenFailed")
 local PromptPackShopEvent = Remotes:WaitForChild("PromptPackShop")
@@ -800,6 +803,644 @@ local popupMuteButton = make("TextButton", {
 }, utilityPanel)
 addCorner(popupMuteButton, 10)
 
+-- ── Gifts panel ──────────────────────────────────────────────────────────────
+
+local DAILY_REWARDS = Constants.DailyStreakRewards or {
+	{ day = 1, packId = "GoldPack", label = "Gold Pack" },
+	{ day = 2, packId = "RarePack", label = "Rare Pack" },
+	{ day = 3, packId = "PremiumPack", label = "Premium Pack" },
+	{ day = 4, packId = "DeluxePack", label = "Deluxe Pack" },
+}
+
+local function formatClock(seconds)
+	local value = math.max(0, math.floor(seconds or 0))
+	local hours = math.floor(value / 3600)
+	local minutes = math.floor((value % 3600) / 60)
+	local secs = value % 60
+	if hours > 0 then
+		return string.format("%dh %02dm", hours, minutes)
+	end
+	return string.format("%d:%02d", minutes, secs)
+end
+
+local giftsPanelOpen = false
+local giftsPackRemaining = Constants.FreePackCooldown
+local giftsCanClaimFree = false
+local giftsClaimingFree = false
+local giftsDailyRemaining = Constants.DailyRewardCooldown
+local giftsCanClaimDaily = false
+local giftsClaimingDaily = false
+local giftsDailyStreak = 0
+local giftsCountdownActive = false
+
+local giftButton = make("TextButton", {
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+	BackgroundTransparency = 0.02,
+	Position = UDim2.new(1, -68, 0, 56),
+	Size = UDim2.fromOffset(42, 42),
+	Text = "🎁",
+	TextColor3 = UI.Gold,
+	TextScaled = false,
+	TextSize = 22,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = true,
+	ZIndex = 80,
+}, screenGui)
+addCorner(giftButton, 13)
+addStroke(giftButton, UI.Gold, 1.5, 0.36)
+
+local giftsPanel = make("Frame", {
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = Color3.fromRGB(6, 8, 14),
+	BackgroundTransparency = 0.02,
+	Position = UDim2.new(1, -20, 0, 104),
+	Size = UDim2.fromOffset(340, 472),
+	Visible = false,
+	ZIndex = 80,
+}, screenGui)
+addCorner(giftsPanel, 18)
+addStroke(giftsPanel, UI.Gold, 1.5, 0.34)
+make("UIGradient", {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 22, 35)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(5, 7, 12)),
+	}),
+	Rotation = 100,
+}, giftsPanel)
+
+make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 16, 0, 12),
+	Size = UDim2.new(1, -60, 0, 24),
+	Text = "GIFTS",
+	TextColor3 = UI.Gold,
+	TextScaled = false,
+	TextSize = 16,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 81,
+}, giftsPanel)
+
+local giftsPanelClose = make("TextButton", {
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = Color3.fromRGB(18, 24, 40),
+	Position = UDim2.new(1, -10, 0, 10),
+	Size = UDim2.fromOffset(28, 28),
+	Text = "X",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 13,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = true,
+	ZIndex = 82,
+}, giftsPanel)
+addCorner(giftsPanelClose, 8)
+
+-- Divider
+make("Frame", {
+	Position = UDim2.new(0, 14, 0, 46),
+	Size = UDim2.new(1, -28, 0, 1),
+	BackgroundColor3 = Color3.fromRGB(40, 48, 70),
+	BorderSizePixel = 0,
+	ZIndex = 81,
+}, giftsPanel)
+
+-- ── Free Pack section ──────────────────────────────────────────────────────
+
+local giftFreeSection = make("Frame", {
+	Position = UDim2.new(0, 12, 0, 52),
+	Size = UDim2.new(1, -24, 0, 108),
+	BackgroundColor3 = Color3.fromRGB(12, 21, 30),
+	ClipsDescendants = true,
+	ZIndex = 81,
+}, giftsPanel)
+addCorner(giftFreeSection, 14)
+local giftFreeStroke = addStroke(giftFreeSection, UI.Success, 1.5, 0.5)
+
+make("UIGradient", {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 31, 23)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 17, 31)),
+	}),
+	Rotation = 15,
+}, giftFreeSection)
+
+local giftFreeIcon = make("Frame", {
+	Position = UDim2.new(0, 12, 0, 16),
+	Size = UDim2.fromOffset(52, 52),
+	BackgroundColor3 = Color3.fromRGB(20, 69, 34),
+	ZIndex = 82,
+}, giftFreeSection)
+addCorner(giftFreeIcon, 26)
+make("TextLabel", {
+	BackgroundTransparency = 1,
+	Size = UDim2.fromScale(1, 1),
+	Text = "F",
+	TextColor3 = Color3.fromRGB(84, 224, 111),
+	TextScaled = false,
+	TextSize = 26,
+	Font = Enum.Font.GothamBlack,
+	ZIndex = 83,
+}, giftFreeIcon)
+
+make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 76, 0, 14),
+	Size = UDim2.new(1, -210, 0, 24),
+	Text = "FREE GOLD PACK",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 16,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 82,
+}, giftFreeSection)
+
+local giftFreeSubLabel = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 76, 0, 40),
+	Size = UDim2.new(1, -210, 0, 18),
+	Text = "One free pull every 4 hours",
+	TextColor3 = UI.Muted,
+	TextScaled = false,
+	TextSize = 12,
+	Font = Enum.Font.GothamMedium,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 82,
+}, giftFreeSection)
+
+local giftFreeProgressBack = make("Frame", {
+	Position = UDim2.new(0, 76, 0, 72),
+	Size = UDim2.new(1, -222, 0, 10),
+	BackgroundColor3 = Color3.fromRGB(25, 31, 48),
+	BorderSizePixel = 0,
+	ZIndex = 82,
+}, giftFreeSection)
+addCorner(giftFreeProgressBack, 5)
+
+local giftFreeProgressFill = make("Frame", {
+	Size = UDim2.new(0, 0, 1, 0),
+	BackgroundColor3 = Color3.fromRGB(76, 220, 105),
+	BorderSizePixel = 0,
+	ZIndex = 84,
+}, giftFreeProgressBack)
+addCorner(giftFreeProgressFill, 5)
+
+local giftFreeClaimBtn = make("TextButton", {
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -10, 0, 44),
+	Size = UDim2.fromOffset(128, 44),
+	BackgroundColor3 = Color3.fromRGB(35, 140, 65),
+	Text = "CLAIM",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	TextScaled = false,
+	TextSize = 13,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = false,
+	ZIndex = 82,
+}, giftFreeSection)
+addCorner(giftFreeClaimBtn, 12)
+
+-- ── Daily Streak section ───────────────────────────────────────────────────
+
+local giftDailySection = make("Frame", {
+	Position = UDim2.new(0, 12, 0, 168),
+	Size = UDim2.new(1, -24, 0, 162),
+	BackgroundColor3 = Color3.fromRGB(36, 28, 5),
+	ZIndex = 81,
+}, giftsPanel)
+addCorner(giftDailySection, 14)
+local giftDailyStroke = addStroke(giftDailySection, UI.Gold, 1.5, 0.52)
+
+make("UIGradient", {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(36, 28, 5)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 17, 31)),
+	}),
+	Rotation = 18,
+}, giftDailySection)
+
+local giftDailyIcon = make("Frame", {
+	Position = UDim2.new(0, 12, 0, 14),
+	Size = UDim2.fromOffset(48, 48),
+	BackgroundColor3 = Color3.fromRGB(86, 72, 0),
+	ZIndex = 82,
+}, giftDailySection)
+addCorner(giftDailyIcon, 24)
+make("TextLabel", {
+	BackgroundTransparency = 1,
+	Size = UDim2.fromScale(1, 1),
+	Text = "D",
+	TextColor3 = UI.Gold,
+	TextScaled = false,
+	TextSize = 24,
+	Font = Enum.Font.GothamBlack,
+	ZIndex = 83,
+}, giftDailyIcon)
+
+make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 72, 0, 14),
+	Size = UDim2.new(1, -220, 0, 22),
+	Text = "DAILY STREAK",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 16,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 82,
+}, giftDailySection)
+
+local giftDailySubLabel = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 72, 0, 38),
+	Size = UDim2.new(1, -230, 0, 30),
+	Text = "Claim to queue your next reward",
+	TextColor3 = UI.Muted,
+	TextScaled = false,
+	TextSize = 12,
+	Font = Enum.Font.GothamMedium,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top,
+	TextWrapped = true,
+	ZIndex = 82,
+}, giftDailySection)
+
+local giftDailyClaimBtn = make("TextButton", {
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -10, 0, 18),
+	Size = UDim2.fromOffset(140, 42),
+	BackgroundColor3 = Color3.fromRGB(140, 102, 8),
+	Text = "CLAIM",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	TextScaled = false,
+	TextSize = 11,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = false,
+	ZIndex = 82,
+}, giftDailySection)
+addCorner(giftDailyClaimBtn, 12)
+
+local giftDailyRewardRow = make("Frame", {
+	Position = UDim2.new(0, 10, 1, -70),
+	Size = UDim2.new(1, -20, 0, 58),
+	BackgroundTransparency = 1,
+	ZIndex = 82,
+}, giftDailySection)
+make("UIListLayout", {
+	FillDirection = Enum.FillDirection.Horizontal,
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+	Padding = UDim.new(0, 6),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, giftDailyRewardRow)
+
+local _giftPackConfig = require(Shared:WaitForChild("PackConfig"))
+local function giftPackColor(packId)
+	local packDef = packId and _giftPackConfig.ById and _giftPackConfig.ById[packId]
+	return packDef and packDef.color or UI.Gold
+end
+
+local giftDailyCells = {}
+for index, reward in ipairs(DAILY_REWARDS) do
+	local color = giftPackColor(reward.packId)
+	local cell = make("Frame", {
+		LayoutOrder = index,
+		Size = UDim2.new(0.25, -5, 1, 0),
+		BackgroundColor3 = Color3.fromRGB(19, 24, 39),
+		ZIndex = 82,
+	}, giftDailyRewardRow)
+	addCorner(cell, 10)
+	local stroke = addStroke(cell, color, 1.5, 0.72)
+	local scale = make("UIScale", { Scale = 1 }, cell)
+
+	local dayLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 6, 0, 5),
+		Size = UDim2.new(1, -12, 0, 14),
+		Text = "DAY " .. tostring(reward.day or index),
+		TextColor3 = color,
+		TextScaled = false,
+		TextSize = 9,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 83,
+	}, cell)
+
+	local packLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 6, 0, 22),
+		Size = UDim2.new(1, -12, 0, 20),
+		Text = reward.label or reward.packId or "Pack",
+		TextColor3 = UI.Text,
+		TextScaled = false,
+		TextSize = 10,
+		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 83,
+	}, cell)
+
+	giftDailyCells[index] = { frame = cell, stroke = stroke, scale = scale, dayLabel = dayLabel, packLabel = packLabel, color = color }
+end
+
+-- ── Redeem Code section ───────────────────────────────────────────────────
+
+local giftRedeemSection = make("Frame", {
+	Position = UDim2.new(0, 12, 0, 338),
+	Size = UDim2.new(1, -24, 0, 120),
+	BackgroundColor3 = Color3.fromRGB(10, 12, 22),
+	ZIndex = 81,
+}, giftsPanel)
+addCorner(giftRedeemSection, 14)
+addStroke(giftRedeemSection, Color3.fromRGB(80, 60, 180), 1.5, 0.5)
+
+make("UIGradient", {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 15, 48)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 10, 22)),
+	}),
+	Rotation = 20,
+}, giftRedeemSection)
+
+make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 14, 0, 12),
+	Size = UDim2.new(1, -28, 0, 20),
+	Text = "REDEEM CODE",
+	TextColor3 = Color3.fromRGB(190, 170, 255),
+	TextScaled = false,
+	TextSize = 14,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 82,
+}, giftRedeemSection)
+
+local giftCodeBox = make("TextBox", {
+	Position = UDim2.new(0, 14, 0, 40),
+	Size = UDim2.new(1, -28, 0, 34),
+	BackgroundColor3 = Color3.fromRGB(18, 20, 36),
+	Text = "",
+	PlaceholderText = "Enter code...",
+	PlaceholderColor3 = Color3.fromRGB(90, 88, 110),
+	TextColor3 = Color3.fromRGB(230, 225, 255),
+	TextScaled = false,
+	TextSize = 14,
+	Font = Enum.Font.GothamBold,
+	ClearTextOnFocus = false,
+	ZIndex = 82,
+}, giftRedeemSection)
+addCorner(giftCodeBox, 10)
+addStroke(giftCodeBox, Color3.fromRGB(80, 60, 180), 1.5, 0.5)
+
+local giftRedeemBtn = make("TextButton", {
+	Position = UDim2.new(0, 14, 0, 82),
+	Size = UDim2.new(1, -28, 0, 30),
+	BackgroundColor3 = Color3.fromRGB(80, 55, 180),
+	Text = "REDEEM",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	TextScaled = false,
+	TextSize = 13,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = false,
+	ZIndex = 82,
+}, giftRedeemSection)
+addCorner(giftRedeemBtn, 10)
+
+-- ── Gifts panel state/update functions ────────────────────────────────────
+
+local function giftSetProgress(fill, value)
+	local clamped = math.clamp(value, 0, 1)
+	TweenService:Create(fill, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = UDim2.new(clamped, 0, 1, 0),
+	}):Play()
+end
+
+local function updateGiftFreeBtn()
+	local progress = 1 - (math.clamp(giftsPackRemaining, 0, Constants.FreePackCooldown) / Constants.FreePackCooldown)
+	if giftsCanClaimFree then
+		progress = 1
+	end
+	giftSetProgress(giftFreeProgressFill, progress)
+
+	if giftsCanClaimFree then
+		giftFreeStroke.Color = Color3.fromRGB(108, 255, 137)
+		giftFreeStroke.Transparency = 0.1
+		giftFreeProgressFill.BackgroundColor3 = Color3.fromRGB(110, 255, 139)
+		giftFreeClaimBtn.Text = "CLAIM FREE PACK"
+		giftFreeClaimBtn.BackgroundColor3 = Color3.fromRGB(35, 185, 78)
+		giftFreeClaimBtn.Active = true
+		giftFreeSubLabel.Text = "Tap to claim your free pack!"
+		giftFreeSubLabel.TextColor3 = Color3.fromRGB(97, 238, 125)
+	else
+		giftFreeStroke.Color = UI.Success
+		giftFreeStroke.Transparency = 0.5
+		giftFreeProgressFill.BackgroundColor3 = Color3.fromRGB(76, 220, 105)
+		giftFreeClaimBtn.Text = "READY IN " .. formatClock(giftsPackRemaining)
+		giftFreeClaimBtn.BackgroundColor3 = Color3.fromRGB(28, 34, 52)
+		giftFreeClaimBtn.Active = false
+		giftFreeSubLabel.Text = "One free pull every 4 hours"
+		giftFreeSubLabel.TextColor3 = UI.Muted
+	end
+end
+
+local function updateGiftDailyCells()
+	local cycleLen = math.max(1, #DAILY_REWARDS)
+	local cycleProgress = giftsDailyStreak % cycleLen
+	if not giftsCanClaimDaily and cycleProgress == 0 and giftsDailyStreak > 0 then
+		cycleProgress = cycleLen
+	end
+	local nextIndex = ((math.max(0, giftsDailyStreak) % cycleLen) + 1)
+	local todayIndex = giftsCanClaimDaily and nextIndex or math.max(1, cycleProgress)
+
+	for index, cell in ipairs(giftDailyCells) do
+		local claimed = index <= cycleProgress
+		local isNext = index == nextIndex and giftsCanClaimDaily
+		local isToday = index == todayIndex
+
+		if claimed then
+			cell.frame.BackgroundColor3 = cell.color:Lerp(Color3.fromRGB(0, 0, 0), 0.62)
+			cell.stroke.Transparency = isToday and 0.08 or 0.28
+			cell.dayLabel.Text = isToday and "TODAY" or ("DAY " .. tostring(index))
+			cell.scale.Scale = isToday and 1.04 or 1
+		elseif isNext then
+			cell.frame.BackgroundColor3 = cell.color:Lerp(Color3.fromRGB(14, 18, 31), 0.48)
+			cell.stroke.Transparency = 0.05
+			cell.dayLabel.Text = "TODAY"
+			cell.scale.Scale = 1.04
+		else
+			cell.frame.BackgroundColor3 = Color3.fromRGB(12, 15, 25)
+			cell.stroke.Transparency = 0.84
+			cell.dayLabel.Text = "DAY " .. tostring(index)
+			cell.scale.Scale = 1
+		end
+	end
+end
+
+local function updateGiftDailyBtn()
+	updateGiftDailyCells()
+	if giftsCanClaimDaily then
+		local nextIndex = ((math.max(0, giftsDailyStreak) % math.max(1, #DAILY_REWARDS)) + 1)
+		giftDailyClaimBtn.Text = "CLAIM DAY " .. tostring(nextIndex)
+		giftDailyClaimBtn.BackgroundColor3 = Color3.fromRGB(151, 108, 9)
+		giftDailyClaimBtn.Active = true
+		giftDailySubLabel.Text = "STREAK: " .. tostring(giftsDailyStreak) .. " DAYS"
+		giftDailySubLabel.TextColor3 = UI.Gold
+		giftDailyStroke.Transparency = 0.18
+	else
+		giftDailyClaimBtn.Text = "READY IN " .. formatClock(giftsDailyRemaining)
+		giftDailyClaimBtn.BackgroundColor3 = Color3.fromRGB(28, 34, 52)
+		giftDailyClaimBtn.Active = false
+		giftDailySubLabel.Text = "STREAK: " .. tostring(giftsDailyStreak) .. " DAYS"
+		giftDailySubLabel.TextColor3 = UI.Muted
+		giftDailyStroke.Transparency = 0.52
+	end
+end
+
+local function applyGiftsData(data)
+	if not data then return end
+	giftsPackRemaining = data.freePackRemaining or Constants.FreePackCooldown
+	giftsCanClaimFree = data.canClaimFreePack == true
+	giftsDailyRemaining = data.dailyRewardRemaining or Constants.DailyRewardCooldown
+	giftsCanClaimDaily = data.canClaimDailyReward == true
+	giftsDailyStreak = data.dailyRewardStreak or 0
+	updateGiftFreeBtn()
+	updateGiftDailyBtn()
+end
+
+local function runGiftsCountdown()
+	giftsCountdownActive = true
+	while giftsPanelOpen do
+		task.wait(1)
+		if not giftsPanelOpen then break end
+		if not giftsCanClaimFree then
+			giftsPackRemaining = math.max(0, giftsPackRemaining - 1)
+			if giftsPackRemaining <= 0 then giftsCanClaimFree = true end
+		end
+		if not giftsCanClaimDaily then
+			giftsDailyRemaining = math.max(0, giftsDailyRemaining - 1)
+			if giftsDailyRemaining <= 0 then giftsCanClaimDaily = true end
+		end
+		updateGiftFreeBtn()
+		updateGiftDailyBtn()
+	end
+	giftsCountdownActive = false
+end
+
+local function openGiftsPanel()
+	giftsPanelOpen = true
+	giftsPanel.Visible = true
+	giftButton.Text = "X"
+
+	task.spawn(function()
+		local data = GetPlayerDataFn:InvokeServer()
+		if giftsPanelOpen then
+			applyGiftsData(data)
+		end
+	end)
+
+	if not giftsCountdownActive then
+		task.spawn(runGiftsCountdown)
+	end
+end
+
+local function closeGiftsPanel()
+	giftsPanelOpen = false
+	giftsPanel.Visible = false
+	giftButton.Text = "🎁"
+end
+
+giftButton.MouseButton1Click:Connect(function()
+	if giftsPanelOpen then
+		closeGiftsPanel()
+	else
+		closeGiftsPanel()
+		openGiftsPanel()
+	end
+end)
+
+giftsPanelClose.MouseButton1Click:Connect(closeGiftsPanel)
+
+giftFreeClaimBtn.MouseButton1Click:Connect(function()
+	if not giftsCanClaimFree or giftsClaimingFree then return end
+	giftsClaimingFree = true
+	giftFreeClaimBtn.Text = "OPENING..."
+	giftFreeClaimBtn.Active = false
+
+	local result = ClaimFreePackFn:InvokeServer()
+	giftsClaimingFree = false
+
+	if result and result.success then
+		giftsCanClaimFree = false
+		giftsPackRemaining = result.freePackRemaining or Constants.FreePackCooldown
+		updateGiftFreeBtn()
+		closeGiftsPanel()
+	else
+		giftFreeClaimBtn.Text = result and result.error or "ERROR"
+		task.delay(2, function()
+			updateGiftFreeBtn()
+		end)
+	end
+end)
+
+giftDailyClaimBtn.MouseButton1Click:Connect(function()
+	if not giftsCanClaimDaily or giftsClaimingDaily then return end
+	giftsClaimingDaily = true
+	giftDailyClaimBtn.Text = "QUEUING..."
+	giftDailyClaimBtn.Active = false
+
+	local result = ClaimDailyRewardFn:InvokeServer()
+	giftsClaimingDaily = false
+
+	if result and result.success then
+		giftsCanClaimDaily = false
+		giftsDailyRemaining = result.dailyRewardRemaining or Constants.DailyRewardCooldown
+		giftsDailyStreak = result.dailyRewardStreak or giftsDailyStreak
+		updateGiftDailyBtn()
+		giftDailyClaimBtn.Text = "PACK QUEUED"
+		giftDailyClaimBtn.BackgroundColor3 = Color3.fromRGB(35, 140, 65)
+		task.delay(1.6, function()
+			if not giftsCanClaimDaily then
+				updateGiftDailyBtn()
+			end
+		end)
+	else
+		giftDailyClaimBtn.Text = result and result.error or "ERROR"
+		task.delay(2, function()
+			updateGiftDailyBtn()
+		end)
+	end
+end)
+
+giftRedeemBtn.MouseButton1Click:Connect(function()
+	local code = giftCodeBox.Text
+	if code == "" then return end
+	giftRedeemBtn.Text = "..."
+	giftRedeemBtn.Active = false
+
+	local result = RedeemCodeFn:InvokeServer(code)
+	giftRedeemBtn.Active = true
+
+	if result and result.success then
+		giftCodeBox.Text = ""
+		giftRedeemBtn.Text = "REDEEMED!"
+		giftRedeemBtn.BackgroundColor3 = Color3.fromRGB(35, 140, 65)
+		task.delay(2.5, function()
+			giftRedeemBtn.Text = "REDEEM"
+			giftRedeemBtn.BackgroundColor3 = Color3.fromRGB(80, 55, 180)
+		end)
+	else
+		giftRedeemBtn.Text = (result and result.error) or "INVALID"
+		giftRedeemBtn.BackgroundColor3 = Color3.fromRGB(140, 35, 35)
+		task.delay(2.5, function()
+			giftRedeemBtn.Text = "REDEEM"
+			giftRedeemBtn.BackgroundColor3 = Color3.fromRGB(80, 55, 180)
+		end)
+	end
+end)
+
+-- ── End gifts panel ───────────────────────────────────────────────────────
+
 local popupsMuted = false
 local coachDismissed = false
 local coachReplayActive = false
@@ -1247,6 +1888,9 @@ shopButton.MouseButton1Click:Connect(function()
 end)
 
 local function setUtilityPanelOpen(open)
+	if open then
+		closeGiftsPanel()
+	end
 	utilityPanelOpen = open
 	utilityPanel.Visible = open
 	utilityButton.Text = open and "X" or "?"

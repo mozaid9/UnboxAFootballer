@@ -87,6 +87,7 @@ local OpenRebirthUIEvent = makeEvent("OpenRebirthUI")
 local GetRebirthVaultFn = makeFunction("GetRebirthVault")
 local SetRebirthVaultFn = makeFunction("SetRebirthVault")
 local OpenRebirthVaultUIEvent = makeEvent("OpenRebirthVaultUI")
+local RedeemCodeFn = makeFunction("RedeemCode")
 
 PackService.Init(DataService, EconomyService, {
 	UpdateCoins = UpdateCoinsEvent,
@@ -3529,6 +3530,37 @@ RequestRebirthFn.OnServerInvoke = function(player)
 		coins = DataService.GetCoins(player),
 		passiveCoinsPerSecond = getDisplayedIncomePerSecond(player),
 	}
+end
+
+local REDEEM_CODES = {
+	-- ["TESTCODE"] = { reward = "fans", amount = 500 },
+}
+local redeemedCodes = {}
+
+RedeemCodeFn.OnServerInvoke = function(player, code)
+	if type(code) ~= "string" then
+		return { success = false, error = "Invalid code." }
+	end
+	local trimmed = code:match("^%s*(.-)%s*$"):upper()
+	if trimmed == "" then
+		return { success = false, error = "Enter a code first." }
+	end
+	local playerKey = tostring(player.UserId)
+	redeemedCodes[playerKey] = redeemedCodes[playerKey] or {}
+	if redeemedCodes[playerKey][trimmed] then
+		return { success = false, error = "Already redeemed." }
+	end
+	local reward = REDEEM_CODES[trimmed]
+	if not reward then
+		return { success = false, error = "Code not found." }
+	end
+	redeemedCodes[playerKey][trimmed] = true
+	if reward.reward == "fans" then
+		DataService.AddCoins(player, reward.amount or 0)
+		UpdateCoinsEvent:FireClient(player, DataService.GetCoins(player))
+		return { success = true, message = "Code redeemed! +" .. tostring(reward.amount) .. " Fans." }
+	end
+	return { success = true, message = "Code redeemed!" }
 end
 
 print("[UnboxAFootballer] Pack systems ready")
