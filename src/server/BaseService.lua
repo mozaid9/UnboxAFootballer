@@ -5514,8 +5514,10 @@ function BaseService.UpdateStadiumTier(plot, tier)
 		local deckTopLocalY   = deckCenterLocalY + 0.25   -- 15.97
 		local deckFrontLocalX = fd * (-40.5 + deckHalfX)  -- -32*fd
 
-		-- Player HumanoidRootPart lands ~3.5 studs above the destination floor.
-		local groundArrivalCFrame  = plot.baseCFrame * CFrame.new(deckFrontLocalX + fd * 5, layout.PlotSize.Y / 2 + 3.5, 0)
+		-- Player HumanoidRootPart lands ~3.5 studs above the destination floor surface.
+		-- Gallery deck top = 1.43; terrace deck top = deckTopLocalY (15.97).
+		local galleryDeckTop = 1.43
+		local groundArrivalCFrame  = plot.baseCFrame * CFrame.new(deckFrontLocalX - fd * 2, galleryDeckTop + 3.5, 0)
 		local terraceArrivalCFrame = plot.baseCFrame * CFrame.new(-40.5 * fd, deckTopLocalY + 3.5, 0)
 
 		local padSize = Vector3.new(5, 0.4, 5)
@@ -5564,8 +5566,11 @@ function BaseService.UpdateStadiumTier(plot, tier)
 			return pad
 		end
 
-		local groundPadLocalX = deckFrontLocalX + fd * 5
-		local groundPadLocalY = layout.PlotSize.Y / 2 + 0.2
+		-- Ground pad sits ON the gallery deck surface (deck top = 1.43 above baseCFrame).
+		-- Place it 2 studs inside the front edge so players encounter it while browsing slots.
+		local galleryDeckTopLocalY = 1.43   -- galleryCFrame Y (1.18) + deck halfThick (0.25)
+		local groundPadLocalX = deckFrontLocalX - fd * 2   -- 2 studs inside front edge
+		local groundPadLocalY = galleryDeckTopLocalY + 0.2  -- pad centre on gallery deck surface
 		local groundPad  = makePad("TerraceLiftGround",  groundPadLocalX, groundPadLocalY, 0, "▲ TERRACE")
 		local terracePad = makePad("TerraceLiftUp",       -40.5 * fd,     deckTopLocalY + 0.2, 0, "▼ GROUND")
 
