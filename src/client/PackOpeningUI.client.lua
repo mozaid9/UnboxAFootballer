@@ -217,9 +217,9 @@ make("UIListLayout", {
 
 local walletDock = make("Frame", {
 	Name = "WalletDock",
-	AnchorPoint = Vector2.new(1, 1),
+	AnchorPoint = Vector2.new(0, 0),
 	Size = UDim2.fromOffset(232, 98),
-	Position = UDim2.new(1, -20, 1, -20),
+	Position = UDim2.new(0, 20, 0, 20),
 	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
 	BackgroundTransparency = 0.08,
 }, screenGui)
@@ -706,29 +706,82 @@ make("UIListLayout", {
 	Padding = UDim.new(0, 10),
 }, toastHolder)
 
-local utilityPanelOpen = false
-local utilityButton = make("TextButton", {
+-- ── Top-right quick-access row (Daily Rewards / Settings / Codes) ─────────────
+local topRightRow = make("Frame", {
+	Name = "TopRightRow",
 	AnchorPoint = Vector2.new(1, 0),
-	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
-	BackgroundTransparency = 0.02,
-	Position = UDim2.new(1, -20, 0, 56),
-	Size = UDim2.fromOffset(42, 42),
-	Text = "?",
-	TextColor3 = UI.Gold,
-	TextScaled = false,
-	TextSize = 23,
-	Font = Enum.Font.GothamBlack,
-	AutoButtonColor = true,
+	BackgroundTransparency = 1,
+	Position = UDim2.new(1, -20, 0, 20),
+	Size = UDim2.fromOffset(148, 42),
 	ZIndex = 80,
 }, screenGui)
-addCorner(utilityButton, 13)
-addStroke(utilityButton, UI.Gold, 1.5, 0.36)
+make("UIListLayout", {
+	FillDirection = Enum.FillDirection.Horizontal,
+	HorizontalAlignment = Enum.HorizontalAlignment.Right,
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+	Padding = UDim.new(0, 6),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, topRightRow)
 
+local function makeTopBtn(order, icon, label, accent)
+	local btn = make("TextButton", {
+		LayoutOrder = order,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.fromOffset(42, 42),
+		BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+		BackgroundTransparency = 0.04,
+		Text = "",
+		AutoButtonColor = false,
+		ZIndex = 80,
+	}, topRightRow)
+	addCorner(btn, 13)
+	addStroke(btn, accent, 1.5, 0.36)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 0.52),
+		Position = UDim2.fromScale(0, 0.04),
+		Text = icon,
+		TextColor3 = accent,
+		TextScaled = false,
+		TextSize = 17,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 81,
+	}, btn)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 0.38),
+		Position = UDim2.fromScale(0, 0.6),
+		Text = label,
+		TextColor3 = accent,
+		TextScaled = false,
+		TextSize = 8,
+		Font = Enum.Font.GothamBold,
+		ZIndex = 81,
+	}, btn)
+	btn.MouseEnter:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.1), {
+			BackgroundColor3 = accent:Lerp(Color3.fromRGB(8, 12, 22), 0.85),
+		}):Play()
+	end)
+	btn.MouseLeave:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.1), {
+			BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+		}):Play()
+	end)
+	return btn
+end
+
+local dailyRewardButton = makeTopBtn(1, "🎁", "DAILY",   Color3.fromRGB(255, 182, 60))
+local settingsButton    = makeTopBtn(2, "⚙",  "SETTINGS", Color3.fromRGB(180, 190, 210))
+local codesButton       = makeTopBtn(3, "#",  "CODES",   Color3.fromRGB(85, 226, 112))
+
+-- ── Settings sub-panel (replaces old utility panel) ───────────────────────────
+local utilityPanelOpen = false
 local utilityPanel = make("Frame", {
 	AnchorPoint = Vector2.new(1, 0),
 	BackgroundColor3 = Color3.fromRGB(6, 8, 14),
 	BackgroundTransparency = 0.02,
-	Position = UDim2.new(1, -20, 0, 104),
+	Position = UDim2.new(1, -20, 0, 70),
 	Size = UDim2.fromOffset(224, 132),
 	Visible = false,
 	ZIndex = 80,
@@ -747,7 +800,7 @@ make("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.new(0, 14, 0, 10),
 	Size = UDim2.new(1, -56, 0, 22),
-	Text = "HELP",
+	Text = "SETTINGS",
 	TextColor3 = UI.Gold,
 	TextScaled = false,
 	TextSize = 14,
@@ -798,6 +851,254 @@ local popupMuteButton = make("TextButton", {
 	ZIndex = 81,
 }, utilityPanel)
 addCorner(popupMuteButton, 10)
+
+-- Codes entry panel
+local codesPanelOpen = false
+local codesPanel = make("Frame", {
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = Color3.fromRGB(6, 10, 16),
+	BackgroundTransparency = 0.02,
+	Position = UDim2.new(1, -20, 0, 70),
+	Size = UDim2.fromOffset(224, 96),
+	Visible = false,
+	ZIndex = 80,
+}, screenGui)
+addCorner(codesPanel, 16)
+addStroke(codesPanel, Color3.fromRGB(85, 226, 112), 1.5, 0.30)
+
+make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 14, 0, 10),
+	Size = UDim2.new(1, -40, 0, 20),
+	Text = "ENTER CODE",
+	TextColor3 = Color3.fromRGB(85, 226, 112),
+	TextScaled = false,
+	TextSize = 13,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 81,
+}, codesPanel)
+
+local codesCloseBtn = make("TextButton", {
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = Color3.fromRGB(18, 24, 40),
+	Position = UDim2.new(1, -10, 0, 8),
+	Size = UDim2.fromOffset(28, 28),
+	Text = "X",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 13,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = true,
+	ZIndex = 82,
+}, codesPanel)
+addCorner(codesCloseBtn, 8)
+
+local codeBox = make("TextBox", {
+	BackgroundColor3 = Color3.fromRGB(14, 20, 32),
+	ClearTextOnFocus = true,
+	PlaceholderText = "e.g. FREEGEMS2025",
+	PlaceholderColor3 = Color3.fromRGB(100, 120, 100),
+	Position = UDim2.new(0, 14, 0, 36),
+	Size = UDim2.new(1, -28, 0, 28),
+	Text = "",
+	TextColor3 = UI.Text,
+	TextScaled = false,
+	TextSize = 13,
+	Font = Enum.Font.GothamMedium,
+	ZIndex = 82,
+}, codesPanel)
+addCorner(codeBox, 8)
+addStroke(codeBox, Color3.fromRGB(85, 226, 112), 1, 0.48)
+
+local redeemBtn = make("TextButton", {
+	AnchorPoint = Vector2.new(1, 1),
+	BackgroundColor3 = Color3.fromRGB(60, 180, 90),
+	Position = UDim2.new(1, -14, 1, -10),
+	Size = UDim2.fromOffset(80, 28),
+	Text = "REDEEM",
+	TextColor3 = Color3.fromRGB(8, 20, 8),
+	TextScaled = false,
+	TextSize = 12,
+	Font = Enum.Font.GothamBlack,
+	AutoButtonColor = true,
+	ZIndex = 82,
+}, codesPanel)
+addCorner(redeemBtn, 8)
+
+-- ── HIT PACK button (bottom center) ──────────────────────────────────────────
+local RequestPitchforkHit = Remotes:WaitForChild("RequestPitchforkHit")
+local hitPackButton = make("TextButton", {
+	Name = "HitPackButton",
+	AnchorPoint = Vector2.new(0.5, 1),
+	BackgroundColor3 = Color3.fromRGB(200, 60, 50),
+	BackgroundTransparency = 0.04,
+	Position = UDim2.new(0.5, 0, 1, -24),
+	Size = UDim2.fromOffset(200, 58),
+	Text = "",
+	AutoButtonColor = false,
+	ZIndex = 70,
+}, screenGui)
+addCorner(hitPackButton, 18)
+addStroke(hitPackButton, Color3.fromRGB(255, 120, 100), 2, 0.22)
+make("UIGradient", {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(230, 80, 60)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(170, 40, 30)),
+	}),
+	Rotation = 90,
+}, hitPackButton)
+make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 14, 0, 5),
+	Size = UDim2.new(1, -14, 0, 22),
+	Text = "⚒  HIT PACK",
+	TextColor3 = Color3.fromRGB(255, 240, 220),
+	TextScaled = false,
+	TextSize = 18,
+	Font = Enum.Font.GothamBlack,
+	ZIndex = 71,
+}, hitPackButton)
+make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 14, 0, 29),
+	Size = UDim2.new(1, -14, 0, 14),
+	Text = "Equip pitchfork & stand near pad",
+	TextColor3 = Color3.fromRGB(255, 200, 180),
+	TextScaled = false,
+	TextSize = 9,
+	Font = Enum.Font.GothamMedium,
+	ZIndex = 71,
+}, hitPackButton)
+
+hitPackButton.MouseEnter:Connect(function()
+	TweenService:Create(hitPackButton, TweenInfo.new(0.1), {
+		BackgroundColor3 = Color3.fromRGB(220, 80, 65),
+	}):Play()
+end)
+hitPackButton.MouseLeave:Connect(function()
+	TweenService:Create(hitPackButton, TweenInfo.new(0.1), {
+		BackgroundColor3 = Color3.fromRGB(200, 60, 50),
+	}):Play()
+end)
+
+-- ── Top Pulls panel (right side) ─────────────────────────────────────────────
+local TOP_PULLS_RARITY_MIN_RANK = 4  -- Talisman and above
+local topPullsEntries = {}
+
+local topPullsPanel = make("Frame", {
+	Name = "TopPullsPanel",
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = Color3.fromRGB(6, 9, 18),
+	BackgroundTransparency = 0.10,
+	Position = UDim2.new(1, -20, 0, 140),
+	Size = UDim2.fromOffset(178, 32),
+	ZIndex = 60,
+}, screenGui)
+addCorner(topPullsPanel, 14)
+addStroke(topPullsPanel, UI.Gold, 1.5, 0.44)
+make("UIGradient", {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 26, 44)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(6, 9, 18)),
+	}),
+	Rotation = 120,
+}, topPullsPanel)
+
+local topPullsTitle = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 10, 0, 7),
+	Size = UDim2.new(1, -20, 0, 18),
+	Text = "✦  TOP PULLS",
+	TextColor3 = UI.Gold,
+	TextScaled = false,
+	TextSize = 11,
+	Font = Enum.Font.GothamBlack,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 61,
+}, topPullsPanel)
+_ = topPullsTitle
+
+local topPullsList = make("Frame", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 6, 0, 28),
+	Size = UDim2.new(1, -12, 0, 0),
+	ZIndex = 61,
+}, topPullsPanel)
+make("UIListLayout", {
+	FillDirection = Enum.FillDirection.Vertical,
+	HorizontalAlignment = Enum.HorizontalAlignment.Left,
+	VerticalAlignment = Enum.VerticalAlignment.Top,
+	Padding = UDim.new(0, 4),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, topPullsList)
+
+local RARITY_COLORS = {
+	["Talisman"]           = Color3.fromRGB(100, 200, 255),
+	["Maestro"]            = Color3.fromRGB(200, 130, 255),
+	["Immortal"]           = Color3.fromRGB(255, 82, 82),
+	["Player of the Year"] = Color3.fromRGB(255, 210, 50),
+	["POTY"]               = Color3.fromRGB(255, 210, 50),
+}
+
+local function addTopPullEntry(cardName, rarity)
+	local accent = RARITY_COLORS[rarity] or UI.Gold
+	local entry = make("Frame", {
+		LayoutOrder = #topPullsEntries + 1,
+		Size = UDim2.new(1, 0, 0, 26),
+		BackgroundColor3 = accent:Lerp(Color3.fromRGB(5, 8, 16), 0.80),
+		BackgroundTransparency = 0.10,
+	}, topPullsList)
+	addCorner(entry, 7)
+	addStroke(entry, accent, 1, 0.52)
+
+	make("Frame", {
+		Size = UDim2.fromOffset(4, 16),
+		Position = UDim2.new(0, 5, 0.5, -8),
+		BackgroundColor3 = accent,
+		BorderSizePixel = 0,
+	}, entry)
+	addCorner(entry:FindFirstChild("Frame"), 2)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 14, 0, 0),
+		Size = UDim2.new(1, -18, 0.5, 0),
+		Text = string.upper(cardName),
+		TextColor3 = Color3.fromRGB(240, 235, 220),
+		TextScaled = false,
+		TextSize = 10,
+		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		ZIndex = 62,
+	}, entry)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 14, 0.5, 0),
+		Size = UDim2.new(1, -18, 0.5, 0),
+		Text = rarity,
+		TextColor3 = accent,
+		TextScaled = false,
+		TextSize = 9,
+		Font = Enum.Font.GothamMedium,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 62,
+	}, entry)
+
+	table.insert(topPullsEntries, entry)
+
+	if #topPullsEntries > 5 then
+		local oldest = table.remove(topPullsEntries, 1)
+		oldest:Destroy()
+	end
+
+	-- Resize panel to fit entries
+	local entryCount = #topPullsEntries
+	topPullsPanel.Size = UDim2.fromOffset(178, 32 + entryCount * 30)
+	topPullsList.Size = UDim2.new(1, -12, 0, entryCount * 30)
+end
 
 local popupsMuted = false
 local coachDismissed = false
@@ -1248,16 +1549,66 @@ end)
 local function setUtilityPanelOpen(open)
 	utilityPanelOpen = open
 	utilityPanel.Visible = open
-	utilityButton.Text = open and "X" or "?"
-	utilityButton.TextColor3 = open and UI.Text or UI.Gold
+	if open then
+		codesPanelOpen = false
+		codesPanel.Visible = false
+	end
 end
 
-utilityButton.MouseButton1Click:Connect(function()
+settingsButton.MouseButton1Click:Connect(function()
 	setUtilityPanelOpen(not utilityPanelOpen)
 end)
 
 utilityCloseButton.MouseButton1Click:Connect(function()
 	setUtilityPanelOpen(false)
+end)
+
+codesButton.MouseButton1Click:Connect(function()
+	codesPanelOpen = not codesPanelOpen
+	codesPanel.Visible = codesPanelOpen
+	if codesPanelOpen then
+		setUtilityPanelOpen(false)
+	end
+end)
+
+codesCloseBtn.MouseButton1Click:Connect(function()
+	codesPanelOpen = false
+	codesPanel.Visible = false
+end)
+
+redeemBtn.MouseButton1Click:Connect(function()
+	local code = codeBox.Text
+	if code == "" then
+		showToast("Enter a code first.", Color3.fromRGB(85, 226, 112))
+		return
+	end
+	showToast("Code '" .. code .. "' submitted! (Coming soon)", Color3.fromRGB(85, 226, 112))
+	codeBox.Text = ""
+end)
+
+dailyRewardButton.MouseButton1Click:Connect(function()
+	showToast("Daily Rewards coming soon! Check back each day.", Color3.fromRGB(255, 182, 60))
+end)
+
+hitPackButton.MouseButton1Click:Connect(function()
+	local character = player.Character
+	if not character then
+		return
+	end
+	-- Auto-equip Pitchfork if in backpack and not equipped
+	local equippedTool = character:FindFirstChildOfClass("Tool")
+	if not equippedTool or equippedTool.Name ~= "Pitchfork" then
+		local backpack = player:FindFirstChildOfClass("Backpack")
+		local pitchfork = backpack and backpack:FindFirstChild("Pitchfork")
+		if pitchfork then
+			local hum = character:FindFirstChildOfClass("Humanoid")
+			if hum then
+				hum:EquipTool(pitchfork)
+				task.wait(0.05)
+			end
+		end
+	end
+	RequestPitchforkHit:FireServer()
 end)
 
 helpButton.MouseButton1Click:Connect(function()
@@ -2811,6 +3162,17 @@ QuestUpdatedEvent.OnClientEvent:Connect(function(payload)
 	applyQuestNotification(payload)
 end)
 
+local RARITY_RANK_CLIENT = {
+	["Gold"]               = 1,
+	["Rare Gold"]          = 2,
+	["Premium Gold"]       = 3,
+	["Talisman"]           = 4,
+	["Maestro"]            = 5,
+	["Immortal"]           = 6,
+	["Player of the Year"] = 7,
+	["POTY"]               = 7,
+}
+
 PackOpenedEvent.OnClientEvent:Connect(function(payload)
 	if not payload or not payload.success then
 		return
@@ -2818,6 +3180,14 @@ PackOpenedEvent.OnClientEvent:Connect(function(payload)
 
 	setCoinsDisplay(payload.newCoins)
 	refreshCoachSoon(payload.playerPick and 1.0 or 2.8)
+
+	-- Feed notable pulls into Top Pulls panel
+	if payload.card then
+		local rank = RARITY_RANK_CLIENT[payload.card.rarity] or 0
+		if rank >= TOP_PULLS_RARITY_MIN_RANK then
+			pcall(addTopPullEntry, payload.card.name, payload.card.rarity)
+		end
+	end
 
 	if payload.playerPick then
 		local ok, err = pcall(showPlayerPick, payload)
