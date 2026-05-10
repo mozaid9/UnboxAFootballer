@@ -597,16 +597,25 @@ local function makeRoute(laneXOffset, laneZOffset)
 					})
 				end
 			end
-			-- Exit: send NPCs well past the approach point (40 studs out) with
-			-- a wide Z spread so they immediately clear the entrance zone and
-			-- don't collide with incoming NPCs near the gap.
+			-- Exit two-step:
+			-- 1) Pathfind to just INSIDE the gate (no wall to cross, spreads NPCs
+			--    across the gate width using their individual laneZOffset).
+			-- 2) Direct straight out (no pathfinding through the gap, so NPCs
+			--    never stop at the entrance waiting for a path to clear).
+			local gateZ = math.clamp(laneZOffset, -5.5, 5.5)
+			local insideGatePoint = Vector3.new(
+				plotEntrance.X - plot.facingDirection * 3,
+				STANDING_PIVOT_HEIGHT,
+				plot.floor.Position.Z + gateZ
+			)
 			local exitZ = (math.random(0, 16) - 8) * 2.5  -- ±20 stud Z spread
 			local exitPoint = Vector3.new(
-				plotEntrance.X + plot.facingDirection * 40,
+				plotEntrance.X + plot.facingDirection * 45,
 				STANDING_PIVOT_HEIGHT,
 				plot.floor.Position.Z + exitZ
 			)
-			table.insert(route, { position = jitterPosition(exitPoint, 5.0) })
+			table.insert(route, { position = jitterPosition(insideGatePoint, 2.5) })
+			table.insert(route, { position = jitterPosition(exitPoint, 4.0), direct = true })
 		end
 	end
 
