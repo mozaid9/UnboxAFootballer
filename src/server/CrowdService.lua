@@ -547,8 +547,14 @@ local function makeRoute(laneXOffset, laneZOffset)
 		local plot = chooseVisitorPlot()
 		if plot then
 			local reservedSeat = type(BaseService.ReserveCrowdSeat) == "function" and BaseService.ReserveCrowdSeat(plot) or nil
-			-- Stadium sub-path: carry the NPC's 2-D lane offset into the approach point
-			local stadiumPathPoint = Vector3.new(laneXOffset, STANDING_PIVOT_HEIGHT, plot.floor.Position.Z + math.clamp(laneZOffset, -5.8, 5.8))
+			-- Approach/exit point anchored to the plot's own entrance side so NPCs
+			-- never have to cross the pitch to reach a stadium on the other side.
+			local plotEntrance = getPlotEntrancePoint(plot)
+			local stadiumPathPoint = Vector3.new(
+				plotEntrance.X + plot.facingDirection * 30,
+				STANDING_PIVOT_HEIGHT,
+				plot.floor.Position.Z + math.clamp(laneZOffset, -5.8, 5.8)
+			)
 			local entranceLanePoint = getPlotEntranceLanePoint(plot, laneZOffset)
 			table.insert(route, { position = jitterPosition(stadiumPathPoint, 2.8) })
 			table.insert(route, { position = jitterPosition(entranceLanePoint, 3.4), pause = math.random(1, 3) / 10 })
