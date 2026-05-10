@@ -557,7 +557,7 @@ local function makeRoute(laneXOffset, laneZOffset)
 			)
 			local entranceLanePoint = getPlotEntranceLanePoint(plot, laneZOffset)
 			table.insert(route, { position = jitterPosition(stadiumPathPoint, 2.8) })
-			table.insert(route, { position = jitterPosition(entranceLanePoint, 3.4), pause = math.random(1, 3) / 10 })
+			table.insert(route, { position = jitterPosition(entranceLanePoint, 3.4) })
 			if reservedSeat then
 				route.reservedSeat = reservedSeat
 				for _, routePoint in ipairs(reservedSeat.routePoints or {}) do
@@ -595,13 +595,15 @@ local function makeRoute(laneXOffset, laneZOffset)
 					})
 				end
 			end
-			-- ── Exit dispersion ─────────────────────────────────────────────
-			-- Each NPC picks a fresh randomised lane so they spread across the
-			-- entrance gap instead of all funnelling through the same point.
-			local exitLaneZ = (math.random(0, 6) - 3) * 1.7   -- random lane in [-5.1, 5.1]
-			local exitLanePoint = getPlotEntranceLanePoint(plot, exitLaneZ)
-			table.insert(route, { position = jitterPosition(exitLanePoint, 3.5) })
-			table.insert(route, { position = jitterPosition(stadiumPathPoint, 3.5) })
+			-- Exit: disperse NPCs far outside the stadium with wide Z spread so
+			-- they never queue at the entrance gap or block incoming NPCs.
+			local exitZ = (math.random(0, 12) - 6) * 3.0
+			local exitPoint = Vector3.new(
+				plotEntrance.X + plot.facingDirection * 12,
+				STANDING_PIVOT_HEIGHT,
+				plot.floor.Position.Z + exitZ
+			)
+			table.insert(route, { position = jitterPosition(exitPoint, 4.5) })
 		end
 	end
 
