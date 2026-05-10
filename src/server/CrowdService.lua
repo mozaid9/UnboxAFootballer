@@ -628,9 +628,7 @@ local function getNearbyNpcSpacing(model)
 	end
 
 	local pivot = model:GetPivot()
-	local myIndex = getNpcIndex(model)
 	local speedScale = 1
-	local shouldPause = false
 
 	for other in pairs(activeNpcs) do
 		if other ~= model and other.Parent and other.PrimaryPart then
@@ -638,18 +636,13 @@ local function getNearbyNpcSpacing(model)
 			local delta = Vector3.new(pivot.Position.X - otherPosition.X, 0, pivot.Position.Z - otherPosition.Z)
 			local distance = delta.Magnitude
 			if distance > 0.05 and distance < NPC_PERSONAL_SPACE then
-				local otherIndex = getNpcIndex(other)
-				if distance < 1.35 and myIndex > otherIndex then
-					shouldPause = true
-				end
-				speedScale = math.min(speedScale, math.clamp((distance - 1.0) / (NPC_PERSONAL_SPACE - 1.0), 0.72, 1))
+				-- Slow down near others but never fully stop — the shouldPause/index
+				-- priority logic caused deadlock cascades where everyone froze.
+				speedScale = math.min(speedScale, math.clamp((distance - 0.8) / (NPC_PERSONAL_SPACE - 0.8), 0.5, 1))
 			end
 		end
 	end
 
-	if shouldPause then
-		return 0
-	end
 	return speedScale
 end
 
