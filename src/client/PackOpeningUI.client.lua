@@ -221,10 +221,10 @@ local COUNTER_W, COUNTER_H = 210, 64
 local function makeCounter(yOffset, iconEmoji, iconBg, labelText, accentColor)
 	local panel = make("Frame", {
 		Name = labelText .. "Counter",
-		AnchorPoint = Vector2.new(0, 1),
+		AnchorPoint = Vector2.new(1, 1),
 		BackgroundColor3 = Color3.fromRGB(10, 13, 22),
 		BackgroundTransparency = 0,
-		Position = UDim2.new(0, 16, 1, yOffset),
+		Position = UDim2.new(1, -16, 1, yOffset),
 		Size = UDim2.fromOffset(COUNTER_W, COUNTER_H),
 		ZIndex = 10,
 	}, screenGui)
