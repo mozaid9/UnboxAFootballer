@@ -2735,6 +2735,49 @@ local USE_CARD_FRAME_ASSETS = true
 local CARD_FRAME_ASSETS = CardFrames.Assets
 local CARD_FRAME_ACCENTS = CardFrames.Accents
 
+local NATION_FLAGS = {
+	["Argentina"]    = "rbxassetid://109856731260370",
+	["Belgium"]      = "rbxassetid://120327448326431",
+	["Brazil"]       = "rbxassetid://95932388484244",
+	["Croatia"]      = "rbxassetid://122695441544688",
+	["Egypt"]        = "rbxassetid://72417057019169",
+	["England"]      = "rbxassetid://101637159480408",
+	["France"]       = "rbxassetid://101628060303587",
+	["Georgia"]      = "rbxassetid://138587098476092",
+	["Germany"]      = "rbxassetid://111175336304226",
+	["Italy"]        = "rbxassetid://108660415005119",
+	["Morocco"]      = "rbxassetid://108886507394871",
+	["Netherlands"]  = "rbxassetid://134140234303058",
+	["Norway"]       = "rbxassetid://113197774836919",
+	["Poland"]       = "rbxassetid://109701017021301",
+	["Portugal"]     = "rbxassetid://114329086628746",
+	["Scotland"]     = "rbxassetid://96996305218935",
+	["Serbia"]       = "rbxassetid://112031407324728",
+	["South Korea"]  = "rbxassetid://106659551964354",
+	["Spain"]        = "rbxassetid://71296415244464",
+	["Sweden"]       = "rbxassetid://140002222456585",
+	["Uruguay"]      = "rbxassetid://120188989580718",
+}
+
+local function makeFlagOrLabel(nation, size, position, fallbackColor, parent, zIndex)
+	local flagId = NATION_FLAGS[nation]
+	if flagId then
+		local img = make("ImageLabel", {
+			BackgroundTransparency = 1,
+			Image = flagId,
+			ScaleType = Enum.ScaleType.Fit,
+			Size = size,
+			Position = position,
+			ZIndex = zIndex or 4,
+		}, parent)
+		return img
+	else
+		local lbl = createSignLabel(nation or "Unknown", size, position, fallbackColor, parent)
+		lbl.ZIndex = zIndex or 4
+		return lbl
+	end
+end
+
 local DISPLAY_CARD_TREATMENTS = {
 	["Gold"] = {
 		tag = "",
@@ -3336,11 +3379,7 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 			make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 14 }, positionLabel)
 			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.1, Transparency = 0.22 }, positionLabel)
 
-			local nationLabel = createSignLabel(card.nation or "Unknown", UDim2.fromScale(0.40, 0.06), UDim2.fromScale(0.53, 0.126), assetTextColor, frame)
-			nationLabel.ZIndex = 4
-			nationLabel.TextXAlignment = Enum.TextXAlignment.Center
-			make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 13 }, nationLabel)
-			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.1, Transparency = 0.24 }, nationLabel)
+			makeFlagOrLabel(card.nation, UDim2.fromScale(0.32, 0.075), UDim2.fromScale(0.55, 0.112), assetTextColor, frame, 4)
 
 			local heroLabel = createSignLabel(surname, UDim2.fromScale(0.82, 0.09), UDim2.fromScale(0.09, 0.515), assetTextColor, frame)
 			heroLabel.ZIndex = 4
@@ -3460,10 +3499,8 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		make("UIStroke", { Color = positionAccent, Thickness = 1.2, Transparency = 0.25 }, posBadge)
 		createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.90, 0.82), UDim2.fromScale(0.05, 0.09), positionAccent, posBadge)
 
-		-- Nation label (top-right, right-aligned)
-		local nationLabel = createSignLabel(card.nation or "Unknown", UDim2.new(0.46, 0, 0.09, 0), UDim2.new(0.46, 0, 0.17, 0), textColor, frame)
-		nationLabel.TextXAlignment = Enum.TextXAlignment.Right
-		make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 13 }, nationLabel)
+		-- Nation flag (top-right)
+		makeFlagOrLabel(card.nation, UDim2.new(0.28, 0, 0.09, 0), UDim2.new(0.64, 0, 0.17, 0), textColor, frame, 4)
 
 		-- Surname for big identity text (last word of name, e.g. "Haaland" from "Erling Haaland")
 		local surname = string.upper((card.name or "Player"):match("(%S+)%s*$") or (card.name or "Player"))
@@ -3670,9 +3707,7 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	}, positionBadge)
 	createSignLabel(card.position or "--", UDim2.fromScale(0.9, 0.82), UDim2.fromScale(0.05, 0.09), textColor, positionBadge)
 
-	local nationLabel = createSignLabel(card.nation or "Unknown", UDim2.new(0.48, 0, 0.08, 0), UDim2.new(0.41, 0, 0.21, 0), textColor, frame)
-	nationLabel.TextXAlignment = Enum.TextXAlignment.Right
-	make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 14 }, nationLabel)
+	makeFlagOrLabel(card.nation, UDim2.new(0.28, 0, 0.08, 0), UDim2.new(0.61, 0, 0.21, 0), textColor, frame, 4)
 
 	local identityPanel = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
