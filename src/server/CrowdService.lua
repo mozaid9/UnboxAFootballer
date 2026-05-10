@@ -597,14 +597,14 @@ local function makeRoute(laneXOffset, laneZOffset)
 					})
 				end
 			end
-			-- Exit two-step:
-			-- 1) Pathfind to just INSIDE the gate (no wall to cross, spreads NPCs
-			--    across the gate width using their individual laneZOffset).
-			-- 2) Direct straight out (no pathfinding through the gap, so NPCs
-			--    never stop at the entrance waiting for a path to clear).
+			-- Exit: fully direct (no pathfinding at all on exit).
+			-- NPCs use PivotTo so they can walk through geometry without getting
+			-- stuck — pathfinding was the root cause of stopping at the gate.
+			-- Step 1: direct to gate centre (Z within gate width so they exit cleanly).
+			-- Step 2: direct to spread-out point well outside the stadium.
 			local gateZ = math.clamp(laneZOffset, -5.5, 5.5)
-			local insideGatePoint = Vector3.new(
-				plotEntrance.X - plot.facingDirection * 3,
+			local gatePoint = Vector3.new(
+				plotEntrance.X + plot.facingDirection * 2,
 				STANDING_PIVOT_HEIGHT,
 				plot.floor.Position.Z + gateZ
 			)
@@ -614,7 +614,7 @@ local function makeRoute(laneXOffset, laneZOffset)
 				STANDING_PIVOT_HEIGHT,
 				plot.floor.Position.Z + exitZ
 			)
-			table.insert(route, { position = jitterPosition(insideGatePoint, 2.5) })
+			table.insert(route, { position = jitterPosition(gatePoint, 2.0),  direct = true })
 			table.insert(route, { position = jitterPosition(exitPoint, 4.0), direct = true })
 		end
 	end
