@@ -18,6 +18,9 @@
         "PackConfig": {
           "$path": "src/shared/PackConfig.lua"
         },
+        "NationFlags": {
+          "$path": "src/shared/NationFlags.lua"
+        },
         "Utils": {
           "$path": "src/shared/Utils.lua"
         }
