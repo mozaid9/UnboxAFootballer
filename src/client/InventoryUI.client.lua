@@ -852,7 +852,7 @@ function refreshInventory()
 			BackgroundTransparency = 1,
 			Position = UDim2.fromOffset(invFlagId and 36 or 10, 120),
 			Size = UDim2.new(1, invFlagId and -46 or -20, 0, 16),
-			Text = string.upper(tostring(card.position or "--")) .. "  •  " .. tostring(card.nation or "Unknown"),
+			Text = (card.rating and (tostring(card.rating) .. "  •  ") or "") .. string.upper(tostring(card.position or "--")) .. "  •  " .. tostring(card.nation or "Unknown"),
 			TextColor3 = skin.meta,
 			TextScaled = false,
 			TextSize = 10,

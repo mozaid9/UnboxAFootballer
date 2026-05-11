@@ -2919,11 +2919,45 @@ local function showCardReveal(payload)
 		Text = displayRarityLabel,
 	}, 1.4, 0.18, tier >= 5 and 5 or 6, tier >= 5 and 12 or 15)
 
-	makeFrameLabel({
-		Position = UDim2.fromScale(0.07, 0.126),
-		Size = UDim2.fromScale(0.40, 0.06),
+	-- FIFA-style left column: big rating on top, position below
+	local revealLeftCol = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+		BackgroundTransparency = 0.42,
+		BorderSizePixel = 0,
+		Position = UDim2.fromScale(0.05, 0.065),
+		Size = UDim2.fromScale(0.27, 0.21),
+		ZIndex = 205,
+	}, frontGroup)
+	addCorner(revealLeftCol, 8)
+	addStroke(revealLeftCol, trimColor, 1.4, 0.28)
+	if card.rating then
+		local rNum = make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromScale(0.05, 0.06),
+			Size = UDim2.fromScale(0.90, 0.58),
+			Text = tostring(card.rating),
+			TextColor3 = frameTextColor,
+			TextScaled = true,
+			Font = Enum.Font.GothamBlack,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			ZIndex = 207,
+		}, revealLeftCol)
+		make("UITextSizeConstraint", { MinTextSize = 16, MaxTextSize = 50 }, rNum)
+		addStroke(rNum, Color3.fromRGB(0, 0, 0), 2.2, 0.08)
+	end
+	local rPos = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromScale(0.06, 0.64),
+		Size = UDim2.fromScale(0.88, 0.36),
 		Text = string.upper(card.position or "--"),
-	}, 1.1, 0.22, 6, 14)
+		TextColor3 = frameTextColor,
+		TextScaled = true,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		ZIndex = 207,
+	}, revealLeftCol)
+	make("UITextSizeConstraint", { MinTextSize = 8, MaxTextSize = 18 }, rPos)
+	addStroke(rPos, Color3.fromRGB(0, 0, 0), 1.4, 0.18)
 
 	makeFrameLabel({
 		Position = UDim2.fromScale(0.53, 0.126),
@@ -3284,7 +3318,7 @@ local function showPlayerPick(payload)
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, 10, 0, 180),
 			Size = UDim2.new(1, -20, 0, 18),
-			Text = (card.position or "--") .. "  |  " .. (card.nation or "Unknown"),
+			Text = (card.rating and (tostring(card.rating) .. "  |  ") or "") .. (card.position or "--") .. "  |  " .. (card.nation or "Unknown"),
 			TextColor3 = textColor,
 			TextScaled = false,
 			TextSize = 10,
