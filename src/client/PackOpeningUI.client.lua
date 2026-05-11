@@ -188,7 +188,7 @@ end)
 local sidebar = make("Frame", {
 	Name = "Sidebar",
 	AnchorPoint = Vector2.new(0, 1),
-	Size = UDim2.fromOffset(290, 460),
+	Size = UDim2.fromOffset(190, 338),
 	Position = UDim2.new(0, 20, 1, -20),
 	BackgroundColor3 = Color3.fromRGB(5, 8, 15),
 	BackgroundTransparency = 0.18,
@@ -543,35 +543,49 @@ local function drawMenuIcon(parent, iconKind, accentColor)
 	end
 end
 
-local function createMenuButton(order, text, bgAssetId)
+local function createMenuButton(order, text, iconKind, accentColor)
+	local baseColor = accentColor:Lerp(Color3.fromRGB(5, 8, 16), 0.82)
+	local hoverColor = accentColor:Lerp(Color3.fromRGB(8, 12, 22), 0.68)
+	local labelColor = text == "Inventory" and UI.Text or accentColor
+
 	local frame = make("Frame", {
 		LayoutOrder = order,
-		Size = UDim2.new(1, 0, 0, 76),
-		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 54),
+		BackgroundColor3 = baseColor,
+		BackgroundTransparency = 0.02,
 	}, sidebar)
+	addCorner(frame, 12)
+	local frameStroke = addStroke(frame, accentColor, 1.5, 0.38)
 
-	local bgImage = make("ImageLabel", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
-		Image = bgAssetId,
-		ScaleType = Enum.ScaleType.Stretch,
-		ImageTransparency = 0,
-		ZIndex = 1,
+	make("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 24, 42)),
+			ColorSequenceKeypoint.new(1, baseColor),
+		}),
+		Rotation = 0,
 	}, frame)
 
-	-- Text sits in the right section (after the divider at ~38% from left)
-	make("TextLabel", {
+	local iconBg = make("Frame", {
+		Size = UDim2.fromOffset(42, 42),
+		Position = UDim2.new(0, 7, 0.5, -21),
+		BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0, 0, 0), 0.52),
+		ClipsDescendants = false,
+	}, frame)
+	addCorner(iconBg, 11)
+	addStroke(iconBg, accentColor, 1, 0.72)
+	drawMenuIcon(iconBg, iconKind, accentColor)
+
+	local label = make("TextLabel", {
 		Name = "MenuLabel",
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0.40, 0, 0, 0),
-		Size = UDim2.new(0.58, 0, 1, 0),
-		Text = text,
-		TextColor3 = Color3.fromRGB(248, 240, 220),
+		Position = UDim2.new(0, 62, 0, 0),
+		Size = UDim2.new(1, -70, 1, 0),
+		Text = string.upper(text),
+		TextColor3 = labelColor,
 		TextScaled = false,
-		TextSize = 17,
-		Font = Enum.Font.GothamBold,
+		TextSize = 14,
+		Font = Enum.Font.GothamBlack,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 3,
 	}, frame)
 
 	local button = make("TextButton", {
@@ -581,22 +595,25 @@ local function createMenuButton(order, text, bgAssetId)
 		ZIndex = 5,
 		AutoButtonColor = false,
 	}, frame)
+	addCorner(button, 12)
 
 	button.MouseEnter:Connect(function()
-		TweenService:Create(bgImage, TweenInfo.new(0.12), { ImageTransparency = 0.18 }):Play()
+		TweenService:Create(frame, TweenInfo.new(0.1), { BackgroundColor3 = hoverColor }):Play()
+		TweenService:Create(frameStroke, TweenInfo.new(0.1), { Transparency = 0.16 }):Play()
 	end)
 	button.MouseLeave:Connect(function()
-		TweenService:Create(bgImage, TweenInfo.new(0.12), { ImageTransparency = 0 }):Play()
+		TweenService:Create(frame, TweenInfo.new(0.1), { BackgroundColor3 = baseColor }):Play()
+		TweenService:Create(frameStroke, TweenInfo.new(0.1), { Transparency = 0.38 }):Play()
 	end)
 
 	return button
 end
 
-local inventoryButton  = createMenuButton(1, "Inventory",  "rbxassetid://129627317001227")
-local collectionButton = createMenuButton(2, "Collection", "rbxassetid://75950980784006")
-local upgradesButton   = createMenuButton(3, "Upgrades",   "rbxassetid://112403978865369")
-local questsButton     = createMenuButton(4, "Quests",     "rbxassetid://115396148687511")
-local shopButton       = createMenuButton(5, "Shop",       "rbxassetid://112005185691769")
+local inventoryButton = createMenuButton(1, "Inventory", "inventory", Color3.fromRGB(78, 170, 255))
+local collectionButton = createMenuButton(2, "Collection", "collection", Color3.fromRGB(255, 210, 68))
+local upgradesButton  = createMenuButton(3, "Upgrades",  "upgrades",  UI.Gold)
+local questsButton    = createMenuButton(4, "Quests",    "quests",    Color3.fromRGB(205, 88, 255))
+local shopButton      = createMenuButton(5, "Shop",      "shop",      Color3.fromRGB(85, 226, 112))
 
 local questBadge = make("Frame", {
 	AnchorPoint = Vector2.new(1, 0),
