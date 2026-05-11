@@ -3279,46 +3279,80 @@ local function showPlayerPick(payload)
 			ZIndex = 234,
 		}, button)
 
-		local badge = make("Frame", {
+		-- Flag image (nation flag as the card's visual centrepiece)
+		local flagContainer = make("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0, 52),
-			Size = UDim2.fromOffset(72, 72),
-			Rotation = 45,
+			Position = UDim2.new(0.5, 0, 0, 44),
+			Size = UDim2.new(1, -16, 0, 88),
 			BackgroundColor3 = Color3.fromRGB(8, 10, 18),
 			BorderSizePixel = 0,
+			ClipsDescendants = true,
 			ZIndex = 234,
 		}, button)
-		addCorner(badge, 10)
-		addStroke(badge, primary, 2.5, 0.12)
-		-- Rating number prominently in the diamond
+		addCorner(flagContainer, 8)
+		addStroke(flagContainer, primary, 1.5, 0.22)
+		local flagId = NationFlags[card.nation]
+		if flagId then
+			make("ImageLabel", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				Image = flagId,
+				ScaleType = Enum.ScaleType.Crop,
+				ImageTransparency = 0.08,
+				ZIndex = 235,
+			}, flagContainer)
+		end
+		-- Dark gradient overlay so text reads cleanly
+		make("UIGradient", {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+				ColorSequenceKeypoint.new(0.35, Color3.fromRGB(0, 0, 0)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0)),
+			}),
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0.55),
+				NumberSequenceKeypoint.new(0.35, 0.72),
+				NumberSequenceKeypoint.new(1, 0.55),
+			}),
+			Rotation = 90,
+		}, flagContainer)
+		-- Rating badge bottom-left of flag
+		local ratingBadge = make("Frame", {
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.new(0, 8, 1, -8),
+			Size = UDim2.fromOffset(44, 44),
+			BackgroundColor3 = Color3.fromRGB(6, 8, 14),
+			BackgroundTransparency = 0.10,
+			BorderSizePixel = 0,
+			ZIndex = 236,
+		}, flagContainer)
+		addCorner(ratingBadge, 6)
+		addStroke(ratingBadge, primary, 1.5, 0.18)
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(1, 0.60),
-			Position = UDim2.fromScale(0, 0.06),
-			Rotation = -45,
+			Size = UDim2.fromScale(1, 0.58),
+			Position = UDim2.fromScale(0, 0.04),
 			Text = tostring(card.rating or "?"),
 			TextColor3 = textColor,
 			TextScaled = true,
 			Font = Enum.Font.GothamBlack,
-			ZIndex = 235,
-		}, badge)
-		-- Position abbreviation beneath the rating
+			ZIndex = 237,
+		}, ratingBadge)
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(1, 0.32),
-			Position = UDim2.fromScale(0, 0.63),
-			Rotation = -45,
+			Size = UDim2.fromScale(1, 0.36),
+			Position = UDim2.fromScale(0, 0.61),
 			Text = card.position or "",
-			TextColor3 = textColor:Lerp(Color3.fromRGB(255, 255, 255), 0.3),
+			TextColor3 = Color3.fromRGB(200, 200, 200),
 			TextScaled = true,
 			Font = Enum.Font.GothamBold,
-			ZIndex = 235,
-		}, badge)
+			ZIndex = 237,
+		}, ratingBadge)
 
 		local nameLabel = make("TextLabel", {
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, 10, 0, 138),
-			Size = UDim2.new(1, -20, 0, 42),
+			Size = UDim2.new(1, -20, 0, 38),
 			Text = string.upper(card.name or "Player"),
 			TextColor3 = textColor,
 			TextScaled = true,
@@ -3330,8 +3364,8 @@ local function showPlayerPick(payload)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 10, 0, 184),
-			Size = UDim2.new(1, -20, 0, 18),
+			Position = UDim2.new(0, 10, 0, 179),
+			Size = UDim2.new(1, -20, 0, 16),
 			Text = (card.position or "--") .. "  |  " .. (card.nation or "Unknown"),
 			TextColor3 = textColor,
 			TextScaled = false,
@@ -3342,8 +3376,8 @@ local function showPlayerPick(payload)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 10, 0, 202),
-			Size = UDim2.new(1, -20, 0, 18),
+			Position = UDim2.new(0, 10, 0, 197),
+			Size = UDim2.new(1, -20, 0, 16),
 			Text = "+" .. Utils.FormatNumber(card.fansPerSecond or 0) .. " fans/s",
 			TextColor3 = Color3.fromRGB(168, 244, 184),
 			TextScaled = false,
