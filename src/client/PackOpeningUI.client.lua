@@ -620,7 +620,7 @@ local function createMenuButton(order, text, iconKind, accentColor, bgAssetId)
 	return button
 end
 
-local inventoryButton = createMenuButton(1, "Inventory", "inventory", Color3.fromRGB(78, 170, 255), "rbxassetid://133277107083551")
+local inventoryButton = createMenuButton(1, "Inventory", "inventory", Color3.fromRGB(78, 170, 255))
 local collectionButton = createMenuButton(2, "Collection", "collection", Color3.fromRGB(255, 210, 68))
 local upgradesButton  = createMenuButton(3, "Upgrades",  "upgrades",  UI.Gold)
 local questsButton    = createMenuButton(4, "Quests",    "quests",    Color3.fromRGB(205, 88, 255))
