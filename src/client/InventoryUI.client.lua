@@ -747,31 +747,10 @@ function refreshInventory()
 			}, tile)
 		end
 
-		local iconWidth = skin.icon == "POTY" and 34 or 18
-		local iconBadge = make("Frame", {
-			BackgroundColor3 = skin.badgeBg,
-			BackgroundTransparency = 0.08,
-			BorderSizePixel = 0,
-			Position = UDim2.fromOffset(10, 8),
-			Size = UDim2.fromOffset(iconWidth, 18),
-		}, tile)
-		addCorner(iconBadge, 7)
-		addStroke(iconBadge, skin.glow, 1, 0.55)
-
-		make("TextLabel", {
-			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(1, 1),
-			Text = skin.icon or "?",
-			TextColor3 = skin.badgeText,
-			TextScaled = false,
-			TextSize = skin.icon == "POTY" and 8 or 10,
-			Font = Enum.Font.GothamBlack,
-		}, iconBadge)
-
 		local rarityLabel = make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(10 + iconWidth + 6, 8),
-			Size = UDim2.new(1, -(iconWidth + 72), 0, 18),
+			Position = UDim2.fromOffset(10, 8),
+			Size = UDim2.new(1, -58, 0, 18),
 			Text = string.upper(style.label or card.rarity or "CARD"),
 			TextColor3 = textColor,
 			TextScaled = false,

@@ -2760,6 +2760,7 @@ local function buildInventoryPayload(player)
 					nation = card.nation,
 					position = card.position,
 					rarity = card.rarity,
+					rating = card.rating,
 					quantity = amount,
 					fansPerSecond = fansPerSecond,
 					sellValue = Utils.GetSellValue(card),
