@@ -543,19 +543,23 @@ local function drawMenuIcon(parent, iconKind, accentColor)
 	end
 end
 
-local function createMenuButton(order, text, iconKind, accentColor)
-	local GOLD     = Color3.fromRGB(218, 168, 40)
-	local bgNormal = Color3.fromRGB(9, 8, 7)
-	local bgHover  = Color3.fromRGB(22, 19, 11)
-
+local function createMenuButton(order, text, iconKind, accentColor, bgAssetId)
 	local frame = make("Frame", {
 		LayoutOrder = order,
 		Size = UDim2.new(1, 0, 0, 58),
-		BackgroundColor3 = bgNormal,
-		BackgroundTransparency = 0,
+		BackgroundTransparency = 1,
 	}, sidebar)
-	addCorner(frame, 14)
-	local frameStroke = addStroke(frame, GOLD, 2.5, 0)
+
+	-- Custom background image (border + glow baked in)
+	local bgImage = make("ImageLabel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Image = bgAssetId,
+		ScaleType = Enum.ScaleType.Stretch,
+		ImageTransparency = 0,
+		ZIndex = 1,
+	}, frame)
+	addCorner(bgImage, 14)
 
 	-- Icon container sized to match what draw functions expect (42x42)
 	local iconContainer = make("Frame", {
@@ -563,6 +567,7 @@ local function createMenuButton(order, text, iconKind, accentColor)
 		Position = UDim2.new(0, 7, 0.5, -21),
 		BackgroundTransparency = 1,
 		ClipsDescendants = false,
+		ZIndex = 2,
 	}, frame)
 	drawMenuIcon(iconContainer, iconKind, accentColor)
 
@@ -570,9 +575,10 @@ local function createMenuButton(order, text, iconKind, accentColor)
 	make("Frame", {
 		Position = UDim2.new(0, 58, 0, 10),
 		Size = UDim2.new(0, 1.5, 0, 38),
-		BackgroundColor3 = GOLD,
+		BackgroundColor3 = Color3.fromRGB(218, 168, 40),
 		BackgroundTransparency = 0.2,
 		BorderSizePixel = 0,
+		ZIndex = 2,
 	}, frame)
 
 	make("TextLabel", {
@@ -586,6 +592,7 @@ local function createMenuButton(order, text, iconKind, accentColor)
 		TextSize = 17,
 		Font = Enum.Font.GothamBold,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 3,
 	}, frame)
 
 	local button = make("TextButton", {
@@ -598,22 +605,20 @@ local function createMenuButton(order, text, iconKind, accentColor)
 	addCorner(button, 14)
 
 	button.MouseEnter:Connect(function()
-		TweenService:Create(frame, TweenInfo.new(0.12), { BackgroundColor3 = bgHover }):Play()
-		TweenService:Create(frameStroke, TweenInfo.new(0.12), { Color = Color3.fromRGB(255, 210, 80), Thickness = 3 }):Play()
+		TweenService:Create(bgImage, TweenInfo.new(0.12), { ImageTransparency = 0.15 }):Play()
 	end)
 	button.MouseLeave:Connect(function()
-		TweenService:Create(frame, TweenInfo.new(0.12), { BackgroundColor3 = bgNormal }):Play()
-		TweenService:Create(frameStroke, TweenInfo.new(0.12), { Color = GOLD, Thickness = 2.5 }):Play()
+		TweenService:Create(bgImage, TweenInfo.new(0.12), { ImageTransparency = 0 }):Play()
 	end)
 
 	return button
 end
 
-local inventoryButton = createMenuButton(1, "Inventory", "inventory", Color3.fromRGB(78, 170, 255))
-local collectionButton = createMenuButton(2, "Collection", "collection", Color3.fromRGB(255, 210, 68))
-local upgradesButton  = createMenuButton(3, "Upgrades",  "upgrades",  UI.Gold)
-local questsButton    = createMenuButton(4, "Quests",    "quests",    Color3.fromRGB(205, 88, 255))
-local shopButton      = createMenuButton(5, "Shop",      "shop",      Color3.fromRGB(85, 226, 112))
+local inventoryButton  = createMenuButton(1, "Inventory",  "inventory",  Color3.fromRGB(78, 170, 255),  "rbxassetid://103299578834054")
+local collectionButton = createMenuButton(2, "Collection", "collection", Color3.fromRGB(255, 210, 68),  "rbxassetid://99943321933261")
+local upgradesButton   = createMenuButton(3, "Upgrades",   "upgrades",   UI.Gold,                       "rbxassetid://104056292397518")
+local questsButton     = createMenuButton(4, "Quests",     "quests",     Color3.fromRGB(205, 88, 255),  "rbxassetid://130385958952910")
+local shopButton       = createMenuButton(5, "Shop",       "shop",       Color3.fromRGB(85, 226, 112),  "rbxassetid://94757560104859")
 
 local questBadge = make("Frame", {
 	AnchorPoint = Vector2.new(1, 0),
