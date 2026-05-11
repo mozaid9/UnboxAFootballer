@@ -1666,11 +1666,16 @@ local function getServerPackParent()
 	return fanZone or Workspace
 end
 
+local function getServerPackMinDamage(state)
+	local pct = tonumber(Constants.ServerPack.MinimumContributionPercent) or 5
+	return math.max(1, math.ceil((state and state.maxHealth or 600) * (pct / 100)))
+end
+
 local function countServerPackQualified(state)
-	local minHits = math.max(1, math.floor(tonumber(Constants.ServerPack.MinimumHitsForReward) or 3))
+	local minDamage = getServerPackMinDamage(state)
 	local count = 0
 	for _, entry in pairs(state and state.participants or {}) do
-		if entry.player and entry.player.Parent and (entry.hits or 0) >= minHits then
+		if entry.player and entry.player.Parent and (entry.damage or 0) >= minDamage then
 			count += 1
 		end
 	end
@@ -1685,13 +1690,13 @@ local function updateServerPackBillboard(state)
 	local maxHealth = math.max(1, tonumber(state.maxHealth) or 1)
 	local health = math.max(0, tonumber(state.health) or 0)
 	local ratio = math.clamp(health / maxHealth, 0, 1)
-	local minHits = math.max(1, math.floor(tonumber(Constants.ServerPack.MinimumHitsForReward) or 3))
+	local pct = tonumber(Constants.ServerPack.MinimumContributionPercent) or 5
 	local qualified = countServerPackQualified(state)
 
 	state.healthText.Text = "HEALTH " .. Utils.FormatNumber(math.ceil(health)) .. " / " .. Utils.FormatNumber(maxHealth)
 	state.progressFill.Size = UDim2.fromScale(ratio, 1)
 	if state.helperText then
-		state.helperText.Text = tostring(minHits) .. " HITS TO CLAIM"
+		state.helperText.Text = tostring(pct) .. "% CONTRIBUTION"
 	end
 	if state.qualifiedText then
 		state.qualifiedText.Text = tostring(qualified) .. " QUALIFIED"
@@ -2091,12 +2096,13 @@ local function resolveServerPack()
 		end
 	end
 
-	local minHits = math.max(1, math.floor(tonumber(Constants.ServerPack.MinimumHitsForReward) or 3))
+	local minDamage = getServerPackMinDamage(state)
+	local pct = tonumber(Constants.ServerPack.MinimumContributionPercent) or 5
 	local eligible = {}
 	local underQualified = {}
 	for _, entry in pairs(state.participants or {}) do
 		if entry.player and entry.player.Parent then
-			if (entry.hits or 0) >= minHits then
+			if (entry.damage or 0) >= minDamage then
 				table.insert(eligible, entry.player)
 			else
 				table.insert(underQualified, entry.player)
@@ -2110,7 +2116,7 @@ local function resolveServerPack()
 		awardServerPackPlayer(player, packWorldPosition)
 	end
 	for _, player in ipairs(underQualified) do
-		sendHint(player, "Server Pack needs " .. tostring(minHits) .. " hits to claim next time.")
+		sendHint(player, "You needed " .. tostring(pct) .. "% contribution to earn a Server Pack reward.")
 	end
 
 	task.wait(0.35)
@@ -2145,7 +2151,8 @@ local function spawnServerPack()
 	serverPackState = state
 	createServerPackModel(state)
 	updateServerPackBillboard(state)
-	broadcastServerPackMessage("Server Pack spawned in the fan zone. Land 3 hits to claim a boosted card.", config.Color)
+	local pct = tonumber(config.MinimumContributionPercent) or 5
+	broadcastServerPackMessage("Server Pack spawned in the fan zone! Deal " .. tostring(pct) .. "% of its health to earn a boosted card.", config.Color)
 	return true
 end
 
@@ -2217,9 +2224,10 @@ local function tryHitServerPack(player, rootPart)
 		packWorldPosition = state.activePackBody.Position + Vector3.new(0, 3.2, 0),
 	})
 
-	local minHits = math.max(1, math.floor(tonumber(Constants.ServerPack.MinimumHitsForReward) or 3))
-	if entry.hits == minHits then
-		sendHint(player, "You qualified for the Server Pack reward.")
+	local minDamage = getServerPackMinDamage(state)
+	local prevDamage = entry.damage - damage
+	if prevDamage < minDamage and entry.damage >= minDamage then
+		sendHint(player, "You've contributed enough to earn a Server Pack reward!")
 	end
 
 	if state.health <= 0 then
