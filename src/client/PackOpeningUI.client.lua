@@ -3279,22 +3279,22 @@ local function showPlayerPick(payload)
 			ZIndex = 234,
 		}, button)
 
-		-- Large centred rating badge
+		-- Centred rating circle
 		local ratingCircle = make("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0, 46),
-			Size = UDim2.fromOffset(80, 80),
+			Position = UDim2.new(0.5, 0, 0, 42),
+			Size = UDim2.fromOffset(72, 72),
 			BackgroundColor3 = Color3.fromRGB(6, 8, 14),
 			BorderSizePixel = 0,
 			ZIndex = 234,
 		}, button)
-		addCorner(ratingCircle, 40)
+		addCorner(ratingCircle, 36)
 		addStroke(ratingCircle, primary, 2.5, 0.10)
 		make("TextLabel", {
 			BackgroundTransparency = 1,
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.42),
-			Size = UDim2.fromScale(0.88, 0.52),
+			Position = UDim2.fromScale(0.5, 0.40),
+			Size = UDim2.fromScale(0.86, 0.50),
 			Text = tostring(card.rating or "?"),
 			TextColor3 = textColor,
 			TextScaled = true,
@@ -3304,34 +3304,18 @@ local function showPlayerPick(payload)
 		make("TextLabel", {
 			BackgroundTransparency = 1,
 			AnchorPoint = Vector2.new(0.5, 1),
-			Position = UDim2.fromScale(0.5, 0.96),
-			Size = UDim2.fromScale(0.88, 0.32),
+			Position = UDim2.fromScale(0.5, 0.95),
+			Size = UDim2.fromScale(0.86, 0.30),
 			Text = card.position or "",
 			TextColor3 = primary,
 			TextScaled = true,
 			Font = Enum.Font.GothamBold,
 			ZIndex = 235,
 		}, ratingCircle)
-		-- Small flag icon to the right of the circle
-		local flagId = NationFlags[card.nation]
-		if flagId then
-			local flagIcon = make("ImageLabel", {
-				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.new(0.5, 46, 0, 86),
-				Size = UDim2.fromOffset(32, 20),
-				BackgroundColor3 = Color3.fromRGB(6, 8, 14),
-				BorderSizePixel = 0,
-				Image = flagId,
-				ScaleType = Enum.ScaleType.Crop,
-				ZIndex = 235,
-			}, button)
-			addCorner(flagIcon, 3)
-			addStroke(flagIcon, primary, 1, 0.35)
-		end
 
 		local nameLabel = make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 10, 0, 136),
+			Position = UDim2.new(0, 10, 0, 122),
 			Size = UDim2.new(1, -20, 0, 40),
 			Text = string.upper(card.name or "Player"),
 			TextColor3 = textColor,
@@ -3340,11 +3324,11 @@ local function showPlayerPick(payload)
 			Font = Enum.Font.GothamBlack,
 			ZIndex = 234,
 		}, button)
-		make("UITextSizeConstraint", { MinTextSize = 9, MaxTextSize = 20 }, nameLabel)
+		make("UITextSizeConstraint", { MinTextSize = 8, MaxTextSize = 20 }, nameLabel)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 10, 0, 179),
+			Position = UDim2.new(0, 10, 0, 165),
 			Size = UDim2.new(1, -20, 0, 16),
 			Text = (card.position or "--") .. "  |  " .. (card.nation or "Unknown"),
 			TextColor3 = textColor,
@@ -3356,7 +3340,7 @@ local function showPlayerPick(payload)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 10, 0, 197),
+			Position = UDim2.new(0, 10, 0, 183),
 			Size = UDim2.new(1, -20, 0, 16),
 			Text = "+" .. Utils.FormatNumber(card.fansPerSecond or 0) .. " fans/s",
 			TextColor3 = Color3.fromRGB(168, 244, 184),
