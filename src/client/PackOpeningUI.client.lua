@@ -190,19 +190,8 @@ local sidebar = make("Frame", {
 	AnchorPoint = Vector2.new(0, 1),
 	Size = UDim2.fromOffset(190, 338),
 	Position = UDim2.new(0, 20, 1, -20),
-	BackgroundColor3 = Color3.fromRGB(5, 8, 15),
-	BackgroundTransparency = 0.18,
+	BackgroundTransparency = 1,
 }, screenGui)
-addCorner(sidebar, 16)
-addStroke(sidebar, UI.Gold, 1.5, 0.48)
-
-make("UIGradient", {
-	Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(16, 22, 40)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(7, 10, 18)),
-	}),
-	Rotation = 110,
-}, sidebar)
 
 local sidebarPadding = make("UIPadding", {
 	PaddingTop = UDim.new(0, 12),
