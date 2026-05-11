@@ -939,6 +939,7 @@ local function serializeCardForClient(card)
 		position = card.position,
 		rarity = card.rarity,
 		club = card.club,
+		rating = card.rating,
 		fansPerSecond = Utils.CalculateFansPerSecond(card),
 		sellValue = Utils.GetSellValue(card),
 	}
