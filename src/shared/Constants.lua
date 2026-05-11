@@ -339,7 +339,8 @@ Constants.ServerPack = {
 	FirstSpawnDelaySeconds = 90,
 	SpawnIntervalSeconds = 75 * 60,
 	Health = 600,
-	MinimumHitsForReward = 3,
+	MinimumHitsForReward = 3,       -- kept for legacy; qualification now uses MinimumContributionPercent
+	MinimumContributionPercent = 5, -- must deal >= 5% of pack HP to qualify (self-scales with pitchfork damage)
 	CardPullLuckBonus = 12,
 	HitRange = 24,
 	Position = Vector3.new(0, 0, -82),
