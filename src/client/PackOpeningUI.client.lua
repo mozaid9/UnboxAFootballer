@@ -2924,8 +2924,8 @@ local function showCardReveal(payload)
 		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 		BackgroundTransparency = 0.42,
 		BorderSizePixel = 0,
-		Position = UDim2.fromScale(0.05, 0.11),
-		Size = UDim2.fromScale(0.27, 0.21),
+		Position = UDim2.fromScale(0.05, 0.105),
+		Size = UDim2.fromScale(0.27, 0.155),
 		ZIndex = 205,
 	}, frontGroup)
 	addCorner(revealLeftCol, 8)
