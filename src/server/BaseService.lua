@@ -165,34 +165,34 @@ end
 
 local function configureMapLighting()
 	Lighting.ClockTime = 19.25
-	Lighting.Brightness = 1.9
-	Lighting.Ambient = Color3.fromRGB(96, 108, 136)
-	Lighting.OutdoorAmbient = Color3.fromRGB(68, 78, 104)
-	Lighting.EnvironmentDiffuseScale = 0.58
-	Lighting.EnvironmentSpecularScale = 0.5
+	Lighting.Brightness = 2.8
+	Lighting.Ambient = Color3.fromRGB(130, 145, 178)
+	Lighting.OutdoorAmbient = Color3.fromRGB(96, 110, 145)
+	Lighting.EnvironmentDiffuseScale = 0.68
+	Lighting.EnvironmentSpecularScale = 0.6
 	Lighting.FogColor = Color3.fromRGB(42, 51, 68)
-	Lighting.FogStart = 320
-	Lighting.FogEnd = 760
+	Lighting.FogStart = 380
+	Lighting.FogEnd = 820
 
 	replaceLightingEffect("Atmosphere", "UnboxNightAtmosphere", {
-		Density = 0.16,
+		Density = 0.12,
 		Offset = 0.04,
 		Color = Color3.fromRGB(185, 204, 230),
 		Decay = Color3.fromRGB(38, 46, 62),
-		Glare = 0.18,
-		Haze = 0.95,
+		Glare = 0.22,
+		Haze = 0.72,
 	})
 
 	replaceLightingEffect("BloomEffect", "UnboxGoldBloom", {
-		Intensity = 0.018,
-		Size = 8,
-		Threshold = 3.4,
+		Intensity = 0.038,
+		Size = 10,
+		Threshold = 2.8,
 	})
 
 	replaceLightingEffect("ColorCorrectionEffect", "UnboxColorGrade", {
-		Brightness = 0,
-		Contrast = 0.05,
-		Saturation = 0.08,
+		Brightness = 0.02,
+		Contrast = 0.08,
+		Saturation = 0.12,
 		TintColor = Color3.fromRGB(242, 247, 255),
 	})
 end
@@ -2168,8 +2168,8 @@ local function createFanZone(mapWidth, mapLength)
 			}, plaza)
 			make("PointLight", {
 				Color = Color3.fromRGB(255, 224, 160),
-				Range = 38,
-				Brightness = 0.42,
+				Range = 48,
+				Brightness = 0.72,
 				Shadows = false,
 			}, anchor)
 			lampZ = lampZ + LAMP_SPACING
@@ -2189,8 +2189,8 @@ local function createFanZone(mapWidth, mapLength)
 			}, plaza)
 			make("PointLight", {
 				Color = Color3.fromRGB(255, 210, 80),
-				Range = 26,
-				Brightness = 0.32,
+				Range = 36,
+				Brightness = 0.55,
 				Shadows = false,
 			}, crossAnchor)
 		end
@@ -5226,6 +5226,59 @@ local function createPlot(plotId, side, laneIndex, position)
 	-- Folder for visuals that change per rebirth tier (seats, lighting, etc.)
 	local stadiumExtrasFolder = make("Folder", { Name = "StadiumExtras" }, model)
 
+	-- ── Stadium floodlight towers (4 corners) ─────────────────────────────────
+	local floodlightFolder = make("Folder", { Name = "Floodlights" }, model)
+	for _, offset in ipairs({ Vector3.new(44, 0, 44), Vector3.new(44, 0, -44), Vector3.new(-44, 0, 44), Vector3.new(-44, 0, -44) }) do
+		local towerBase = position + offset
+		make("Part", {
+			Name = "FloodlightBase",
+			Anchored = true, CanCollide = true,
+			Material = Enum.Material.Metal,
+			Color = Color3.fromRGB(24, 30, 42),
+			Size = Vector3.new(1.8, 0.6, 1.8),
+			CFrame = CFrame.new(towerBase + Vector3.new(0, 0.3, 0)),
+		}, floodlightFolder)
+		local pole = make("Part", {
+			Name = "FloodlightPole",
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Metal,
+			Color = Color3.fromRGB(32, 38, 52),
+			Size = Vector3.new(0.9, 22, 0.9),
+			CFrame = CFrame.new(towerBase + Vector3.new(0, 11.6, 0)),
+		}, floodlightFolder)
+		make("Part", {
+			Name = "FloodlightHead",
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.SmoothPlastic,
+			Color = Color3.fromRGB(18, 22, 32),
+			Size = Vector3.new(4.2, 1.0, 2.2),
+			CFrame = CFrame.new(towerBase + Vector3.new(0, 23.1, 0)),
+		}, floodlightFolder)
+		make("Part", {
+			Name = "FloodlightLens",
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon,
+			Color = Color3.fromRGB(255, 242, 210),
+			Transparency = 0.28,
+			Size = Vector3.new(3.6, 0.4, 1.6),
+			CFrame = CFrame.new(towerBase + Vector3.new(0, 22.7, 0)),
+		}, floodlightFolder)
+		make("SpotLight", {
+			Brightness = 7,
+			Range = 80,
+			Angle = 58,
+			Face = Enum.NormalId.Bottom,
+			Color = Color3.fromRGB(255, 248, 224),
+			Shadows = false,
+		}, pole)
+		make("PointLight", {
+			Brightness = 1.4,
+			Range = 32,
+			Color = Color3.fromRGB(255, 240, 200),
+			Shadows = false,
+		}, pole)
+	end
+
 	local plot = {
 		id = plotId,
 		side = side,
@@ -7019,6 +7072,93 @@ function BaseService.BuildBaseMap()
 	}, basesFolder)
 
 	createFanZone(mapWidth, mapLength)
+
+	-- ── Side corridor strips (fill dead zone between walkway and stadiums) ─────
+	-- Walkway ends at X=±27, stadiums begin at X=±115.  We add two lit paths
+	-- at X=±71 to break up the dark floor and give players a visual guide.
+	local sidePathColor   = Color3.fromRGB(30, 38, 52)
+	local sideEdgeColor   = Color3.fromRGB(96, 178, 255)   -- cool blue neon
+	local sideLampColor   = Color3.fromRGB(200, 225, 255)
+	local halfLen         = mapLength / 2 - 6
+	for _, sx in ipairs({ -71, 71 }) do
+		make("Part", {
+			Name = "SideCorridorPath",
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Slate,
+			Color = sidePathColor,
+			Size = Vector3.new(20, 0.16, mapLength - 12),
+			CFrame = CFrame.new(sx, 0.22, 0),
+		}, basesFolder)
+		-- Inner neon edge (faces walkway)
+		make("Part", {
+			Name = "SideCorridorInnerEdge",
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon,
+			Color = sideEdgeColor,
+			Transparency = 0.52,
+			Size = Vector3.new(0.22, 0.18, mapLength - 12),
+			CFrame = CFrame.new(sx + (sx > 0 and -10 or 10), 0.3, 0),
+		}, basesFolder)
+		-- Outer neon edge (faces stadium)
+		make("Part", {
+			Name = "SideCorridorOuterEdge",
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon,
+			Color = sideEdgeColor,
+			Transparency = 0.52,
+			Size = Vector3.new(0.22, 0.18, mapLength - 12),
+			CFrame = CFrame.new(sx + (sx > 0 and 10 or -10), 0.3, 0),
+		}, basesFolder)
+		-- Lamp posts every 48 studs
+		local lampZ = -halfLen + 24
+		while lampZ <= halfLen - 24 do
+			local pole = make("Part", {
+				Name = "SideLampPole",
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Metal,
+				Color = Color3.fromRGB(28, 34, 46),
+				Size = Vector3.new(0.5, 9, 0.5),
+				CFrame = CFrame.new(sx, 4.5, lampZ),
+			}, basesFolder)
+			make("Part", {
+				Name = "SideLampHead",
+				Anchored = true, CanCollide = false,
+				Material = Enum.Material.Neon,
+				Color = sideEdgeColor,
+				Transparency = 0.22,
+				Size = Vector3.new(1.6, 0.5, 1.6),
+				CFrame = CFrame.new(sx, 9.2, lampZ),
+			}, basesFolder)
+			make("PointLight", {
+				Color = sideLampColor,
+				Brightness = 0.58,
+				Range = 36,
+				Shadows = false,
+			}, pole)
+			lampZ = lampZ + 48
+		end
+	end
+
+	-- ── Perimeter neon border (defines map edges) ─────────────────────────────
+	local borderColor = Color3.fromRGB(255, 210, 50)  -- gold
+	local bx = mapWidth / 2 - 2
+	local bz = mapLength / 2 - 2
+	for _, data in ipairs({
+		{ pos = Vector3.new(0,  0.3,  bz), sz = Vector3.new(mapWidth - 4, 0.22, 0.28) },
+		{ pos = Vector3.new(0,  0.3, -bz), sz = Vector3.new(mapWidth - 4, 0.22, 0.28) },
+		{ pos = Vector3.new( bx, 0.3, 0),  sz = Vector3.new(0.28, 0.22, mapLength - 4) },
+		{ pos = Vector3.new(-bx, 0.3, 0),  sz = Vector3.new(0.28, 0.22, mapLength - 4) },
+	}) do
+		make("Part", {
+			Name = "PerimeterBorder",
+			Anchored = true, CanCollide = false,
+			Material = Enum.Material.Neon,
+			Color = borderColor,
+			Transparency = 0.48,
+			Size = data.sz,
+			CFrame = CFrame.new(data.pos),
+		}, basesFolder)
+	end
 
 	for sideIndex = 1, 2 do
 		for laneIndex = 1, layout.PlotsPerSide do
