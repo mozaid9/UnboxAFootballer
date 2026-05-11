@@ -544,23 +544,23 @@ local function drawMenuIcon(parent, iconKind, accentColor)
 end
 
 local function createMenuButton(order, text, iconKind, accentColor)
-	local GOLD      = Color3.fromRGB(218, 168, 40)
-	local bgNormal  = Color3.fromRGB(9, 8, 7)
-	local bgHover   = Color3.fromRGB(20, 17, 10)
+	local GOLD     = Color3.fromRGB(218, 168, 40)
+	local bgNormal = Color3.fromRGB(9, 8, 7)
+	local bgHover  = Color3.fromRGB(22, 19, 11)
 
 	local frame = make("Frame", {
 		LayoutOrder = order,
-		Size = UDim2.new(1, 0, 0, 54),
+		Size = UDim2.new(1, 0, 0, 58),
 		BackgroundColor3 = bgNormal,
 		BackgroundTransparency = 0,
 	}, sidebar)
 	addCorner(frame, 14)
-	local frameStroke = addStroke(frame, GOLD, 2, 0.12)
+	local frameStroke = addStroke(frame, GOLD, 2.5, 0)
 
-	-- Icon container (left zone, no background)
+	-- Icon container sized to match what draw functions expect (42x42)
 	local iconContainer = make("Frame", {
-		Size = UDim2.fromOffset(36, 36),
-		Position = UDim2.new(0, 8, 0.5, -18),
+		Size = UDim2.fromOffset(42, 42),
+		Position = UDim2.new(0, 7, 0.5, -21),
 		BackgroundTransparency = 1,
 		ClipsDescendants = false,
 	}, frame)
@@ -568,22 +568,22 @@ local function createMenuButton(order, text, iconKind, accentColor)
 
 	-- Gold vertical divider
 	make("Frame", {
-		Position = UDim2.new(0, 54, 0, 9),
-		Size = UDim2.new(0, 1, 0, 36),
+		Position = UDim2.new(0, 58, 0, 10),
+		Size = UDim2.new(0, 1.5, 0, 38),
 		BackgroundColor3 = GOLD,
-		BackgroundTransparency = 0.35,
+		BackgroundTransparency = 0.2,
 		BorderSizePixel = 0,
 	}, frame)
 
 	make("TextLabel", {
 		Name = "MenuLabel",
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 64, 0, 0),
-		Size = UDim2.new(1, -72, 1, 0),
+		Position = UDim2.new(0, 68, 0, 0),
+		Size = UDim2.new(1, -76, 1, 0),
 		Text = text,
-		TextColor3 = Color3.fromRGB(245, 238, 218),
+		TextColor3 = Color3.fromRGB(248, 240, 220),
 		TextScaled = false,
-		TextSize = 16,
+		TextSize = 17,
 		Font = Enum.Font.GothamBold,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	}, frame)
@@ -598,12 +598,12 @@ local function createMenuButton(order, text, iconKind, accentColor)
 	addCorner(button, 14)
 
 	button.MouseEnter:Connect(function()
-		TweenService:Create(frame, TweenInfo.new(0.1), { BackgroundColor3 = bgHover }):Play()
-		TweenService:Create(frameStroke, TweenInfo.new(0.1), { Transparency = 0 }):Play()
+		TweenService:Create(frame, TweenInfo.new(0.12), { BackgroundColor3 = bgHover }):Play()
+		TweenService:Create(frameStroke, TweenInfo.new(0.12), { Color = Color3.fromRGB(255, 210, 80), Thickness = 3 }):Play()
 	end)
 	button.MouseLeave:Connect(function()
-		TweenService:Create(frame, TweenInfo.new(0.1), { BackgroundColor3 = bgNormal }):Play()
-		TweenService:Create(frameStroke, TweenInfo.new(0.1), { Transparency = 0.12 }):Play()
+		TweenService:Create(frame, TweenInfo.new(0.12), { BackgroundColor3 = bgNormal }):Play()
+		TweenService:Create(frameStroke, TweenInfo.new(0.12), { Color = GOLD, Thickness = 2.5 }):Play()
 	end)
 
 	return button
