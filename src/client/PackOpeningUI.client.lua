@@ -3279,80 +3279,60 @@ local function showPlayerPick(payload)
 			ZIndex = 234,
 		}, button)
 
-		-- Flag image (nation flag as the card's visual centrepiece)
-		local flagContainer = make("Frame", {
+		-- Large centred rating badge
+		local ratingCircle = make("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0, 44),
-			Size = UDim2.new(1, -16, 0, 88),
-			BackgroundColor3 = Color3.fromRGB(8, 10, 18),
+			Position = UDim2.new(0.5, 0, 0, 46),
+			Size = UDim2.fromOffset(80, 80),
+			BackgroundColor3 = Color3.fromRGB(6, 8, 14),
 			BorderSizePixel = 0,
-			ClipsDescendants = true,
 			ZIndex = 234,
 		}, button)
-		addCorner(flagContainer, 8)
-		addStroke(flagContainer, primary, 1.5, 0.22)
-		local flagId = NationFlags[card.nation]
-		if flagId then
-			make("ImageLabel", {
-				Size = UDim2.fromScale(1, 1),
-				BackgroundTransparency = 1,
-				Image = flagId,
-				ScaleType = Enum.ScaleType.Crop,
-				ImageTransparency = 0.08,
-				ZIndex = 235,
-			}, flagContainer)
-		end
-		-- Dark gradient overlay so text reads cleanly
-		make("UIGradient", {
-			Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-				ColorSequenceKeypoint.new(0.35, Color3.fromRGB(0, 0, 0)),
-				ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0)),
-			}),
-			Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 0.55),
-				NumberSequenceKeypoint.new(0.35, 0.72),
-				NumberSequenceKeypoint.new(1, 0.55),
-			}),
-			Rotation = 90,
-		}, flagContainer)
-		-- Rating badge bottom-left of flag
-		local ratingBadge = make("Frame", {
-			AnchorPoint = Vector2.new(0, 1),
-			Position = UDim2.new(0, 8, 1, -8),
-			Size = UDim2.fromOffset(44, 44),
-			BackgroundColor3 = Color3.fromRGB(6, 8, 14),
-			BackgroundTransparency = 0.10,
-			BorderSizePixel = 0,
-			ZIndex = 236,
-		}, flagContainer)
-		addCorner(ratingBadge, 6)
-		addStroke(ratingBadge, primary, 1.5, 0.18)
+		addCorner(ratingCircle, 40)
+		addStroke(ratingCircle, primary, 2.5, 0.10)
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(1, 0.58),
-			Position = UDim2.fromScale(0, 0.04),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.42),
+			Size = UDim2.fromScale(0.88, 0.52),
 			Text = tostring(card.rating or "?"),
 			TextColor3 = textColor,
 			TextScaled = true,
 			Font = Enum.Font.GothamBlack,
-			ZIndex = 237,
-		}, ratingBadge)
+			ZIndex = 235,
+		}, ratingCircle)
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(1, 0.36),
-			Position = UDim2.fromScale(0, 0.61),
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.fromScale(0.5, 0.96),
+			Size = UDim2.fromScale(0.88, 0.32),
 			Text = card.position or "",
-			TextColor3 = Color3.fromRGB(200, 200, 200),
+			TextColor3 = primary,
 			TextScaled = true,
 			Font = Enum.Font.GothamBold,
-			ZIndex = 237,
-		}, ratingBadge)
+			ZIndex = 235,
+		}, ratingCircle)
+		-- Small flag icon to the right of the circle
+		local flagId = NationFlags[card.nation]
+		if flagId then
+			local flagIcon = make("ImageLabel", {
+				AnchorPoint = Vector2.new(0, 0.5),
+				Position = UDim2.new(0.5, 46, 0, 86),
+				Size = UDim2.fromOffset(32, 20),
+				BackgroundColor3 = Color3.fromRGB(6, 8, 14),
+				BorderSizePixel = 0,
+				Image = flagId,
+				ScaleType = Enum.ScaleType.Crop,
+				ZIndex = 235,
+			}, button)
+			addCorner(flagIcon, 3)
+			addStroke(flagIcon, primary, 1, 0.35)
+		end
 
 		local nameLabel = make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 10, 0, 138),
-			Size = UDim2.new(1, -20, 0, 38),
+			Position = UDim2.new(0, 10, 0, 136),
+			Size = UDim2.new(1, -20, 0, 40),
 			Text = string.upper(card.name or "Player"),
 			TextColor3 = textColor,
 			TextScaled = true,
