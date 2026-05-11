@@ -543,7 +543,7 @@ local function drawMenuIcon(parent, iconKind, accentColor)
 	end
 end
 
-local function createMenuButton(order, text, iconKind, accentColor)
+local function createMenuButton(order, text, iconKind, accentColor, bgAssetId)
 	local baseColor = accentColor:Lerp(Color3.fromRGB(5, 8, 16), 0.82)
 	local hoverColor = accentColor:Lerp(Color3.fromRGB(8, 12, 22), 0.68)
 	local labelColor = text == "Inventory" and UI.Text or accentColor
@@ -552,28 +552,39 @@ local function createMenuButton(order, text, iconKind, accentColor)
 		LayoutOrder = order,
 		Size = UDim2.new(1, 0, 0, 54),
 		BackgroundColor3 = baseColor,
-		BackgroundTransparency = 0.02,
+		BackgroundTransparency = bgAssetId and 1 or 0.02,
 	}, sidebar)
 	addCorner(frame, 12)
-	local frameStroke = addStroke(frame, accentColor, 1.5, 0.38)
+	local frameStroke = addStroke(frame, accentColor, 1.5, bgAssetId and 0 or 0.38)
 
-	make("UIGradient", {
-		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 24, 42)),
-			ColorSequenceKeypoint.new(1, baseColor),
-		}),
-		Rotation = 0,
-	}, frame)
+	if bgAssetId then
+		make("ImageLabel", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Image = bgAssetId,
+			ScaleType = Enum.ScaleType.Stretch,
+			ZIndex = 1,
+		}, frame)
+		addCorner(frame, 12)
+	else
+		make("UIGradient", {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 24, 42)),
+				ColorSequenceKeypoint.new(1, baseColor),
+			}),
+			Rotation = 0,
+		}, frame)
 
-	local iconBg = make("Frame", {
-		Size = UDim2.fromOffset(42, 42),
-		Position = UDim2.new(0, 7, 0.5, -21),
-		BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0, 0, 0), 0.52),
-		ClipsDescendants = false,
-	}, frame)
-	addCorner(iconBg, 11)
-	addStroke(iconBg, accentColor, 1, 0.72)
-	drawMenuIcon(iconBg, iconKind, accentColor)
+		local iconBg = make("Frame", {
+			Size = UDim2.fromOffset(42, 42),
+			Position = UDim2.new(0, 7, 0.5, -21),
+			BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0, 0, 0), 0.52),
+			ClipsDescendants = false,
+		}, frame)
+		addCorner(iconBg, 11)
+		addStroke(iconBg, accentColor, 1, 0.72)
+		drawMenuIcon(iconBg, iconKind, accentColor)
+	end
 
 	local label = make("TextLabel", {
 		Name = "MenuLabel",
@@ -609,7 +620,7 @@ local function createMenuButton(order, text, iconKind, accentColor)
 	return button
 end
 
-local inventoryButton = createMenuButton(1, "Inventory", "inventory", Color3.fromRGB(78, 170, 255))
+local inventoryButton = createMenuButton(1, "Inventory", "inventory", Color3.fromRGB(78, 170, 255), "rbxassetid://112581482899824")
 local collectionButton = createMenuButton(2, "Collection", "collection", Color3.fromRGB(255, 210, 68))
 local upgradesButton  = createMenuButton(3, "Upgrades",  "upgrades",  UI.Gold)
 local questsButton    = createMenuButton(4, "Quests",    "quests",    Color3.fromRGB(205, 88, 255))
