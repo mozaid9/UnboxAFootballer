@@ -3281,29 +3281,43 @@ local function showPlayerPick(payload)
 
 		local badge = make("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0, 58),
-			Size = UDim2.fromOffset(62, 62),
+			Position = UDim2.new(0.5, 0, 0, 52),
+			Size = UDim2.fromOffset(72, 72),
 			Rotation = 45,
 			BackgroundColor3 = Color3.fromRGB(8, 10, 18),
 			BorderSizePixel = 0,
 			ZIndex = 234,
 		}, button)
 		addCorner(badge, 10)
-		addStroke(badge, primary, 2, 0.16)
+		addStroke(badge, primary, 2.5, 0.12)
+		-- Rating number prominently in the diamond
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(1, 1),
+			Size = UDim2.fromScale(1, 0.60),
+			Position = UDim2.fromScale(0, 0.06),
 			Rotation = -45,
-			Text = string.upper(string.sub(card.name or "P", 1, 1)),
+			Text = tostring(card.rating or "?"),
 			TextColor3 = textColor,
 			TextScaled = true,
 			Font = Enum.Font.GothamBlack,
 			ZIndex = 235,
 		}, badge)
+		-- Position abbreviation beneath the rating
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 0.32),
+			Position = UDim2.fromScale(0, 0.63),
+			Rotation = -45,
+			Text = card.position or "",
+			TextColor3 = textColor:Lerp(Color3.fromRGB(255, 255, 255), 0.3),
+			TextScaled = true,
+			Font = Enum.Font.GothamBold,
+			ZIndex = 235,
+		}, badge)
 
 		local nameLabel = make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 10, 0, 134),
+			Position = UDim2.new(0, 10, 0, 138),
 			Size = UDim2.new(1, -20, 0, 42),
 			Text = string.upper(card.name or "Player"),
 			TextColor3 = textColor,
@@ -3316,9 +3330,9 @@ local function showPlayerPick(payload)
 
 		make("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 10, 0, 180),
+			Position = UDim2.new(0, 10, 0, 184),
 			Size = UDim2.new(1, -20, 0, 18),
-			Text = (card.rating and (tostring(card.rating) .. "  |  ") or "") .. (card.position or "--") .. "  |  " .. (card.nation or "Unknown"),
+			Text = (card.position or "--") .. "  |  " .. (card.nation or "Unknown"),
 			TextColor3 = textColor,
 			TextScaled = false,
 			TextSize = 10,
