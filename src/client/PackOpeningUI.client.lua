@@ -550,7 +550,6 @@ local function createMenuButton(order, text, iconKind, accentColor, bgAssetId)
 		BackgroundTransparency = 1,
 	}, sidebar)
 
-	-- Custom background image (border + glow baked in)
 	local bgImage = make("ImageLabel", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
@@ -560,40 +559,6 @@ local function createMenuButton(order, text, iconKind, accentColor, bgAssetId)
 		ZIndex = 1,
 	}, frame)
 	addCorner(bgImage, 14)
-
-	-- Icon container sized to match what draw functions expect (42x42)
-	local iconContainer = make("Frame", {
-		Size = UDim2.fromOffset(42, 42),
-		Position = UDim2.new(0, 7, 0.5, -21),
-		BackgroundTransparency = 1,
-		ClipsDescendants = false,
-		ZIndex = 2,
-	}, frame)
-	drawMenuIcon(iconContainer, iconKind, accentColor)
-
-	-- Gold vertical divider
-	make("Frame", {
-		Position = UDim2.new(0, 58, 0, 10),
-		Size = UDim2.new(0, 1.5, 0, 38),
-		BackgroundColor3 = Color3.fromRGB(218, 168, 40),
-		BackgroundTransparency = 0.2,
-		BorderSizePixel = 0,
-		ZIndex = 2,
-	}, frame)
-
-	make("TextLabel", {
-		Name = "MenuLabel",
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 68, 0, 0),
-		Size = UDim2.new(1, -76, 1, 0),
-		Text = text,
-		TextColor3 = Color3.fromRGB(248, 240, 220),
-		TextScaled = false,
-		TextSize = 17,
-		Font = Enum.Font.GothamBold,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 3,
-	}, frame)
 
 	local button = make("TextButton", {
 		Size = UDim2.fromScale(1, 1),
@@ -605,7 +570,7 @@ local function createMenuButton(order, text, iconKind, accentColor, bgAssetId)
 	addCorner(button, 14)
 
 	button.MouseEnter:Connect(function()
-		TweenService:Create(bgImage, TweenInfo.new(0.12), { ImageTransparency = 0.15 }):Play()
+		TweenService:Create(bgImage, TweenInfo.new(0.12), { ImageTransparency = 0.18 }):Play()
 	end)
 	button.MouseLeave:Connect(function()
 		TweenService:Create(bgImage, TweenInfo.new(0.12), { ImageTransparency = 0 }):Play()
