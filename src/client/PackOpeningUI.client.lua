@@ -543,7 +543,7 @@ local function drawMenuIcon(parent, iconKind, accentColor)
 	end
 end
 
-local function createMenuButton(order, text, iconKind, accentColor, bgAssetId)
+local function createMenuButton(order, text, bgAssetId)
 	local frame = make("Frame", {
 		LayoutOrder = order,
 		Size = UDim2.new(1, 0, 0, 58),
@@ -558,7 +558,21 @@ local function createMenuButton(order, text, iconKind, accentColor, bgAssetId)
 		ImageTransparency = 0,
 		ZIndex = 1,
 	}, frame)
-	addCorner(bgImage, 14)
+
+	-- Text sits in the right section (after the divider at ~38% from left)
+	make("TextLabel", {
+		Name = "MenuLabel",
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0.40, 0, 0, 0),
+		Size = UDim2.new(0.58, 0, 1, 0),
+		Text = text,
+		TextColor3 = Color3.fromRGB(248, 240, 220),
+		TextScaled = false,
+		TextSize = 17,
+		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 3,
+	}, frame)
 
 	local button = make("TextButton", {
 		Size = UDim2.fromScale(1, 1),
@@ -567,7 +581,6 @@ local function createMenuButton(order, text, iconKind, accentColor, bgAssetId)
 		ZIndex = 5,
 		AutoButtonColor = false,
 	}, frame)
-	addCorner(button, 14)
 
 	button.MouseEnter:Connect(function()
 		TweenService:Create(bgImage, TweenInfo.new(0.12), { ImageTransparency = 0.18 }):Play()
@@ -579,11 +592,11 @@ local function createMenuButton(order, text, iconKind, accentColor, bgAssetId)
 	return button
 end
 
-local inventoryButton  = createMenuButton(1, "Inventory",  "inventory",  Color3.fromRGB(78, 170, 255),  "rbxassetid://103299578834054")
-local collectionButton = createMenuButton(2, "Collection", "collection", Color3.fromRGB(255, 210, 68),  "rbxassetid://99943321933261")
-local upgradesButton   = createMenuButton(3, "Upgrades",   "upgrades",   UI.Gold,                       "rbxassetid://104056292397518")
-local questsButton     = createMenuButton(4, "Quests",     "quests",     Color3.fromRGB(205, 88, 255),  "rbxassetid://130385958952910")
-local shopButton       = createMenuButton(5, "Shop",       "shop",       Color3.fromRGB(85, 226, 112),  "rbxassetid://94757560104859")
+local inventoryButton  = createMenuButton(1, "Inventory",  "rbxassetid://115519972721266")
+local collectionButton = createMenuButton(2, "Collection", "rbxassetid://103316295988899")
+local upgradesButton   = createMenuButton(3, "Upgrades",   "rbxassetid://115175534973912")
+local questsButton     = createMenuButton(4, "Quests",     "rbxassetid://99254098577952")
+local shopButton       = createMenuButton(5, "Shop",       "rbxassetid://86603297534624")
 
 local questBadge = make("Frame", {
 	AnchorPoint = Vector2.new(1, 0),
