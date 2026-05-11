@@ -2133,24 +2133,6 @@ local function createFanZone(mapWidth, mapLength)
 				1.05
 			)
 		end
-		createFloorLabel(
-			plaza,
-			"WestSeatsFloorLabel" .. laneIndex,
-			Vector3.new(-73, 0.49, laneZ),
-			Vector3.new(9, 0, 3.2),
-			-math.pi / 2,
-			"SEATS",
-			Color3.fromRGB(255, 221, 78)
-		)
-		createFloorLabel(
-			plaza,
-			"EastSeatsFloorLabel" .. laneIndex,
-			Vector3.new(73, 0.49, laneZ),
-			Vector3.new(9, 0, 3.2),
-			math.pi / 2,
-			"SEATS",
-			Color3.fromRGB(255, 221, 78)
-		)
 	end
 
 	-- ── Pathway lighting ─────────────────────────────────────────────────────
