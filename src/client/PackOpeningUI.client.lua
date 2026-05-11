@@ -207,8 +207,8 @@ make("UIGradient", {
 local sidebarPadding = make("UIPadding", {
 	PaddingTop = UDim.new(0, 12),
 	PaddingBottom = UDim.new(0, 12),
-	PaddingLeft = UDim.new(0, 10),
-	PaddingRight = UDim.new(0, 10),
+	PaddingLeft = UDim.new(0, 0),
+	PaddingRight = UDim.new(0, 0),
 }, sidebar)
 _ = sidebarPadding
 
@@ -555,7 +555,7 @@ local function createMenuButton(order, text, iconKind, accentColor, bgAssetId)
 		BackgroundTransparency = bgAssetId and 1 or 0.02,
 	}, sidebar)
 	addCorner(frame, 12)
-	local frameStroke = addStroke(frame, accentColor, 1.5, bgAssetId and 0 or 0.38)
+	local frameStroke = addStroke(frame, accentColor, 1.5, bgAssetId and 1 or 0.38)
 
 	if bgAssetId then
 		make("ImageLabel", {
