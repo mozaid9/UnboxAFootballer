@@ -3345,19 +3345,29 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 			make("UITextSizeConstraint", { MinTextSize = isPOTY and 5 or 6, MaxTextSize = isPOTY and 12 or 15 }, rarityText)
 			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.4, Transparency = 0.18 }, rarityText)
 
+			-- FIFA-style left column for asset branch
+			local assetLeftCol = make("Frame", {
+				BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+				BackgroundTransparency = 0.42,
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.05, 0.06),
+				Size = UDim2.fromScale(0.27, 0.22),
+				ZIndex = 3,
+			}, frame)
+			make("UICorner", { CornerRadius = UDim.new(0.12, 0) }, assetLeftCol)
+
 			if card.rating then
-				local ratingLabel = createSignLabel(tostring(card.rating), UDim2.fromScale(0.40, 0.075), UDim2.fromScale(0.07, 0.065), assetTextColor, frame)
-				ratingLabel.ZIndex = 4
-				ratingLabel.TextXAlignment = Enum.TextXAlignment.Center
-				make("UITextSizeConstraint", { MinTextSize = 10, MaxTextSize = 26 }, ratingLabel)
-				make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.8, Transparency = 0.12 }, ratingLabel)
+				local ratingNum = createSignLabel(tostring(card.rating), UDim2.fromScale(0.90, 0.58), UDim2.fromScale(0.05, 0.06), assetTextColor, assetLeftCol)
+				ratingNum.TextXAlignment = Enum.TextXAlignment.Center
+				ratingNum.ZIndex = 5
+				make("UITextSizeConstraint", { MinTextSize = 16, MaxTextSize = 50 }, ratingNum)
+				make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 2.2, Transparency = 0.08 }, ratingNum)
 			end
 
-			local positionLabel = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.40, 0.06), UDim2.fromScale(0.07, 0.155), assetTextColor, frame)
-			positionLabel.ZIndex = 4
-			positionLabel.TextXAlignment = Enum.TextXAlignment.Center
-			make("UITextSizeConstraint", { MinTextSize = 6, MaxTextSize = 14 }, positionLabel)
-			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.1, Transparency = 0.22 }, positionLabel)
+			local assetPosText = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.88, 0.36), UDim2.fromScale(0.06, 0.64), assetTextColor, assetLeftCol)
+			assetPosText.TextXAlignment = Enum.TextXAlignment.Center
+			assetPosText.ZIndex = 5
+			make("UITextSizeConstraint", { MinTextSize = 8, MaxTextSize = 18 }, assetPosText)
 
 			local nationLabel = createSignLabel(card.nation or "Unknown", UDim2.fromScale(0.40, 0.06), UDim2.fromScale(0.53, 0.126), assetTextColor, frame)
 			nationLabel.ZIndex = 4
@@ -3472,26 +3482,31 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 		local rarityText = createSignLabel(displayRarityLabel, UDim2.fromScale(0.92, 0.80), UDim2.fromScale(0.04, 0.10), textColor, rarityBand)
 		make("UITextSizeConstraint", { MinTextSize = isPOTY and 5 or 6, MaxTextSize = isPOTY and 12 or 16 }, rarityText)
 
-		-- Rating number (FIFA-style, top-left above position badge)
+		-- FIFA-style left column: big rating number + position stacked
+		local leftCol = make("Frame", {
+			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+			BackgroundTransparency = 0.42,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.05, 0.13),
+			Size = UDim2.fromScale(0.27, 0.24),
+			ZIndex = 3,
+		}, frame)
+		make("UICorner", { CornerRadius = UDim.new(0.12, 0) }, leftCol)
+		make("UIStroke", { Color = trimColor, Thickness = 1.4, Transparency = 0.28 }, leftCol)
+
 		if card.rating then
-			local ratingLabel = createSignLabel(tostring(card.rating), UDim2.fromScale(0.22, 0.095), UDim2.fromScale(0.07, 0.14), textColor, frame)
-			ratingLabel.TextXAlignment = Enum.TextXAlignment.Center
-			ratingLabel.ZIndex = 4
-			make("UITextSizeConstraint", { MinTextSize = 12, MaxTextSize = 28 }, ratingLabel)
-			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.8, Transparency = 0.12 }, ratingLabel)
+			local ratingNum = createSignLabel(tostring(card.rating), UDim2.fromScale(0.90, 0.58), UDim2.fromScale(0.05, 0.06), textColor, leftCol)
+			ratingNum.TextXAlignment = Enum.TextXAlignment.Center
+			ratingNum.ZIndex = 5
+			make("UITextSizeConstraint", { MinTextSize = 16, MaxTextSize = 50 }, ratingNum)
+			make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 2.2, Transparency = 0.08 }, ratingNum)
 		end
 
-		-- Position badge (top-left)
-		local posBadge = make("Frame", {
-			BackgroundColor3 = Color3.fromRGB(8, 10, 16),
-			BackgroundTransparency = 0.05,
-			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.07, 0.245),
-			Size = UDim2.fromScale(0.22, 0.08),
-		}, frame)
-		make("UICorner", { CornerRadius = UDim.new(0.3, 0) }, posBadge)
-		make("UIStroke", { Color = positionAccent, Thickness = 1.2, Transparency = 0.25 }, posBadge)
-		createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.90, 0.82), UDim2.fromScale(0.05, 0.09), positionAccent, posBadge)
+		local posText = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.88, 0.36), UDim2.fromScale(0.06, 0.64), positionAccent, leftCol)
+		posText.TextXAlignment = Enum.TextXAlignment.Center
+		posText.ZIndex = 5
+		make("UITextSizeConstraint", { MinTextSize = 8, MaxTextSize = 18 }, posText)
+		make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.4, Transparency = 0.18 }, posText)
 
 		-- Nation label (top-right, right-aligned)
 		local nationLabel = createSignLabel(card.nation or "Unknown", UDim2.new(0.46, 0, 0.09, 0), UDim2.new(0.46, 0, 0.17, 0), textColor, frame)
@@ -3508,8 +3523,8 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 			BackgroundColor3 = isPOTY and Color3.fromRGB(6, 4, 0) or Color3.fromRGB(4, 6, 12),
 			BackgroundTransparency = isPOTY and 0.08 or (tier == 5 and 0.52 or (tier >= 3 and 0.22 or 0.38)),
 			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.5, 0.345),
-			Size = UDim2.fromScale(0.80, 0.28),
+			Position = UDim2.fromScale(0.5, 0.385),
+			Size = UDim2.fromScale(0.80, 0.25),
 			ZIndex = 3,
 		}, frame)
 		make("UICorner", { CornerRadius = UDim.new(0.12, 0) }, identityPanel)
@@ -3543,11 +3558,11 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 			BackgroundTransparency = 0.12,
 			BorderSizePixel = 0,
 			Size = UDim2.new(0.76, 0, 0, 2),
-			Position = UDim2.new(0.12, 0, 0.675, 0),
+			Position = UDim2.new(0.12, 0, 0.685, 0),
 		}, frame)
 
 		-- Full name beneath panel
-		local nameLabel = createSignLabel(string.upper(card.name or "Player"), UDim2.new(0.86, 0, 0.10, 0), UDim2.new(0.07, 0, 0.695, 0), textColor, frame)
+		local nameLabel = createSignLabel(string.upper(card.name or "Player"), UDim2.new(0.86, 0, 0.10, 0), UDim2.new(0.07, 0, 0.705, 0), textColor, frame)
 		make("UITextSizeConstraint", { MinTextSize = 7, MaxTextSize = 22 }, nameLabel)
 		make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.2, Transparency = 0.30 }, nameLabel)
 
@@ -3556,7 +3571,7 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 			BackgroundColor3 = Color3.fromRGB(22, 52, 28),
 			BackgroundTransparency = 0.06,
 			BorderSizePixel = 0,
-			Position = UDim2.new(0.14, 0, 0.855, 0),
+			Position = UDim2.new(0.14, 0, 0.865, 0),
 			Size = UDim2.new(0.72, 0, 0.10, 0),
 		}, frame)
 		make("UICorner", { CornerRadius = UDim.new(1, 0) }, incomePill)
@@ -3687,30 +3702,30 @@ local function createDisplayCardFace(face, card, incomePerSecond, parent)
 	local rarityText = createSignLabel(displayRarityLabel, UDim2.fromScale(0.92, 0.82), UDim2.fromScale(0.04, 0.09), textColor, rarityBand)
 	make("UITextSizeConstraint", { MinTextSize = isTrophyCard and 6 or 7, MaxTextSize = isTrophyCard and 15 or 18 }, rarityText)
 
+	-- FIFA-style left column: big rating + position
+	local legacyLeftCol = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+		BackgroundTransparency = 0.42,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0.06, 0, 0.195, 0),
+		Size = UDim2.new(0.27, 0, 0.24, 0),
+		ZIndex = 3,
+	}, frame)
+	make("UICorner", { CornerRadius = UDim.new(0.12, 0) }, legacyLeftCol)
+	make("UIStroke", { Color = trimColor, Thickness = 1.4, Transparency = 0.28 }, legacyLeftCol)
+
 	if card.rating then
-		local ratingLabel = createSignLabel(tostring(card.rating), UDim2.new(0.24, 0, 0.095, 0), UDim2.new(0.1, 0, 0.195, 0), textColor, frame)
-		ratingLabel.TextXAlignment = Enum.TextXAlignment.Center
-		ratingLabel.ZIndex = 4
-		make("UITextSizeConstraint", { MinTextSize = 12, MaxTextSize = 28 }, ratingLabel)
-		make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 1.8, Transparency = 0.12 }, ratingLabel)
+		local ratingNum = createSignLabel(tostring(card.rating), UDim2.fromScale(0.90, 0.58), UDim2.fromScale(0.05, 0.06), textColor, legacyLeftCol)
+		ratingNum.TextXAlignment = Enum.TextXAlignment.Center
+		ratingNum.ZIndex = 5
+		make("UITextSizeConstraint", { MinTextSize = 16, MaxTextSize = 50 }, ratingNum)
+		make("UIStroke", { Color = Color3.fromRGB(0, 0, 0), Thickness = 2.2, Transparency = 0.08 }, ratingNum)
 	end
 
-	local positionBadge = make("Frame", {
-		BackgroundColor3 = Color3.fromRGB(9, 11, 17),
-		BackgroundTransparency = 0.06,
-		BorderSizePixel = 0,
-		Size = UDim2.new(0.24, 0, 0.1, 0),
-		Position = UDim2.new(0.1, 0, 0.295, 0),
-	}, frame)
-	local positionCorner = Instance.new("UICorner")
-	positionCorner.CornerRadius = UDim.new(0.25, 0)
-	positionCorner.Parent = positionBadge
-	make("UIStroke", {
-		Color = trimColor,
-		Thickness = 1.2,
-		Transparency = 0.25,
-	}, positionBadge)
-	createSignLabel(card.position or "--", UDim2.fromScale(0.9, 0.82), UDim2.fromScale(0.05, 0.09), textColor, positionBadge)
+	local legacyPosText = createSignLabel(string.upper(card.position or "--"), UDim2.fromScale(0.88, 0.36), UDim2.fromScale(0.06, 0.64), textColor, legacyLeftCol)
+	legacyPosText.TextXAlignment = Enum.TextXAlignment.Center
+	legacyPosText.ZIndex = 5
+	make("UITextSizeConstraint", { MinTextSize = 8, MaxTextSize = 18 }, legacyPosText)
 
 	local nationLabel = createSignLabel(card.nation or "Unknown", UDim2.new(0.48, 0, 0.08, 0), UDim2.new(0.41, 0, 0.295, 0), textColor, frame)
 	nationLabel.TextXAlignment = Enum.TextXAlignment.Right
