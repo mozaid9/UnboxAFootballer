@@ -188,7 +188,7 @@ end)
 local sidebar = make("Frame", {
 	Name = "Sidebar",
 	AnchorPoint = Vector2.new(0, 1),
-	Size = UDim2.fromOffset(190, 338),
+	Size = UDim2.fromOffset(290, 460),
 	Position = UDim2.new(0, 20, 1, -20),
 	BackgroundColor3 = Color3.fromRGB(5, 8, 15),
 	BackgroundTransparency = 0.18,
@@ -546,7 +546,7 @@ end
 local function createMenuButton(order, text, bgAssetId)
 	local frame = make("Frame", {
 		LayoutOrder = order,
-		Size = UDim2.new(1, 0, 0, 58),
+		Size = UDim2.new(1, 0, 0, 76),
 		BackgroundTransparency = 1,
 	}, sidebar)
 
