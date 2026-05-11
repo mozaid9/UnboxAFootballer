@@ -592,11 +592,11 @@ local function createMenuButton(order, text, bgAssetId)
 	return button
 end
 
-local inventoryButton  = createMenuButton(1, "Inventory",  "rbxassetid://115519972721266")
-local collectionButton = createMenuButton(2, "Collection", "rbxassetid://103316295988899")
-local upgradesButton   = createMenuButton(3, "Upgrades",   "rbxassetid://115175534973912")
-local questsButton     = createMenuButton(4, "Quests",     "rbxassetid://99254098577952")
-local shopButton       = createMenuButton(5, "Shop",       "rbxassetid://86603297534624")
+local inventoryButton  = createMenuButton(1, "Inventory",  "rbxassetid://129627317001227")
+local collectionButton = createMenuButton(2, "Collection", "rbxassetid://75950980784006")
+local upgradesButton   = createMenuButton(3, "Upgrades",   "rbxassetid://112403978865369")
+local questsButton     = createMenuButton(4, "Quests",     "rbxassetid://115396148687511")
+local shopButton       = createMenuButton(5, "Shop",       "rbxassetid://112005185691769")
 
 local questBadge = make("Frame", {
 	AnchorPoint = Vector2.new(1, 0),
