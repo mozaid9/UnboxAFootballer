@@ -7156,14 +7156,14 @@ local function createFanPark(parent, centerZ)
 	return park
 end
 
--- ── Jam Park ─────────────────────────────────────────────────
-local function createJamPark(parent, centerZ)
-	local park = make("Model", { Name = "JamPark" }, parent)
+-- ── Hype Park ────────────────────────────────────────────────
+local function createHypePark(parent, centerZ)
+	local park = make("Model", { Name = "HypePark" }, parent)
 	local stageZ = centerZ + 12
 
 	-- Crowd floor
 	make("Part", {
-		Name = "JamParkFloor",
+		Name = "HypeParkFloor",
 		Anchored = true, CanCollide = true,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(20, 14, 34),
@@ -7177,7 +7177,7 @@ local function createJamPark(parent, centerZ)
 		for xi = 0, 2 do
 			ti += 1
 			make("Part", {
-				Name = "JamParkTile",
+				Name = "HypeParkTile",
 				Anchored = true, CanCollide = false,
 				Material = Enum.Material.Neon,
 				Color = jamTileColors[(ti % 2) + 1],
@@ -7190,7 +7190,7 @@ local function createJamPark(parent, centerZ)
 
 	-- Stage platform
 	make("Part", {
-		Name = "JamParkStage",
+		Name = "HypeParkStage",
 		Anchored = true, CanCollide = true,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(28, 22, 42),
@@ -7199,7 +7199,7 @@ local function createJamPark(parent, centerZ)
 	}, park)
 	-- Stage front neon lip
 	local stageLip = make("Part", {
-		Name = "JamParkStageLip",
+		Name = "HypeParkStageLip",
 		Anchored = true, CanCollide = false,
 		Material = Enum.Material.Neon,
 		Color = Color3.fromRGB(220, 50, 255),
@@ -7216,7 +7216,7 @@ local function createJamPark(parent, centerZ)
 
 	-- Stage backdrop
 	local jamBackdrop = make("Part", {
-		Name = "JamParkBackdrop",
+		Name = "HypeParkBackdrop",
 		Anchored = true, CanCollide = false,
 		Material = Enum.Material.SmoothPlastic,
 		Color = Color3.fromRGB(12, 8, 22),
@@ -7226,7 +7226,7 @@ local function createJamPark(parent, centerZ)
 	-- 3 horizontal neon strips across backdrop
 	for i, sc in ipairs({ Color3.fromRGB(220, 50, 255), Color3.fromRGB(50, 200, 255), Color3.fromRGB(255, 80, 130) }) do
 		local stripPart = make("Part", {
-			Name = "JamParkStrip" .. i,
+			Name = "HypeParkStrip" .. i,
 			Anchored = true, CanCollide = false,
 			Material = Enum.Material.Neon,
 			Color = sc,
@@ -7242,7 +7242,7 @@ local function createJamPark(parent, centerZ)
 		}, stripPart)
 	end
 
-	-- "JAM PARK" sign on backdrop
+	-- "HYPE PARK" sign on backdrop
 	local jamGui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
 		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
@@ -7253,7 +7253,7 @@ local function createJamPark(parent, centerZ)
 	make("TextLabel", {
 		Size = UDim2.fromScale(1, 0.28),
 		BackgroundTransparency = 1,
-		Text = "JAM PARK",
+		Text = "HYPE PARK",
 		Font = Enum.Font.GothamBold,
 		TextColor3 = Color3.fromRGB(220, 80, 255),
 		TextScaled = true,
@@ -7264,7 +7264,7 @@ local function createJamPark(parent, centerZ)
 		Size = UDim2.fromScale(1, 0.16),
 		Position = UDim2.fromScale(0, 0.3),
 		BackgroundTransparency = 1,
-		Text = "LIVE  •  MUSIC  •  VIBES",
+		Text = "HYPE  •  MUSIC  •  ENERGY",
 		Font = Enum.Font.GothamMedium,
 		TextColor3 = Color3.fromRGB(200, 200, 200),
 		TextScaled = true,
@@ -7273,7 +7273,7 @@ local function createJamPark(parent, centerZ)
 	-- 2 speaker towers (stage left and right)
 	for _, sx in ipairs({ -19, 19 }) do
 		local tower = make("Part", {
-			Name = "JamParkSpeakerTower",
+			Name = "HypeParkSpeakerTower",
 			Anchored = true, CanCollide = false,
 			Material = Enum.Material.Metal,
 			Color = Color3.fromRGB(20, 20, 30),
@@ -7289,7 +7289,7 @@ local function createJamPark(parent, centerZ)
 		-- Speaker rings (neon)
 		for ri, rc in ipairs({ Color3.fromRGB(220, 50, 255), Color3.fromRGB(50, 200, 255) }) do
 			make("Part", {
-				Name = "JamParkSpeakerRing",
+				Name = "HypeParkSpeakerRing",
 				Anchored = true, CanCollide = false,
 				Material = Enum.Material.Neon,
 				Color = rc,
@@ -7300,7 +7300,7 @@ local function createJamPark(parent, centerZ)
 		end
 		-- Top spotlight pointing at stage
 		local spotAnchor = make("Part", {
-			Name = "JamParkSpotAnchor",
+			Name = "HypeParkSpotAnchor",
 			Anchored = true, CanCollide = false,
 			Transparency = 1,
 			Size = Vector3.new(1, 1, 1),
@@ -7367,9 +7367,9 @@ function BaseService.BuildBaseMap()
 
 	createFanZone(mapWidth, mapLength)
 
-	-- Fan Park at south end, Jam Park at north end of the central walkway
+	-- Fan Park at south end, Hype Park at north end of the central walkway
 	createFanPark(basesFolder, -280)
-	createJamPark(basesFolder, 280)
+	createHypePark(basesFolder, 280)
 
 	-- ── Side corridor strips (fill dead zone between walkway and stadiums) ─────
 	-- Walkway ends at X=±27, stadiums begin at X=±115.  We add two lit paths
