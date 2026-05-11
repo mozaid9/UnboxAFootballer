@@ -544,47 +544,47 @@ local function drawMenuIcon(parent, iconKind, accentColor)
 end
 
 local function createMenuButton(order, text, iconKind, accentColor)
-	local baseColor = accentColor:Lerp(Color3.fromRGB(5, 8, 16), 0.82)
-	local hoverColor = accentColor:Lerp(Color3.fromRGB(8, 12, 22), 0.68)
-	local labelColor = text == "Inventory" and UI.Text or accentColor
+	local GOLD      = Color3.fromRGB(218, 168, 40)
+	local bgNormal  = Color3.fromRGB(9, 8, 7)
+	local bgHover   = Color3.fromRGB(20, 17, 10)
 
 	local frame = make("Frame", {
 		LayoutOrder = order,
 		Size = UDim2.new(1, 0, 0, 54),
-		BackgroundColor3 = baseColor,
-		BackgroundTransparency = 0.02,
+		BackgroundColor3 = bgNormal,
+		BackgroundTransparency = 0,
 	}, sidebar)
-	addCorner(frame, 12)
-	local frameStroke = addStroke(frame, accentColor, 1.5, 0.38)
+	addCorner(frame, 14)
+	local frameStroke = addStroke(frame, GOLD, 2, 0.12)
 
-	make("UIGradient", {
-		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 24, 42)),
-			ColorSequenceKeypoint.new(1, baseColor),
-		}),
-		Rotation = 0,
-	}, frame)
-
-	local iconBg = make("Frame", {
-		Size = UDim2.fromOffset(42, 42),
-		Position = UDim2.new(0, 7, 0.5, -21),
-		BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0, 0, 0), 0.52),
+	-- Icon container (left zone, no background)
+	local iconContainer = make("Frame", {
+		Size = UDim2.fromOffset(36, 36),
+		Position = UDim2.new(0, 8, 0.5, -18),
+		BackgroundTransparency = 1,
 		ClipsDescendants = false,
 	}, frame)
-	addCorner(iconBg, 11)
-	addStroke(iconBg, accentColor, 1, 0.72)
-	drawMenuIcon(iconBg, iconKind, accentColor)
+	drawMenuIcon(iconContainer, iconKind, accentColor)
 
-	local label = make("TextLabel", {
+	-- Gold vertical divider
+	make("Frame", {
+		Position = UDim2.new(0, 54, 0, 9),
+		Size = UDim2.new(0, 1, 0, 36),
+		BackgroundColor3 = GOLD,
+		BackgroundTransparency = 0.35,
+		BorderSizePixel = 0,
+	}, frame)
+
+	make("TextLabel", {
 		Name = "MenuLabel",
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 62, 0, 0),
-		Size = UDim2.new(1, -70, 1, 0),
-		Text = string.upper(text),
-		TextColor3 = labelColor,
+		Position = UDim2.new(0, 64, 0, 0),
+		Size = UDim2.new(1, -72, 1, 0),
+		Text = text,
+		TextColor3 = Color3.fromRGB(245, 238, 218),
 		TextScaled = false,
-		TextSize = 14,
-		Font = Enum.Font.GothamBlack,
+		TextSize = 16,
+		Font = Enum.Font.GothamBold,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	}, frame)
 
@@ -595,23 +595,15 @@ local function createMenuButton(order, text, iconKind, accentColor)
 		ZIndex = 5,
 		AutoButtonColor = false,
 	}, frame)
-	addCorner(button, 12)
+	addCorner(button, 14)
 
 	button.MouseEnter:Connect(function()
-		TweenService:Create(frame, TweenInfo.new(0.1), {
-			BackgroundColor3 = hoverColor,
-		}):Play()
-		TweenService:Create(frameStroke, TweenInfo.new(0.1), {
-			Transparency = 0.16,
-		}):Play()
+		TweenService:Create(frame, TweenInfo.new(0.1), { BackgroundColor3 = bgHover }):Play()
+		TweenService:Create(frameStroke, TweenInfo.new(0.1), { Transparency = 0 }):Play()
 	end)
 	button.MouseLeave:Connect(function()
-		TweenService:Create(frame, TweenInfo.new(0.1), {
-			BackgroundColor3 = baseColor,
-		}):Play()
-		TweenService:Create(frameStroke, TweenInfo.new(0.1), {
-			Transparency = 0.38,
-		}):Play()
+		TweenService:Create(frame, TweenInfo.new(0.1), { BackgroundColor3 = bgNormal }):Play()
+		TweenService:Create(frameStroke, TweenInfo.new(0.1), { Transparency = 0.12 }):Play()
 	end)
 
 	return button
